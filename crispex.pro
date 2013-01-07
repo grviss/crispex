@@ -4648,7 +4648,7 @@ END
 ;================================================================================= READ HEADER PROCEDURE
 PRO CRISPEX_READ_FITSHEADER, filename, datatype=datatype, nx=nx, ny=ny, nlp=nlp, nt=nt, ns=ns, $
                              imnt=imnt, spnt=spnt, lps=lps, offset=offset, xtitle=xtitle, $
-                             ytitle=ytitle, exten_no=exten_no
+                             ytitle=ytitle, ttitle=ttitle, dt=dt, exten_no=exten_no
 ; Handles read in of the header of the fits input file
 		offset = fitspointer(filename,exten_no=KEYWORD_SET(exten_no),hdr)
 		parseheader,hdr,key
@@ -4657,12 +4657,14 @@ PRO CRISPEX_READ_FITSHEADER, filename, datatype=datatype, nx=nx, ny=ny, nlp=nlp,
     ny = key.ny
 		nlp = key.nlp
 		nt = key.nt
+    dt = key.dt
     ns = key.ns
     imnt = key.nlp * key.nt
 		spnt = key.nx*key.ny
     lps = key.lam
     xtitle=key.lplab+' ['+key.lpunit+']'
     ytitle=key.btype+' ['+key.bunit+']'
+    ttitle = key.tlab+' ['+key.tunit+']'
 END
 
 PRO CRISPEX_READ_HEADER, filename, header=header, datatype=datatype, dims=dims, nx=nx, ny=ny, $
@@ -8177,9 +8179,9 @@ PRO CRISPEX_ZOOM_LOOP, event
 	ENDELSE
 END
 
-;==================================================================================================================================================================================================
-;================================================================================= MAIN PROGRAM CODE ==============================================================================================
-;==================================================================================================================================================================================================
+;===================================================================================================
+;================================== MAIN PROGRAM CODE ==============================================
+;===================================================================================================
 PRO CRISPEX, imcube,$										; call program / filename of image cube
 	spcube, REFCUBE=refcube, SPECTFILE=spectfile, LINE_CENTER=line_center, $		; spectral & reference cube filename, spectral save file, line centre and/or wavelength information
 	DT=dt, EXTS=exts, MNSPEC=mnspec, SINGLE_CUBE=single_cube, $				; time step in seconds, exact timeslices keyword, mean spectrum over selected scans, single full cube call
@@ -8198,7 +8200,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 
 ;================================================================================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '573'
+	revision_number = '574'
 
 ;================================================================================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -8280,7 +8282,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		spext = STRMID(spcube,STRPOS(spcube,'.',/REVERSE_SEARCH)+1,STRLEN(spcube))
 		IF STRMATCH(spext,'fits',/FOLD_CASE) THEN BEGIN   ; Check whether dealing with fits cube
       CRISPEX_READ_FITSHEADER, spcube, datatype=sptype, nlp=nlp, nt=nt, spnt=spnt, lps=lps, $
-                               offset=spoffset, xtitle=xtitle, exten_no=0
+                               offset=spoffset, xtitle=xtitle, ttitle=spytitle, dt=dt, exten_no=0
       ms = 1.0
 			swapvalue = 1
     ENDIF ELSE BEGIN
@@ -8290,14 +8292,14 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
       spoffset = 512
   		swapvalue = ((sptype GT 1) AND (endian NE endian_file))
     ; Actual read-in of the spectral cube
-  ENDELSE
-  OPENR, lur, spcube, /get_lun, SWAP_ENDIAN = swapvalue
-  ; Read data from associated file, skip first 512 (header)bytes
-  IF (sptype EQ 1) THEN spectra = ASSOC(lur,BYTARR(nlp,nt),spoffset) $
-    ELSE IF (sptype EQ 2) THEN spectra = ASSOC(lur,INTARR(nlp,nt),spoffset) $
-    ELSE IF (sptype EQ 4) THEN spectra = ASSOC(lur,FLTARR(nlp,nt),spoffset)
-  spfile = 1	
-  IF (TOTAL(verbosity[0:1]) GE 1) THEN PRINT,'CRISPEX SETUP: Read main spectral cube: '+spcube+'. Dimensions: (nlp,nt,nx*ny*ns) = ('+STRTRIM(nlp,2)+','+STRTRIM(nt,2)+','+STRTRIM(spnt,2)+').'
+    ENDELSE
+    OPENR, lur, spcube, /get_lun, SWAP_ENDIAN = swapvalue
+    ; Read data from associated file, skip first 512 (header)bytes
+    IF (sptype EQ 1) THEN spectra = ASSOC(lur,BYTARR(nlp,nt),spoffset) $
+      ELSE IF (sptype EQ 2) THEN spectra = ASSOC(lur,INTARR(nlp,nt),spoffset) $
+      ELSE IF (sptype EQ 4) THEN spectra = ASSOC(lur,FLTARR(nlp,nt),spoffset)
+    spfile = 1	
+    IF (TOTAL(verbosity[0:1]) GE 1) THEN PRINT,'CRISPEX SETUP: Read main spectral cube: '+spcube+'. Dimensions: (nlp,nt,nx*ny*ns) = ('+STRTRIM(nlp,2)+','+STRTRIM(nt,2)+','+STRTRIM(spnt,2)+').'
 	ENDIF ELSE BEGIN
 		spfile = 0
 		nt = 1
@@ -8315,6 +8317,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
     CRISPEX_READ_HEADER, imcube, datatype=imtype, dims=imdims, nx=nx, ny=ny, nt=imnt, $
                          endian=endian_file, stokes=imstokes, ns=imns, diagnostics=imdiagnostics
 		imoffset = 512
+    ns = imns
 		swapvalue = ((imtype GT 1) AND (endian NE endian_file))									
   ENDELSE
 	onecube = 0
@@ -8450,14 +8453,23 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Stokes parameters: '+STRJOIN(stokes_labels,' ')
 
 	IF (N_ELEMENTS(REFCUBE) EQ 1) THEN BEGIN										; Assuming a single reference cube
-		CRISPEX_READ_HEADER, refcube, datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt, endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
+  	refimext = STRMID(refcube,STRPOS(refcube,'.',/REVERSE_SEARCH)+1,STRLEN(refcube))
+  	IF STRMATCH(refimext,'fits',/FOLD_CASE) THEN BEGIN
+      CRISPEX_READ_FITSHEADER, refcube, datatype=refimtype, nx=refnx, ny=refny, imnt=refnt, $
+                             offset=refimoffset, exten_no=0
+  		swapvalue = 1
+  	ENDIF ELSE BEGIN
+  		CRISPEX_READ_HEADER, refcube, datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt,$
+                           endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
+  		refimoffset = 512
+  		swapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
+    ENDELSE
 		IF (refnx EQ nx) AND (refny EQ ny) AND (refnt EQ nt) OR (refnt EQ 1) OR (refnt EQ imnt) OR (refnt EQ nlp) OR (nt EQ 1) THEN BEGIN
-			IF ((BYTE(1L,0,1))[0] EQ 1) THEN endian = 'l' ELSE endian = 'b' 					; Check whether machine is big or little endian
-			swapvalue = ((refimtype GT 1) AND (endian NE endian_file))						; and determine whether correction is needed
+;			swapvalue = ((refimtype GT 1) AND (endian NE endian_file))						; and determine whether correction is needed
 			OPENR, luf, refcube, /get_lun, SWAP_ENDIAN = swapvalue							; Actual read-in of the reference cube
-			IF (refimtype EQ 1) THEN referencefile = ASSOC(luf,BYTARR(nx,ny),hoffset) $				; Read data from associated file, skip first 512 (header)bytes
-			ELSE IF (refimtype EQ 2) THEN referencefile = ASSOC(luf,INTARR(nx,ny),hoffset) $
-			ELSE IF (refimtype EQ 4) THEN referencefile = ASSOC(luf,FLTARR(nx,ny),hoffset)
+			IF (refimtype EQ 1) THEN referencefile = ASSOC(luf,BYTARR(nx,ny),refimoffset) $				; Read data from associated file, skip first 512 (header)bytes
+			ELSE IF (refimtype EQ 2) THEN referencefile = ASSOC(luf,INTARR(nx,ny),refimoffset) $
+			ELSE IF (refimtype EQ 4) THEN referencefile = ASSOC(luf,FLTARR(nx,ny),refimoffset)
 			showref = 1
 			refspfile = 0
 			refspcube = ''
@@ -8468,9 +8480,9 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 			ENDELSE
 			IF (refnt EQ nlp) OR (nt EQ 1) THEN BEGIN
 				refnt = 1
-				IF (refimtype EQ 1) THEN refscanfile = ASSOC(luf,BYTARR(nx,ny,refnlp*refns),hoffset) $				; Read data from associated file, skip first 512 (header)bytes
-				ELSE IF (refimtype EQ 2) THEN refscanfile = ASSOC(luf,INTARR(nx,ny,refnlp*refns),hoffset) $
-				ELSE IF (refimtype EQ 4) THEN refscanfile = ASSOC(luf,FLTARR(nx,ny,refnlp*refns),hoffset)
+				IF (refimtype EQ 1) THEN refscanfile = ASSOC(luf,BYTARR(nx,ny,refnlp*refns),refimoffset) $				; Read data from associated file, skip first 512 (header)bytes
+				ELSE IF (refimtype EQ 2) THEN refscanfile = ASSOC(luf,INTARR(nx,ny,refnlp*refns),refimoffset) $
+				ELSE IF (refimtype EQ 4) THEN refscanfile = ASSOC(luf,FLTARR(nx,ny,refnlp*refns),refimoffset)
 			ENDIF
 		ENDIF ELSE BEGIN
 			IF (refnt NE nt) AND (refnt NE 1) THEN BEGIN
@@ -8486,8 +8498,31 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 			RETURN
 		ENDELSE
 	ENDIF ELSE IF ((N_ELEMENTS(REFCUBE) EQ 2) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN					; Assuming full dual cube mode
-		CRISPEX_READ_HEADER, refcube[1], datatype=refsptype, dims=refspdims, nx=refnlp, ny=refnt, nt=refspnt, endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
-		CRISPEX_READ_HEADER, refcube[0], datatype=refimtype, dims=refimdims, nx=refnx, ny=refny, nt=refimnt, endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
+  	refspext = STRMID(refcube[1],STRPOS(refcube[1],'.',/REVERSE_SEARCH)+1,STRLEN(refcube[1]))
+  	refimext = STRMID(refcube[0],STRPOS(refcube[0],'.',/REVERSE_SEARCH)+1,STRLEN(refcube[0]))
+  	IF STRMATCH(refspext,'fits',/FOLD_CASE) THEN BEGIN
+      CRISPEX_READ_FITSHEADER, refcube[1], datatype=refsptype, nlp=refnlp, nt=refnt, spnt=refspnt, $
+                             offset=refspoffset, xtitle=refxtitle, exten_no=0
+      refms = 1.0
+  		refspswapvalue = 1
+  	ENDIF ELSE BEGIN
+  		CRISPEX_READ_HEADER, refcube[1], datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt,$
+                           endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
+  		refspoffset = 512
+  		refspswapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
+    ENDELSE
+  	IF STRMATCH(refimext,'fits',/FOLD_CASE) THEN BEGIN
+      CRISPEX_READ_FITSHEADER, refcube[0], datatype=refimtype, nx=refnx, ny=refny, imnt=refimnt, $
+                             offset=refimoffset, ytitle=refytitle, exten_no=0
+  		refimswapvalue = 1
+  	ENDIF ELSE BEGIN
+  		CRISPEX_READ_HEADER, refcube[0], datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt,$
+                           endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
+  		refimoffset = 512
+  		refimswapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
+    ENDELSE
+;		CRISPEX_READ_HEADER, refcube[1], datatype=refsptype, dims=refspdims, nx=refnlp, ny=refnt, nt=refspnt, endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
+;		CRISPEX_READ_HEADER, refcube[0], datatype=refimtype, dims=refimdims, nx=refnx, ny=refny, nt=refimnt, endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
 		; First check whether reference cubes are compatible
 		IF ((refcube[1] EQ refcube[0]) OR (refnlp EQ refnx) AND (refnt EQ refny) AND (refspnt EQ refimnt)) THEN BEGIN
 			PRINT,'ERROR: The reference image and spectral cubes must be different. Please check input (you seem to have provided the same file twice).'
@@ -8503,17 +8538,17 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		ENDIF
 		; Then check whether reference cubes are compatible with main cubes
 		IF ((refnx EQ nx) AND (refny EQ ny) AND ((refnt EQ nt) OR (refnt EQ 1) OR (refnt EQ imnt) OR (refnt EQ nlp))) THEN BEGIN
-			swapvalue = ((refsptype GT 1) AND (endian NE endian_file))							; Determine whether correction for endian is needed
-			OPENR, lufs, refcube[1], /get_lun, SWAP_ENDIAN = swapvalue								; Actual read-in of the spectral cube
-			IF (refsptype EQ 1) THEN referencespectra = ASSOC(lufs,BYTARR(refnlp,refnt),hoffset) $						; Read data from associated file, skip first 512 (header)bytes
-			ELSE IF (refsptype EQ 2) THEN referencespectra = ASSOC(lufs,INTARR(refnlp,refnt),hoffset) $
-			ELSE IF (refsptype EQ 4) THEN referencespectra = ASSOC(lufs,FLTARR(refnlp,refnt),hoffset)
+;			swapvalue = ((refsptype GT 1) AND (endian NE endian_file))							; Determine whether correction for endian is needed
+			OPENR, lufs, refcube[1], /get_lun, SWAP_ENDIAN = refspswapvalue								; Actual read-in of the spectral cube
+			IF (refsptype EQ 1) THEN referencespectra = ASSOC(lufs,BYTARR(refnlp,refnt),refspoffset) $						; Read data from associated file, skip first 512 (header)bytes
+			ELSE IF (refsptype EQ 2) THEN referencespectra = ASSOC(lufs,INTARR(refnlp,refnt),refspoffset) $
+			ELSE IF (refsptype EQ 4) THEN referencespectra = ASSOC(lufs,FLTARR(refnlp,refnt),refspoffset)
 			refspfile = 1	
-			swapvalue = ((refimtype GT 1) AND (endian NE endian_file)) 						; and determine whether correction is needed
-			OPENR, luf, refcube[0], /get_lun, SWAP_ENDIAN = swapvalue							; Actual read-in of the reference cube
-			IF (refimtype EQ 1) THEN referencefile = ASSOC(luf,BYTARR(nx,ny),hoffset) $				; Read data from associated file, skip first 512 (header)bytes
-			ELSE IF (refimtype EQ 2) THEN referencefile = ASSOC(luf,INTARR(nx,ny),hoffset) $
-			ELSE IF (refimtype EQ 4) THEN referencefile = ASSOC(luf,FLTARR(nx,ny),hoffset)
+;			swapvalue = ((refimtype GT 1) AND (endian NE endian_file)) 						; and determine whether correction is needed
+			OPENR, luf, refcube[0], /get_lun, SWAP_ENDIAN = refimswapvalue							; Actual read-in of the reference cube
+			IF (refimtype EQ 1) THEN referencefile = ASSOC(luf,BYTARR(nx,ny),refimoffset) $				; Read data from associated file, skip first 512 (header)bytes
+			ELSE IF (refimtype EQ 2) THEN referencefile = ASSOC(luf,INTARR(nx,ny),refimoffset) $
+			ELSE IF (refimtype EQ 4) THEN referencefile = ASSOC(luf,FLTARR(nx,ny),refimoffset)
 			showref = 1
 			IF (TOTAL(verbosity[0:1]) GE 1) THEN PRINT,'CRISPEX SETUP: Read reference spectral cube: '+refcube[1]+$
 				'. Dimensions: (nlp,nt,nx*ny) = ('+STRTRIM(refnlp,2)+','+STRTRIM(refnt,2)+','+STRTRIM(refspnt,2)+').'
@@ -8689,8 +8724,28 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		scalestokes = 0
 	ENDELSE
 
-	IF (N_ELEMENTS(XTITLE) EQ 1) THEN xtitle = [xtitle[0],''] ELSE IF (N_ELEMENTS(XTITLE) EQ 2) THEN xtitle = xtitle ELSE xtitle = ['','']
-	IF (N_ELEMENTS(YTITLE) EQ 1) THEN ytitle = [ytitle[0],''] ELSE IF (N_ELEMENTS(YTITLE) EQ 2) THEN ytitle = ytitle ELSE ytitle = ['','']
+	IF (N_ELEMENTS(XTITLE) EQ 1) THEN BEGIN
+    IF (N_ELEMENTS(REFXTITLE) EQ 1) THEN $
+      xtitle = [xtitle[0],refxtitle[0]] $
+    ELSE $
+      xtitle = [xtitle[0],''] 
+  ENDIF ELSE IF (N_ELEMENTS(XTITLE) EQ 2) THEN $
+    xtitle = xtitle $
+  ELSE IF (N_ELEMENTS(REFXTITLE) EQ 1) THEN $
+    xtitle = ['',refxtitle[0]] $
+  ELSE $
+    xtitle = ['','']
+	IF (N_ELEMENTS(YTITLE) EQ 1) THEN BEGIN
+    IF (N_ELEMENTS(REFYTITLE) EQ 1) THEN $
+      ytitle = [ytitle[0],refytitle[0]] $
+    ELSE $
+      ytitle = [ytitle[0],''] 
+  ENDIF ELSE IF (N_ELEMENTS(YTITLE) EQ 2) THEN $
+    ytitle = ytitle $
+  ELSE IF (N_ELEMENTS(REFYTITLE) EQ 1) THEN $
+    ytitle = ['',refytitle[0]] $
+  ELSE $
+    ytitle = ['','']
 
 	IF ((N_ELEMENTS(SPECTFILE) EQ 1) OR (N_ELEMENTS(SPECTFILE) EQ 2)) THEN BEGIN										; If SPECTFILE is specified, use that to
 		IF (N_ELEMENTS(MNSPEC) GT 0) THEN PRINT,'WARNING: Calling CRISPEX with MNSPEC, while SPECTFILE is provided, is not allowed. Using SPECTFILE for mean spectrum determination.'
@@ -9138,7 +9193,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	IF (N_ELEMENTS(DT) EQ 1) THEN BEGIN
 		IF (spfile OR onecube) THEN BEGIN
 			dt_set = 1
-			spytitle = 'Time (s)'
+			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = 'Time (s)'
 		ENDIF ELSE BEGIN
 			PRINT,'WARNING: Calling CRISPEX with DT has no influence when no SPCUBE is supplied. Setting seconds per timestep to default value.'
 			dt_set = 0
