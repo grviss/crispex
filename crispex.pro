@@ -296,7 +296,7 @@ PRO CRISPEX_ABOUT_WINDOW, event
 		'Developed by: Gregal Vissers', $
 		'               Institute of Theoretical Astrophysics,',$
 		'               University of Oslo',$
-		'               2009-2012']
+		'               2009-2013']
 	WIDGET_CONTROL, aboutdrawid, EVENT_PRO = 'CRISPEX_ABOUT_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, /TRACKING_EVENTS, /DRAW_BUTTON_EVENTS
 	WIDGET_CONTROL, abouttlb, SET_UVALUE = info
 	XMANAGER, 'CRISPEX', abouttlb,/NO_BLOCK
@@ -4646,7 +4646,27 @@ FUNCTION CRISPEX_READ_BMP_BUTTONS, filename, srcdir
 END
 
 ;================================================================================= READ HEADER PROCEDURE
-PRO CRISPEX_READ_HEADER, filename, header=header, datatype=datatype, dims=dims, nx=nx, ny=ny, nt=nt, endian=endian, stokes=stokes, ns=ns, diagnostics=diagnostics
+PRO CRISPEX_READ_FITSHEADER, filename, datatype=datatype, nx=nx, ny=ny, nlp=nlp, nt=nt, ns=ns, $
+                             imnt=imnt, spnt=spnt, lps=lps, offset=offset, xtitle=xtitle, $
+                             ytitle=ytitle, exten_no=exten_no
+; Handles read in of the header of the fits input file
+		offset = fitspointer(filename,exten_no=KEYWORD_SET(exten_no),hdr)
+		parseheader,hdr,key
+		datatype = key.datatype
+    nx = key.nx
+    ny = key.ny
+		nlp = key.nlp
+		nt = key.nt
+    ns = key.ns
+    imnt = key.nlp * key.nt
+		spnt = key.nx*key.ny
+    lps = key.lam
+    xtitle=key.lplab+' ['+key.lpunit+']'
+    ytitle=key.btype+' ['+key.bunit+']'
+END
+
+PRO CRISPEX_READ_HEADER, filename, header=header, datatype=datatype, dims=dims, nx=nx, ny=ny, $
+                         nt=nt, endian=endian, stokes=stokes, ns=ns, diagnostics=diagnostics
 ; Handles the read in of the header of the input files
 	OPENR, lun, filename, /GET_LUN
 	rec	= ASSOC(lun, BYTARR(512))	&	header	= STRING(rec[0])
@@ -8178,7 +8198,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 
 ;================================================================================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '572'
+	revision_number = '573'
 
 ;================================================================================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -8259,12 +8279,9 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
   IF N_ELEMENTS(SPCUBE) EQ 1 THEN BEGIN 
 		spext = STRMID(spcube,STRPOS(spcube,'.',/REVERSE_SEARCH)+1,STRLEN(spcube))
 		IF STRMATCH(spext,'fits',/FOLD_CASE) THEN BEGIN   ; Check whether dealing with fits cube
-			spoffset = fitspointer(spcube,exten_no=0,sph)
-			parseheader,sph,spkey
-			sptype = spkey.datatype
-			nlp = spkey.nlp
-			nt = spkey.nt
-			spnt = spkey.nx*spkey.ny
+      CRISPEX_READ_FITSHEADER, spcube, datatype=sptype, nlp=nlp, nt=nt, spnt=spnt, lps=lps, $
+                               offset=spoffset, xtitle=xtitle, exten_no=0
+      ms = 1.0
 			swapvalue = 1
     ENDIF ELSE BEGIN
 		  CRISPEX_READ_HEADER, spcube, datatype=sptype, dims=imdims, nx=nlp, ny=nt, nt=spnt, $
@@ -8291,18 +8308,8 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 
 	imext = STRMID(imcube,STRPOS(imcube,'.',/REVERSE_SEARCH)+1,STRLEN(imcube))
 	IF STRMATCH(imext,'fits',/FOLD_CASE) THEN BEGIN
-		imoffset = fitspointer(imcube,exten_no=0,imh)
-		parseheader,imh,imkey,imcube
-		imtype = imkey.datatype
-		nx = imkey.nx
-		ny = imkey.ny
-		ns = imkey.ns
-		imnt = imkey.nlp*imkey.nt
-		imtype = imkey.datatype
-    ms = 1.0
-    lps = imkey.lam
-    xtitle=imkey.lplab+' ['+imkey.lpunit+']'
-    ytitle=imkey.btype+' ['+imkey.bunit+']'
+    CRISPEX_READ_FITSHEADER, imcube, datatype=imtype, nx=nx, ny=ny, imnt=imnt, ns=ns, $
+                             offset=imoffset, ytitle=ytitle, exten_no=0
 		swapvalue = 1
 	ENDIF ELSE BEGIN
     CRISPEX_READ_HEADER, imcube, datatype=imtype, dims=imdims, nx=nx, ny=ny, nt=imnt, $
