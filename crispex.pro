@@ -849,9 +849,9 @@ PRO CRISPEX_DISPLAYS_INT_MENU, event, set_but_array
 	upper_y_label = WIDGET_LABEL(yrange_base, VALUE = 'Upper y-value:')
 	(*(*info).ctrlsint).upper_y_int_text = WIDGET_TEXT(yrange_base, VALUE = STRTRIM((*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s],2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_INT_UPP')
 	trange_base = WIDGET_BASE(disp2, /ROW)
-	lower_t_label = WIDGET_LABEL(trange_base, VALUE = 'Lower t-value:')
+	lower_t_label = WIDGET_LABEL(trange_base, VALUE = 'Lower t-index:')
 	(*(*info).ctrlsint).lower_t_int_text = WIDGET_TEXT(trange_base, VALUE = STRTRIM((*(*info).plotaxes).int_low_t,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_INT_T_LOW')
-	upper_t_label = WIDGET_LABEL(trange_base, VALUE = 'Upper t-value:')
+	upper_t_label = WIDGET_LABEL(trange_base, VALUE = 'Upper t-index:')
 	(*(*info).ctrlsint).upper_t_int_text = WIDGET_TEXT(trange_base, VALUE = STRTRIM((*(*info).plotaxes).int_upp_t,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_INT_T_UPP')
 	(*(*info).ctrlsint).reset_trange_but = WIDGET_BUTTON(disp2, VALUE = 'Reset temporal boundaries', EVENT_PRO = 'CRISPEX_DISPRANGE_INT_T_RESET', $
 		SENSITIVE = (((*(*info).plotaxes).int_upp_t-(*(*info).plotaxes).int_low_t+1) NE (*(*info).dataparams).nt))
@@ -1149,76 +1149,107 @@ PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
 	IF ((*(*info).winswitch).showparam EQ 1) THEN BEGIN
 		base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Parameters overview', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
 		disp_base = WIDGET_BASE(base, /ROW)
+    ; Column 1 of parameters overview containing cursor x,y and zoomfactor
 		disp = WIDGET_BASE(disp_base, /COLUMN)
+    ; Cursor x info
 		x_coord_base = WIDGET_BASE(disp, /ROW)
 		x_coord_txt = WIDGET_LABEL(x_coord_base, VALUE = 'Cursor x:')
 		(*(*info).ctrlsparam).x_coord_val = WIDGET_LABEL(x_coord_base, VALUE = STRTRIM((*(*info).dataparams).x,2), /DYNAMIC_RESIZE)
+    ; Cursor y info
 		y_coord_base = WIDGET_BASE(disp, /ROW)
 		y_coord_txt = WIDGET_LABEL(y_coord_base, VALUE = 'Cursor y:')
 		(*(*info).ctrlsparam).y_coord_val = WIDGET_LABEL(y_coord_base, VALUE = STRTRIM((*(*info).dataparams).y,2), /DYNAMIC_RESIZE)
+    ; Zommfactor info
 		zoom_base = WIDGET_BASE(disp, /ROW)
 		zoom_txt = WIDGET_LABEL(zoom_base, VALUE = 'Zoomfactor:')
 		(*(*info).ctrlsparam).zoom_val = WIDGET_LABEL(zoom_base, VALUE = STRTRIM(LONG((*(*info).zooming).factor),2), /DYNAMIC_RESIZE)
+    ; Column 2 containing main spectral/height info, including Doppler
 		disp2 = WIDGET_BASE(disp_base, /COLUMN)
+    ; Main spectral info
 		lp_coord_base = WIDGET_BASE(disp2, /ROW)
 		lp_coord_txt = WIDGET_LABEL(lp_coord_base, VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' index:')
 		(*(*info).ctrlsparam).lp_coord_val = WIDGET_LABEL(lp_coord_base, VALUE = STRTRIM(LONG((*(*info).dataparams).lp),2), /DYNAMIC_RESIZE)
 		act_lp_base = WIDGET_BASE(disp2, /ROW)
-		act_lp_txt = WIDGET_LABEL(act_lp_base, VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+':')
-		v_dop_base = WIDGET_BASE(disp2, /ROW)
-		v_dop_txt = WIDGET_LABEL(v_dop_base, VALUE = 'Doppler velocity (km/s):')
-		IF (*(*info).plotswitch).v_dop_set THEN BEGIN
-			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = STRTRIM(STRING((*(*info).plotaxes).v_dop[(*(*info).dataparams).lp],FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
-			(*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, VALUE = STRTRIM(STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp],FORMAT = '(3(F9.1,x))'),2), /DYNAMIC_RESIZE)
-		ENDIF ELSE IF (*(*info).plotswitch).heightset THEN BEGIN
-			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
-			(*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, VALUE = STRTRIM(STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp],FORMAT = '(3(F9.1,x))'),2), /DYNAMIC_RESIZE)
-		ENDIF ELSE BEGIN
-			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
-			(*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, VALUE = 'N/A')
-		ENDELSE
+		act_lp_txt = WIDGET_LABEL(act_lp_base, $
+      VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' ['+$
+              ((*(*info).dataparams).lpunit)[0]+']:')
+    ; Main Doppler info
+  	IF ((*(*info).plotswitch).v_dop_set OR (*(*info).plotswitch).heightset) THEN $
+      (*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, $
+        VALUE = STRTRIM(STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp],$
+        FORMAT = '(3(F9.1,x))'),2),/DYNAMIC_RESIZE) $
+    ELSE (*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, VALUE = 'N/A')
+    IF ((*(*info).plotswitch).heightset EQ 0) THEN BEGIN
+  		v_dop_base = WIDGET_BASE(disp2, /ROW)
+  		v_dop_txt = WIDGET_LABEL(v_dop_base, VALUE = 'Doppler velocity (km/s):')
+  		IF (*(*info).plotswitch).v_dop_set THEN BEGIN
+  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = STRTRIM(STRING((*(*info).plotaxes).v_dop[(*(*info).dataparams).lp],FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
+  		ENDIF ELSE IF (*(*info).plotswitch).heightset THEN BEGIN
+  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
+  		ENDIF ELSE BEGIN
+  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
+  		ENDELSE
+    ENDIF
+    ; Column 3 (if reference present) containing reference spectral/height info, including Doppler
 		IF ((*(*info).dataparams).refnlp GT 1) THEN BEGIN
 			dispref = WIDGET_BASE(disp_base, /COLUMN)
+      ; Reference spectral info
 			lp_ref_coord_base = WIDGET_BASE(dispref, /ROW)
 			lp_ref_coord_txt = WIDGET_LABEL(lp_ref_coord_base, VALUE = 'Reference '+STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' index:')
 			(*(*info).ctrlsparam).lp_ref_coord_val = WIDGET_LABEL(lp_ref_coord_base, VALUE = STRTRIM(LONG((*(*info).dataparams).lp_ref),2), /DYNAMIC_RESIZE)
 			act_lp_ref_base = WIDGET_BASE(dispref, /ROW)
-			act_lp_ref_txt = WIDGET_LABEL(act_lp_ref_base, VALUE = 'Reference '+STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+':')
-			v_dop_ref_base = WIDGET_BASE(dispref, /ROW)
-			v_dop_ref_txt = WIDGET_LABEL(v_dop_ref_base, VALUE = 'Reference Doppler velocity (km/s):')
-			IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
-				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = STRTRIM(STRING((*(*info).plotaxes).v_dop_ref[(*(*info).dataparams).lp_ref],FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
-				(*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, VALUE = STRTRIM(STRING((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref],FORMAT = '(3(F9.1,x))'),2), /DYNAMIC_RESIZE)
-			ENDIF ELSE IF (*(*info).plotswitch).refheightset THEN BEGIN
-				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
-				(*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, VALUE = STRTRIM(STRING((*(*info).dataparams).reflps[(*(*info).dataparams).lp],FORMAT = '(3(F9.1,x))'),2), /DYNAMIC_RESIZE)
-			ENDIF ELSE BEGIN
-				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
-				(*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, VALUE = 'N/A')
-			ENDELSE
+			act_lp_ref_txt = WIDGET_LABEL(act_lp_ref_base, VALUE = 'Reference '+$
+        STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' ['+$
+        ((*(*info).dataparams).lpunit)[1]+']:')
+      ; Reference Doppler info
+    	IF ((*(*info).plotswitch).v_dop_set_ref OR (*(*info).plotswitch).refheightset) THEN $
+        (*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, $
+          VALUE = STRTRIM(STRING((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref],$
+          FORMAT = '(3(F9.1,x))'),2),/DYNAMIC_RESIZE) $
+      ELSE (*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, VALUE = 'N/A')
+      IF ((*(*info).plotswitch).heightset EQ 0) THEN BEGIN
+  			v_dop_ref_base = WIDGET_BASE(dispref, /ROW)
+  			v_dop_ref_txt = WIDGET_LABEL(v_dop_ref_base, VALUE = 'Reference Doppler velocity (km/s):')
+  			IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
+  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = STRTRIM(STRING((*(*info).plotaxes).v_dop_ref[(*(*info).dataparams).lp_ref],FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
+  			ENDIF ELSE IF (*(*info).plotswitch).refheightset THEN BEGIN
+  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
+  			ENDIF ELSE BEGIN
+  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
+  			ENDELSE
+      ENDIF
 		ENDIF
+    ; Column 4 (if reference present, else column 3) containing channel and time info
 		disp3 = WIDGET_BASE(disp_base, /COLUMN)
+    ; Channel info
 		stokes_base = WIDGET_BASE(disp3, /ROW)
 		stokes_txt = WIDGET_LABEL(stokes_base, VALUE = 'Stokes:')
 		(*(*info).ctrlsparam).stokes_val = WIDGET_LABEL(stokes_base, VALUE = STRTRIM(((*(*info).stokesparams).labels)[(*(*info).dataparams).s],2), /DYNAMIC_RESIZE)
+    ; Time info
 		t_coord_base = WIDGET_BASE(disp3, /ROW)
 		t_coord_txt = WIDGET_LABEL(t_coord_base, VALUE = 'Time index:')
 		(*(*info).ctrlsparam).t_coord_val = WIDGET_LABEL(t_coord_base, VALUE = STRTRIM((*(*info).dataparams).t,2), /DYNAMIC_RESIZE)
 		act_t_base = WIDGET_BASE(disp3, /ROW)
-		act_t_txt = WIDGET_LABEL(act_t_base, VALUE = 'Actual time (s):')
+;		act_t_txt = WIDGET_LABEL(act_t_base, VALUE = 'Actual time (s):')
+		act_t_txt = WIDGET_LABEL(act_t_base, VALUE = 'Actual '+(*(*info).plottitles).spytitle+':')
 		IF (*(*info).paramswitch).dt_set THEN (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = STRTRIM(STRING((*(*info).dataparams).t * (*(*info).plotaxes).dt, FORMAT='(3(F9.2,x))'),2), $
 			/DYNAMIC_RESIZE) ELSE (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = 'N/A')
+    ; Column 5 (if reference present, else column 4) containing image values below cursor
+    ; Main image value info
 		IF (*(*info).paramswitch).img_get THEN BEGIN
 			disp4 = WIDGET_BASE(disp_base, /COLUMN)
 			img_base = WIDGET_BASE(disp4, /ROW)
-			img_label = WIDGET_LABEL(img_base, VALUE = 'Main cube value:')
+			img_label = WIDGET_LABEL(img_base, VALUE = 'Main cube value ['+$
+        ((*(*info).dataparams).bunit)[0]+'] :')
 			(*(*info).ctrlsparam).img_val = WIDGET_LABEL(img_base, VALUE = STRTRIM(STRING((*(*info).paramparams).img_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
 		ENDIF
+    ; Reference image value info
 		IF (*(*info).paramswitch).ref_get THEN BEGIN
 			IF ((*(*info).paramswitch).img_get EQ 0) THEN disp4 = WIDGET_BASE(disp_base, /COLUMN)
 			ref_base = WIDGET_BASE(disp4, /ROW)
-			ref_label = WIDGET_LABEL(ref_base, VALUE = 'Reference cube value:')
-			(*(*info).ctrlsparam).ref_val = WIDGET_LABEL(ref_base, VALUE = STRTRIM(STRING((*(*info).paramparams).ref_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
+			ref_label = WIDGET_LABEL(ref_base, VALUE = 'Reference cube value ['+$
+        ((*(*info).dataparams).bunit)[1]+'] :')
+      (*(*info).ctrlsparam).ref_val = WIDGET_LABEL(ref_base, VALUE = STRTRIM(STRING((*(*info).paramparams).ref_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
 		ENDIF
 		IF ((*(*info).paramswitch).img_get OR (*(*info).paramswitch).ref_get) THEN BEGIN
 			IF ((*(*info).paramswitch).ref_get EQ 0) THEN BEGIN
@@ -3883,6 +3914,7 @@ PRO CRISPEX_MEASURE_ENABLE, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_ENABLE', /IGNORE_LAST
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, SENSITIVE = event.SELECT
+	WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_lab, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_lab, SENSITIVE = event.SELECT
@@ -3911,11 +3943,23 @@ PRO CRISPEX_MEASURE_CALC, event
 ; Computes the actual distance from the measurement line length and resolution
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_CALC'
-	delta_x = FLOAT((*(*(*info).meas).xp)[1]-(*(*(*info).meas).xp)[0]+1)
-	delta_y = FLOAT((*(*(*info).meas).yp)[1]-(*(*(*info).meas).yp)[0]+1)
-	delta_pix = SQRT(delta_x^2 + delta_y^2)
-	delta_asec = delta_pix * FLOAT((*(*info).meas).arcsecpix)
-	delta_km = 149697870. * TAN(delta_asec / 3600. * !DTOR)
+  au = 149697870. 
+	delta_x = FLOAT((*(*(*info).meas).xp)[1]-(*(*(*info).meas).xp)[0]) * (*(*info).dataparams).dx
+	delta_y = FLOAT((*(*(*info).meas).yp)[1]-(*(*(*info).meas).yp)[0]) * (*(*info).dataparams).dy
+  ; Check whether dx/dy units are arcsec or (c/k/M)m
+  IF (STRCMP((*(*info).dataparams).xunit,'arcsec') OR $
+      STRCMP((*(*info).dataparams).xunit,'asec')) THEN BEGIN
+  	delta_asec = SQRT(delta_x^2 + delta_y^2)
+;	delta_asec = delta_pix * FLOAT((*(*info).meas).arcsecpix)
+  	delta_km = au * TAN(delta_asec / 3600. * !DTOR)
+  ENDIF ELSE BEGIN
+    IF STRCMP((*(*info).dataparams).xunit,'m') THEN fact = 1E3 ELSE $
+      IF STRCMP((*(*info).dataparams).xunit,'cm') THEN fact = 1E5 ELSE $
+      IF STRCMP((*(*info).dataparams).xunit,'km') THEN fact = 1 ELSE $
+      IF STRCMP((*(*info).dataparams).xunit,'Mm') THEN fact = 1E-3 
+    delta_km = SQRT(delta_x^2 + delta_y^2) / fact
+    delta_asec = ATAN(delta_km / au) / !DTOR * 3600.
+  ENDELSE
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, SET_VALUE = STRTRIM(delta_asec,2)
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_text, SET_VALUE = STRTRIM(delta_km,2)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [delta_asec,delta_km], labels=['Arcseconds','Kilometers']
@@ -4647,14 +4691,16 @@ END
 
 ;================================================================================= READ HEADER PROCEDURE
 PRO CRISPEX_READ_FITSHEADER, filename, datatype=datatype, nx=nx, ny=ny, nlp=nlp, nt=nt, ns=ns, $
-                             imnt=imnt, spnt=spnt, lps=lps, offset=offset, xtitle=xtitle, $
-                             ytitle=ytitle, ttitle=ttitle, dt=dt, exten_no=exten_no
+                             imnt=imnt, spnt=spnt, lps=lps, offset=offset, lptitle=lptitle, $
+                             inttitle=inttitle, ttitle=ttitle, dt=dt, bunit=bunit, lpunit=lpunit, $
+                             dx=dx, dy=dy, xunit=xunit, yunit=yunit, exten_no=exten_no
 ; Handles read in of the header of the fits input file
 		offset = fitspointer(filename,exten_no=KEYWORD_SET(exten_no),hdr)
 		parseheader,hdr,key
 		datatype = key.datatype
-    nx = key.nx
-    ny = key.ny
+    ; Spatial: dimensions 1 and 2
+    nx = key.nx  &  dx = key.dx  &  xunit = key.xunit
+    ny = key.ny  &  dy = key.dy  &  yunit = key.yunit
 		nlp = key.nlp
 		nt = key.nt
     dt = key.dt
@@ -4662,8 +4708,10 @@ PRO CRISPEX_READ_FITSHEADER, filename, datatype=datatype, nx=nx, ny=ny, nlp=nlp,
     imnt = key.nlp * key.nt
 		spnt = key.nx*key.ny
     lps = key.lam
-    xtitle=key.lplab+' ['+key.lpunit+']'
-    ytitle=key.btype+' ['+key.bunit+']'
+    bunit = key.bunit
+    lpunit = key.lpunit
+    lptitle=key.lplab+' ['+lpunit+']'
+    inttitle=key.btype+' ['+bunit+']'
     ttitle = key.tlab+' ['+key.tunit+']'
 END
 
@@ -5102,15 +5150,15 @@ PRO CRISPEX_RETRIEVE_DET_FILE_MENU, event, set_but_array, DETFILENAME=detfilenam
 		WIDGET_CONTROL, (*(*info).ctrlsdet).sel_range_pos, SET_BUTTON = ((*(*info).savswitch).pos_dets EQ 3)
 		range_pos_base = WIDGET_BASE(spectral_pos, /ROW)
 		main_label = WIDGET_LABEL(range_pos_base, VALUE = 'Main:', /ALIGN_LEFT)
-		dlpmin_label = WIDGET_LABEL(range_pos_base, VALUE = 'Lower lp-value:', /ALIGN_LEFT)
+		dlpmin_label = WIDGET_LABEL(range_pos_base, VALUE = 'Lower lp-index:', /ALIGN_LEFT)
 		(*(*info).ctrlsdet).dlpmin_text = WIDGET_TEXT(range_pos_base, VALUE = STRTRIM((*(*info).detparams).lp_dn,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_RETRIEVE_DET_LP_DN', SENSITIVE = 0)
-		dlpmax_label = WIDGET_LABEL(range_pos_base, VALUE = 'Upper lp-value:', /ALIGN_LEFT)
+		dlpmax_label = WIDGET_LABEL(range_pos_base, VALUE = 'Upper lp-index:', /ALIGN_LEFT)
 		(*(*info).ctrlsdet).dlpmax_text = WIDGET_TEXT(range_pos_base, VALUE = STRTRIM((*(*info).detparams).lp_up,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_RETRIEVE_DET_LP_UP', SENSITIVE = 0)
 		refrange_pos_base = WIDGET_BASE(spectral_pos, /ROW)
 		ref_label = WIDGET_LABEL(refrange_pos_base, VALUE = 'Reference:', /ALIGN_LEFT)
-		refdlpmin_label = WIDGET_LABEL(refrange_pos_base, VALUE = 'Lower lp-value:', /ALIGN_LEFT)
+		refdlpmin_label = WIDGET_LABEL(refrange_pos_base, VALUE = 'Lower lp-index:', /ALIGN_LEFT)
 		(*(*info).ctrlsdet).refdlpmin_text = WIDGET_TEXT(refrange_pos_base, VALUE = STRTRIM((*(*info).detparams).lp_ref_dn,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_RETRIEVE_DET_LP_REF_DN', SENSITIVE = 0)
-		refdlpmax_label = WIDGET_LABEL(refrange_pos_base, VALUE = 'Upper lp-value:', /ALIGN_LEFT)
+		refdlpmax_label = WIDGET_LABEL(refrange_pos_base, VALUE = 'Upper lp-index:', /ALIGN_LEFT)
 		(*(*info).ctrlsdet).refdlpmax_text = WIDGET_TEXT(refrange_pos_base, VALUE = STRTRIM((*(*info).detparams).lp_ref_up,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_RETRIEVE_DET_LP_REF_UP', SENSITIVE = 0)
 		save_cube = WIDGET_BASE(disp, /ROW, /FRAME)
 		save_cube_lab = WIDGET_LABEL(save_cube, VALUE = 'Save from: ')
@@ -6394,6 +6442,7 @@ PRO CRISPEX_SESSION_RESTORE, event
 			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_2, SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 2)
 			WIDGET_CONTROL, (*(*info).ctrlscp).measure_but, SET_BUTTON = (*(*info).meas).spatial_measurement
 			WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, SENSITIVE = (*(*info).meas).spatial_measurement
+	    WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, SENSITIVE = (*(*info).meas).spatial_measurement
 			WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, SET_VALUE = STRTRIM((*(*info).meas).arcsecpix,2), SENSITIVE = (*(*info).meas).spatial_measurement
 			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_lab, SENSITIVE = (*(*info).meas).spatial_measurement
 			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, SENSITIVE = (*(*info).meas).spatial_measurement
@@ -8200,7 +8249,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 
 ;================================================================================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '574'
+	revision_number = '575'
 
 ;================================================================================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -8282,17 +8331,18 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		spext = STRMID(spcube,STRPOS(spcube,'.',/REVERSE_SEARCH)+1,STRLEN(spcube))
 		IF STRMATCH(spext,'fits',/FOLD_CASE) THEN BEGIN   ; Check whether dealing with fits cube
       CRISPEX_READ_FITSHEADER, spcube, datatype=sptype, nlp=nlp, nt=nt, spnt=spnt, lps=lps, $
-                               offset=spoffset, xtitle=xtitle, ttitle=spytitle, dt=dt, exten_no=0
+                               offset=spoffset, lptitle=xtitle, ttitle=spytitle, dt=dt, $
+                               lpunit=lpunit, exten_no=0
       ms = 1.0
 			swapvalue = 1
     ENDIF ELSE BEGIN
 		  CRISPEX_READ_HEADER, spcube, datatype=sptype, dims=imdims, nx=nlp, ny=nt, nt=spnt, $
                            endian=endian_file, stokes=spstokes, ns=spns, diagnostics=spdiagnostics
-    ; Determine whether correction for endian is needed
       spoffset = 512
   		swapvalue = ((sptype GT 1) AND (endian NE endian_file))
-    ; Actual read-in of the spectral cube
+      lpunit = ''
     ENDELSE
+    ; Actual read-in of the spectral cube
     OPENR, lur, spcube, /get_lun, SWAP_ENDIAN = swapvalue
     ; Read data from associated file, skip first 512 (header)bytes
     IF (sptype EQ 1) THEN spectra = ASSOC(lur,BYTARR(nlp,nt),spoffset) $
@@ -8311,12 +8361,21 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	imext = STRMID(imcube,STRPOS(imcube,'.',/REVERSE_SEARCH)+1,STRLEN(imcube))
 	IF STRMATCH(imext,'fits',/FOLD_CASE) THEN BEGIN
     CRISPEX_READ_FITSHEADER, imcube, datatype=imtype, nx=nx, ny=ny, imnt=imnt, ns=ns, $
-                             offset=imoffset, ytitle=ytitle, exten_no=0
+                             offset=imoffset, inttitle=ytitle, bunit=bunit, dx=dx, dy=dy, $
+                             xunit=xunit, yunit=yunit, exten_no=0
+    dx_fixed = 1
 		swapvalue = 1
 	ENDIF ELSE BEGIN
     CRISPEX_READ_HEADER, imcube, datatype=imtype, dims=imdims, nx=nx, ny=ny, nt=imnt, $
                          endian=endian_file, stokes=imstokes, ns=imns, diagnostics=imdiagnostics
 		imoffset = 512
+    bunit = 'counts'
+    arcsecpix = 0.0592
+    dx_fixed = 0
+    dx = arcsecpix
+    dy = arcsecpix
+    xunit = 'arcsec'
+    yunit = 'arcsec'
     ns = imns
 		swapvalue = ((imtype GT 1) AND (endian NE endian_file))									
   ENDELSE
@@ -8456,12 +8515,13 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
   	refimext = STRMID(refcube,STRPOS(refcube,'.',/REVERSE_SEARCH)+1,STRLEN(refcube))
   	IF STRMATCH(refimext,'fits',/FOLD_CASE) THEN BEGIN
       CRISPEX_READ_FITSHEADER, refcube, datatype=refimtype, nx=refnx, ny=refny, imnt=refnt, $
-                             offset=refimoffset, exten_no=0
+                             offset=refimoffset, bunit=refbunit, exten_no=0
   		swapvalue = 1
   	ENDIF ELSE BEGIN
   		CRISPEX_READ_HEADER, refcube, datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt,$
                            endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
   		refimoffset = 512
+      refbunit = 'counts'
   		swapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
     ENDELSE
 		IF (refnx EQ nx) AND (refny EQ ny) AND (refnt EQ nt) OR (refnt EQ 1) OR (refnt EQ imnt) OR (refnt EQ nlp) OR (nt EQ 1) THEN BEGIN
@@ -8473,6 +8533,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 			showref = 1
 			refspfile = 0
 			refspcube = ''
+      reflpunit = ''
 			lufs = 0
 			refns = 1
 			IF (((refnt GT nt) AND (nt NE 1)) OR (refnt EQ nlp)) THEN refnlp = nlp ELSE BEGIN
@@ -8502,23 +8563,25 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
   	refimext = STRMID(refcube[0],STRPOS(refcube[0],'.',/REVERSE_SEARCH)+1,STRLEN(refcube[0]))
   	IF STRMATCH(refspext,'fits',/FOLD_CASE) THEN BEGIN
       CRISPEX_READ_FITSHEADER, refcube[1], datatype=refsptype, nlp=refnlp, nt=refnt, spnt=refspnt, $
-                             offset=refspoffset, xtitle=refxtitle, exten_no=0
+                             offset=refspoffset, lptitle=refxtitle, lpunit=reflpunit, exten_no=0
       refms = 1.0
   		refspswapvalue = 1
   	ENDIF ELSE BEGIN
   		CRISPEX_READ_HEADER, refcube[1], datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt,$
                            endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
   		refspoffset = 512
-  		refspswapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
+  		refspswapvalue = ((refimtype GT 1) AND (endian NE endian_file))						
+      reflpunit = ''
     ENDELSE
   	IF STRMATCH(refimext,'fits',/FOLD_CASE) THEN BEGIN
       CRISPEX_READ_FITSHEADER, refcube[0], datatype=refimtype, nx=refnx, ny=refny, imnt=refimnt, $
-                             offset=refimoffset, ytitle=refytitle, exten_no=0
+                             offset=refimoffset, inttitle=refytitle, bunit=refbunit, exten_no=0
   		refimswapvalue = 1
   	ENDIF ELSE BEGIN
   		CRISPEX_READ_HEADER, refcube[0], datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt,$
                            endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
   		refimoffset = 512
+      refbunit = 'counts'
   		refimswapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
     ENDELSE
 ;		CRISPEX_READ_HEADER, refcube[1], datatype=refsptype, dims=refspdims, nx=refnlp, ny=refnt, nt=refspnt, endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
@@ -8571,6 +8634,8 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	ENDIF ELSE IF (N_ELEMENTS(REFCUBE) GT 1) THEN BEGIN									; Assuming a single image supplied as an array
 		refnx = (SIZE(refcube))[1]
 		refny = (SIZE(refcube))[2]
+    refbunit = 'counts'
+    reflpunit = ''
 		IF (SIZE(REFCUBE,/N_DIMENSIONS) EQ 3) THEN refnt = (SIZE(refcube))[3] ELSE refnt = 0
 		IF (refnx EQ nx) AND (refny EQ ny) THEN BEGIN
 			referencefile = refcube
@@ -8581,6 +8646,8 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 			refns = 1
 			refspfile = 0
 			refspcube = ''
+      reflpunit = ''
+      refbunit = 'counts'
 		ENDIF ELSE BEGIN
 			PRINT,'ERROR: Dimensions of the reference cube (['+STRTRIM(refnx,2)+','+STRTRIM(refny,2)+','+STRTRIM(refnt,2)+']) are not compatible with those of the main image cube (['+STRTRIM(nx,2)+','+$
 				STRTRIM(ny,2)+','+STRTRIM(nt,2)+'])!'
@@ -8597,6 +8664,8 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		refns = 0
 		refspfile = 0
 		refspcube = ''
+    reflpunit = ''
+    refbunit = ''
 	ENDELSE
 	IF (refnlp NE nlp) THEN BEGIN
 		eqnlps = 0 
@@ -9248,13 +9317,15 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	refheightset 	= 0
 	IF ((N_ELEMENTS(XTITLE) GE 1) AND (N_ELEMENTS(XTITLE) LE 2)) THEN BEGIN
 		IF (STRCOMPRESS(xtitle[0]) NE '') THEN BEGIN
-			heightset = STRCMP(xtitle[0],'Height',6,/FOLD_CASE)
+			heightset = (STRCMP(xtitle[0],'Height',6,/FOLD_CASE) OR $
+                   STRCMP(xtitle[0],'z',1,/FOLD_CASE))
 			v_dop_set = 0
 			spxtitle = xtitle[0]
 		ENDIF
 		IF (N_ELEMENTS(XTITLE) EQ 2) THEN BEGIN
 			IF (STRCOMPRESS(xtitle[1]) NE '') THEN BEGIN
-				refheightset = STRCMP(xtitle[1],'Height',6,/FOLD_CASE)
+				refheightset = (STRCMP(xtitle[1],'Height',6,/FOLD_CASE) OR $
+                        STRCMP(xtitle[1],'z',1,/FOLD_CASE))
 				v_dop_set_ref = 0
 				refspxtitle = xtitle[1]
 			ENDIF
@@ -9262,11 +9333,18 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	ENDIF
 	IF heightset THEN detspect_scale = 0
 	IF refheightset THEN ref_detspect_scale = 0
+;  wav_h_unit = STRARR(1+showref)
+;  IF ((STRPOS(spxtitle,'['))[0] NE -1) THEN $
+;    wav_h_unit[0] = STRMID(spxtitle,STRPOS(spxtitle,'['),STRLEN(spxtitle))
+;  IF showref THEN BEGIN
+;    IF ((STRPOS(spxtitle,'['))[0] NE -1) THEN $
+;      wav_h_unit[1] = STRMID(spxtitle,STRPOS(spxtitle,'['),STRLEN(spxtitle))
+;  ENDIF
 
 	sp_h 	= ['Spectral','Height']
 	wav_h 	= ['Wavelength','Height']
-	lp_h		= ['lp','h']
-	s_h_capital	= ['S','H']
+;	lp_h		= ['lp','h']
+	lp_h_capital	= ['S','H']
 	but_tooltip = ['Spectrum','Height distribution']
 
 	lsytitle	= 'Intensity'
@@ -9459,7 +9537,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	sx_start	= x_start * imwinx / FLOAT(nx)										; Convert that to device
 	y_start		= FLOAT(FLOOR(ny/2))												; Determine the middle y-coordinate
 	sy_start	= y_start * imwiny / FLOAT(ny)										; Convert that to device
-	arcsecpix	= 0.0592
+;	arcsecpix	= 0.0592
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
 		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial spatial parameters)...",a5)','done!') 
 		PRINT,'' 
@@ -9759,9 +9837,9 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	t_slid			= WIDGET_SLIDER(playback_tab, TITLE = 'Frame number', MIN = t_first, MAX = t_last, VALUE = t_start, EVENT_PRO = 'CRISPEX_SLIDER_T', /DRAG, SENSITIVE = t_slid_sens)
 	t_ranges		= WIDGET_BASE(playback_tab, /COLUMN, /FRAME)
 	t_range_field		= WIDGET_BASE(t_ranges, /ROW)
-	lower_t_label		= WIDGET_LABEL(t_range_field, VALUE = 'Lower t-value:', /ALIGN_LEFT)
+	lower_t_label		= WIDGET_LABEL(t_range_field, VALUE = 'Lower index:', /ALIGN_LEFT)
 	lower_t_text		= WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_first,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_LOW', SENSITIVE = t_slid_sens)
-	upper_t_label		= WIDGET_LABEL(t_range_field, VALUE = 'Upper t-value:', /ALIGN_LEFT)
+	upper_t_label		= WIDGET_LABEL(t_range_field, VALUE = 'Upper index:', /ALIGN_LEFT)
 	upper_t_text		= WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last_tmp,2),  /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_UPP', SENSITIVE = t_slid_sens)
 	reset_trange_but	= WIDGET_BUTTON(t_ranges, VALUE = 'Reset temporal boundaries', EVENT_PRO = 'CRISPEX_DISPRANGE_T_RESET', SENSITIVE = 0)
 	slice_update_but	= WIDGET_BUTTON(playback_tab, VALUE='Update '+STRLOWCASE(sp_h[heightset])+' slice', EVENT_PRO = 'CRISPEX_UPDATE_SLICES', SENSITIVE = 0)
@@ -9773,9 +9851,11 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	spectral_tab		= WIDGET_BASE(tab_tlb, TITLE = sp_h[heightset], /COLUMN)
 	lp_ranges		= WIDGET_BASE(spectral_tab, /COLUMN, /FRAME)
 	lp_range_field		= WIDGET_BASE(lp_ranges, /ROW)
-	lower_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Lower '+lp_h[heightset]+'-value:', /ALIGN_LEFT)
+;	lower_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Lower '+lp_h[heightset]+'-value:', /ALIGN_LEFT)
+	lower_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Lower index:', /ALIGN_LEFT)
 	lower_lp_text		= WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_first,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_LOW', SENSITIVE = lp_blink_vals_sens)
-	upper_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Upper '+lp_h[heightset]+'-value:', /ALIGN_LEFT)
+;	upper_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Upper '+lp_h[heightset]+'-value:', /ALIGN_LEFT)
+	upper_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Upper index:', /ALIGN_LEFT)
 	upper_lp_text		= WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_last_vals,2),  /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_UPP', SENSITIVE = lp_blink_vals_sens)
 	reset_lprange_but	= WIDGET_BUTTON(lp_ranges, VALUE = 'Reset '+STRLOWCASE(sp_h[heightset])+' boundaries', EVENT_PRO = 'CRISPEX_DISPRANGE_LP_RESET', SENSITIVE = 0)
 	lp_slid			= WIDGET_SLIDER(control_panel, TITLE = 'Main '+STRLOWCASE(sp_h[heightset])+' position', MIN = lp_first, MAX = lp_last_slid, VALUE = lp_start, EVENT_PRO = 'CRISPEX_SLIDER_LP', $
@@ -9870,9 +9950,9 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	other_disp		= WIDGET_BASE(all_other_disp, /ROW)
 	slices_label		= WIDGET_LABEL(other_disp, VALUE = 'Slices:')
 	other_buts		= WIDGET_BASE(other_disp, /ROW, /NONEXCLUSIVE)
-	sp_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = s_h_capital[heightset]+'-t', EVENT_PRO = 'CRISPEX_DISPLAYS_SP_TOGGLE', TOOLTIP = 'Toggle display temporal '+STRLOWCASE(but_tooltip[heightset]))
-	phis_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = s_h_capital[heightset]+'-Phi', EVENT_PRO = 'CRISPEX_DISPLAYS_PHIS_TOGGLE', TOOLTIP = 'Toggle display '+STRLOWCASE(but_tooltip[heightset])+' along a slit')
-	refsp_toggle_but	= WIDGET_BUTTON(other_buts, VALUE = 'Reference '+s_h_capital[refheightset]+'-t', EVENT_PRO = 'CRISPEX_DISPLAYS_REFSP_TOGGLE', $
+	sp_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = lp_h_capital[heightset]+'-t', EVENT_PRO = 'CRISPEX_DISPLAYS_SP_TOGGLE', TOOLTIP = 'Toggle display temporal '+STRLOWCASE(but_tooltip[heightset]))
+	phis_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = lp_h_capital[heightset]+'-Phi', EVENT_PRO = 'CRISPEX_DISPLAYS_PHIS_TOGGLE', TOOLTIP = 'Toggle display '+STRLOWCASE(but_tooltip[heightset])+' along a slit')
+	refsp_toggle_but	= WIDGET_BUTTON(other_buts, VALUE = 'Reference '+lp_h_capital[refheightset]+'-t', EVENT_PRO = 'CRISPEX_DISPLAYS_REFSP_TOGGLE', $
 					TOOLTIP = 'Toggle display reference temporal '+STRLOWCASE(but_tooltip[refheightset]))
 	int_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = 'I-t', EVENT_PRO = 'CRISPEX_DISPLAYS_INT_TOGGLE', SENSITIVE=(nt GT 1), TOOLTIP = 'Toggle display intensity versus time plot')
 	images_disp		= WIDGET_BASE(all_other_disp, /ROW)
@@ -9964,8 +10044,12 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	measure_buts		= WIDGET_BASE(measuretool, /ROW, /NONEXCLUSIVE)
 	measure_but		= WIDGET_BUTTON(measure_buts, VALUE = 'Start measurement', EVENT_PRO = 'CRISPEX_MEASURE_ENABLE')
 	apix_base		= WIDGET_BASE(measuretool, /ROW)
-	apix_label		= WIDGET_LABEL(apix_base, VALUE = 'Arcseconds per pixel:', /ALIGN_LEFT, SENSITIVE = 0)
-	apix_text		= WIDGET_TEXT(apix_base, VALUE = STRTRIM(arcsecpix,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_MEASURE_ARCSEC', SENSITIVE = 0)
+	apix_label		= WIDGET_LABEL(apix_base, VALUE = 'Pixel size:', /ALIGN_LEFT, SENSITIVE = 0)
+  IF dx_fixed THEN $
+  	apix_text		= WIDGET_LABEL(apix_base, VALUE = STRTRIM(dx,2), /ALIGN_LEFT, SENSITIVE = 0) $
+  ELSE $
+  	apix_text		= WIDGET_TEXT(apix_base, VALUE = STRTRIM(dx,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_MEASURE_ARCSEC', SENSITIVE = 0)
+	apix_unit		= WIDGET_LABEL(apix_base, VALUE = '['+xunit+']', /ALIGN_LEFT, SENSITIVE = 0)
 	measure_asec		= WIDGET_BASE(measuretool, /ROW)
 	measure_asec_lab	= WIDGET_LABEL(measure_asec, VALUE = 'Distance [arcsec]:', /ALIGN_LEFT, SENSITIVE = 0)
 	measure_asec_text	= WIDGET_LABEL(measure_asec, VALUE = '0.00', /DYNAMIC_RESIZE, SENSITIVE = 0)
@@ -10115,7 +10199,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		loop_slit_but:loop_slit_but, rem_loop_pt_but:rem_loop_pt_but, loop_slice_but:loop_slice_but, $	
 		overlay_but:overlay_but, loop_overlay_all:loop_overlay_al, loop_overlay_sav:loop_overlay_sav, $		
 		linestyle_0:linestyle_0, linestyle_1:linestyle_1, linestyle_2:linestyle_2, $			
-		measure_but:measure_but, apix_label:apix_label, apix_text:apix_text, $
+		measure_but:measure_but, apix_label:apix_label, apix_unit:apix_unit, apix_text:apix_text, $
 		measure_asec_lab:measure_asec_lab, measure_asec_text:measure_asec_text, $
 		measure_km_lab:measure_km_lab, measure_km_text:measure_km_text, $					
 		mask_button_ids:mask_button_ids, masks_overlay_ct_cbox:masks_overlay_ct_cbox, $
@@ -10203,8 +10287,9 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		lc:lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:nlp, refnlp:refnlp, ns:ns, s:0, $					
 		lps:lps, ms:ms, spec:mainspec, $
 		reflps:reflps, refms:refms, refspec:refspec, $
-		t:t_start, nt:nt, refnt:refnt,$
-		masknt:masknt $						
+		t:t_start, nt:nt, refnt:refnt,masknt:masknt, $		
+    dx:dx, dy:dy, $
+    bunit:[bunit,refbunit], lpunit:[lpunit,reflpunit], xunit:xunit, yunit:yunit $
 	}
 ;--------------------------------------------------------------------------------- DATA SWITCH
 	dataswitch = { $
@@ -10273,7 +10358,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	}
 ;--------------------------------------------------------------------------------- MEASUREMENT
 	meas = { $
-		arcsecpix:arcsecpix, spatial_measurement:0, np:0, $					
+		arcsecpix:dx, spatial_measurement:0, np:0, $					
 		xp:PTR_NEW(FLTARR(1)), yp:PTR_NEW(FLTARR(1)), $					
 		sxp:PTR_NEW(FLTARR(1)), syp:PTR_NEW(FLTARR(1)) $					
 	}
@@ -10288,8 +10373,8 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	}
 ;--------------------------------------------------------------------------------- PARAMETER WINDOW CONTROLS 
 	paramparams = { $
-		wav_h:wav_h, scale_cubes:scale_cubes_vals, img_get_val:0., imgsc_get_val:0., ref_get_val:0., $
-		refsc_get_val:0. $			
+		wav_h:wav_h, scale_cubes:scale_cubes_vals, img_get_val:0., $
+    imgsc_get_val:0., ref_get_val:0., refsc_get_val:0. $ 
 	}
 ;--------------------------------------------------------------------------------- PARAM SWITCHES
 	paramswitch = { $
