@@ -1512,7 +1512,7 @@ PRO CRISPEX_DISPLAYS_PHIS_TOGGLE, event, NO_DRAW=no_draw
 			*(*(*info).data).phiscan = (*(*(*info).data).sspscan)[*,*,((*(*info).dataparams).s * (*(*info).dataparams).nlp):(((*(*info).dataparams).s+1)*(*(*info).dataparams).nlp-1)] 
 		ENDIF
 		IF (*(*info).plotswitch).v_dop_set THEN extratitle = '!C' ELSE extratitle = ''
-		IF (*(*info).plotswitch).stokesfile THEN title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle ELSE title = ''
+		IF (*(*info).plotswitch).multichannel THEN title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle ELSE title = ''
 		wintitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+((*(*info).plottitles).phiswintitle)[(*(*info).plotswitch).heightset]
 		CRISPEX_WINDOW, (*(*info).winsizes).phisxres, (*(*info).winsizes).phisyres, (*(*info).winids).root, wintitle, tlb, wid, $
 			(*(*info).winsizes).spxoffset, (*(*info).winswitch).showsp * (*(*info).winsizes).ydelta, DRAWID = phisdrawid, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_PHIS_RESIZE'
@@ -2063,7 +2063,7 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_SP_REPLOT_AXES'
 	WSET, (*(*info).winids).spwid
 	IF (*(*info).plotswitch).v_dop_set THEN extratitle = '!C' ELSE extratitle = ''
-	IF (*(*info).plotswitch).stokesfile THEN title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle ELSE title = ''
+	IF (*(*info).plotswitch).multichannel THEN title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle ELSE title = ''
 	PLOT, (*(*info).dataparams).lps, FINDGEN((*(*info).dispparams).t_range * (*(*info).plotaxes).dt), /NODATA, YR = [(*(*info).dispparams).t_low * (*(*info).plotaxes).dt,$
 		(*(*info).dispparams).t_upp * (*(*info).plotaxes).dt], /YS, POS = [(*(*info).plotpos).spx0,(*(*info).plotpos).spy0,(*(*info).plotpos).spx1,(*(*info).plotpos).spy1], $
 		YTICKLEN = (*(*info).plotaxes).spyticklen, XTICKLEN = (*(*info).plotaxes).spxticklen, XTITLE = (*(*info).plottitles).spxtitle, YTITLE = (*(*info).plottitles).spytitle, $
@@ -2107,7 +2107,7 @@ PRO CRISPEX_DISPLAYS_SP_TOGGLE, event, NO_DRAW=no_draw
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_SP_TOGGLE', /IGNORE_LAST
 	IF ((*(*info).winswitch).showsp EQ 0) THEN BEGIN
 		IF (*(*info).plotswitch).v_dop_set THEN extratitle = '!C' ELSE extratitle = ''
-		IF (*(*info).plotswitch).stokesfile THEN title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle ELSE title = ''
+		IF (*(*info).plotswitch).multichannel THEN title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle ELSE title = ''
 		wintitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+((*(*info).plottitles).spwintitle)[(*(*info).plotswitch).heightset]
 		CRISPEX_WINDOW, (*(*info).winsizes).spxres, (*(*info).winsizes).spyres, (*(*info).winids).root, wintitle, tlb, wid, $
 			(*(*info).winsizes).spxoffset, 0, DRAWID = spdrawid, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_SP_RESIZE'
@@ -3245,7 +3245,7 @@ PRO CRISPEX_DRAW_LS, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_LS'
 	WSET, (*(*info).winids).lswid
-	IF (*(*info).plotswitch).stokesfile THEN title = 'Stokes '+((*(*info).stokesparams).labels)[WHERE((*(*info).stokesparams).select_sp EQ 1)] ELSE title = ''
+	IF (*(*info).plotswitch).multichannel THEN title = 'Stokes '+((*(*info).stokesparams).labels)[WHERE((*(*info).stokesparams).select_sp EQ 1)] ELSE title = ''
 	FOR i=0,TOTAL((*(*info).stokesparams).select_sp)-1 DO BEGIN
 		s = (WHERE((*(*info).stokesparams).select_sp EQ 1))[i]
 		spec = ((*(*info).dataparams).spec)[*,s]
@@ -3334,7 +3334,7 @@ PRO CRISPEX_DRAW_PHIS, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).phiswid], labels=['Window ID for draw']
 	IF ((*(*info).curs).lockset EQ 0) THEN BEGIN		
 		IF (*(*info).plotswitch).v_dop_set THEN extratitle = '!C' ELSE extratitle = ''
-		IF (*(*info).plotswitch).stokesfile THEN title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle ELSE title = ''
+		IF (*(*info).plotswitch).multichannel THEN title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle ELSE title = ''
 		PLOT, (*(*info).dataparams).lps, FINDGEN((*(*info).phiparams).nw_cur), /NODATA, YRANGE = [-(((*(*info).phiparams).nw_cur - (*(*info).phiparams).nphi)/2. + (*(*info).phiparams).sphi)-0.5, $
 			(*(*info).phiparams).nw_cur-(((*(*info).phiparams).nw_cur - (*(*info).phiparams).nphi)/2. + (*(*info).phiparams).sphi)-0.5], /YSTYLE, $
 			POS = [(*(*info).plotpos).phisx0,(*(*info).plotpos).phisy0,(*(*info).plotpos).phisx1,(*(*info).plotpos).phisy1], YTICKLEN = (*(*info).plotaxes).phisxticklen, XTICKLEN = (*(*info).plotaxes).phisyticklen, $
@@ -3658,6 +3658,83 @@ PRO CRISPEX_INTERRUPT, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_INTERRUPT', /IGNORE_LAST
 	PRINT,'Interrupted CRISPEX at runtime. Type [.c] to continue...'
 	STOP
+END
+
+;========================= INPUT/OUTPUT PROCEDURES
+PRO CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, nx, ny, input_nlp, imnt, spnt, $
+                               input_single_cube, multichannel, imns, spns, imstokes, spstokes,$
+                               STARTUPTLB=startuptlb, NLP=nlp, $
+                               NT=nt, NS=ns, SINGLE_CUBE=single_cube, ONECUBE=onecube,$
+                               IO_FAILSAFE_MAIN_ERROR=io_failsafe_main_error
+  io_failsafe_main_error = 0
+  ; If SPCUBE has been supplied, check IMCUBE and SPCUBE compatibility
+	IF spfile THEN BEGIN         
+    ; Check whether SPCUBE and IMCUBE are actually the same
+		IF ((spcube EQ imcube) OR ((input_nlp EQ nx) AND (nt EQ ny) AND (spnt EQ imnt))) THEN BEGIN
+			PRINT,'ERROR: IMCUBE and SPCUBE must be different. Please check input (you seem to have '+$
+              'provided the same file twice).';,/IOERROR
+			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+      io_failsafe_main_error = 1
+			RETURN
+		ENDIF
+    ; Check whether condensed third dimensions of SPCUBE and IMCUBE are incompatible
+		IF ((nx*ny*ns NE spnt) OR (nt*input_nlp*ns NE imnt)) THEN BEGIN							
+			PRINT,'ERROR: IMCUBE and SPCUBE have incompatible dimensions and seem to belong to '+$
+              'different datasets. Please check whether the input is correct (you provided '+$
+              'IMCUBE='+STRTRIM(imcube,2)+' and SPCUBE='+STRTRIM(spcube,2)+').';,/IOERROR
+			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+      io_failsafe_main_error = 1
+			RETURN
+		ENDIF
+    ; Check, for multichannel cube, whether channels are incompatible
+		IF multichannel THEN BEGIN
+			IF ((spstokes NE imstokes) OR (spns NE imns)) THEN BEGIN
+        PRINT,'ERROR: IMCUBE and SPCUBE have incompatible number of channels and seem to '+$
+                'belong to different datasets. Please check whether the input is correct (you '+$
+                'provided IMCUBE='+STRTRIM(imcube,2)+' and SPCUBE='+STRTRIM(spcube,2)+').';,/IOERROR
+				IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+        io_failsafe_main_error = 1
+				RETURN
+			ENDIF ELSE ns = imns  ; If they are compatible, set general number of channels image channels
+		ENDIF ELSE ns = 1       ; If not multiple channels, set general number channels to 1
+    ; Check whether SINGLE_CUBE keyword has been set in combination with provided SPCUBE
+		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) GT 0) THEN BEGIN
+			PRINT,'WARNING: Calling CRISPEX with SINGLE_CUBE, while SPCUBE is provided, is not '+$
+              'allowed. SINGLE_CUBE keyword will be ignored.';,/IOERROR
+			onecube = 0
+		ENDIF
+		single_cube = 0
+	ENDIF ELSE BEGIN  ; If no SPCUBE has been supplied, check other settings
+    ; Check setting of SINGLE_CUBE keyword
+		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) GT 0) THEN BEGIN
+			IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set nlp and nt
+				nlp = LONG(INPUT_SINGLE_CUBE)
+				onecube = 1
+				nt = imnt / nlp / ns
+			ENDIF ELSE BEGIN                              ; Else throw error message
+				PRINT,'ERROR: SINGLE_CUBE must be provided with a single integer.';,/IOERROR
+			  IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+        io_failsafe_main_error = 1
+				RETURN
+			ENDELSE
+;		ENDIF ELSE IF (imnt GT 500) THEN BEGIN  
+;			PRINT,'ERROR: Third dimension of IMCUBE is too large ('+STRTRIM(imnt,2)+'). In single argument mode, please be sure to provide either a '
+;			PRINT,'       single scan. A full timeseries is only allowed with a call to SINGLE_CUBE. Alternatively, switch to double argument mode '
+;			PRINT,'	      by providing SPCUBE.'
+;			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+;			RETURN
+		ENDIF ELSE BEGIN  ; If no SPCUBE or SINGLE_CUBE are set, we are dealing with a snapshot
+			nlp = imnt / ns
+			single_cube = 0
+		ENDELSE
+	ENDELSE
+END
+
+
+PRO CRISPEX_IO_MULTICHANNEL, CUBE_COMPATIBILITY=cube_compatibility, CHANNELS_LABELS=channels_labels
+; Handles setting of parameters in case of multichannel input
+  IF KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN
+  ENDIF
 END
 
 ;================================================================================= LOOP PROCEDURES
@@ -8231,14 +8308,14 @@ END
 ;===================================================================================================
 ;================================== MAIN PROGRAM CODE ==============================================
 ;===================================================================================================
-PRO CRISPEX, imcube,$										; call program / filename of image cube
-	spcube, REFCUBE=refcube, SPECTFILE=spectfile, LINE_CENTER=line_center, $		; spectral & reference cube filename, spectral save file, line centre and/or wavelength information
+PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral cube
+             REFCUBE=refcube, SPECTFILE=spectfile, LINE_CENTER=line_center, $		; spectral & reference cube filename, spectral save file, line centre and/or wavelength information
 	DT=dt, EXTS=exts, MNSPEC=mnspec, SINGLE_CUBE=single_cube, $				; time step in seconds, exact timeslices keyword, mean spectrum over selected scans, single full cube call
 	SCALE_STOKES=scale_stokes, VALS_REF=vals_ref, VALS_IMG=vals_img, $			; Stokes cube call, scale Stokes spectra internally, Doppler map reference values
 	NO_WARP=no_warp, SCALE_CUBES=scale_cubes, XTITLE=xtitle, YTITLE=ytitle, $		; Impede warping of temporal spectrum, custom detailed spectrum xtitle and ytitle
 	MASKCUBE=maskcube, WINDOW_LARGE=window_large, VERBOSE=verbose				; Mask cube filename, large window for small cubes, program verbosity
 
-;================================================================================= PROGRAM-INFO ON CALL W/O PARAMS
+;========================= PROGRAM-INFO ON CALL W/O PARAMS
 	IF N_PARAMS() LT 1 THEN BEGIN
 		PRINT,'CRISPEX, imcube, spcube, REFCUBE=refcube, LINE_CENTER=line_center, DT=dt, EXTS=exts, $'
 		PRINT,'	MNSPEC=mnspec, SINGLE_CUBE=single_cube, SCALE_STOKES=scale_stokes, VALS_REF=vals_ref, $'
@@ -8247,101 +8324,109 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		RETURN
 	ENDIF
 
-;================================================================================= VERSION AND REVISION NUMBER
+;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
 	revision_number = '575'
 
-;================================================================================= PROGRAM VERBOSITY CHECK
+;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
-		IF (N_ELEMENTS(VERBOSE) GT 1) THEN PRINT,'ERROR: The VERBOSE keyword may only be set to a single integer number. Reverting to default verbosity level 0.'
+		IF (N_ELEMENTS(VERBOSE) GT 1) THEN $
+      MESSAGE,'ERROR: The VERBOSE keyword may only be set to a single integer number. Reverting to default verbosity level 0.'
 		verbose = 0
 		verbosity = [0,0,0,0,0]
 	ENDIF ELSE BEGIN
 		verbose >= 0	&	verbose <= 26
 	ENDELSE
-	verbosity = CRISPEX_DEC2BIN(verbose)
+	verbosity = CRISPEX_DEC2BIN(verbose)   ; Convert verbosity value to binary array
 
-;================================================================================= CRISPEX DIRECTORY CHECK
-	file_crispex		= (ROUTINE_INFO('CRISPEX',/SOURCE)).PATH
-	dir_crispex 		= FILE_DIRNAME(file_crispex,/MARK_DIRECTORY)
-	dir_aux			= dir_crispex+'aux'+PATH_SEP()
-	dir_resources		= dir_crispex+'resources'+PATH_SEP()
-	dir_buttons		= dir_resources+'buttons'+PATH_SEP()
-	dir_settings		= dir_crispex+'settings'+PATH_SEP()
-	dir_cpft		= dir_settings+'cpft'+PATH_SEP()
-	dir_inst		= dir_settings+'inst'+PATH_SEP()
-	dir_cpft_write		= FILE_TEST(dir_cpft, /WRITE)
-	dir_inst_write		= FILE_TEST(dir_inst, /WRITE)
+;========================= CRISPEX DIRECTORY TREE CHECK
+	file_crispex    = (ROUTINE_INFO('CRISPEX',/SOURCE)).PATH      ; Path to compiled CRISPEX
+	dir_crispex     = FILE_DIRNAME(file_crispex,/MARK_DIRECTORY)
+	dir_aux         = dir_crispex+'aux'+PATH_SEP()                ; Path to auxiliary routines
+	dir_resources   = dir_crispex+'resources'+PATH_SEP()          ; Path to resources container
+	dir_buttons     = dir_resources+'buttons'+PATH_SEP()          ; Path to button images
+	dir_settings    = dir_crispex+'settings'+PATH_SEP()           ; Path to settings container
+	dir_cpft        = dir_settings+'cpft'+PATH_SEP()              ; Path to performance file dir
+	dir_inst        = dir_settings+'inst'+PATH_SEP()              ; Path to instances file dir
+	dir_cpft_write  = FILE_TEST(dir_cpft, /WRITE)                 ; Check for cpft dir writeability
+	dir_inst_write  = FILE_TEST(dir_inst, /WRITE)                 ; Check for inst dir writeability
 	IF (verbosity[1] EQ 1) THEN PRINT,'CRISPEX SETUP: CRISPEX has been compiled from: '+file_crispex
 
-;================================================================================= LOAD PREFERENCES
-	default_startupwin = 1		&	default_interpspslice = 1
-	default_autoplay = 0		&	default_defsaveid = 0								; 0 = yyyymmdd, 1 = ddmmyyyy
-	default_defipath = 0		&	default_defopath = 0								; 0 = local working directory, 1 = saved directory
-	default_bgplotcol = 255		&	default_plotcol = 0
-	default_phislice_update = 0	&	default_slices_imscale = 0
+;========================= LOAD PREFERENCES
+  ; Define default preferences
+	default_startupwin = 1      &  default_interpspslice = 1  ; Show startup win, interpolate slices
+	default_autoplay = 0        &  default_defsaveid = 0								; 0 = yyyymmdd, 1 = ddmmyyyy
+	default_defipath = 0        &  default_defopath = 0								; 0 = local working directory, 1 = saved directory
+	default_bgplotcol = 255     &  default_plotcol = 0
+	default_phislice_update = 0 &  default_slices_imscale = 0
 	cpreffiles = FILE_SEARCH(dir_settings+'crispex.cpref', COUNT = cpreffilecount)
-	IF (cpreffilecount GE 1) THEN BEGIN
+	IF (cpreffilecount GE 1) THEN BEGIN     ; If preference file is present, load preference file
 		RESTORE, cpreffiles[0] 
 		IF (verbosity[1] EQ 1) THEN PRINT,'CRISPEX SETUP: Preferences restored from: '+dir_settings+'crispex.cpref'
 		resave_preferences = ((N_ELEMENTS(phislice_update) NE 1) OR (N_ELEMENTS(slices_imscale) NE 1))
-		IF (N_ELEMENTS(phislice_update) NE 1) THEN phislice_update = default_phislice_update				; Failsafe against older preference files
-		IF (N_ELEMENTS(slices_imscale) NE 1) THEN slices_imscale = default_slices_imscale				; Failsafe against older preference files
-	ENDIF ELSE BEGIN													; If no preference file is present, set defaults
-		startupwin = default_startupwin 		&	interpspslice = default_interpspslice
-		autoplay = default_autoplay			&	defsaveid = default_defsaveid
-		defipath = default_defipath			&	defopath = default_defopath	
-		bgplotcol = default_bgplotcol			&	plotcol = default_plotcol
-		phislice_update = default_phislice_update	&	slices_imscale = default_slices_imscale
+    ; Failsafe inheritances from older CRISPEX versions
+    ; Automatic phislice update
+		IF (N_ELEMENTS(phislice_update) NE 1) THEN phislice_update = default_phislice_update
+    ; Scale slices with image scaling
+		IF (N_ELEMENTS(slices_imscale) NE 1) THEN slices_imscale = default_slices_imscale
+	ENDIF ELSE BEGIN                        ; If no preference file is present, set defaults
+		startupwin = default_startupwin           &  interpspslice = default_interpspslice
+		autoplay = default_autoplay               &  defsaveid = default_defsaveid
+		defipath = default_defipath               &  defopath = default_defopath
+		bgplotcol = default_bgplotcol             &  plotcol = default_plotcol
+		phislice_update = default_phislice_update &  slices_imscale = default_slices_imscale
 		resave_preferences = 0
 	ENDELSE
-;================================================================================= START-UP WINDOW
-	screeninfo	= OBJ_NEW('IDLsysMonitorInfo')
-	monitors	= screeninfo -> GetNumberOfMonitors()
-	screensizes	= screeninfo -> GetRectangles()
-	IF (monitors GT 1) THEN BEGIN
-		monitor_order = (INDGEN(monitors))[SORT(screensizes[0,0:1])]
-		monitor_xsize_order = (INDGEN(monitors))[SORT(screensizes[2,0:1])]
-		monitor_ysize_order = (INDGEN(monitors))[SORT(screensizes[3,0:1])]
-	ENDIF ELSE BEGIN
-		monitor_order = 0
+;========================= START-UP WINDOW AND SCREEN PARAMETERS
+	screeninfo  = OBJ_NEW('IDLsysMonitorInfo')
+	nmonitors    = screeninfo -> GetNumberOfMonitors()
+	screensizes = screeninfo -> GetRectangles()
+	IF (nmonitors GT 1) THEN BEGIN   ; Define monitor order if multiple monitors attached
+		monitor_order       = (INDGEN(nmonitors))[SORT(screensizes[0,0:1])]
+		monitor_xsize_order = (INDGEN(nmonitors))[SORT(screensizes[2,0:1])]
+		monitor_ysize_order = (INDGEN(nmonitors))[SORT(screensizes[3,0:1])]
+	ENDIF ELSE BEGIN                ; Default monitor order if only one monitor attached
+		monitor_order       = 0
 		monitor_ysize_order = 0
 	ENDELSE
-	x_screen_mid	= screensizes[2,monitor_order[0]]/2.
-	y_screen_mid	= screensizes[3,monitor_order[0]]/2.
-	startup_im 	= REBIN(REFORM(TOTAL((CRISPEX_READ_BMP_BUTTONS('crispex_startup.bmp',dir_resources))[*,*,1:2],3)),400,300)
-	startup_nx 	= (SIZE(startup_im))[1]
-	startup_ny 	= (SIZE(startup_im))[2]
-	startup_xpos 	= FIX(x_screen_mid-startup_nx/2.)
-	startup_ypos 	= FIX(y_screen_mid-startup_ny/2.)
-	xout 		= REPLICATE(24,9)
-	yout 		= REPLICATE(FIX(startup_ny/2.5)+10,9)-INDGEN(9)*15
-	IF startupwin THEN BEGIN
-		CRISPEX_WINDOW, startup_nx, startup_ny, 0, 'CRISPEX', startuptlb, startupwid, startup_xpos, startup_ypos, DRAWID = startupdrawid, $
-			DRAWBASE = drawbase
+	x_screen_mid  = screensizes[2,monitor_order[0]]/2.    ; x-coordinate of central screen pixel
+	y_screen_mid  = screensizes[3,monitor_order[0]]/2.    ; y-coordinate of central screen pixel
+	startup_im    = REBIN(REFORM(TOTAL((CRISPEX_READ_BMP_BUTTONS('crispex_startup.bmp',dir_resources))[*,*,1:2],3)),400,300)
+	startup_nx    = (SIZE(startup_im))[1]                 ; x-size of statup window image
+	startup_ny    = (SIZE(startup_im))[2]                 ; y-size of statup window image
+	startup_xpos  = FIX(x_screen_mid-startup_nx/2.)       ; x-position of startup window
+	startup_ypos  = FIX(y_screen_mid-startup_ny/2.)       ; y-position of startup window
+	xout          = REPLICATE(24,9)
+	yout          = REPLICATE(FIX(startup_ny/2.5)+10,9)-INDGEN(9)*15
+	IF startupwin THEN BEGIN  ; If startup window is to be shown, launch window
+		CRISPEX_WINDOW, startup_nx, startup_ny, 0, 'CRISPEX', startuptlb, startupwid, startup_xpos, $
+                    startup_ypos, DRAWID = startupdrawid, DRAWBASE = drawbase
 		CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Initializing... '
 	ENDIF
 
-;========================== READ-IN AND INITIALISATION OF FILES
+;========================= READ-IN AND INITIALISATION OF FILES
   IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Reading input files... '
-  ; Check whether machine is big or little
-  IF ((BYTE(1L,0,1))[0] EQ 1) THEN endian = 'l' ELSE endian = 'b'
+  IF ((BYTE(1L,0,1))[0] EQ 1) THEN endian = 'l' ELSE endian = 'b' ; Check endianness of machine
   
+  ; Cube read-in. After CRISPEX v1.6.3 FITS cubes have become the standard. Old read-in procedures 
+  ; are retained as failsafes for older cubes. Differentiation is performed based on filename
+  ; extension, where FITS cubes are assumed to have a *.fits/*.FITS/*.Fits extension.
   IF N_ELEMENTS(SPCUBE) EQ 1 THEN BEGIN 
-		spext = STRMID(spcube,STRPOS(spcube,'.',/REVERSE_SEARCH)+1,STRLEN(spcube))
-		IF STRMATCH(spext,'fits',/FOLD_CASE) THEN BEGIN   ; Check whether dealing with fits cube
+    spext = STRMID(spcube,STRPOS(spcube,'.',/REVERSE_SEARCH)+1,STRLEN(spcube))
+    IF STRMATCH(spext,'fits',/FOLD_CASE) THEN BEGIN   ; Check whether dealing with fits cube
       CRISPEX_READ_FITSHEADER, spcube, datatype=sptype, nlp=nlp, nt=nt, spnt=spnt, lps=lps, $
                                offset=spoffset, lptitle=xtitle, ttitle=spytitle, dt=dt, $
                                lpunit=lpunit, exten_no=0
+      endian_file = 'b'                               ; FITS files are big endian by default
       ms = 1.0
-			swapvalue = 1
-    ENDIF ELSE BEGIN
-		  CRISPEX_READ_HEADER, spcube, datatype=sptype, dims=imdims, nx=nlp, ny=nt, nt=spnt, $
+    ENDIF ELSE BEGIN                                  ; Old-style CRISPEX (i.e., up to v1.6.3) cube
+      CRISPEX_READ_HEADER, spcube, datatype=sptype, dims=imdims, nx=nlp, ny=nt, nt=spnt, $
                            endian=endian_file, stokes=spstokes, ns=spns, diagnostics=spdiagnostics
-      spoffset = 512
-  		swapvalue = ((sptype GT 1) AND (endian NE endian_file))
+      spoffset = 512  ; Header offset in bytes for old-style CRISPEX cubes
       lpunit = ''
     ENDELSE
+    ; Determine whether byteswap is necessary
+    swapvalue = ((sptype GT 1) AND (endian NE endian_file))
     ; Actual read-in of the spectral cube
     OPENR, lur, spcube, /get_lun, SWAP_ENDIAN = swapvalue
     ; Read data from associated file, skip first 512 (header)bytes
@@ -8354,6 +8439,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		spfile = 0
 		nt = 1
 		spcube = ''
+    lpunit = ''
 		lur = 0
 		IF (TOTAL(verbosity[0:1]) GE 1) THEN PRINT,'CRISPEX SETUP: No spectral cube supplied.'
 	ENDELSE
@@ -8364,7 +8450,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
                              offset=imoffset, inttitle=ytitle, bunit=bunit, dx=dx, dy=dy, $
                              xunit=xunit, yunit=yunit, exten_no=0
     dx_fixed = 1
-		swapvalue = 1
+		endian_file = 'b'
 	ENDIF ELSE BEGIN
     CRISPEX_READ_HEADER, imcube, datatype=imtype, dims=imdims, nx=nx, ny=ny, nt=imnt, $
                          endian=endian_file, stokes=imstokes, ns=imns, diagnostics=imdiagnostics
@@ -8377,60 +8463,17 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
     xunit = 'arcsec'
     yunit = 'arcsec'
     ns = imns
-		swapvalue = ((imtype GT 1) AND (endian NE endian_file))									
   ENDELSE
+	swapvalue = ((imtype GT 1) AND (endian NE endian_file))									
 	onecube = 0
-	stokesfile = (ns GE 2)
-	IF spfile THEN BEGIN
-		IF stokesfile THEN BEGIN
-			IF ((spstokes NE imstokes) OR (spns NE imns)) THEN BEGIN
-				PRINT,'ERROR: IMCUBE and SPCUBE have incompatible Stokes dimensions and seem to belong to different datasets.'
-				PRINT,'       Please check whether the input is correct (you provided IMCUBE='+STRTRIM(imcube,2)
-				PRINT,'       and SPCUBE='+STRTRIM(spcube,2)+').'
-				WIDGET_CONTROL, startuptlb, /DESTROY
-				RETURN
-			ENDIF ELSE ns = imns
-		ENDIF ELSE ns = 1
-		IF ((spcube EQ imcube) OR (nlp EQ nx) AND (nt EQ ny) AND (spnt EQ imnt)) THEN BEGIN
-			PRINT,'ERROR: IMCUBE and SPCUBE must be different. Please check input (you seem to have provided the same file twice).'
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDIF
-		IF ((nx*ny*ns NE spnt) OR (nt*nlp*ns NE imnt)) THEN BEGIN							; Failsafe against incompatible IMCUBE and SPCUBE
-			PRINT,'ERROR: IMCUBE and SPCUBE have incompatible dimensions and seem to belong to different datasets.'
-			PRINT,'       Please check whether the input is correct (you provided IMCUBE='+STRTRIM(imcube,2)
-			PRINT,'       and SPCUBE='+STRTRIM(spcube,2)+').'
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDIF
-		IF (N_ELEMENTS(SINGLE_CUBE) GT 0) THEN BEGIN
-			PRINT,'WARNING: Calling CRISPEX with SINGLE_CUBE, while SPCUBE is provided, is not allowed. SINGLE_CUBE keyword will be ignored.'
-			onecube = 0
-		ENDIF
-		single_cube = 0
-	ENDIF ELSE BEGIN 
-		IF (N_ELEMENTS(SINGLE_CUBE) GT 0) THEN BEGIN
-			IF (N_ELEMENTS(SINGLE_CUBE) EQ 1) THEN BEGIN
-				nlp = LONG(SINGLE_CUBE)
-				onecube = 1
-				nt = imnt / nlp / ns
-			ENDIF ELSE BEGIN
-				PRINT,'ERROR: SINGLE_CUBE must be provided with a single integer.'
-				WIDGET_CONTROL, startuptlb, /DESTROY
-				RETURN
-			ENDELSE
-		ENDIF ELSE IF (imnt GT 500) THEN BEGIN
-			PRINT,'ERROR: Third dimension of IMCUBE is too large ('+STRTRIM(imnt,2)+'). In single argument mode, please be sure to provide either a '
-			PRINT,'       single scan. A full timeseries is only allowed with a call to SINGLE_CUBE. Alternatively, switch to double argument mode '
-			PRINT,'	      by providing SPCUBE.'
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDIF ELSE BEGIN
-			nlp = imnt / ns
-			single_cube = 0
-		ENDELSE
-	ENDELSE
-	IF stokesfile THEN BEGIN
+	multichannel = (ns GE 2)
+  CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, nx, ny, nlp, imnt, spnt, $
+                               single_cube, multichannel, imns, spns, imstokes, spstokes,$
+                               STARTUPTLB=startuptlb, NLP=nlp, $
+                               NT=nt, NS=ns, SINGLE_CUBE=single_cube, ONECUBE=onecube,$
+                               IO_FAILSAFE_MAIN_ERROR=io_failsafe_main_error
+  IF (io_failsafe_main_error EQ 1) THEN RETURN
+  IF multichannel THEN BEGIN
 		stokes_comp = STRSPLIT(STRSPLIT(STRJOIN(STRSPLIT(imstokes,',',/EXTRACT)),']',/EXTRACT),'[',/EXTRACT)
 		IF (STRLEN(stokes_comp) NE imns) THEN BEGIN
 			PRINT,'ERROR: The number of Stokes components ('+STRTRIM(imns,2)+') does not correspond to the number of Stokes labels ('+STRTRIM(STRLEN(stokes_comp),2)+').'
@@ -8439,7 +8482,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 			RETURN
 		ENDIF ELSE BEGIN
 			ns = imns
-			stokes_labels = STRARR(ns)
+;			stokes_labels = STRARR(ns)
 			stokes_select_sp = INTARR(ns)
 			stokes_labels = STRMID(stokes_comp,INDGEN(ns),1)
 			IF ((WHERE(stokes_labels EQ 'I') GE 0) AND (WHERE(stokes_labels EQ 'I') LE imns-1)) THEN BEGIN
@@ -8505,7 +8548,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		scanfile  = ASSOC(lun,FLTARR(nx,ny,nlp*ns),imoffset)								
 	ENDIF
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN
-		IF stokesfile THEN PRINT,'CRISPEX SETUP: Read Stokes image cube: '+imcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(imnt,2)+').' ELSE $
+		IF multichannel THEN PRINT,'CRISPEX SETUP: Read Stokes image cube: '+imcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(imnt,2)+').' ELSE $
 			PRINT,'CRISPEX SETUP: Read image cube: '+imcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(imnt,2)+').'
 		IF (verbosity[1] EQ 1) THEN PRINT,'CRISPEX SETUP: Main cubes dimensions: (nx,ny,nt,nlp,ns) = ('+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(nt,2)+','+STRTRIM(nlp,2)+','+STRTRIM(ns,2)+')'
 	ENDIF
@@ -8516,14 +8559,14 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
   	IF STRMATCH(refimext,'fits',/FOLD_CASE) THEN BEGIN
       CRISPEX_READ_FITSHEADER, refcube, datatype=refimtype, nx=refnx, ny=refny, imnt=refnt, $
                              offset=refimoffset, bunit=refbunit, exten_no=0
-  		swapvalue = 1
+      endian_file = 'b'
   	ENDIF ELSE BEGIN
   		CRISPEX_READ_HEADER, refcube, datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt,$
                            endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
   		refimoffset = 512
       refbunit = 'counts'
-  		swapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
     ENDELSE
+  	swapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
 		IF (refnx EQ nx) AND (refny EQ ny) AND (refnt EQ nt) OR (refnt EQ 1) OR (refnt EQ imnt) OR (refnt EQ nlp) OR (nt EQ 1) THEN BEGIN
 ;			swapvalue = ((refimtype GT 1) AND (endian NE endian_file))						; and determine whether correction is needed
 			OPENR, luf, refcube, /get_lun, SWAP_ENDIAN = swapvalue							; Actual read-in of the reference cube
@@ -8565,25 +8608,25 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
       CRISPEX_READ_FITSHEADER, refcube[1], datatype=refsptype, nlp=refnlp, nt=refnt, spnt=refspnt, $
                              offset=refspoffset, lptitle=refxtitle, lpunit=reflpunit, exten_no=0
       refms = 1.0
-  		refspswapvalue = 1
+      endian_file = 'b'
   	ENDIF ELSE BEGIN
-  		CRISPEX_READ_HEADER, refcube[1], datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt,$
-                           endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
+  		CRISPEX_READ_HEADER, refcube[1], datatype=refsptype, dims=refdims, nx=refnlp, ny=refnt, $
+                           nt=refspnt, endian=endian_file	
   		refspoffset = 512
-  		refspswapvalue = ((refimtype GT 1) AND (endian NE endian_file))						
       reflpunit = ''
     ENDELSE
+  	refspswapvalue = ((refsptype GT 1) AND (endian NE endian_file))						
   	IF STRMATCH(refimext,'fits',/FOLD_CASE) THEN BEGIN
       CRISPEX_READ_FITSHEADER, refcube[0], datatype=refimtype, nx=refnx, ny=refny, imnt=refimnt, $
                              offset=refimoffset, inttitle=refytitle, bunit=refbunit, exten_no=0
-  		refimswapvalue = 1
+      endian_file = 'b'
   	ENDIF ELSE BEGIN
-  		CRISPEX_READ_HEADER, refcube[0], datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt,$
-                           endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
+  		CRISPEX_READ_HEADER, refcube[0], datatype=refimtype, dims=refdims, nx=refnx, ny=refny, $
+                           nt=refimnt, endian=endian_file	
   		refimoffset = 512
       refbunit = 'counts'
-  		refimswapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
     ENDELSE
+  	refimswapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
 ;		CRISPEX_READ_HEADER, refcube[1], datatype=refsptype, dims=refspdims, nx=refnlp, ny=refnt, nt=refspnt, endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
 ;		CRISPEX_READ_HEADER, refcube[0], datatype=refimtype, dims=refimdims, nx=refnx, ny=refny, nt=refimnt, endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
 		; First check whether reference cubes are compatible
@@ -8679,7 +8722,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	IF (N_ELEMENTS(MASKCUBE) EQ 1) THEN BEGIN
 		CRISPEX_READ_HEADER, maskcube, datatype=masktype, dims=maskdims, nx=masknx, ny=maskny, nt=masknt, endian=endian_file;, $	; Calling LP_HEADER.PRO to read the header of the spectral cube
 		IF ((masknx EQ nx) AND (maskny EQ ny) AND ((masknt EQ nt) OR (masknt EQ 1))) THEN BEGIN
-			swapvalue = ((masktype GT 1) AND (endian NE endian_file))								; Determine whether correction for endian is needed
+			swapvalue = ((masktype GT 1) AND (endian NE endian_file))
 			OPENR, lum, maskcube, /get_lun, SWAP_ENDIAN = swapvalue								; Actual read-in of the spectral cube
 			IF (masktype EQ 1) THEN mask = ASSOC(lum,BYTARR(nx,ny),hoffset) $						; Read data from associated file, skip first 512 (header)bytes
 			ELSE IF (masktype EQ 2) THEN mask = ASSOC(lum,INTARR(nx,ny),hoffset) $
@@ -8720,26 +8763,27 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 
 
 	DEVICE, DECOMPOSE = 0	
-
+;------------------------- SETTINGS FOR PERFORMANCE SAVE FILE
 	SPAWN, 'echo $HOSTNAME', hostname
 	cpftfile = FILE_SEARCH(dir_cpft+'crispex.'+hostname+'.cpft', COUNT = cpftfilecount)
-	IF cpftfilecount THEN BEGIN
+	IF cpftfilecount THEN BEGIN   ; If cpft file is present, restore
 		RESTORE, cpftfile[0] 
 		IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Restored '+cpftfile[0]+'.'
-	ENDIF ELSE BEGIN
+	ENDIF ELSE BEGIN              ; If not, then initialise variables
 		IF (verbosity[1] EQ 1) THEN BEGIN
 			PRINT, 'CRISPEX SETUP: No CRISPEX performance test file (crispex.'+hostname+'.cpft) found to restore '
 			PRINT, '               in '+dir_cpft
 		ENDIF
-		estimate_lx = 0
-		estimate_time = 0.
-		estimate_run = 0
+		estimate_lx = 0             ; Size variable for time estimate
+		estimate_run = 0            ; Run counter for time estimate
+		estimate_time = 0.          ; Updated time estimate per unit run and unit slice size
 	ENDELSE 
 
+;------------------------- SETTINGS FOR INSTANCES SAVE FILE
 	instfilename = 'crispex.'+hostname+'.inst'
-	IF dir_inst_write THEN BEGIN
+	IF dir_inst_write THEN BEGIN    ; If instances directory is writeable, start procedures
 		instfile = FILE_SEARCH(dir_inst+instfilename, COUNT = instfilecount)
-		IF instfilecount THEN BEGIN
+		IF instfilecount THEN BEGIN   ; If inst file is present for current hostname, add current
 			IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Opening existing instance tracking file: '+instfilename+'.'
 			nlines = FILE_LINES(instfile)
 			datarr = STRARR(1,nlines)
@@ -8755,7 +8799,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 			ENDFOR
 			where_crispex = WHERE(routine_name EQ 'CRISPEX')
 			OPENU, unit2, dir_inst+instfilename, WIDTH = 360, /GET_LUN, /APPEND
-		ENDIF ELSE BEGIN
+		ENDIF ELSE BEGIN              ; If no inst file present for current hostname, make one
 			IF (verbosity[1] EQ 1) THEN BEGIN
 				PRINT, 'CRISPEX SETUP: No CRISPEX instance tracking file ('+instfilename+') found in '+dir_inst
 				PRINT, '               Creating file.'
@@ -8779,8 +8823,8 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		ENDIF
 	ENDELSE
 	
-;================================================================================= SETTING START-UP OPTIONS 
-;--------------------------------------------------------------------------------- PARAMETERS FROM MEAN SPEC
+;========================= SETTING START-UP OPTIONS 
+;------------------------- PARAMETERS FROM MEAN SPEC
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (parameters from/for mean spectrum)...",a5)','     ') 
 	feedback_text = ['Setting start-up options... ','> Parameters from/for mean spectrum... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
@@ -8793,28 +8837,28 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 		scalestokes = 0
 	ENDELSE
 
-	IF (N_ELEMENTS(XTITLE) EQ 1) THEN BEGIN
-    IF (N_ELEMENTS(REFXTITLE) EQ 1) THEN $
-      xtitle = [xtitle[0],refxtitle[0]] $
-    ELSE $
+	IF (N_ELEMENTS(XTITLE) EQ 1) THEN BEGIN         ; Check whether XTITLE has 1 element
+    IF (N_ELEMENTS(REFXTITLE) EQ 1) THEN $        ; Check whether REFXTITLE has 1 element
+      xtitle = [xtitle[0],refxtitle[0]] $         ; If so, fill xtitle variable with both
+    ELSE $                                        ; Else, fill xtitle variable only with main
       xtitle = [xtitle[0],''] 
-  ENDIF ELSE IF (N_ELEMENTS(XTITLE) EQ 2) THEN $
-    xtitle = xtitle $
-  ELSE IF (N_ELEMENTS(REFXTITLE) EQ 1) THEN $
-    xtitle = ['',refxtitle[0]] $
-  ELSE $
-    xtitle = ['','']
-	IF (N_ELEMENTS(YTITLE) EQ 1) THEN BEGIN
-    IF (N_ELEMENTS(REFYTITLE) EQ 1) THEN $
-      ytitle = [ytitle[0],refytitle[0]] $
-    ELSE $
+  ENDIF ELSE IF (N_ELEMENTS(XTITLE) EQ 2) THEN $  ; Check whether XTITLE has 2 elements
+    xtitle = xtitle $                             ; If so, use that
+  ELSE IF (N_ELEMENTS(REFXTITLE) EQ 1) THEN $     ; If not, check whether REFXTITLE has 1 element
+    xtitle = ['',refxtitle[0]] $                  ; If so, set 2nd xtitle element to that
+  ELSE $                                          ; Else, set xtitle to empty string array
+    xtitle = STRARR(2)
+	IF (N_ELEMENTS(YTITLE) EQ 1) THEN BEGIN         ; Check whether YTITLE has 1 element
+    IF (N_ELEMENTS(REFYTITLE) EQ 1) THEN $        ; Check whether REFYTITLE has 1 element
+      ytitle = [ytitle[0],refytitle[0]] $         ; If so, fill ytitle variable with both
+    ELSE $                                        ; Else, fill ytitle variable only with main
       ytitle = [ytitle[0],''] 
-  ENDIF ELSE IF (N_ELEMENTS(YTITLE) EQ 2) THEN $
-    ytitle = ytitle $
-  ELSE IF (N_ELEMENTS(REFYTITLE) EQ 1) THEN $
-    ytitle = ['',refytitle[0]] $
-  ELSE $
-    ytitle = ['','']
+  ENDIF ELSE IF (N_ELEMENTS(YTITLE) EQ 2) THEN $  ; Check whether YTITLE has 2 elements
+    ytitle = ytitle $                             ; If so, use that
+  ELSE IF (N_ELEMENTS(REFYTITLE) EQ 1) THEN $     ; If not, check whether REFYTITLE has 1 element
+    ytitle = ['',refytitle[0]] $                  ; If so, set 2nd ytitle element to that
+  ELSE $                                          ; Else, set ytitle to empty string array
+    ytitle = STRARR(2)
 
 	IF ((N_ELEMENTS(SPECTFILE) EQ 1) OR (N_ELEMENTS(SPECTFILE) EQ 2)) THEN BEGIN										; If SPECTFILE is specified, use that to
 		IF (N_ELEMENTS(MNSPEC) GT 0) THEN PRINT,'WARNING: Calling CRISPEX with MNSPEC, while SPECTFILE is provided, is not allowed. Using SPECTFILE for mean spectrum determination.'
@@ -9899,18 +9943,18 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	ypos_slider		= WIDGET_SLIDER(zoom_sup_frame, TITLE = 'Y position of image (lower left corner) [pixel]', MIN = y_first, MAX = y_last, VALUE = y_first, EVENT_PRO = 'CRISPEX_SLIDER_YPOS',$
 					/DRAG, SENSITIVE = 0)
 
-	stokes_tab		= WIDGET_BASE(tab_tlb, TITLE='Stokes', /COLUMN)
-	pol_frame		= WIDGET_BASE(stokes_tab, /FRAME, /COLUMN)
-	pol_main_label		= WIDGET_LABEL(pol_frame, VALUE = 'Stokes component:                                   ', /ALIGN_LEFT)
-	pol_xy			= WIDGET_BASE(pol_frame, /ROW)
-	pol_xy_label		= WIDGET_LABEL(pol_xy, VALUE = 'Main image:',/ALIGN_LEFT)
-	pol_xy_buts		= WIDGET_BASE(pol_xy, /ROW, /EXCLUSIVE)
-	pol_xy_i_but		= WIDGET_BUTTON(pol_xy_buts, VALUE = 'I', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_I', SENSITIVE = stokes_i_enabled, /NO_RELEASE)
+  stokes_tab		= WIDGET_BASE(tab_tlb, TITLE='Stokes', /COLUMN)
+	stokes_frame  = WIDGET_BASE(stokes_tab, /FRAME, /COLUMN)
+	stokes_disp_label		= WIDGET_LABEL(stokes_frame, VALUE = 'Stokes parameter:                                    ', /ALIGN_LEFT)
+	stokes_main			= WIDGET_BASE(stokes_frame, /ROW)
+	stokes_main_label		= WIDGET_LABEL(stokes_main, VALUE = 'Main image:',/ALIGN_LEFT)
+	pol_xy_buts		= WIDGET_BASE(stokes_main, /ROW, /EXCLUSIVE)
+  pol_xy_i_but		= WIDGET_BUTTON(pol_xy_buts, VALUE = 'I', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_I', SENSITIVE = stokes_i_enabled, /NO_RELEASE)
 	WIDGET_CONTROL, pol_xy_i_but, /SET_BUTTON
 	pol_xy_q_but		= WIDGET_BUTTON(pol_xy_buts, VALUE = 'Q', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_Q', SENSITIVE = stokes_q_enabled, /NO_RELEASE)
 	pol_xy_u_but		= WIDGET_BUTTON(pol_xy_buts, VALUE = 'U', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_U', SENSITIVE = stokes_u_enabled, /NO_RELEASE)
 	pol_xy_v_but		= WIDGET_BUTTON(pol_xy_buts, VALUE = 'V', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_V', SENSITIVE = stokes_v_enabled, /NO_RELEASE)
-	pol_sp			= WIDGET_BASE(pol_frame, /ROW)
+	pol_sp			= WIDGET_BASE(stokes_frame, /ROW)
 	pol_sp_label		= WIDGET_LABEL(pol_sp, VALUE = 'Detailed spectra:',/ALIGN_LEFT)
 	pol_sp_buts		= WIDGET_BASE(pol_sp, /ROW, /NONEXCLUSIVE)
 	spconstraint		= (nlp GT 1)
@@ -9918,7 +9962,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	pol_sp_q_but		= WIDGET_BUTTON(pol_sp_buts, VALUE = 'Q', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_Q', SENSITIVE = (spconstraint AND stokes_q_enabled))
 	pol_sp_u_but		= WIDGET_BUTTON(pol_sp_buts, VALUE = 'U', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_U', SENSITIVE = (spconstraint AND stokes_u_enabled))
 	pol_sp_v_but		= WIDGET_BUTTON(pol_sp_buts, VALUE = 'V', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_V', SENSITIVE = (spconstraint AND stokes_v_enabled))
-	IF stokesfile THEN WIDGET_CONTROL, pol_sp_i_but, SET_BUTTON=(spconstraint AND stokes_i_enabled) ELSE WIDGET_CONTROL, pol_sp_i_but, SET_BUTTON=spconstraint
+	IF multichannel THEN WIDGET_CONTROL, pol_sp_i_but, SET_BUTTON=(spconstraint AND stokes_i_enabled) ELSE WIDGET_CONTROL, pol_sp_i_but, SET_BUTTON=spconstraint
 	WIDGET_CONTROL, pol_sp_q_but, SET_BUTTON=(spconstraint AND stokes_q_enabled)
 	WIDGET_CONTROL, pol_sp_u_but, SET_BUTTON=(spconstraint AND stokes_u_enabled)
 	WIDGET_CONTROL, pol_sp_v_but, SET_BUTTON=(spconstraint AND stokes_v_enabled)
@@ -10447,7 +10491,7 @@ PRO CRISPEX, imcube,$										; call program / filename of image cube
 	}
 ;--------------------------------------------------------------------------------- PLOT SWITCHES
 	plotswitch = { $
-		heightset:heightset, refheightset:refheightset, stokesfile:stokesfile, scalestokes:scalestokes, $
+		heightset:heightset, refheightset:refheightset, multichannel:multichannel, scalestokes:scalestokes, $
 		v_dop_set:v_dop_set, v_dop_set_ref:v_dop_set_ref, subtract:0, ref_subtract:0 $						
 	}
 ;--------------------------------------------------------------------------------- PLOT TITLES
