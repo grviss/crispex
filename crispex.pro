@@ -414,11 +414,11 @@ PRO CRISPEX_CLOSE, event
 		PRINT, 'ERROR: Could not write performance file crispex.'+(*(*info).paths).hostname+'.cpft '
 		PRINT, '       to '+(*(*info).paths).dir_cpft+'. Permission denied.'
 	ENDELSE
-	FREE_LUN, (*(*info).data).lun
-	IF (*(*info).dataswitch).spfile THEN FREE_LUN, (*(*info).data).lur
-	IF ((*(*info).winswitch).showref AND ((*(*info).data).luf GT 0)) THEN FREE_LUN, (*(*info).data).luf
-	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lufs GT 0)) THEN FREE_LUN, (*(*info).data).lufs
-	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lum GT 0)) THEN FREE_LUN, (*(*info).data).lum
+	FREE_LUN, (*(*info).data).lunim
+	IF (*(*info).dataswitch).spfile THEN FREE_LUN, (*(*info).data).lunsp
+	IF ((*(*info).winswitch).showref AND ((*(*info).data).lunrefim GT 0)) THEN FREE_LUN, (*(*info).data).lunrefim
+	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)) THEN FREE_LUN, (*(*info).data).lunrefsp
+	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)) THEN FREE_LUN, (*(*info).data).lunmask
 	WIDGET_CONTROL, (*(*info).winids).root, /DESTROY
 	PTR_FREE, info
 END
@@ -426,11 +426,11 @@ END
 PRO CRISPEX_CLOSE_CLEANUP, base								
 ; Clean-up upon closing program
 	WIDGET_CONTROL, base, GET_UVALUE = info
-	FREE_LUN, (*(*info).data).lun
-	IF (*(*info).dataswitch).spfile THEN FREE_LUN, (*(*info).data).lur
-	IF ((*(*info).winswitch).showref AND ((*(*info).data).luf GT 0)) THEN FREE_LUN, (*(*info).data).luf
-	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lufs GT 0)) THEN FREE_LUN, (*(*info).data).lufs
-	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lum GT 0)) THEN FREE_LUN, (*(*info).data).lum
+	FREE_LUN, (*(*info).data).lunim
+	IF (*(*info).dataswitch).spfile THEN FREE_LUN, (*(*info).data).lunsp
+	IF ((*(*info).winswitch).showref AND ((*(*info).data).lunrefim GT 0)) THEN FREE_LUN, (*(*info).data).lunrefim
+	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)) THEN FREE_LUN, (*(*info).data).lunrefsp
+	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)) THEN FREE_LUN, (*(*info).data).lunmask
 	CRISPEX_CLOSE_CLEAN_INSTANCE_FILE, (*(*info).paths).dir_inst_write, (*(*info).paths).dir_inst, (*(*info).paths).hostname, ((*(*info).sesparams).curr_instance_id)[0]
 	PTR_FREE, info
 END
@@ -3655,48 +3655,52 @@ END
 PRO CRISPEX_INTERRUPT, event
 ; Handles interrupting at runtime
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_INTERRUPT', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_INTERRUPT', /IGNORE_LAST
 	PRINT,'Interrupted CRISPEX at runtime. Type [.c] to continue...'
 	STOP
 END
 
 ;========================= INPUT/OUTPUT PROCEDURES
-PRO CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, nx, ny, input_nlp, imnt, spnt, $
-                               input_single_cube, multichannel, imns, spns, imstokes, spstokes,$
-                               STARTUPTLB=startuptlb, NLP=nlp, $
-                               NT=nt, NS=ns, SINGLE_CUBE=single_cube, ONECUBE=onecube,$
-                               IO_FAILSAFE_MAIN_ERROR=io_failsafe_main_error
-  io_failsafe_main_error = 0
+PRO CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, input_single_cube, multichannel, $
+                               HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+                               STARTUPTLB=startuptlb, SINGLE_CUBE=single_cube, ONECUBE=onecube,$
+                               IO_FAILSAFE_ERROR=io_failsafe_error
+  hdr_out = hdr_in
+  io_failsafe_error = 0
   ; If SPCUBE has been supplied, check IMCUBE and SPCUBE compatibility
 	IF spfile THEN BEGIN         
     ; Check whether SPCUBE and IMCUBE are actually the same
-		IF ((spcube EQ imcube) OR ((input_nlp EQ nx) AND (nt EQ ny) AND (spnt EQ imnt))) THEN BEGIN
+		IF ((spcube EQ imcube) OR ((hdr_in.nlp EQ hdr_in.nx) AND (hdr_in.nt EQ hdr_in.ny) AND $
+       (hdr_in.spnt EQ hdr_in.imnt))) THEN BEGIN
 			PRINT,'ERROR: IMCUBE and SPCUBE must be different. Please check input (you seem to have '+$
               'provided the same file twice).';,/IOERROR
 			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
-      io_failsafe_main_error = 1
+      io_failsafe_error = 1
 			RETURN
 		ENDIF
     ; Check whether condensed third dimensions of SPCUBE and IMCUBE are incompatible
-		IF ((nx*ny*ns NE spnt) OR (nt*input_nlp*ns NE imnt)) THEN BEGIN							
+		IF ((hdr_in.nx*hdr_in.ny*hdr_in.ns NE hdr_in.spnt) OR $
+       (hdr_in.nt*hdr_in.nlp*hdr_in.ns NE hdr_in.imnt)) THEN BEGIN							
 			PRINT,'ERROR: IMCUBE and SPCUBE have incompatible dimensions and seem to belong to '+$
               'different datasets. Please check whether the input is correct (you provided '+$
               'IMCUBE='+STRTRIM(imcube,2)+' and SPCUBE='+STRTRIM(spcube,2)+').';,/IOERROR
 			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
-      io_failsafe_main_error = 1
+      io_failsafe_error = 1
 			RETURN
 		ENDIF
     ; Check, for multichannel cube, whether channels are incompatible
 		IF multichannel THEN BEGIN
-			IF ((spstokes NE imstokes) OR (spns NE imns)) THEN BEGIN
+			IF ((hdr_in.spstokes NE hdr_in.imstokes) OR (hdr_in.spns NE hdr_in.imns)) THEN BEGIN
         PRINT,'ERROR: IMCUBE and SPCUBE have incompatible number of channels and seem to '+$
                 'belong to different datasets. Please check whether the input is correct (you '+$
                 'provided IMCUBE='+STRTRIM(imcube,2)+' and SPCUBE='+STRTRIM(spcube,2)+').';,/IOERROR
 				IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
-        io_failsafe_main_error = 1
+        io_failsafe_error = 1
 				RETURN
-			ENDIF ELSE ns = imns  ; If they are compatible, set general number of channels image channels
-		ENDIF ELSE ns = 1       ; If not multiple channels, set general number channels to 1
+			ENDIF ELSE $
+        hdr_out.ns = hdr_in.imns  ; If they are compatible, set general number of channels
+		ENDIF ELSE hdr_out.ns = 1L       ; If not multiple channels, set general number channels to 1
     ; Check whether SINGLE_CUBE keyword has been set in combination with provided SPCUBE
 		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) GT 0) THEN BEGIN
 			PRINT,'WARNING: Calling CRISPEX with SINGLE_CUBE, while SPCUBE is provided, is not '+$
@@ -3708,13 +3712,13 @@ PRO CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, nx, ny, input_nlp, imnt, 
     ; Check setting of SINGLE_CUBE keyword
 		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) GT 0) THEN BEGIN
 			IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set nlp and nt
-				nlp = LONG(INPUT_SINGLE_CUBE)
+				hdr_out.nlp = LONG(INPUT_SINGLE_CUBE)
 				onecube = 1
-				nt = imnt / nlp / ns
+				hdr_out.nt = hdr_in.imnt / hdr_in.nlp / hdr_in.ns
 			ENDIF ELSE BEGIN                              ; Else throw error message
 				PRINT,'ERROR: SINGLE_CUBE must be provided with a single integer.';,/IOERROR
 			  IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
-        io_failsafe_main_error = 1
+        io_failsafe_error = 1
 				RETURN
 			ENDELSE
 ;		ENDIF ELSE IF (imnt GT 500) THEN BEGIN  
@@ -3724,16 +3728,143 @@ PRO CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, nx, ny, input_nlp, imnt, 
 ;			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
 ;			RETURN
 		ENDIF ELSE BEGIN  ; If no SPCUBE or SINGLE_CUBE are set, we are dealing with a snapshot
-			nlp = imnt / ns
+			hdr_out.nlp = hdr_in.imnt / hdr_in.ns
 			single_cube = 0
 		ENDELSE
 	ENDELSE
 END
 
+PRO CRISPEX_IO_FAILSAFES_MAIN_REF, HDR=hdr, STARTUPTLB=startuptlb, $
+                                   IO_FAILSAFE_ERROR=io_failsafe_error
+  IF (((hdr.refnx EQ hdr.nx) AND (hdr.refny EQ hdr.ny)) $   ; Require equal dimensions and require:
+    AND ((hdr.refnt EQ hdr.nt) OR $                         ; either same number of timesteps
+         (hdr.refnt EQ 1) OR $                              ; or reference nt being 1
+         (hdr.refimnt EQ hdr.imnt) OR $                     ; or third dimensions being equal
+         (hdr.refimnt EQ hdr.nlp) OR $                      ; or reference being snapshot
+         (hdr.nt EQ 1))) THEN BEGIN                         ; or main being snapshot
+    io_failsafe_error = 0
+;			IF (((hdr.refnt GT hdr.nt) AND (hdr.nt NE 1)) OR $
+;        (hdr.refnt EQ hdr.nlp)) THEN hdr.refnlp = hdr.nlp ELSE BEGIN
+;				  IF (hdr.refnt EQ hdr.nt) THEN $
+;            hdr.refnlp = 1 
+;          ELSE $
+;            hdr.refnlp = hdr.refnt
+;			ENDELSE
+  ENDIF ELSE BEGIN                                          ; If not, throw error messages and exit
+    IF ((hdr.refnt NE hdr.nt) AND (hdr.refnt NE 1)) THEN BEGIN
+	    PRINT,'ERROR: Dimensions of the reference cube (['+$
+            STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+$
+            ']) are not compatible with those of the main cube (['+$
+            STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.imnt,2)+'])!'
+			PRINT,'       Number of timesteps times the number of spectral positions must be equal to '+$
+            'that of the main cube ('+STRTRIM(hdr.imnt,2)+').'
+    ENDIF ELSE BEGIN
+				PRINT,'ERROR: Dimensions of the reference cube (['+$
+              STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+$
+              ']) are not compatible with those of the main cube (['+$
+              STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.nt,2)+'])!'
+				PRINT,'       Number of timesteps must be either equal to that of the main cube ('+$
+              STRTRIM(hdr.nt,2)+') or to 1.'
+	  ENDELSE
+		IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+    io_failsafe_error = 1
+		RETURN
+  ENDELSE
+END
+
+PRO CRISPEX_IO_FAILSAFES_REF, refcube, HDR=hdr, STARTUPTLB=startuptlb, $
+                              IO_FAILSAFE_ERROR=io_failsafe_error
+; Handles failsafes against wrongly supplied reference image and spectral cubes
+  io_failsafe_error = 0
+  ; Failsafe against providing the same file as REFIMCUBE and REFSPCUBE
+	IF ((refcube[1] EQ refcube[0]) OR $         ; Check whether input cube names are the same, or
+    (hdr.refnlp EQ hdr.refspnx) AND $         ; the cubes have same first dimensions
+    (hdr.refnt EQ hdr.refspny) AND $          ; the cubes have same second dimenions
+    (hdr.refspnt EQ hdr.refimnt)) THEN BEGIN  ; the cubes have same third dimensions
+		PRINT,'ERROR: The reference image and spectral cubes must be different. '+$
+          'Please check input (you seem to have provided the same file twice).'
+		IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+    io_failsafe_error = 1
+		RETURN
+	ENDIF
+  ; Failsafe against providing incompatible REFIMCUBE and REFSPCUBE
+	IF ((hdr.refnx*hdr.refny NE hdr.refspnt) OR (hdr.refnt*hdr.refnlp NE hdr.refimnt)) THEN BEGIN							
+		PRINT,'ERROR: The reference image and spectral cubes have incompatible dimensions and seem '+$
+          'to belong to different datasets. Please check whether the input is correct (you '+$
+          'provided REFCUBE[0]='+STRTRIM(refcube[0],2)+' and REFCUBE[1]='+STRTRIM(refcube[1],2)+').'
+	  IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+    io_failsafe_error = 1
+		RETURN
+	ENDIF
+END
+
+PRO CRISPEX_IO_FAILSAFES_MASK, maskcube, HDR=hdr, STARTUPTLB=startuptlb, $
+                              IO_FAILSAFE_ERROR=io_failsafe_error
+; Handles failsafes against wrongly supplied mask cube
+  IF ((hdr.masknx EQ hdr.nx) AND (hdr.maskny EQ hdr.ny) AND $ ; Require same xy-dimensions as main
+    ((hdr.masknt EQ hdr.nt) OR (hdr.masknt EQ 1))) THEN BEGIN ; Require same as main or 1 timestep
+    io_failsafe_error = 0
+	ENDIF ELSE BEGIN
+	  IF ((hdr.masknx NE hdr.nx) OR (hdr.maskny NE hdr.ny)) THEN BEGIN
+      PRINT,'ERROR: Dimensions of the mask cube (['+STRTRIM(hdr.masknx,2)+','+$
+            STRTRIM(hdr.maskny,2)+','+STRTRIM(hdr.masknt,2)+']) are not compatible with those '+$
+            'of the main image cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.nt,2)+'])!'
+			PRINT,'       Number of pixels in the x- and y-dimension must be equal to those of the main image cube.'
+	  ENDIF ELSE IF ((hdr.masknt NE hdr.nt) AND (hdr.masknt NE 1)) THEN BEGIN
+			PRINT,'ERROR: Dimensions of the mask cube (['+STRTRIM(hdr.masknx,2)+','+STRTRIM(hdr.maskny,2)+','+STRTRIM(hdr.masknt,2)+']) are not compatible with those of the main image '+$
+					'cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.nt,2)+'])!'
+				PRINT,'       Number of timesteps must be either equal to that of the main image cube '+$
+              '('+STRTRIM(hdr.nt,2)+') or to 1.'
+	  ENDIF
+    IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+    io_failsafe_error = 1
+		RETURN
+  ENDELSE
+END
 
 PRO CRISPEX_IO_MULTICHANNEL, CUBE_COMPATIBILITY=cube_compatibility, CHANNELS_LABELS=channels_labels
 ; Handles setting of parameters in case of multichannel input
   IF KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN
+  ENDIF
+END
+
+PRO CRISPEX_IO_FEEDBACK, verbosity, hdr, IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, $
+                         REFSPCUBE=refspcube, MASKCUBE=maskcube
+	multichannel = (hdr.ns GE 2)
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN
+    IF (SIZE(IMCUBE,/TYPE) NE 0) THEN BEGIN
+		  IF multichannel THEN $
+        PRINT,'CRISPEX SETUP: Read Stokes image cube: '+imcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+$
+              STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.imnt,2)+').' ELSE $
+			  PRINT,'CRISPEX SETUP: Read image cube: '+imcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+$
+              STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.imnt,2)+').'
+		  IF (verbosity[1] EQ 1) THEN $
+        PRINT,'CRISPEX SETUP: Main cube(s) dimensions: (nx,ny,nt,nlp,ns) = ('+STRTRIM(hdr.nx,2)+','+$
+              STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.nt,2)+','+STRTRIM(hdr.nlp,2)+','+STRTRIM(hdr.ns,2)+')'
+	  ENDIF ELSE PRINT,'CRISPEX SETUP: No main image cube supplied.'
+    IF (SIZE(SPCUBE,/TYPE) NE 0) THEN $
+      PRINT,'CRISPEX SETUP: Read main spectral cube: '+spcube+$
+            '. Dimensions: (nlp,nt,nx*ny*ns) = ('+STRTRIM(hdr.nlp,2)+','+STRTRIM(hdr.nt,2)+$
+            ','+STRTRIM(hdr.spnt,2)+').' $
+    ELSE PRINT,'CRISPEX SETUP: No main spectral cube supplied.'
+    IF (SIZE(REFIMCUBE,/TYPE) NE 0) THEN BEGIN
+      PRINT,'CRISPEX SETUP: Read reference image cube: '+refimcube+$
+            '. Dimensions: (nx,ny,nt*nlp*ns) = ('+STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+$
+            ','+STRTRIM(hdr.refnt*hdr.refnlp*hdr.refns,2)+').'  
+			IF (verbosity[1] EQ 1) THEN $
+        PRINT,'CRISPEX SETUP: Reference cubes dimensions: (nx,ny,nt,nlp,ns) = ('+$
+              STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+','+$
+              STRTRIM(hdr.refnlp,2)+','+STRTRIM(hdr.refns,2)+')'
+    ENDIF ELSE PRINT,'CRISPEX SETUP: No reference image cube supplied.'
+    IF (SIZE(REFSPCUBE,/TYPE) NE 0) THEN $
+      PRINT,'CRISPEX SETUP: Read reference spectral cube: '+refcube[1]+$
+            '. Dimensions: (nlp,nt,nx*ny) = ('+STRTRIM(hdr.refnlp,2)+','+STRTRIM(hdr.refnt,2)+$
+            ','+STRTRIM(hdr.refspnt,2)+').' $
+    ELSE PRINT,'CRISPEX SETUP: No reference spectral cube supplied.'
+    IF (SIZE(MASKCUBE,/TYPE) NE 0) THEN $
+      PRINT,'CRISPEX SETUP: Read mask cube: '+maskcube+'. Dimensions: (nx,ny,nt) = ('+$
+            STRTRIM(hdr.masknx,2)+','+STRTRIM(hdr.maskny,2)+','+STRTRIM(hdr.masknt,2)+').' $
+    ELSE PRINT,'CRISPEX SETUP: No mask cube supplied.'
   ENDIF
 END
 
@@ -4767,30 +4898,123 @@ FUNCTION CRISPEX_READ_BMP_BUTTONS, filename, srcdir
 END
 
 ;================================================================================= READ HEADER PROCEDURE
-PRO CRISPEX_READ_FITSHEADER, filename, datatype=datatype, nx=nx, ny=ny, nlp=nlp, nt=nt, ns=ns, $
-                             imnt=imnt, spnt=spnt, lps=lps, offset=offset, lptitle=lptitle, $
-                             inttitle=inttitle, ttitle=ttitle, dt=dt, bunit=bunit, lpunit=lpunit, $
-                             dx=dx, dy=dy, xunit=xunit, yunit=yunit, exten_no=exten_no
-; Handles read in of the header of the fits input file
-		offset = fitspointer(filename,exten_no=KEYWORD_SET(exten_no),hdr)
-		parseheader,hdr,key
-		datatype = key.datatype
-    ; Spatial: dimensions 1 and 2
-    nx = key.nx  &  dx = key.dx  &  xunit = key.xunit
-    ny = key.ny  &  dy = key.dy  &  yunit = key.yunit
-		nlp = key.nlp
-		nt = key.nt
-    dt = key.dt
-    ns = key.ns
-    imnt = key.nlp * key.nt
-		spnt = key.nx*key.ny
-    lps = key.lam
-    bunit = key.bunit
-    lpunit = key.lpunit
-    lptitle=key.lplab+' ['+lpunit+']'
-    inttitle=key.btype+' ['+bunit+']'
-    ttitle = key.tlab+' ['+key.tunit+']'
+PRO CRISPEX_IO_PARSEHEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+                         IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, REFSPCUBE=refspcube, $
+                         MASKCUBE=maskcube, CUBE_COMPATIBILITY=cube_compatibility, EXTEN_NO=exten_no
+; Handles read-in of file header, running different parsing depending on CUBE_COMPATIBILITY setting
+  ; Start filling data header structure with header info from inputfile
+  IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN
+    offset = FITSPOINTER(filename, EXTEN_NO=exten_no, header)   ; Get header offset to data
+    PARSEHEADER, header, key                                    ; Parse FITS header into key struct
+  ENDIF ELSE BEGIN
+    offset = 512                                                ; Set header offset to data
+    CRISPEX_READ_HEADER, filename, datatype=datatype, $         ; Parse old header into variables
+                         dims=dims, nx=nx, ny=ny, nt=nt, endian=endian, stokes=stokes, ns=ns, $
+                         diagnostics=diagnostics
+  ENDELSE
+  hdr_out = hdr_in                                              ; Set output hdr to output hdr
+  IF KEYWORD_SET(IMCUBE) THEN BEGIN                             ; Fill hdr_out parameters for IMCUBE
+    hdr_out.imoffset = offset
+    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
+      hdr_out.imtype = key.datatype     &  hdr_out.imnt = key.nlp * key.nt * key.ns
+      hdr_out.nx = key.nx               &  hdr_out.dx = key.dx
+      hdr_out.ny = key.ny               &  hdr_out.dy = key.dy
+      hdr_out.imns = key.ns             &  hdr_out.ns = key.ns
+      hdr_out.nlp = key.nlp             &  hdr_out.nt = key.nt
+      hdr_out.blabel = key.btype        &  hdr_out.bunit = key.bunit
+      hdr_out.xlabel = key.xlab         &  hdr_out.xunit = key.xunit     
+      hdr_out.ylabel = key.ylab         &  hdr_out.yunit = key.yunit
+      hdr_out.tlabel = key.tlab         &  hdr_out.tunit = key.tunit
+      hdr_out.lplabel = key.lplab       &  hdr_out.lpunit = key.lpunit
+      hdr_out.dt = key.dt
+      hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam)
+    ENDIF ELSE BEGIN                                            ; In case of compatibility mode
+      hdr_out.imtype = datatype         &  hdr_out.imendian = endian
+      hdr_out.nx = nx                   &  hdr_out.dx = 0.0592
+      hdr_out.ny = ny                   &  hdr_out.dy = 0.0592
+      hdr_out.imns = ns                 &  hdr_out.ns = ns
+      hdr_out.imstokes = stokes         &  hdr_out.imnt = nt
+      IF (N_ELEMENTS(diagnostics) GT 0) THEN hdr_out.imdiagnostics = diagnostics
+    ENDELSE
+  ENDIF ELSE IF KEYWORD_SET(SPCUBE) THEN BEGIN                  ; Fill hdr parameters for SPCUBE
+    hdr_out.spoffset = offset
+    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
+      hdr_out.sptype = key.datatype     &  hdr_out.spnt = key.nx * key.ny * key.ns
+      hdr_out.spns = key.ns
+    ENDIF ELSE BEGIN                                            ; In case of compatibility mode
+      hdr_out.sptype = datatype         &  hdr_out.spendian = endian
+      hdr_out.nlp = nx                  &  hdr_out.nt = ny
+      hdr_out.spns = ns                 &  hdr_out.spstokes = stokes
+      hdr_out.spnt = nt
+    ENDELSE
+  ENDIF ELSE IF KEYWORD_SET(REFIMCUBE) THEN BEGIN               ; Fill hdr parameters for REFIMCUBE
+    hdr_out.refimoffset = offset
+    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
+      hdr_out.refimtype = key.datatype  &  hdr_out.refimnt = key.nlp * key.nt * key.ns
+      hdr_out.refnx = key.nx            &  hdr_out.refny = key.ny
+      hdr_out.refnlp = key.nlp          &  hdr_out.refnt = key.nt
+      hdr_out.refns = key.ns
+      hdr_out.refbunit = key.bunit      &  hdr_out.refblabel = key.btype
+      hdr_out.refxlabel = key.xlab      &  hdr_out.refxunit = key.xunit
+      hdr_out.refylabel = key.ylab      &  hdr_out.refyunit = key.yunit
+      hdr_out.reflplabel = key.lplab    &  hdr_out.reflpunit = key.lpunit
+      hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam)
+    ENDIF ELSE BEGIN                                            ; In case of compatibility mode
+      hdr_out.refimtype = datatype      &  hdr_out.refimendian = endian
+      hdr_out.refnx = nx                &  hdr_out.refny = ny
+      hdr_out.refimnt = nt              &  hdr_out.refns = 1L
+      IF (FLOOR(hdr_out.refimnt/FLOAT(hdr_out.nt)) EQ hdr_out.refimnt/FLOAT(hdr_out.nt)) THEN $
+        hdr_out.refnt = hdr_out.nt ELSE hdr_out.refnt = 1L
+      hdr_out.refnlp = LONG(hdr_out.refimnt/FLOAT(hdr_out.refnt))
+    ENDELSE
+  ENDIF ELSE IF KEYWORD_SET(REFSPCUBE) THEN BEGIN               ; Fill hdr parameters for REFSPCUBE
+    hdr_out.refspoffset = offset
+    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
+      hdr_out.refsptype = key.datatype  &  hdr_out.refspnt = key.nx * key.ny * key.ns
+    ENDIF ELSE BEGIN                                            ; In case of compatibility mode
+      hdr_out.refsptype = datatype      &  hdr_out.refspendian = endian
+      hdr_out.refnlp = nx               &  hdr_out.refnt = ny
+      hdr_out.refspnx = nx              &  hdr_out.refspny = ny
+      hdr_out.refspnt = nt
+    ENDELSE
+  ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                ; Fill hdr parameters for MASKCUBE
+    hdr_out.maskoffset = offset
+    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
+      hdr_out.masktype = key.datatype   &  hdr_out.masknt = key.nt
+      hdr_out.masknx = key.nx           &  hdr_out.maskny = key.ny
+    ENDIF ELSE BEGIN                                            ; In case of compatibility mode
+      hdr_out.masktype = datatype       &  hdr_out.maskendian = endian
+      hdr_out.masknx = nx               &  hdr_out.maskny = ny
+      hdr_out.masknt = nt
+    ENDELSE
+  ENDIF
 END
+
+
+;PRO CRISPEX_READ_FITSHEADER, filename, datatype=datatype, nx=nx, ny=ny, nlp=nlp, nt=nt, ns=ns, $
+;                             imnt=imnt, spnt=spnt, lps=lps, offset=offset, lptitle=lptitle, $
+;                             inttitle=inttitle, ttitle=ttitle, dt=dt, bunit=bunit, lpunit=lpunit, $
+;                             dx=dx, dy=dy, xunit=xunit, yunit=yunit, exten_no=exten_no
+;; Handles read in of the header of the fits input file
+;		offset = fitspointer(filename,exten_no=KEYWORD_SET(exten_no),hdr)
+;		parseheader,hdr,key
+;		datatype = key.datatype
+;    ; Spatial: dimensions 1 and 2
+;    nx = key.nx  &  dx = key.dx  &  xunit = key.xunit
+;    ny = key.ny  &  dy = key.dy  &  yunit = key.yunit
+;		nlp = key.nlp
+;		nt = key.nt
+;    dt = key.dt
+;    ns = key.ns
+;    imnt = key.nlp * key.nt
+;		spnt = key.nx*key.ny
+;    lps = key.lam
+;    bunit = key.bunit
+;    lpunit = key.lpunit
+;    lptitle=key.lplab+' ['+lpunit+']'
+;    inttitle=key.btype+' ['+bunit+']'
+;    ttitle = key.tlab+' ['+key.tunit+']'
+;END
 
 PRO CRISPEX_READ_HEADER, filename, header=header, datatype=datatype, dims=dims, nx=nx, ny=ny, $
                          nt=nt, endian=endian, stokes=stokes, ns=ns, diagnostics=diagnostics
@@ -8308,12 +8532,23 @@ END
 ;===================================================================================================
 ;================================== MAIN PROGRAM CODE ==============================================
 ;===================================================================================================
-PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral cube
-             REFCUBE=refcube, SPECTFILE=spectfile, LINE_CENTER=line_center, $		; spectral & reference cube filename, spectral save file, line centre and/or wavelength information
-	DT=dt, EXTS=exts, MNSPEC=mnspec, SINGLE_CUBE=single_cube, $				; time step in seconds, exact timeslices keyword, mean spectrum over selected scans, single full cube call
-	SCALE_STOKES=scale_stokes, VALS_REF=vals_ref, VALS_IMG=vals_img, $			; Stokes cube call, scale Stokes spectra internally, Doppler map reference values
-	NO_WARP=no_warp, SCALE_CUBES=scale_cubes, XTITLE=xtitle, YTITLE=ytitle, $		; Impede warping of temporal spectrum, custom detailed spectrum xtitle and ytitle
-	MASKCUBE=maskcube, WINDOW_LARGE=window_large, VERBOSE=verbose				; Mask cube filename, large window for small cubes, program verbosity
+PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spectral cube
+              REFCUBE=refcube, $            ; filename(s) of reference image (and spectral) cube(s)
+              MASKCUBE=maskcube, $          ; filename of mask cube
+              SPECTFILE=spectfile, $        ; filename(s) of spectral save file(s)
+              LINE_CENTER=line_center, $		; line centre and/or wavelength information
+	            DT=dt, $                      ; time step in seconds
+              EXTS=exts, $                  ; exact timeslices keyword
+              MNSPEC=mnspec, $              ; mean spectrum over selected scans
+              SINGLE_CUBE=single_cube, $    ; single full cube call
+              SCALE_STOKES=scale_stokes, $  ; scale Stokes spectra internally
+              VALS_IMG=vals_img, $          ; get main cube values under cursor
+              VALS_REF=vals_ref, $          ; get reference cube values under cursor
+              NO_WARP=no_warp, $            ; don't warp nonequidistant spectral slices
+              SCALE_CUBES=scale_cubes, $    ; scale cubes
+              XTITLE=xtitle, YTITLE=ytitle,$; custom detailed spectrum xtitle and ytitle
+              WINDOW_LARGE=window_large, $  ; draw large windows for small cubes
+              VERBOSE=verbose               ; program verbosity
 
 ;========================= PROGRAM-INFO ON CALL W/O PARAMS
 	IF N_PARAMS() LT 1 THEN BEGIN
@@ -8326,12 +8561,13 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '575'
+	revision_number = '577'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
 		IF (N_ELEMENTS(VERBOSE) GT 1) THEN $
-      MESSAGE,'ERROR: The VERBOSE keyword may only be set to a single integer number. Reverting to default verbosity level 0.'
+      MESSAGE,'ERROR: The VERBOSE keyword may only be set to a single integer number. Reverting '+$
+              'to default verbosity level 0.'
 		verbose = 0
 		verbosity = [0,0,0,0,0]
 	ENDIF ELSE BEGIN
@@ -8355,14 +8591,15 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 ;========================= LOAD PREFERENCES
   ; Define default preferences
 	default_startupwin = 1      &  default_interpspslice = 1  ; Show startup win, interpolate slices
-	default_autoplay = 0        &  default_defsaveid = 0								; 0 = yyyymmdd, 1 = ddmmyyyy
-	default_defipath = 0        &  default_defopath = 0								; 0 = local working directory, 1 = saved directory
+	default_autoplay = 0        &  default_defsaveid = 0      ; 0 = yyyymmdd, 1 = ddmmyyyy
+	default_defipath = 0        &  default_defopath = 0			  ; 0 = local working directory, 1 = saved directory
 	default_bgplotcol = 255     &  default_plotcol = 0
 	default_phislice_update = 0 &  default_slices_imscale = 0
 	cpreffiles = FILE_SEARCH(dir_settings+'crispex.cpref', COUNT = cpreffilecount)
 	IF (cpreffilecount GE 1) THEN BEGIN     ; If preference file is present, load preference file
 		RESTORE, cpreffiles[0] 
-		IF (verbosity[1] EQ 1) THEN PRINT,'CRISPEX SETUP: Preferences restored from: '+dir_settings+'crispex.cpref'
+		IF (verbosity[1] EQ 1) THEN $
+      PRINT,'CRISPEX SETUP: Preferences restored from: '+dir_settings+'crispex.cpref'
 		resave_preferences = ((N_ELEMENTS(phislice_update) NE 1) OR (N_ELEMENTS(slices_imscale) NE 1))
     ; Failsafe inheritances from older CRISPEX versions
     ; Automatic phislice update
@@ -8391,7 +8628,8 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	ENDELSE
 	x_screen_mid  = screensizes[2,monitor_order[0]]/2.    ; x-coordinate of central screen pixel
 	y_screen_mid  = screensizes[3,monitor_order[0]]/2.    ; y-coordinate of central screen pixel
-	startup_im    = REBIN(REFORM(TOTAL((CRISPEX_READ_BMP_BUTTONS('crispex_startup.bmp',dir_resources))[*,*,1:2],3)),400,300)
+	startup_im    = REBIN(REFORM(TOTAL((CRISPEX_READ_BMP_BUTTONS('crispex_startup.bmp',$
+                  dir_resources))[*,*,1:2],3)),400,300)
 	startup_nx    = (SIZE(startup_im))[1]                 ; x-size of statup window image
 	startup_ny    = (SIZE(startup_im))[2]                 ; y-size of statup window image
 	startup_xpos  = FIX(x_screen_mid-startup_nx/2.)       ; x-position of startup window
@@ -8405,99 +8643,259 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	ENDIF
 
 ;========================= READ-IN AND INITIALISATION OF FILES
+  ; N.B.: After CRISPEX v1.6.3 FITS cubes have become the standard. Old read-in procedures 
+  ; are retained in compatability for older cubes. Differentiation is performed based on filename
+  ; extension, where FITS cubes are assumed to have a *.fits extension (case insensitive).
   IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Reading input files... '
   IF ((BYTE(1L,0,1))[0] EQ 1) THEN endian = 'l' ELSE endian = 'b' ; Check endianness of machine
   
-  ; Cube read-in. After CRISPEX v1.6.3 FITS cubes have become the standard. Old read-in procedures 
-  ; are retained as failsafes for older cubes. Differentiation is performed based on filename
-  ; extension, where FITS cubes are assumed to have a *.fits/*.FITS/*.Fits extension.
-  IF N_ELEMENTS(SPCUBE) EQ 1 THEN BEGIN 
+  ; Determine cube compatibility mode for inputfiles (0: running FITS cubes, 1: running old cubes)
+	imext = STRMID(imcube,STRPOS(imcube,'.',/REVERSE_SEARCH)+1,STRLEN(imcube))  ; Process extension
+	imcube_compatibility = ABS(STRMATCH(imext,'fits',/FOLD_CASE)-1)             ; Determine comp mode
+  IF (N_ELEMENTS(SPCUBE) EQ 1) THEN BEGIN
     spext = STRMID(spcube,STRPOS(spcube,'.',/REVERSE_SEARCH)+1,STRLEN(spcube))
-    IF STRMATCH(spext,'fits',/FOLD_CASE) THEN BEGIN   ; Check whether dealing with fits cube
-      CRISPEX_READ_FITSHEADER, spcube, datatype=sptype, nlp=nlp, nt=nt, spnt=spnt, lps=lps, $
-                               offset=spoffset, lptitle=xtitle, ttitle=spytitle, dt=dt, $
-                               lpunit=lpunit, exten_no=0
-      endian_file = 'b'                               ; FITS files are big endian by default
-      ms = 1.0
-    ENDIF ELSE BEGIN                                  ; Old-style CRISPEX (i.e., up to v1.6.3) cube
-      CRISPEX_READ_HEADER, spcube, datatype=sptype, dims=imdims, nx=nlp, ny=nt, nt=spnt, $
-                           endian=endian_file, stokes=spstokes, ns=spns, diagnostics=spdiagnostics
-      spoffset = 512  ; Header offset in bytes for old-style CRISPEX cubes
-      lpunit = ''
-    ENDELSE
-    ; Determine whether byteswap is necessary
-    swapvalue = ((sptype GT 1) AND (endian NE endian_file))
-    ; Actual read-in of the spectral cube
-    OPENR, lur, spcube, /get_lun, SWAP_ENDIAN = swapvalue
-    ; Read data from associated file, skip first 512 (header)bytes
-    IF (sptype EQ 1) THEN spectra = ASSOC(lur,BYTARR(nlp,nt),spoffset) $
-      ELSE IF (sptype EQ 2) THEN spectra = ASSOC(lur,INTARR(nlp,nt),spoffset) $
-      ELSE IF (sptype EQ 4) THEN spectra = ASSOC(lur,FLTARR(nlp,nt),spoffset)
-    spfile = 1	
-    IF (TOTAL(verbosity[0:1]) GE 1) THEN PRINT,'CRISPEX SETUP: Read main spectral cube: '+spcube+'. Dimensions: (nlp,nt,nx*ny*ns) = ('+STRTRIM(nlp,2)+','+STRTRIM(nt,2)+','+STRTRIM(spnt,2)+').'
+    spcube_compatibility = ABS(STRMATCH(spext,'fits',/FOLD_CASE)-1)
+    spfile = 1
+  ENDIF ELSE BEGIN
+    spfile = 0
+    lunsp = 0
+  ENDELSE
+  IF (N_ELEMENTS(REFCUBE) GE 1) THEN BEGIN
+  	refimext = STRMID(refcube[0],STRPOS(refcube[0],'.',/REVERSE_SEARCH)+1,STRLEN(refcube[0]))
+  	refimcube_compatibility = ABS(STRMATCH(refimext,'fits',/FOLD_CASE)-1)
+  ENDIF ELSE lunrefim = 0
+  IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN
+  	refspext = STRMID(refcube[1],STRPOS(refcube[1],'.',/REVERSE_SEARCH)+1,STRLEN(refcube[1]))
+  	refspcube_compatibility = ABS(STRMATCH(refspext,'fits',/FOLD_CASE)-1)
+  ENDIF ELSE lunrefsp = 0
+  IF (N_ELEMENTS(MASKCUBE) GE 1) THEN BEGIN
+  	maskext = STRMID(maskcube,STRPOS(maskcube,'.',/REVERSE_SEARCH)+1,STRLEN(maskcube))
+  	maskcube_compatibility = ABS(STRMATCH(maskext,'fits',/FOLD_CASE)-1)
+  ENDIF ELSE lunmask = 0
+
+  ; Handle input file headers by parsing them into the hdr structure; first initialise hdr
+  hdr = {$
+            imtype:0, sptype:0, refimtype:0, refsptype:0, masktype:0, $
+            imoffset:0L, spoffset:0L, refimoffset:0L, refspoffset:0L, maskoffset:0L, $
+            imendian:'b', spendian:'b', refimendian:'b', refspendian:'b', maskendian:'b', $
+            nx:0L, ny:0L, nlp:1L, nt:1L, ns:1L, imnt:0L, spnt:0L, refspnx:0L, refspny:0L, $
+            refnx:0L, refny:0L, refnlp:0L, refnt:0L, refns:0L, refimnt:0L, refspnt:0L, $
+            masknx:0L, maskny:0L, masknt:0L, dx:0., dy:0., dt:1., $
+;            lps:PTR_NEW(0), reflps:PTR_NEW(0), $
+            imns:0L, spns:0L, imstokes:'', spstokes:'', imdiagnostics:'', $
+            xunit:'arcsec', yunit:'arcsec', tunit:'', lpunit:'', sunit:'', bunit:'counts', $
+            xlabel:'x', ylabel:'y', tlabel:'Frame number', lplabel:'Spectral position', $
+            slabel:'', blabel:'I', $
+            refxunit:'arcsec', refyunit:'arcsec', reflpunit:'', refbunit:'counts', $
+            refxlabel:'x', refylabel:'y', reftlabel:'', reflplabel:'', refblabel:'I' $
+            }
+
+  ; Parse headers 
+  IF N_ELEMENTS(SPCUBE) EQ 1 THEN BEGIN
+    CRISPEX_IO_PARSEHEADER, spcube, HDR_IN=hdr, HDR_OUT=hdr, $
+                            CUBE_COMPATIBILITY=spcube_compatibility, EXTEN_NO=0, /SPCUBE
+    onecube = 0                               
 	ENDIF ELSE BEGIN
-		spfile = 0
-		nt = 1
 		spcube = ''
-    lpunit = ''
-		lur = 0
-		IF (TOTAL(verbosity[0:1]) GE 1) THEN PRINT,'CRISPEX SETUP: No spectral cube supplied.'
+    onecube = 1                                     ; onecube switch if no SPCUBE has been provided
+	ENDELSE
+  CRISPEX_IO_PARSEHEADER, imcube, HDR_IN=hdr, HDR_OUT=hdr, CUBE_COMPATIBILITY=imcube_compatibility, $
+                          EXTEN_NO=0, /IMCUBE
+	multichannel = (hdr.ns GE 2)
+  CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, single_cube, multichannel, $
+                             HDR_IN=hdr, HDR_OUT=hdr, $
+                             STARTUPTLB=startuptlb, SINGLE_CUBE=single_cube, ONECUBE=onecube,$
+                             IO_FAILSAFE_ERROR=io_failsafe_main_error
+  IF (io_failsafe_main_error EQ 1) THEN RETURN
+  ; Define axes titles based on IMCUBE and SPCUBE headers
+  IF (STRCOMPRESS(hdr.bunit,/REMOVE_ALL) NE '') THEN $
+    ytitle_unit = ' ['+hdr.bunit+']' ELSE ytitle_unit = ''
+  IF (STRCOMPRESS(hdr.lpunit,/REMOVE_ALL) NE '') THEN $
+    xtitle_unit = ' ['+hdr.lpunit+']' ELSE xtitle_unit = ''
+  IF (STRCOMPRESS(hdr.tunit,/REMOVE_ALL) NE '') THEN $
+    spytitle_unit = ' ['+hdr.tunit+']' ELSE spytitle_unit = ''
+  ytitle = hdr.blabel+ytitle_unit
+  xtitle = hdr.lplabel+xtitle_unit
+  spytitle = hdr.tlabel+spytitle_unit
+
+	IF ((N_ELEMENTS(REFCUBE) GE 1) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN					
+    ; Handle reference image cube first, only after that check for reference spectral cube
+    CRISPEX_IO_PARSEHEADER, refcube[0], HDR_IN=hdr, HDR_OUT=hdr, $
+                            CUBE_COMPATIBILITY=refimcube_compatibility, EXTEN_NO=0, /REFIMCUBE
+    IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN
+      CRISPEX_IO_PARSEHEADER, refcube[1], HDR_IN=hdr, HDR_OUT=hdr, $
+                              CUBE_COMPATIBILITY=refspcube_compatibility, EXTEN_NO=0, /REFSPCUBE
+      CRISPEX_IO_FAILSAFES_REF, refcube, HDR=hdr, STARTUPTLB=startuptlb, $
+                                IO_FAILSAFE_ERROR=io_failsafe_ref_error
+      IF (io_failsafe_ref_error EQ 1) THEN RETURN
+    ENDIF
+    CRISPEX_IO_FAILSAFES_MAIN_REF, HDR=hdr, STARTUPTLB=startuptlb, $
+                                   IO_FAILSAFE_ERROR=io_failsafe_main_ref_error
+    IF (io_failsafe_main_ref_error EQ 1) THEN RETURN
+    ; Add reference axes titles based on REFIMCUBE and REFSPCUBE headers
+    IF (STRCOMPRESS(hdr.refbunit,/REMOVE_ALL) NE '') THEN $
+      refytitle_unit = ' ['+hdr.refbunit+']' ELSE refytitle_unit = ''
+    IF (STRCOMPRESS(hdr.reflpunit,/REMOVE_ALL) NE '') THEN $
+      refxtitle_unit = ' ['+hdr.reflpunit+']' ELSE refxtitle_unit = ''
+    ytitle = [ytitle,hdr.refblabel+refytitle_unit]
+    xtitle = [xtitle,hdr.reflplabel+refxtitle_unit]
+  ENDIF
+
+  IF (N_ELEMENTS(MASKCUBE) EQ 1) THEN BEGIN
+    CRISPEX_IO_PARSEHEADER, maskcube, HDR_IN=hdr, HDR_OUT=hdr, $
+                            CUBE_COMPATIBILITY=maskcube_compatibility, EXTEN_NO=0, /MASKCUBE
+    CRISPEX_IO_FAILSAFES_MASK, HDR=hdr, STARTUPTLB=startuptlb, $
+                                IO_FAILSAFE_ERROR=io_failsafe_mask_error
+    IF (io_failsafe_mask_error EQ 1) THEN RETURN
+  ENDIF
+  
+  ; Actual read-in of the data cubes  
+  ; Read in main image cube 
+	OPENR, lunim, imcube, /get_lun, $
+         SWAP_ENDIAN = ((hdr.imtype GT 1) AND (endian NE hdr.imendian))									
+	IF (hdr.imtype EQ 1) THEN BEGIN												
+		imagefile = ASSOC(lunim,BYTARR(hdr.nx,hdr.ny),hdr.imoffset)									
+    ; Re-read in of the image cube for slices
+		scanfile  = ASSOC(lunim,BYTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns),hdr.imoffset)			
+	ENDIF ELSE IF (hdr.imtype EQ 2) THEN BEGIN
+		imagefile = ASSOC(lunim,INTARR(hdr.nx,hdr.ny),hdr.imoffset)
+		scanfile  = ASSOC(lunim,INTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns),hdr.imoffset)							
+	ENDIF ELSE IF (hdr.imtype EQ 4) THEN BEGIN
+		imagefile = ASSOC(lunim,FLTARR(hdr.nx,hdr.ny),hdr.imoffset)
+		scanfile  = ASSOC(lunim,FLTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns),hdr.imoffset)								
+	ENDIF
+  dx_fixed = ABS(KEYWORD_SET(IMCUBE_COMPATIBILITY)-1)
+  CRISPEX_IO_FEEDBACK, verbosity, hdr, IMCUBE=imcube
+  
+  ; Read in main spectral cube 
+  IF spfile THEN BEGIN
+    OPENR, lunsp, spcube, /get_lun, $
+           SWAP_ENDIAN = ((hdr.sptype GT 1) AND (endian NE hdr.spendian))
+    IF (hdr.sptype EQ 1) THEN $
+      spectra = ASSOC(lunsp,BYTARR(hdr.nlp,hdr.nt),hdr.spoffset) $
+    ELSE IF (hdr.sptype EQ 2) THEN $
+      spectra = ASSOC(lunsp,INTARR(hdr.nlp,hdr.nt),hdr.spoffset) $
+    ELSE IF (hdr.sptype EQ 4) THEN $
+      spectra = ASSOC(lunsp,FLTARR(hdr.nlp,hdr.nt),hdr.spoffset)
+  ENDIF
+  CRISPEX_IO_FEEDBACK, verbosity, hdr, SPCUBE=spcube
+
+  ; Read in reference image cube
+	IF ((N_ELEMENTS(REFCUBE) GE 1) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN	; REFIMCUBE as filename
+		OPENR, lunrefim, refcube[0], /get_lun, $
+           SWAP_ENDIAN = ((hdr.refimtype GT 1) AND (endian NE hdr.refimendian))
+		IF (hdr.refimtype EQ 1) THEN $
+      referencefile = ASSOC(lunrefim,BYTARR(hdr.refnx,hdr.refny),hdr.refimoffset) ELSE $
+		IF (hdr.refimtype EQ 2) THEN $
+      referencefile = ASSOC(lunrefim,INTARR(hdr.refnx,hdr.refny),hdr.refimoffset) ELSE $
+		IF (hdr.refimtype EQ 4) THEN $
+      referencefile = ASSOC(lunrefim,FLTARR(hdr.refnx,hdr.refny),hdr.refimoffset)
+		showref = 1
+;		hdr.refns = 1
+		IF (hdr.refnt EQ hdr.nlp) OR (hdr.nt EQ 1) THEN BEGIN
+		  IF (hdr.refimtype EQ 1) THEN $
+        refscanfile = ASSOC(lunrefim,BYTARR(hdr.refnx,hdr.refny,hdr.refnlp*hdr.refns),$
+                            hdr.refimoffset) ELSE $
+		  IF (hdr.refimtype EQ 2) THEN $
+        refscanfile = ASSOC(lunrefim,INTARR(hdr.refnx,hdr.refny,hdr.refnlp*hdr.refns),$
+                            hdr.refimoffset) ELSE $
+		  IF (hdr.refimtype EQ 4) THEN $
+        refscanfile = ASSOC(lunrefim,FLTARR(hdr.refnx,hdr.refny,hdr.refnlp*hdr.refns),$
+                            hdr.refimoffset)
+    ENDIF
+    CRISPEX_IO_FEEDBACK, verbosity, hdr, REFIMCUBE=refcube
+    ; Read in reference spectral cube if so provided
+    IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN                                ; REFSPCUBE as filename
+			OPENR, lunrefsp, refcube[1], /get_lun, $
+             SWAP_ENDIAN = ((hdr.refsptype GT 1) AND (endian NE hdr.refspendian))						
+			IF (hdr.refsptype EQ 1) THEN $
+        referencespectra = ASSOC(lunrefsp,BYTARR(hdr.refnlp,hdr.refnt),hdr.refspoffset) ELSE $	
+			IF (hdr.refsptype EQ 2) THEN $
+        referencespectra = ASSOC(lunrefsp,INTARR(hdr.refnlp,hdr.refnt),hdr.refspoffset) ELSE $
+			IF (hdr.refsptype EQ 4) THEN $
+        referencespectra = ASSOC(lunrefsp,FLTARR(hdr.refnlp,hdr.refnt),hdr.refspoffset)
+			refspfile = 1	
+			refspcube = refcube[1]
+			refcube = refcube[0]
+      CRISPEX_IO_FEEDBACK, verbosity, hdr, REFSPCUBE=refspcube
+    ENDIF ELSE BEGIN
+			refspfile = 0
+			refspcube = ''
+    ENDELSE
+	ENDIF ELSE BEGIN
+		refspfile = 0
+		refspcube = ''
+    IF (N_ELEMENTS(REFCUBE) GT 1) THEN BEGIN								                ; REFCUBE as image array
+		  hdr.refnx = LONG((SIZE(refcube))[1])
+		  hdr.refny = LONG((SIZE(refcube))[2])
+		  IF (SIZE(REFCUBE,/N_DIMENSIONS) EQ 3) THEN $
+        hdr.refnt = LONG((SIZE(refcube))[3]) $
+      ELSE $
+        hdr.refnt = 1L
+		  IF (hdr.refnx EQ hdr.nx) AND (hdr.refny EQ hdr.ny) THEN BEGIN
+			  referencefile = refcube
+			  showref = 1
+			  hdr.refnlp = 1
+			  hdr.refns = 1
+        CRISPEX_IO_FEEDBACK, verbosity, hdr, REFIMCUBE=refcube
+		  ENDIF ELSE BEGIN
+			  PRINT,'ERROR: Dimensions of the reference cube (['+STRTRIM(hdr.refnx,2)+','+$
+              STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+']) are not compatible with those of '+$
+              'the main image cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+$
+              STRTRIM(hdr.nt,2)+'])! Number of pixels in the x- and y-direction must be the same '+$
+              'for both.'
+			WIDGET_CONTROL, startuptlb, /DESTROY
+			RETURN
+		  ENDELSE
+	  ENDIF ELSE showref = 0
 	ENDELSE
 
-	imext = STRMID(imcube,STRPOS(imcube,'.',/REVERSE_SEARCH)+1,STRLEN(imcube))
-	IF STRMATCH(imext,'fits',/FOLD_CASE) THEN BEGIN
-    CRISPEX_READ_FITSHEADER, imcube, datatype=imtype, nx=nx, ny=ny, imnt=imnt, ns=ns, $
-                             offset=imoffset, inttitle=ytitle, bunit=bunit, dx=dx, dy=dy, $
-                             xunit=xunit, yunit=yunit, exten_no=0
-    dx_fixed = 1
-		endian_file = 'b'
+	IF (N_ELEMENTS(MASKCUBE) EQ 1) THEN BEGIN
+		OPENR, lunmask, maskcube, /get_lun, $
+           SWAP_ENDIAN = ((hdr.masktype GT 1) AND (endian NE hdr.maskendian))
+		IF (hdr.masktype EQ 1) THEN $
+      mask = ASSOC(lunmask,BYTARR(hdr.masknx,hdr.maskny),hdr.maskoffset) ELSE $
+    IF (hdr.masktype EQ 2) THEN $
+      mask = ASSOC(lunmask,INTARR(hdr.masknx,hdr.maskny),hdr.maskoffset) ELSE $
+		IF (hdr.masktype EQ 4) THEN $
+      mask = ASSOC(lunmask,FLTARR(hdr.masknx,hdr.maskny),hdr.maskoffset)
+		maskfile = 1	
 	ENDIF ELSE BEGIN
-    CRISPEX_READ_HEADER, imcube, datatype=imtype, dims=imdims, nx=nx, ny=ny, nt=imnt, $
-                         endian=endian_file, stokes=imstokes, ns=imns, diagnostics=imdiagnostics
-		imoffset = 512
-    bunit = 'counts'
-    arcsecpix = 0.0592
-    dx_fixed = 0
-    dx = arcsecpix
-    dy = arcsecpix
-    xunit = 'arcsec'
-    yunit = 'arcsec'
-    ns = imns
-  ENDELSE
-	swapvalue = ((imtype GT 1) AND (endian NE endian_file))									
-	onecube = 0
-	multichannel = (ns GE 2)
-  CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, nx, ny, nlp, imnt, spnt, $
-                               single_cube, multichannel, imns, spns, imstokes, spstokes,$
-                               STARTUPTLB=startuptlb, NLP=nlp, $
-                               NT=nt, NS=ns, SINGLE_CUBE=single_cube, ONECUBE=onecube,$
-                               IO_FAILSAFE_MAIN_ERROR=io_failsafe_main_error
-  IF (io_failsafe_main_error EQ 1) THEN RETURN
+		maskfile = 0
+		maskcube = ''
+		mask = 0
+	ENDELSE
+  CRISPEX_IO_FEEDBACK, verbosity, hdr, MASKCUBE=maskcube
+
+  ; Handle Stokes and diagnostics labels
   IF multichannel THEN BEGIN
-		stokes_comp = STRSPLIT(STRSPLIT(STRJOIN(STRSPLIT(imstokes,',',/EXTRACT)),']',/EXTRACT),'[',/EXTRACT)
-		IF (STRLEN(stokes_comp) NE imns) THEN BEGIN
-			PRINT,'ERROR: The number of Stokes components ('+STRTRIM(imns,2)+') does not correspond to the number of Stokes labels ('+STRTRIM(STRLEN(stokes_comp),2)+').'
+;		stokes_comp = STRSPLIT(STRSPLIT(STRJOIN(STRSPLIT(hdr.imstokes,',',/EXTRACT)),']',/EXTRACT),'[',/EXTRACT)
+    stokes_labels = STRSPLIT(STRMID(hdr.imstokes,1,STRLEN(hdr.imstokes)-2),',',/EXTRACT)
+;		IF (STRLEN(stokes_comp) NE imns) THEN BEGIN
+		IF (N_ELEMENTS(stokes_labels) NE hdr.imns) THEN BEGIN
+			PRINT,'ERROR: The number of Stokes components ('+STRTRIM(hdr.imns,2)+') does not '+$
+            'correspond to the number of Stokes labels ('+STRTRIM(N_ELEMENTS(stokes_labels),2)+').'
 			PRINT,'       Please check whether the Stokes cube production has proceded correctly.'
 			WIDGET_CONTROL, startuptlb, /DESTROY
 			RETURN
 		ENDIF ELSE BEGIN
-			ns = imns
+;			ns = hdr.imns
 ;			stokes_labels = STRARR(ns)
-			stokes_select_sp = INTARR(ns)
-			stokes_labels = STRMID(stokes_comp,INDGEN(ns),1)
-			IF ((WHERE(stokes_labels EQ 'I') GE 0) AND (WHERE(stokes_labels EQ 'I') LE imns-1)) THEN BEGIN
+			stokes_select_sp = INTARR(hdr.ns)
+;			stokes_labels = STRMID(stokes_comp,INDGEN(hdr.ns),1)
+			IF ((WHERE(stokes_labels EQ 'I') GE 0) AND (WHERE(stokes_labels EQ 'I') LE hdr.imns-1)) THEN BEGIN
 				stokes_i_enabled = 1 
 				stokes_select_sp[WHERE(stokes_labels EQ 'I')] = 1
 			ENDIF ELSE stokes_i_enabled = 0
-			IF ((WHERE(stokes_labels EQ 'Q') GE 0) AND (WHERE(stokes_labels EQ 'Q') LE imns-1)) THEN BEGIN
+			IF ((WHERE(stokes_labels EQ 'Q') GE 0) AND (WHERE(stokes_labels EQ 'Q') LE hdr.imns-1)) THEN BEGIN
 				stokes_q_enabled = 1 
 				stokes_select_sp[WHERE(stokes_labels EQ 'Q')] = 1
 			ENDIF ELSE stokes_q_enabled = 0
-			IF ((WHERE(stokes_labels EQ 'U') GE 0) AND (WHERE(stokes_labels EQ 'U') LE imns-1)) THEN BEGIN
+			IF ((WHERE(stokes_labels EQ 'U') GE 0) AND (WHERE(stokes_labels EQ 'U') LE hdr.imns-1)) THEN BEGIN
 				stokes_u_enabled = 1 
 				stokes_select_sp[WHERE(stokes_labels EQ 'U')] = 1
 			ENDIF ELSE stokes_u_enabled = 0
-			IF ((WHERE(stokes_labels EQ 'V') GE 0) AND (WHERE(stokes_labels EQ 'V') LE imns-1)) THEN BEGIN
+			IF ((WHERE(stokes_labels EQ 'V') GE 0) AND (WHERE(stokes_labels EQ 'V') LE hdr.imns-1)) THEN BEGIN
 				stokes_v_enabled = 1 
 				stokes_select_sp[WHERE(stokes_labels EQ 'V')] = 1
 			ENDIF ELSE stokes_v_enabled = 0
@@ -8511,256 +8909,46 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 		stokes_select_sp = 1
 	ENDELSE
 	scalestokes_max = (stokes_q_enabled OR stokes_u_enabled OR stokes_v_enabled)
-	diagnostics = STRARR(nlp)
-	IF (N_ELEMENTS(imdiagnostics) GT 0) THEN BEGIN
-		diagsplit = STRSPLIT(imdiagnostics,',',/EXTRACT)
+	diagnostics = STRARR(hdr.nlp)
+	IF (N_ELEMENTS(hdr.imdiagnostics) GT 0) THEN BEGIN
+		diagsplit = STRSPLIT(hdr.imdiagnostics,',',/EXTRACT)
 		ndiag = N_ELEMENTS(diagsplit)
 		diagsplit[0] = STRMID(diagsplit[0],STRPOS(diagsplit[0],'[')+1,STRLEN(diagsplit[0]))
-		diagsplit[ndiag-1] = STRMID(diagsplit[ndiag-1],0,STRLEN(diagsplit[ndiag-1])-(STRPOS(diagsplit[ndiag-1],']') GT 0))
-		IF (ndiag GE nlp) THEN diagnostics = diagsplit[0:(nlp-1)] ELSE IF (ndiag LT nlp) THEN BEGIN
+		diagsplit[ndiag-1] = STRMID(diagsplit[ndiag-1],0,$
+                                STRLEN(diagsplit[ndiag-1])-(STRPOS(diagsplit[ndiag-1],']') GT 0))
+		IF (ndiag GE hdr.nlp) THEN $
+      diagnostics = diagsplit[0:(hdr.nlp-1)] $
+    ELSE IF (ndiag LT hdr.nlp) THEN BEGIN
 			diagnostics[0:(ndiag-1)] = diagsplit[0:(ndiag-1)]
-			diagnostics[ndiag:(nlp-1)] = REPLICATE('Undefined',(nlp-ndiag))
+			diagnostics[ndiag:(hdr.nlp-1)] = REPLICATE('Undefined',(hdr.nlp-ndiag))
 		ENDIF 
-	ENDIF ELSE diagnostics = REPLICATE('SST ',nlp)+STRTRIM(INDGEN(nlp),2)
-	sel_diagnostics = REPLICATE(1,nlp)
-	lines_diagnostics = (INDGEN(nlp) MOD 6)
+	ENDIF ELSE diagnostics = REPLICATE('SST ',hdr.nlp)+STRTRIM(INDGEN(hdr.nlp),2)
+	sel_diagnostics = REPLICATE(1,hdr.nlp)
+	lines_diagnostics = (INDGEN(hdr.nlp) MOD 6)
 	linlab_diagnostics = ['Solid', 'Dotted', 'Dashed', 'Dash Dot', 'Dash Dot Dot', 'Long Dashes'] 
 	colors_diagnostics = [0,200,135,120,100,90,230,40]
 	collab_diagnostics = ['Black', 'Red', 'Pink', 'Purple', 'Blue', 'Turquoise', 'Grey', 'Green']
-	FOR i=0,FLOOR(nlp/6.) DO BEGIN
+	FOR i=0,FLOOR(hdr.nlp/6.) DO BEGIN
 		IF (i EQ 0) THEN selcol_diagnostics = REPLICATE(i,6) ELSE $
-			IF (i EQ (FLOOR(nlp/6.))) THEN BEGIN
-				IF (nlp/6. NE FLOOR(nlp/6.)) THEN selcol_diagnostics = [selcol_diagnostics, REPLICATE(i,ROUND((nlp/6.-FLOOR(nlp/6.))*6))] 
+			IF (i EQ (FLOOR(hdr.nlp/6.))) THEN BEGIN
+				IF (hdr.nlp/6. NE FLOOR(hdr.nlp/6.)) THEN selcol_diagnostics = [selcol_diagnostics,$
+        REPLICATE(i,ROUND((hdr.nlp/6.-FLOOR(hdr.nlp/6.))*6))] 
 			ENDIF ELSE selcol_diagnostics = [selcol_diagnostics, REPLICATE(i,6)]
 	ENDFOR
 
-	nx = nx * 1L														; Convert x-dimension to LONG
-	ny = ny * 1L														; Convert y-dimension to LONG
-	OPENR, lun, imcube, /get_lun, SWAP_ENDIAN = swapvalue									; Actual read-in of the image cube
-	IF (imtype EQ 1) THEN BEGIN												; Read data from associated file,
-		imagefile = ASSOC(lun,BYTARR(nx,ny),imoffset)									; skip imoffset header bytes
-		scanfile  = ASSOC(lun,BYTARR(nx,ny,nlp*ns),imoffset)			; Re-read in of the image cube for slices
-	ENDIF ELSE IF (imtype EQ 2) THEN BEGIN
-		imagefile = ASSOC(lun,INTARR(nx,ny),imoffset)
-		scanfile  = ASSOC(lun,INTARR(nx,ny,nlp*ns),imoffset)							
-	ENDIF ELSE IF (imtype EQ 4) THEN BEGIN
-		imagefile = ASSOC(lun,FLTARR(nx,ny),imoffset)
-		scanfile  = ASSOC(lun,FLTARR(nx,ny,nlp*ns),imoffset)								
-	ENDIF
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN
-		IF multichannel THEN PRINT,'CRISPEX SETUP: Read Stokes image cube: '+imcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(imnt,2)+').' ELSE $
-			PRINT,'CRISPEX SETUP: Read image cube: '+imcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(imnt,2)+').'
-		IF (verbosity[1] EQ 1) THEN PRINT,'CRISPEX SETUP: Main cubes dimensions: (nx,ny,nt,nlp,ns) = ('+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(nt,2)+','+STRTRIM(nlp,2)+','+STRTRIM(ns,2)+')'
-	ENDIF
 	IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Stokes parameters: '+STRJOIN(stokes_labels,' ')
 
-	IF (N_ELEMENTS(REFCUBE) EQ 1) THEN BEGIN										; Assuming a single reference cube
-  	refimext = STRMID(refcube,STRPOS(refcube,'.',/REVERSE_SEARCH)+1,STRLEN(refcube))
-  	IF STRMATCH(refimext,'fits',/FOLD_CASE) THEN BEGIN
-      CRISPEX_READ_FITSHEADER, refcube, datatype=refimtype, nx=refnx, ny=refny, imnt=refnt, $
-                             offset=refimoffset, bunit=refbunit, exten_no=0
-      endian_file = 'b'
-  	ENDIF ELSE BEGIN
-  		CRISPEX_READ_HEADER, refcube, datatype=refimtype, dims=refdims, nx=refnx, ny=refny, nt=refnt,$
-                           endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
-  		refimoffset = 512
-      refbunit = 'counts'
-    ENDELSE
-  	swapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
-		IF (refnx EQ nx) AND (refny EQ ny) AND (refnt EQ nt) OR (refnt EQ 1) OR (refnt EQ imnt) OR (refnt EQ nlp) OR (nt EQ 1) THEN BEGIN
-;			swapvalue = ((refimtype GT 1) AND (endian NE endian_file))						; and determine whether correction is needed
-			OPENR, luf, refcube, /get_lun, SWAP_ENDIAN = swapvalue							; Actual read-in of the reference cube
-			IF (refimtype EQ 1) THEN referencefile = ASSOC(luf,BYTARR(nx,ny),refimoffset) $				; Read data from associated file, skip first 512 (header)bytes
-			ELSE IF (refimtype EQ 2) THEN referencefile = ASSOC(luf,INTARR(nx,ny),refimoffset) $
-			ELSE IF (refimtype EQ 4) THEN referencefile = ASSOC(luf,FLTARR(nx,ny),refimoffset)
-			showref = 1
-			refspfile = 0
-			refspcube = ''
-      reflpunit = ''
-			lufs = 0
-			refns = 1
-			IF (((refnt GT nt) AND (nt NE 1)) OR (refnt EQ nlp)) THEN refnlp = nlp ELSE BEGIN
-				IF (refnt EQ nt) THEN refnlp = 1 ELSE refnlp = refnt
-			ENDELSE
-			IF (refnt EQ nlp) OR (nt EQ 1) THEN BEGIN
-				refnt = 1
-				IF (refimtype EQ 1) THEN refscanfile = ASSOC(luf,BYTARR(nx,ny,refnlp*refns),refimoffset) $				; Read data from associated file, skip first 512 (header)bytes
-				ELSE IF (refimtype EQ 2) THEN refscanfile = ASSOC(luf,INTARR(nx,ny,refnlp*refns),refimoffset) $
-				ELSE IF (refimtype EQ 4) THEN refscanfile = ASSOC(luf,FLTARR(nx,ny,refnlp*refns),refimoffset)
-			ENDIF
-		ENDIF ELSE BEGIN
-			IF (refnt NE nt) AND (refnt NE 1) THEN BEGIN
-				PRINT,'ERROR: Dimensions of the reference cube (['+STRTRIM(refnx,2)+','+STRTRIM(refny,2)+','+STRTRIM(refnt,2)+']) are not compatible with those of the image '+$
-					'cube (['+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(imnt,2)+'])!'
-				PRINT,'       Number of timesteps times the number of spectral positions must be equal to that of the image cube ('+STRTRIM(imnt,2)+').'
-			ENDIF ELSE BEGIN
-				PRINT,'ERROR: Dimensions of the reference cube (['+STRTRIM(refnx,2)+','+STRTRIM(refny,2)+','+STRTRIM(refnt,2)+']) are not compatible with those of the image '+$
-					'cube (['+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(nt,2)+'])!'
-				PRINT,'       Number of timesteps must be either equal to that of the image ('+STRTRIM(nt,2)+') or to 1.'
-			ENDELSE
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDELSE
-	ENDIF ELSE IF ((N_ELEMENTS(REFCUBE) EQ 2) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN					; Assuming full dual cube mode
-  	refspext = STRMID(refcube[1],STRPOS(refcube[1],'.',/REVERSE_SEARCH)+1,STRLEN(refcube[1]))
-  	refimext = STRMID(refcube[0],STRPOS(refcube[0],'.',/REVERSE_SEARCH)+1,STRLEN(refcube[0]))
-  	IF STRMATCH(refspext,'fits',/FOLD_CASE) THEN BEGIN
-      CRISPEX_READ_FITSHEADER, refcube[1], datatype=refsptype, nlp=refnlp, nt=refnt, spnt=refspnt, $
-                             offset=refspoffset, lptitle=refxtitle, lpunit=reflpunit, exten_no=0
-      refms = 1.0
-      endian_file = 'b'
-  	ENDIF ELSE BEGIN
-  		CRISPEX_READ_HEADER, refcube[1], datatype=refsptype, dims=refdims, nx=refnlp, ny=refnt, $
-                           nt=refspnt, endian=endian_file	
-  		refspoffset = 512
-      reflpunit = ''
-    ENDELSE
-  	refspswapvalue = ((refsptype GT 1) AND (endian NE endian_file))						
-  	IF STRMATCH(refimext,'fits',/FOLD_CASE) THEN BEGIN
-      CRISPEX_READ_FITSHEADER, refcube[0], datatype=refimtype, nx=refnx, ny=refny, imnt=refimnt, $
-                             offset=refimoffset, inttitle=refytitle, bunit=refbunit, exten_no=0
-      endian_file = 'b'
-  	ENDIF ELSE BEGIN
-  		CRISPEX_READ_HEADER, refcube[0], datatype=refimtype, dims=refdims, nx=refnx, ny=refny, $
-                           nt=refimnt, endian=endian_file	
-  		refimoffset = 512
-      refbunit = 'counts'
-    ENDELSE
-  	refimswapvalue = ((refimtype GT 1) AND (endian NE endian_file))									
-;		CRISPEX_READ_HEADER, refcube[1], datatype=refsptype, dims=refspdims, nx=refnlp, ny=refnt, nt=refspnt, endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
-;		CRISPEX_READ_HEADER, refcube[0], datatype=refimtype, dims=refimdims, nx=refnx, ny=refny, nt=refimnt, endian=endian_file	; Calling LP_HEADER.PRO to read the header of the reference cube
-		; First check whether reference cubes are compatible
-		IF ((refcube[1] EQ refcube[0]) OR (refnlp EQ refnx) AND (refnt EQ refny) AND (refspnt EQ refimnt)) THEN BEGIN
-			PRINT,'ERROR: The reference image and spectral cubes must be different. Please check input (you seem to have provided the same file twice).'
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDIF
-		IF ((refnx*refny NE refspnt) OR (refnt*refnlp NE refimnt)) THEN BEGIN							; Failsafe against incompatible IMCUBE and SPCUBE
-			PRINT,'ERROR: The reference image and spectral cubes have incompatible dimensions and seem to belong to different datasets.'
-			PRINT,'       Please check whether the input is correct (you provided REFCUBE[0]='+STRTRIM(refcube[0],2)
-			PRINT,'       and REFCUBE[1]='+STRTRIM(refcube[1],2)+').'
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDIF
-		; Then check whether reference cubes are compatible with main cubes
-		IF ((refnx EQ nx) AND (refny EQ ny) AND ((refnt EQ nt) OR (refnt EQ 1) OR (refnt EQ imnt) OR (refnt EQ nlp))) THEN BEGIN
-;			swapvalue = ((refsptype GT 1) AND (endian NE endian_file))							; Determine whether correction for endian is needed
-			OPENR, lufs, refcube[1], /get_lun, SWAP_ENDIAN = refspswapvalue								; Actual read-in of the spectral cube
-			IF (refsptype EQ 1) THEN referencespectra = ASSOC(lufs,BYTARR(refnlp,refnt),refspoffset) $						; Read data from associated file, skip first 512 (header)bytes
-			ELSE IF (refsptype EQ 2) THEN referencespectra = ASSOC(lufs,INTARR(refnlp,refnt),refspoffset) $
-			ELSE IF (refsptype EQ 4) THEN referencespectra = ASSOC(lufs,FLTARR(refnlp,refnt),refspoffset)
-			refspfile = 1	
-;			swapvalue = ((refimtype GT 1) AND (endian NE endian_file)) 						; and determine whether correction is needed
-			OPENR, luf, refcube[0], /get_lun, SWAP_ENDIAN = refimswapvalue							; Actual read-in of the reference cube
-			IF (refimtype EQ 1) THEN referencefile = ASSOC(luf,BYTARR(nx,ny),refimoffset) $				; Read data from associated file, skip first 512 (header)bytes
-			ELSE IF (refimtype EQ 2) THEN referencefile = ASSOC(luf,INTARR(nx,ny),refimoffset) $
-			ELSE IF (refimtype EQ 4) THEN referencefile = ASSOC(luf,FLTARR(nx,ny),refimoffset)
-			showref = 1
-			IF (TOTAL(verbosity[0:1]) GE 1) THEN PRINT,'CRISPEX SETUP: Read reference spectral cube: '+refcube[1]+$
-				'. Dimensions: (nlp,nt,nx*ny) = ('+STRTRIM(refnlp,2)+','+STRTRIM(refnt,2)+','+STRTRIM(refspnt,2)+').'
-			refspcube = refcube[1]
-			refcube = refcube[0]
-			refns = 1
-		ENDIF ELSE BEGIN
-			IF ((refnx NE nx) OR (refny NE ny)) THEN BEGIN
-				PRINT,'ERROR: Dimensions of the reference cube (['+STRTRIM(refnx,2)+','+STRTRIM(refny,2)+','+STRTRIM(refnt,2)+']) are not compatible with those of the main image '+$
-					'cube (['+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(nt,2)+'])!'
-				PRINT,'       Number of pixels in the x- and y-dimension must be equal to those of the main image cube.'
-			ENDIF ELSE IF (refnt NE nt) AND (refnt NE 1) THEN BEGIN
-				PRINT,'ERROR: Dimensions of the reference cube (['+STRTRIM(refnx,2)+','+STRTRIM(refny,2)+','+STRTRIM(refnt,2)+']) are not compatible with those of the main image '+$
-					'cube (['+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(nt,2)+'])!'
-				PRINT,'       Number of timesteps must be either equal to that of the main image cube ('+STRTRIM(nt,2)+') or to 1.'
-			ENDIF
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDELSE	
-	ENDIF ELSE IF (N_ELEMENTS(REFCUBE) GT 1) THEN BEGIN									; Assuming a single image supplied as an array
-		refnx = (SIZE(refcube))[1]
-		refny = (SIZE(refcube))[2]
-    refbunit = 'counts'
-    reflpunit = ''
-		IF (SIZE(REFCUBE,/N_DIMENSIONS) EQ 3) THEN refnt = (SIZE(refcube))[3] ELSE refnt = 0
-		IF (refnx EQ nx) AND (refny EQ ny) THEN BEGIN
-			referencefile = refcube
-			showref = 1
-			luf = 0
-			lufs = 0
-			refnlp = 0
-			refns = 1
-			refspfile = 0
-			refspcube = ''
-      reflpunit = ''
-      refbunit = 'counts'
-		ENDIF ELSE BEGIN
-			PRINT,'ERROR: Dimensions of the reference cube (['+STRTRIM(refnx,2)+','+STRTRIM(refny,2)+','+STRTRIM(refnt,2)+']) are not compatible with those of the main image cube (['+STRTRIM(nx,2)+','+$
-				STRTRIM(ny,2)+','+STRTRIM(nt,2)+'])!'
-			PRINT,'       Number of pixels in the x- and y-direction must be equal.'
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDELSE
-	ENDIF ELSE BEGIN 
-		showref = 0
-		luf = 0
-		refnt = 0
-		lufs = 0
-		refnlp = 0
-		refns = 0
-		refspfile = 0
-		refspcube = ''
-    reflpunit = ''
-    refbunit = ''
-	ENDELSE
-	IF (refnlp NE nlp) THEN BEGIN
+	IF (hdr.refnlp NE hdr.nlp) THEN BEGIN
 		eqnlps = 0 
-		refslid_sens = (showref AND (refnlp GT 1)) 
+		refslid_sens = (showref AND (hdr.refnlp GT 1)) 
 	ENDIF ELSE BEGIN
 		eqnlps = 1
 		refslid_sens = 0
 	ENDELSE
-	showrefls = (refspfile OR (refnlp GT 1))
-
-	IF (N_ELEMENTS(MASKCUBE) EQ 1) THEN BEGIN
-		CRISPEX_READ_HEADER, maskcube, datatype=masktype, dims=maskdims, nx=masknx, ny=maskny, nt=masknt, endian=endian_file;, $	; Calling LP_HEADER.PRO to read the header of the spectral cube
-		IF ((masknx EQ nx) AND (maskny EQ ny) AND ((masknt EQ nt) OR (masknt EQ 1))) THEN BEGIN
-			swapvalue = ((masktype GT 1) AND (endian NE endian_file))
-			OPENR, lum, maskcube, /get_lun, SWAP_ENDIAN = swapvalue								; Actual read-in of the spectral cube
-			IF (masktype EQ 1) THEN mask = ASSOC(lum,BYTARR(nx,ny),hoffset) $						; Read data from associated file, skip first 512 (header)bytes
-			ELSE IF (masktype EQ 2) THEN mask = ASSOC(lum,INTARR(nx,ny),hoffset) $
-			ELSE IF (masktype EQ 4) THEN mask = ASSOC(lum,FLTARR(nx,ny),hoffset)
-			maskfile = 1	
-			IF (TOTAL(verbosity[0:1]) GE 1) THEN PRINT,'CRISPEX SETUP: Read mask cube: '+maskcube+'. Dimensions: (nx,ny,nt) = ('+STRTRIM(masknx,2)+','+STRTRIM(maskny,2)+','+STRTRIM(masknt,2)+').'
-		ENDIF ELSE BEGIN
-			IF ((masknx NE nx) OR (maskny NE ny)) THEN BEGIN
-				PRINT,'ERROR: Dimensions of the mask cube (['+STRTRIM(masknx,2)+','+STRTRIM(maskny,2)+','+STRTRIM(masknt,2)+']) are not compatible with those of the main image '+$
-					'cube (['+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(nt,2)+'])!'
-				PRINT,'       Number of pixels in the x- and y-dimension must be equal to those of the main image cube.'
-			ENDIF ELSE IF ((masknt NE nt) AND (masknt NE 1)) THEN BEGIN
-				PRINT,'ERROR: Dimensions of the mask cube (['+STRTRIM(masknx,2)+','+STRTRIM(maskny,2)+','+STRTRIM(masknt,2)+']) are not compatible with those of the main image '+$
-					'cube (['+STRTRIM(nx,2)+','+STRTRIM(ny,2)+','+STRTRIM(nt,2)+'])!'
-				PRINT,'       Number of timesteps must be either equal to that of the main image cube ('+STRTRIM(nt,2)+') or to 1.'
-			ENDIF
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDELSE
-	ENDIF ELSE BEGIN
-		maskfile = 0
-		maskcube = ''
-		lum = 0
-		mask = 0
-		masknt = 0
-		IF (TOTAL(verbosity[0:1]) GE 1) THEN PRINT,'CRISPEX SETUP: No spectral cube supplied.'
-	ENDELSE
-
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN
-		IF (showref EQ 1) THEN BEGIN
-			IF (refspfile NE 1) THEN PRINT,'CRISPEX SETUP: Read reference image cube: '+refcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+STRTRIM(refnx,2)+','+STRTRIM(refny,2)+','+STRTRIM(refnt*refnlp,2)+').'  ELSE $
-				IF (refspfile EQ 1) THEN PRINT,'CRISPEX SETUP: Read reference image cube: '+refcube[0]+'. Dimensions: (nx,ny,nt*nlp) = ('+STRTRIM(refnx,2)+','+STRTRIM(refny,2)+','+STRTRIM(refnt,2)+').'
-			IF (verbosity[1] EQ 1) THEN PRINT,'CRISPEX SETUP: Reference cubes dimensions: (nx,ny,nt,nlp,ns) = ('+STRTRIM(refnx,2)+','+STRTRIM(refny,2)+','+STRTRIM(refnt,2)+','+STRTRIM(refnlp,2)+','+$
-				STRTRIM(refns,2)+')'
-		ENDIF ELSE IF (verbosity[1] EQ 1) THEN PRINT,'CRISPEX SETUP: No reference image cube supplied.'
-	ENDIF
-	IF (showref AND startupwin) THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Reading input files... done!'
-
+	showrefls = (refspfile OR (hdr.refnlp GT 1))
+	
+  IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, $
+                                                      'Reading input files... done!'
 
 	DEVICE, DECOMPOSE = 0	
 ;------------------------- SETTINGS FOR PERFORMANCE SAVE FILE
@@ -8828,9 +9016,9 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (parameters from/for mean spectrum)...",a5)','     ') 
 	feedback_text = ['Setting start-up options... ','> Parameters from/for mean spectrum... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	detspect_scale_enable = (nlp GT 1)
-	detspect_scale = (nlp GT 1)
-	ref_detspect_scale = (refnlp GT 1)
+	detspect_scale_enable = (hdr.nlp GT 1)
+	detspect_scale = (hdr.nlp GT 1)
+	ref_detspect_scale = (hdr.refnlp GT 1)
 
 	IF (N_ELEMENTS(SCALE_STOKES) EQ 1) THEN scalestokes = 1 ELSE BEGIN
 		IF (N_ELEMENTS(SCALE_STOKES) GT 1) THEN PRINT, 'ERROR: The SCALE_STOKES keyword must either be set or supplied with a single number! Reverting to standard scaling.'
@@ -8866,8 +9054,10 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 			RESTORE, spectfile[0]												; determine:
 			IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Restored main spectral file: '+spectfile[0]+'.'
 			IF (N_ELEMENTS(norm_factor) GE 1) THEN BEGIN										; Failsafe against old spectfiles
-				IF (N_ELEMENTS(spect_pos[*,0]) NE nlp) THEN BEGIN										; (after failsave against incompatible SPECTFILE
-					PRINT,'ERROR: Number of spectral positions in SPECTFILE (nlp='+STRTRIM(N_ELEMENTS(spect_pos),2)+') is incompatible with that in the datacubes (nlp='+STRTRIM(nlp,2)+').'
+				IF (N_ELEMENTS(spect_pos[*,0]) NE hdr.nlp) THEN BEGIN										; (after failsave against incompatible SPECTFILE
+					PRINT,'ERROR: Number of spectral positions in SPECTFILE'+$
+          '(nlp='+STRTRIM(N_ELEMENTS(spect_pos),2)+') is incompatible with that in the datacubes'+$
+          '(nlp='+STRTRIM(hdr.nlp,2)+').'
 					PRINT,'       Please load the correct spectral file.'
 					WIDGET_CONTROL, startuptlb, /DESTROY
 					RETURN
@@ -8883,8 +9073,10 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 					IF ((STRCOMPRESS(ytitle_label) NE '') AND (STRCOMPRESS(ytitle[0]) EQ '')) THEN ytitle[0] = ytitle_label
 				ENDIF
 			ENDIF ELSE BEGIN
-				IF (N_ELEMENTS(ll) NE nlp) THEN BEGIN										; (after failsave against incompatible SPECTFILE
-					PRINT,'ERROR: Number of spectral positions in SPECTFILE (nlp='+STRTRIM(N_ELEMENTS(ll),2)+') is incompatible with that in the datacubes (nlp='+STRTRIM(nlp,2)+').'
+				IF (N_ELEMENTS(ll) NE hdr.nlp) THEN BEGIN										; (after failsave against incompatible SPECTFILE
+					PRINT,'ERROR: Number of spectral positions in SPECTFILE'+$
+          '(nlp='+STRTRIM(N_ELEMENTS(ll),2)+') is incompatible with that in the datacubes'+$
+          '(nlp='+STRTRIM(hdr.nlp,2)+').'
 					PRINT,'       Please load the correct spectral file.'
 					WIDGET_CONTROL, startuptlb, /DESTROY
 					RETURN
@@ -8904,8 +9096,10 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 			RESTORE, spectfile[1]												; determine:
 			IF (N_ELEMENTS(norm_factor) EQ 1) THEN BEGIN										; Failsafe against old spectfiles
 				IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Restored reference spectral file: '+spectfile[1]+'.'
-				IF (N_ELEMENTS(spect_pos) NE refnlp) THEN BEGIN										; (after failsave against incompatible SPECTFILE
-					PRINT,'ERROR: Number of spectral positions in SPECTFILE (nlp='+STRTRIM(N_ELEMENTS(spect_pos),2)+') is incompatible with that in the reference datacubes (nlp='+STRTRIM(refnlp,2)+').'
+				IF (N_ELEMENTS(spect_pos) NE hdr.refnlp) THEN BEGIN										; (after failsave against incompatible SPECTFILE
+					PRINT,'ERROR: Number of spectral positions in SPECTFILE'+$
+          '(nlp='+STRTRIM(N_ELEMENTS(spect_pos),2)+') is incompatible with that in the reference'+$
+          'datacubes (nlp='+STRTRIM(hdr.refnlp,2)+').'
 					PRINT,'       Please load the correct reference spectral file.'
 					WIDGET_CONTROL, startuptlb, /DESTROY
 					RETURN
@@ -8920,8 +9114,10 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 					IF ((STRCOMPRESS(ytitle_label) NE '') AND (STRCOMPRESS(ytitle[1]) EQ '')) THEN ytitle[1] = ytitle_label
 				ENDIF
 			ENDIF ELSE BEGIN
-				IF (N_ELEMENTS(ll) NE refnlp) THEN BEGIN										; (after failsave against incompatible SPECTFILE
-					PRINT,'ERROR: Number of spectral positions in SPECTFILE (nlp='+STRTRIM(N_ELEMENTS(ll),2)+') is incompatible with that in the reference datacubes (nlp='+STRTRIM(refnlp,2)+').'
+				IF (N_ELEMENTS(ll) NE hdr.refnlp) THEN BEGIN										; (after failsave against incompatible SPECTFILE
+					PRINT,'ERROR: Number of spectral positions in SPECTFILE'+$
+          '(nlp='+STRTRIM(N_ELEMENTS(ll),2)+') is incompatible with that in the reference '+$
+          'datacubes (nlp='+STRTRIM(hdr.refnlp,2)+').'
 					PRINT,'       Please load the correct reference spectral file.'
 					WIDGET_CONTROL, startuptlb, /DESTROY
 					RETURN
@@ -8936,30 +9132,31 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 		ENDIF ELSE BEGIN
 			refspectfile_set = 0
 			IF showrefls THEN BEGIN
-				refspectrum = DBLARR(refnlp) 
+				refspectrum = DBLARR(hdr.refnlp) 
 				IF (N_ELEMENTS(MNSPEC) EQ 1) THEN BEGIN										; - the spectrum of the entire image at a given t
-					IF (mnspec[0] LT 0) OR (mnspec[0] GE nt) THEN BEGIN						; Failsafe against incorrect MNSPEC values
-						PRINT,'ERROR: MNSPEC value ('+STRTRIM(mnspec[0],2)+') must fall within allowed range [0,'+STRTRIM(LONG(nt-1),2)+']!'
+					IF (mnspec[0] LT 0) OR (mnspec[0] GE hdr.nt) THEN BEGIN						; Failsafe against incorrect MNSPEC values
+						PRINT,'ERROR: MNSPEC value ('+STRTRIM(mnspec[0],2)+') must fall within allowed range'+$
+            '[0,'+STRTRIM(LONG(hdr.nt-1),2)+']!'
 						WIDGET_CONTROL, startuptlb, /DESTROY
 						RETURN
 					ENDIF	
-					FOR k=0,refnlp-1 DO refspectrum[k] = MEAN(referencefile[mnspec[0]*refnlp + k])
+					FOR k=0,hdr.refnlp-1 DO refspectrum[k] = MEAN(referencefile[mnspec[0]*hdr.refnlp + k])
 				ENDIF ELSE IF (N_ELEMENTS(MNSPEC) EQ 2) THEN BEGIN								; - the spectrum of the entire image at a range of t
-					IF (mnspec[0] GT mnspec[1]) OR (mnspec[0] LT 0) OR (mnspec[1] GE nt) THEN BEGIN			; Failsafe against incorrect MNSPEC values
+					IF (mnspec[0] GT mnspec[1]) OR (mnspec[0] LT 0) OR (mnspec[1] GE hdr.nt) THEN BEGIN			; Failsafe against incorrect MNSPEC values
 						PRINT,'ERROR: MNSPEC values (['+STRTRIM(mnspec[0],2)+','+STRTRIM(mnspec[1],2)+']) must fall within allowed range [0,'+$
-							STRTRIM(nt-1,2)+'] and be ordered from lower to higher value!'
+							STRTRIM(hdr.nt-1,2)+'] and be ordered from lower to higher value!'
 						WIDGET_CONTROL, startuptlb, /DESTROY
 						RETURN
 					ENDIF	
-					FOR k=0,refnlp-1 DO BEGIN
+					FOR k=0,hdr.refnlp-1 DO BEGIN
 						refspect = 0.
-						FOR i=mnspec[0],mnspec[1] DO refspect += MEAN(referencefile[i*refnlp + k])
+						FOR i=mnspec[0],mnspec[1] DO refspect += MEAN(referencefile[i*hdr.refnlp + k])
 						refspectrum[k] = refspect/FLOAT(mnspec[1]-mnspec[0]+1)
 					ENDFOR
-				ENDIF ELSE FOR k=0,refnlp-1 DO refspectrum[k] = MEAN(referencefile[k])
+				ENDIF ELSE FOR k=0,hdr.refnlp-1 DO refspectrum[k] = MEAN(referencefile[k])
 				refms = MAX(refspectrum)
 				refspec = refspectrum / refms
-				reflps	= FINDGEN(refnlp)
+				reflps	= FINDGEN(hdr.refnlp)
 			ENDIF ELSE BEGIN
 				refms = 0
 				refspec = 0
@@ -8969,48 +9166,50 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 			ENDELSE 
 		ENDELSE
 	ENDIF ELSE BEGIN													; Else, determine from the datacubes:
-		spectrum = DBLARR(nlp,ns) 
-		IF showrefls THEN refspectrum = DBLARR(refnlp) ELSE refspectrum = 0
+		spectrum = DBLARR(hdr.nlp,hdr.ns) 
+		IF showrefls THEN refspectrum = DBLARR(hdr.refnlp) ELSE refspectrum = 0
 		IF (N_ELEMENTS(MNSPEC) EQ 1) THEN BEGIN										; - the spectrum of the entire image at a given t
-			IF (mnspec[0] LT 0) OR (mnspec[0] GE nt) THEN BEGIN						; Failsafe against incorrect MNSPEC values
-				PRINT,'ERROR: MNSPEC value ('+STRTRIM(mnspec[0],2)+') must fall within allowed range [0,'+STRTRIM(LONG(nt-1),2)+']!'
+			IF (mnspec[0] LT 0) OR (mnspec[0] GE hdr.nt) THEN BEGIN						; Failsafe against incorrect MNSPEC values
+				PRINT,'ERROR: MNSPEC value ('+STRTRIM(mnspec[0],2)+') must fall within allowed range'+$
+        '[0,'+STRTRIM(LONG(hdr.nt-1),2)+']!'
 				WIDGET_CONTROL, startuptlb, /DESTROY
 				RETURN
 			ENDIF	
-			FOR k=0,nlp-1 DO FOR j=0,ns-1 DO spectrum[k,j] = MEAN(imagefile[mnspec[0]*nlp*ns + j*nlp + k])
-			IF showrefls THEN FOR k=0,refnlp-1 DO refspectrum[k] = MEAN(referencefile[mnspec[0]*refnlp + k])
+			FOR k=0,hdr.nlp-1 DO FOR j=0,hdr.ns-1 DO $
+        spectrum[k,j] = MEAN(imagefile[mnspec[0]*hdr.nlp*hdr.ns + j*hdr.nlp + k])
+			IF showrefls THEN FOR k=0,hdr.refnlp-1 DO refspectrum[k] = MEAN(referencefile[mnspec[0]*hdr.refnlp + k])
 		ENDIF ELSE IF (N_ELEMENTS(MNSPEC) EQ 2) THEN BEGIN								; - the spectrum of the entire image at a range of t
-			IF (mnspec[0] GT mnspec[1]) OR (mnspec[0] LT 0) OR (mnspec[1] GE nt) THEN BEGIN			; Failsafe against incorrect MNSPEC values
+			IF (mnspec[0] GT mnspec[1]) OR (mnspec[0] LT 0) OR (mnspec[1] GE hdr.nt) THEN BEGIN			; Failsafe against incorrect MNSPEC values
 				PRINT,'ERROR: MNSPEC values (['+STRTRIM(mnspec[0],2)+','+STRTRIM(mnspec[1],2)+']) must fall within allowed range [0,'+$
-					STRTRIM(nt-1,2)+'] and be ordered from lower to higher value!'
+					STRTRIM(hdr.nt-1,2)+'] and be ordered from lower to higher value!'
 				WIDGET_CONTROL, startuptlb, /DESTROY
 				RETURN
 			ENDIF	
-			FOR k=0,nlp-1 DO BEGIN
-				FOR j=0,ns-1 DO BEGIN
+			FOR k=0,hdr.nlp-1 DO BEGIN
+				FOR j=0,hdr.ns-1 DO BEGIN
 					spect = 0.
-					FOR i=mnspec[0],mnspec[1] DO spect += MEAN(imagefile[i*nlp*ns + j*nlp + k])
+					FOR i=mnspec[0],mnspec[1] DO spect += MEAN(imagefile[i*hdr.nlp*hdr.ns + j*hdr.nlp + k])
 					spectrum[k,j] = spect/FLOAT(mnspec[1]-mnspec[0]+1)
 				ENDFOR
 			ENDFOR
 			IF showrefls THEN BEGIN
-				FOR k=0,refnlp-1 DO BEGIN
+				FOR k=0,hdr.refnlp-1 DO BEGIN
 					refspect = 0.
-					FOR i=mnspec[0],mnspec[1] DO refspect += MEAN(referencefile[i*refnlp + k])
+					FOR i=mnspec[0],mnspec[1] DO refspect += MEAN(referencefile[i*hdr.refnlp + k])
 					refspectrum[k] = refspect/FLOAT(mnspec[1]-mnspec[0]+1)
 				ENDFOR
 			END
 		ENDIF ELSE BEGIN												; - or the spectrum of the entire image at t=0
-			FOR k=0,nlp-1 DO FOR j=0,ns-1 DO spectrum[k,j] = MEAN(imagefile[j*nlp + k])
-			IF showrefls THEN FOR k=0,refnlp-1 DO refspectrum[k] = MEAN(referencefile[k])
+			FOR k=0,hdr.nlp-1 DO FOR j=0,hdr.ns-1 DO spectrum[k,j] = MEAN(imagefile[j*hdr.nlp + k])
+			IF showrefls THEN FOR k=0,hdr.refnlp-1 DO refspectrum[k] = MEAN(referencefile[k])
 		ENDELSE
 
 		IF scalestokes THEN BEGIN
 			ms = scale_stokes 
-			detspect_scale_enable = ((ms EQ 1.) AND (nlp GT 1)) 
-		ENDIF ELSE ms = DBLARR(ns) 
-		mainspec = DBLARR(nlp,ns)
-		FOR j=0,ns-1 DO BEGIN
+			detspect_scale_enable = ((ms EQ 1.) AND (hdr.nlp GT 1)) 
+		ENDIF ELSE ms = DBLARR(hdr.ns) 
+		mainspec = DBLARR(hdr.nlp,hdr.ns)
+		FOR j=0,hdr.ns-1 DO BEGIN
 			IF scalestokes THEN mainspec[*,j] = spectrum[*,j]/ms ELSE BEGIN					; - the normalised spectrum
 				min_spectrum = MIN(spectrum[*,j], MAX=max_spectrum)
 				IF (ABS(max_spectrum) GE ABS(min_spectrum)) THEN extremum = ABS(max_spectrum) ELSE extremum = ABS(min_spectrum)
@@ -9019,11 +9218,11 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 			ENDELSE 
 		ENDFOR
 		spectrum = spectrum[*,0]
-		IF (N_ELEMENTS(lps) NE nlp) THEN lps = FINDGEN(nlp)												; - the values of the line positions
+		IF (N_ELEMENTS(lps) NE hdr.nlp) THEN lps = FINDGEN(hdr.nlp)												; - the values of the line positions
 		IF showrefls THEN BEGIN
 			refms = MAX(refspectrum)
 			refspec = refspectrum / refms
-			reflps	= FINDGEN(refnlp)
+			reflps	= FINDGEN(hdr.refnlp)
 		ENDIF ELSE BEGIN
 			refms = 0
 			refspec = 0
@@ -9062,8 +9261,9 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	ENDIF ELSE IF ((SIZE(LINE_CENTER))[0] LE 1) THEN BEGIN									; if only set for main
 		IF (N_ELEMENTS(LINE_CENTER) EQ 1) THEN BEGIN									; else, if the position is supplied
 			lc 	= line_center[0]											; use that given value
-			IF ((lc GE nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-				PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed range [0,'+STRTRIM(nlp-1,2)+']!'
+			IF ((lc GE hdr.nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
+				PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed '+$
+        'range [0,'+STRTRIM(hdr.nlp-1,2)+']!'
 				WIDGET_CONTROL, startuptlb, /DESTROY
 				RETURN
 			ENDIF
@@ -9095,8 +9295,9 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 				RETURN
 			ENDIF	
 			lc 	= line_center[0]											; get the linecentre position
-			IF ((lc GE nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-				PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed range [0,'+STRTRIM(nlp-1,2)+']!'
+			IF ((lc GE hdr.nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
+				PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed '+$
+        'range [0,'+STRTRIM(hdr.nlp-1,2)+']!'
 				WIDGET_CONTROL, startuptlb, /DESTROY
 				RETURN
 			ENDIF
@@ -9117,8 +9318,9 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 		IF showrefls THEN BEGIN
 			IF ((SIZE(LINE_CENTER))[1] EQ 1) THEN BEGIN									; else, if the position is supplied
 				lc 	= line_center[0,0]											; use that given value
-				IF ((lc GE nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-					PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed range [0,'+STRTRIM(nlp-1,2)+']!'
+				IF ((lc GE hdr.nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
+					PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed'+$
+          'range [0,'+STRTRIM(hdr.nlp-1,2)+']!'
 					WIDGET_CONTROL, startuptlb, /DESTROY
 					RETURN
 				ENDIF
@@ -9130,8 +9332,9 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 					spxtitle= 'Spectral position'
 				ENDELSE
 				reflc	= line_center[0,1]
-				IF ((reflc GE refnlp) OR (reflc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-					PRINT,'ERROR: Reference linecentre index value '+STRTRIM(LONG(reflc),2)+' falls outside of allowed range [0,'+STRTRIM(refnlp-1,2)+']!'
+				IF ((reflc GE hdr.refnlp) OR (reflc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
+					PRINT,'ERROR: Reference linecentre index value '+STRTRIM(LONG(reflc),2)+' falls '+$
+          'outside of allowed range [0,'+STRTRIM(hdr.refnlp-1,2)+']!'
 					WIDGET_CONTROL, startuptlb, /DESTROY
 					RETURN
 				ENDIF
@@ -9176,8 +9379,9 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 					RETURN
 				ENDIF	
 				lc 	= line_center[0,0]											; get the linecentre position
-				IF ((lc GE nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-					PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed range [0,'+STRTRIM(nlp-1,2)+']!'
+				IF ((lc GE hdr.nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
+					PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed'+$
+          'range [0,'+STRTRIM(hdr.nlp-1,2)+']!'
 					WIDGET_CONTROL, startuptlb, /DESTROY
 					RETURN
 				ENDIF
@@ -9194,8 +9398,9 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 					RETURN
 				ENDIF	
 				reflc 	= line_center[0,1]											; get the linecentre position
-				IF ((reflc GE refnlp) OR (reflc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-					PRINT,'ERROR: Reference linecentre index value '+STRTRIM(LONG(reflc),2)+' falls outside of allowed range [0,'+STRTRIM(refnlp-1,2)+']!'
+				IF ((reflc GE hdr.refnlp) OR (reflc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
+					PRINT,'ERROR: Reference linecentre index value '+STRTRIM(LONG(reflc),2)+' falls '+$
+          'outside of allowed range [0,'+STRTRIM(hdr.refnlp-1,2)+']!'
 					WIDGET_CONTROL, startuptlb, /DESTROY
 					RETURN
 				ENDIF
@@ -9217,20 +9422,21 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	IF (lps[LONG(lc)] EQ 0) THEN v_dop_set = 0
 	IF (reflps[LONG(reflc)] EQ 0) THEN v_dop_set_ref = 0
 
-	IF (v_dop_set EQ 1) THEN v_dop = c_speed*(lps/lps[LONG(lc)]-1) ELSE v_dop = FLTARR(nlp)					; array with Doppler velocities in km/s
+	IF (v_dop_set EQ 1) THEN v_dop = c_speed*(lps/lps[LONG(lc)]-1) ELSE v_dop = FLTARR(hdr.nlp)					; array with Doppler velocities in km/s
 	IF showrefls THEN BEGIN
-		IF (v_dop_set_ref EQ 1) THEN v_dop_ref = c_speed*(reflps/reflps[LONG(reflc)]-1) ELSE v_dop_ref = FLTARR(refnlp)					; array with Doppler velocities in km/s
+		IF (v_dop_set_ref EQ 1) THEN v_dop_ref = c_speed*(reflps/reflps[LONG(reflc)]-1) ELSE $
+      v_dop_ref = FLTARR(hdr.refnlp)					; array with Doppler velocities in km/s
 	ENDIF ELSE v_dop_ref = 0
 
-	IF (nlp GT 1) THEN BEGIN
+	IF (hdr.nlp GT 1) THEN BEGIN
 		IF dlambda_set THEN ndecimals = ABS(FLOOR(ALOG10(ABS(dlambda)))) ELSE ndecimals = 2
-		equidist = STRING((SHIFT(FLOAT(lps),-1) - FLOAT(lps))[0:nlp-2],FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
+		equidist = STRING((SHIFT(FLOAT(lps),-1) - FLOAT(lps))[0:hdr.nlp-2],FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
 		IF (((WHERE(equidist NE equidist[0]))[0] NE -1) AND (KEYWORD_SET(NO_WARP) EQ 0)) THEN BEGIN				; Check for non-equidistant spectral positions and allowed consequential warping
 			warpspslice = 1													; Temporal spectrum is warped to correct non-equidistant spectral positions
 			min_lps = MIN(lps)
-			xo = FINDGEN(nlp) # REPLICATE(1,nt)
-			xi = ((lps-min_lps) / FLOAT(MAX(lps-min_lps)) * nlp) # REPLICATE(1,nt)
-			yo = REPLICATE(1,nlp) # FINDGEN(nt)
+			xo = FINDGEN(hdr.nlp) # REPLICATE(1,hdr.nt)
+			xi = ((lps-min_lps) / FLOAT(MAX(lps-min_lps)) * hdr.nlp) # REPLICATE(1,hdr.nt)
+			yo = REPLICATE(1,hdr.nlp) # FINDGEN(hdr.nt)
 			yi = yo
 		ENDIF ELSE BEGIN
 			warpspslice = 0													; Temporal spectrum is not warped to correct non-equidistant spectral positions
@@ -9242,15 +9448,15 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 		xi = 0	&	yi = 0
 		xo = 0	&	yo = 0
 	ENDELSE
-	IF (refspfile AND (refnlp GT 1)) THEN BEGIN
+	IF (refspfile AND (hdr.refnlp GT 1)) THEN BEGIN
 		IF dlambda_set_ref THEN ndecimals = ABS(FLOOR(ALOG10(ABS(ref_dlambda)))) ELSE ndecimals = 2
-		refequidist = STRING((SHIFT(FLOAT(reflps),-1) - FLOAT(reflps))[0:refnlp-2],FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
+		refequidist = STRING((SHIFT(FLOAT(reflps),-1) - FLOAT(reflps))[0:hdr.refnlp-2],FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
 		IF (((WHERE(refequidist NE refequidist[0]))[0] NE -1) AND (KEYWORD_SET(NO_WARP) EQ 0)) THEN BEGIN				; Check for non-equidistant spectral positions and allowed consequential warping
 			warprefspslice = 1													; Temporal spectrum is warped to correct non-equidistant spectral positions
 			min_reflps = MIN(reflps)
-			xo_ref = FINDGEN(refnlp) # REPLICATE(1,nt)
-			xi_ref = ((reflps-min_reflps) / FLOAT(MAX(reflps-min_reflps)) * refnlp) # REPLICATE(1,nt)
-			yo_ref = REPLICATE(1,refnlp) # FINDGEN(nt)
+			xo_ref = FINDGEN(hdr.refnlp) # REPLICATE(1,hdr.nt)
+			xi_ref = ((reflps-min_reflps) / FLOAT(MAX(reflps-min_reflps)) * hdr.refnlp) # REPLICATE(1,hdr.nt)
+			yo_ref = REPLICATE(1,hdr.refnlp) # FINDGEN(hdr.nt)
 			yi_ref = yo_ref
 		ENDIF ELSE BEGIN
 			warprefspslice = 0													; Temporal spectrum is not warped to correct non-equidistant spectral positions
@@ -9274,7 +9480,7 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial slit parameters)...",a5)','     ') 
 	feedback_text = [feedback_text,'> Initial slit parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	nphi	= LONG(CEIL(SQRT( FLOAT(nx)^2 + FLOAT(ny)^2 )))									; Determine maximum number of slitpositions
+	nphi	= LONG(CEIL(SQRT( FLOAT(hdr.nx)^2 + FLOAT(hdr.ny)^2 )))									; Determine maximum number of slitpositions
 	angle = 45														; Set initial angle of the slit
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
 		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial slit parameters)...",a5)','done!') 
@@ -9288,36 +9494,37 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	feedback_text = [feedback_text,'> Initial playback parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	t_first		= 0													; Set number of first frame		
-	IF (nt EQ 1) THEN BEGIN
+	IF (hdr.nt EQ 1) THEN BEGIN
 		t_last = 2
 		t_last_tmp = 0
 		t_slid_sens = 0
 	ENDIF ELSE BEGIN
-		t_last = nt-1													; Set number of last frame
+		t_last = hdr.nt-1													; Set number of last frame
 		t_last_tmp = t_last
 		t_slid_sens = 1
 	ENDELSE
 	t_step		= 1													; Set initial timestep
 	t_speed 	= 10													; Set initial animation speed
 	direction 	= 1													; Set initial animation direction
-	nt		= FLOAT(nt)												; Convert the number of timesteps to float
+	;nt		= FLOAT(hdr.nt)												; Convert the number of timesteps to float
 	t_start = t_first
 
-	IF (N_ELEMENTS(DT) EQ 1) THEN BEGIN
+	IF (N_ELEMENTS(hdr.dt) EQ 1) THEN BEGIN
 		IF (spfile OR onecube) THEN BEGIN
 			dt_set = 1
 			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = 'Time (s)'
 		ENDIF ELSE BEGIN
 			PRINT,'WARNING: Calling CRISPEX with DT has no influence when no SPCUBE is supplied. Setting seconds per timestep to default value.'
 			dt_set = 0
-			dt = 1.
+			hdr.dt = 1.
 			spytitle = 'Frame number'
 		ENDELSE
 	ENDIF ELSE BEGIN
 		dt_set = 0
-		dt = 1.
+		hdr.dt = 1.
 		spytitle = 'Frame number'
 	ENDELSE
+
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
 		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial playback parameters)...",a5)','done!') 
 		PRINT,'' 
@@ -9330,14 +9537,14 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	feedback_text = [feedback_text,'> Initial spectral parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	lp_first 	= 0													; Set number of first lineposition
-	lp_last		= nlp-1													; Set number of last lineposition
-	sp		= nt * nlp												; Set spectral dimension
+	lp_last		= hdr.nlp-1													; Set number of last lineposition
+	sp		= hdr.nt * hdr.nlp												; Set spectral dimension
 	lp_start 	= lc
 	lp_ref_first = lp_first
 	IF showrefls THEN BEGIN
-		lp_ref_last = refnlp - 1
+		lp_ref_last = hdr.refnlp - 1
 		lp_ref_start = reflc
-	ENDIF ELSE IF (refnlp GT 1) THEN BEGIN
+	ENDIF ELSE IF (hdr.refnlp GT 1) THEN BEGIN
 		lp_ref_last = lp_last
 		lp_ref_start = lc
 	ENDIF ELSE BEGIN
@@ -9407,11 +9614,11 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	refxoffset	= 0
 	refyoffset	= ydelta
 
-	ratio 		= FLOAT(nx) / FLOAT(ny)											; Determine x/y-ratio
+	ratio 		= FLOAT(hdr.nx) / FLOAT(hdr.ny)											; Determine x/y-ratio
 	x_scr_size = screensizes[2,monitor_order[0]]
 	y_scr_size = screensizes[3,monitor_order[0]]
-	IF ((x_scr_size GT (nx+2*xdelta+0.45*x_scr_size)) AND (y_scr_size GT (ny+ydelta+90))) THEN BEGIN		; If xsize > nx+space for spectral windows AND ysize > ny+space for params window, then:
-		IF ((nx LT 0.48 * x_scr_size) AND (ny LT (0.48 * x_scr_size / ratio)) AND KEYWORD_SET(WINDOW_LARGE)) THEN BEGIN				; If xsize is small, then still go to old settings procedures
+	IF ((x_scr_size GT (hdr.nx+2*xdelta+0.45*x_scr_size)) AND (y_scr_size GT (hdr.ny+ydelta+90))) THEN BEGIN		; If xsize > nx+space for spectral windows AND ysize > ny+space for params window, then:
+		IF ((hdr.nx LT 0.48 * x_scr_size) AND (hdr.ny LT (0.48 * x_scr_size / ratio)) AND KEYWORD_SET(WINDOW_LARGE)) THEN BEGIN				; If xsize is small, then still go to old settings procedures
 			imwinx 	= 0.48 * x_scr_size											; Set maximum x-extent of image window
 			imwiny 	= imwinx / ratio											; Set maximum y-extent of image window
 			IF (verbosity[1] EQ 1) THEN BEGIN
@@ -9419,8 +9626,8 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 				PRINT,'CRISPEX SETUP: User screen resolution allows 1:1 image window sizing, but dimensions are small. Reverting. Image window is '+STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.'
 			ENDIF
 		ENDIF ELSE BEGIN
-			imwinx	= nx													; - use actual nx as imwinx
-			imwiny	= ny													; - use actual ny as imwiny
+			imwinx	= hdr.nx													; - use actual nx as imwinx
+			imwiny	= hdr.ny													; - use actual ny as imwiny
 			IF (verbosity[1] EQ 1) THEN BEGIN
 				PRINT,''
 				PRINT,'CRISPEX SETUP: User screen resolution allows 1:1 image window sizing. Image window is '+STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.'
@@ -9440,7 +9647,7 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	ENDELSE
 
 	windowx		= 0.2 * x_scr_size											; Set maximum x-extent of spectral win
-	IF (nt GE 50) THEN windowy = imwiny ELSE windowy = imwiny/2.
+	IF (hdr.nt GE 50) THEN windowy = imwiny ELSE windowy = imwiny/2.
 	lswinx 		= 0.25 * x_scr_size											; Set maximum x-extent of loc spec win
 	
 	spxoffset = imwinx + xdelta
@@ -9455,8 +9662,8 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	ticklen 	= 0.01
 	xsize 		= 1.*lswinx
 
-	IF (ns LE 2) THEN BEGIN
-		npanels = ns	&	cols = ns	&	rowarr = REPLICATE(0,ns)
+	IF (hdr.ns LE 2) THEN BEGIN
+		npanels = hdr.ns	&	cols = hdr.ns	&	rowarr = REPLICATE(0,hdr.ns)
 	ENDIF ELSE BEGIN
 		npanels = 4	&	cols = 2	&	rowarr = [1,1,0,0]
 	ENDELSE
@@ -9518,7 +9725,7 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 
 	spwidth 	= (1. - (spmargin + spwall))
 	IF spfile THEN spwiny = windowy ELSE spwiny = imwiny
-	IF ((v_dop_set EQ 1) OR (ns GT 1)) THEN BEGIN
+	IF ((v_dop_set EQ 1) OR (hdr.ns GT 1)) THEN BEGIN
 		spheight = (1. - (spmargin * 2.) * spwinx/spwiny)
 		phisheight = (1. - (spmargin * 2.) * phiswinx/phiswiny)
 	ENDIF ELSE BEGIN
@@ -9574,14 +9781,14 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	feedback_text = [feedback_text,'> Initial spatial parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	x_first		= 0													; Set number of first x-coordinate
-	x_last		= nx-1													; Set number of last x-coordinate
+	x_last		= hdr.nx-1													; Set number of last x-coordinate
 	y_first		= 0													; Set number of first y-coordinate
-	y_last		= ny-1													; Set number of last y-coordinate
-	x_start		= FLOAT(FLOOR(nx/2))												; Determine the middle x-coordinate
-	sx_start	= x_start * imwinx / FLOAT(nx)										; Convert that to device
-	y_start		= FLOAT(FLOOR(ny/2))												; Determine the middle y-coordinate
-	sy_start	= y_start * imwiny / FLOAT(ny)										; Convert that to device
-;	arcsecpix	= 0.0592
+	y_last		= hdr.ny-1													; Set number of last y-coordinate
+	x_start		= FLOAT(FLOOR(hdr.nx/2))												; Determine the middle x-coordinate
+	sx_start	= x_start * imwinx / FLOAT(hdr.nx)										; Convert that to device
+	y_start		= FLOAT(FLOOR(hdr.ny/2))												; Determine the middle y-coordinate
+	sy_start	= y_start * imwiny / FLOAT(hdr.ny)										; Convert that to device
+  arcsecpix	= hdr.dx
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
 		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial spatial parameters)...",a5)','done!') 
 		PRINT,'' 
@@ -9595,20 +9802,20 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	imagescale = PTR_NEW([0,0,0])												; Image scaling based on first image
 	relative_scaling = PTR_NEW([0,0,0])
-	immin = DBLARR(nlp,ns)
-	immax = DBLARR(nlp,ns)
-	immean = DBLARR(nlp,ns)
-	imsdev = DBLARR(nlp,ns)
-	dopplermin = DBLARR(nlp,ns)
-	dopplermax = DBLARR(nlp,ns)
-	ls_low_y = FLTARR(ns)
-	ls_upp_y = FLTARR(ns)
-	ls_yrange = FLTARR(ns)
-	int_low_y = FLTARR(ns)
-	int_upp_y = FLTARR(ns)
-	FOR j=0,ns-1 DO BEGIN
+	immin = DBLARR(hdr.nlp,hdr.ns)
+	immax = DBLARR(hdr.nlp,hdr.ns)
+	immean = DBLARR(hdr.nlp,hdr.ns)
+	imsdev = DBLARR(hdr.nlp,hdr.ns)
+	dopplermin = DBLARR(hdr.nlp,hdr.ns)
+	dopplermax = DBLARR(hdr.nlp,hdr.ns)
+	ls_low_y = FLTARR(hdr.ns)
+	ls_upp_y = FLTARR(hdr.ns)
+	ls_yrange = FLTARR(hdr.ns)
+	int_low_y = FLTARR(hdr.ns)
+	int_upp_y = FLTARR(hdr.ns)
+	FOR j=0,hdr.ns-1 DO BEGIN
 		FOR k=0,lp_last DO BEGIN
-			temp_image = imagefile[j*nlp + k]
+			temp_image = imagefile[j*hdr.nlp + k]
 			immin[k,j] = MIN(temp_image, MAX=max_val)
 			immax[k,j] = max_val
 			immean[k,j] = MEAN(temp_image)
@@ -9618,7 +9825,7 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 				dopplermin[k,j] = 0
 				dopplermax[k,j] = 0
 			ENDIF ELSE BEGIN
-				mirror_temp_image = imagefile[j*nlp + temp_k]
+				mirror_temp_image = imagefile[j*hdr.nlp + temp_k]
 				IF (temp_k GT lc) THEN BEGIN
 					dopplermin[k,j] = MIN(temp_image - mirror_temp_image, MAX=max_val)
 					dopplermax[k,j] = max_val
@@ -9655,20 +9862,20 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	ls_low_y_ref = 0
 	ls_upp_y_ref = 0
 	IF showref THEN BEGIN
-		IF (refnt EQ 0) THEN BEGIN
+		IF (hdr.refnt EQ 0) THEN BEGIN
 			refmin = MIN(referencefile, MAX=refmax)
 			refmean = MEAN(referencefile)
 			refdev = STDDEV(referencefile)
-		ENDIF ELSE IF (((refnt EQ 1) OR (refnt EQ nt)) AND (refnlp EQ 1)) THEN BEGIN
+		ENDIF ELSE IF (((hdr.refnt EQ 1) OR (hdr.refnt EQ hdr.nt)) AND (hdr.refnlp EQ 1)) THEN BEGIN
 			refmin = MIN(referencefile[0], MAX=refmax)
 			refmean = MEAN(referencefile[0])
 			refdev = STDDEV(referencefile[0])
 		ENDIF ELSE BEGIN
-			refmin = FLTARR(refnlp)
-			refmax = FLTARR(refnlp)
-			refmean = FLTARR(refnlp)
-			refdev = FLTARR(refnlp)
-			FOR k=0,refnlp-1 DO BEGIN
+			refmin = FLTARR(hdr.refnlp)
+			refmax = FLTARR(hdr.refnlp)
+			refmean = FLTARR(hdr.refnlp)
+			refdev = FLTARR(hdr.refnlp)
+			FOR k=0,hdr.refnlp-1 DO BEGIN
 				temp_referencefile = referencefile[k]
 				refmin[k] = MIN(temp_referencefile, MAX=max_val)
 				refmax[k] = max_val
@@ -9717,18 +9924,18 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	opath_write = FILE_TEST(opath, /WRITE)
 	IF KEYWORD_SET(EXTS) THEN exts_set = 1 ELSE exts_set = 0
 	IF (SINGLE_CUBE GE 1) THEN BEGIN
-		IF (nt GT 1) THEN BEGIN
+		IF (hdr.nt GT 1) THEN BEGIN
 			exts_set = 1						; Automatically set EXTS when providing a (single lineposition) 3D cube
 			PRINT,'WARNING: The exact timeslice (EXTS) keyword has been automatically set to enable the '
 			PRINT,'		drawing of loop paths and extraction of timeslices!'
 		ENDIF ELSE exts_set=0
 	ENDIF
 	refexts_set = (refspfile NE 1)
-	lp_slid_sens = (nlp GE 2)
-	lp_blink_vals_sens = (nlp GT 2)
-	lp_last_slid = (nlp-1) > 1
-	lp_last_blink = (nlp-1) > 2
-	lp_last_vals = nlp-1
+	lp_slid_sens = (hdr.nlp GE 2)
+	lp_blink_vals_sens = (hdr.nlp GT 2)
+	lp_last_slid = (hdr.nlp-1) > 1
+	lp_last_blink = (hdr.nlp-1) > 2
+	lp_last_vals = hdr.nlp-1
 
 	scale_cubes_vals = [1.,1.]
 	IF (N_ELEMENTS(SCALE_CUBES) EQ 1) THEN scale_cubes_vals[0] = scale_cubes ELSE IF (N_ELEMENTS(SCALE_CUBES) EQ 2) THEN scale_cubes_vals = scale_cubes
@@ -9816,13 +10023,18 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	save_as_menu		= WIDGET_BUTTON(filemenu, VALUE = 'Save as...', /MENU)
 	save_as_png_menu	= WIDGET_BUTTON(save_as_menu, VALUE = 'PNG...', /MENU)
 	save_as_png_sns		= WIDGET_BUTTON(save_as_png_menu, VALUE = 'Snapshot', EVENT_PRO = 'CRISPEX_SAVE_PNG_SNAPSHOT')
-	save_as_png_all		= WIDGET_BUTTON(save_as_png_menu, VALUE = 'All frames', EVENT_PRO = 'CRISPEX_SAVE_PNG_ALL_FRAMES', SENSITIVE = (nt GT 1))
-	save_as_png_linescan	= WIDGET_BUTTON(save_as_png_menu, VALUE = 'Line scan', EVENT_PRO = 'CRISPEX_SAVE_PNG_LINESCAN', SENSITIVE = (nlp GT 1))
+	save_as_png_all		= WIDGET_BUTTON(save_as_png_menu, VALUE = 'All frames', EVENT_PRO = $
+  'CRISPEX_SAVE_PNG_ALL_FRAMES', SENSITIVE = (hdr.nt GT 1))
+	save_as_png_linescan	= WIDGET_BUTTON(save_as_png_menu, VALUE = 'Line scan', EVENT_PRO = $
+  'CRISPEX_SAVE_PNG_LINESCAN', SENSITIVE = (hdr.nlp GT 1))
 	save_as_jpg_menu	= WIDGET_BUTTON(save_as_menu, VALUE = 'JPEG...', /MENU)
 	save_as_jpg_sns 	= WIDGET_BUTTON(save_as_jpg_menu, VALUE = 'Snapshot', EVENT_PRO = 'CRISPEX_SAVE_JPEG_SNAPSHOT')
-	save_as_jpg_all		= WIDGET_BUTTON(save_as_jpg_menu, VALUE = 'All frames', EVENT_PRO = 'CRISPEX_SAVE_JPEG_ALL_FRAMES', SENSITIVE = (nt GT 1))
-	save_as_jpg_linescan 	= WIDGET_BUTTON(save_as_jpg_menu, VALUE = 'Linescan', EVENT_PRO = 'CRISPEX_SAVE_JPEG_LINESCAN', SENSITIVE = (nlp GT 1))
-	save_as_mpeg		= WIDGET_BUTTON(save_as_menu, VALUE = 'MPEG', EVENT_PRO = 'CRISPEX_SAVE_MPEG', SENSITIVE = (nt GT 1))
+	save_as_jpg_all		= WIDGET_BUTTON(save_as_jpg_menu, VALUE = 'All frames', EVENT_PRO = $
+  'CRISPEX_SAVE_JPEG_ALL_FRAMES', SENSITIVE = (hdr.nt GT 1))
+	save_as_jpg_linescan 	= WIDGET_BUTTON(save_as_jpg_menu, VALUE = 'Linescan', EVENT_PRO = $
+  'CRISPEX_SAVE_JPEG_LINESCAN', SENSITIVE = (hdr.nlp GT 1))
+	save_as_mpeg		= WIDGET_BUTTON(save_as_menu, VALUE = 'MPEG', EVENT_PRO = 'CRISPEX_SAVE_MPEG',$
+  SENSITIVE = (hdr.nt GT 1))
 	session			= WIDGET_BUTTON(filemenu, VALUE = 'Session...', /MENU)
 	save_session		= WIDGET_BUTTON(session, VALUE = 'Save current', EVENT_PRO = 'CRISPEX_SESSION_SAVE_WINDOW')
 	restore_session		= WIDGET_BUTTON(session, VALUE = 'Restore other', EVENT_PRO = 'CRISPEX_SESSION_RESTORE_WINDOW')
@@ -9838,13 +10050,15 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	exitmenu		= WIDGET_BUTTON(filemenu, VALUE = 'Quit', EVENT_PRO = 'CRISPEX_CLOSE', /SEPARATOR, ACCELERATOR = 'Ctrl+Q')
 
 	shortcutmenu		= WIDGET_BUTTON(menubar, VALUE = 'Control shortcuts', /MENU, UVALUE = 'shortcut')
-	sh_playbackmenu 	= WIDGET_BUTTON(shortcutmenu, VALUE = 'Playback options', /MENU, UVALUE = 'playback', SENSITIVE = (nt GT 1))
+	sh_playbackmenu 	= WIDGET_BUTTON(shortcutmenu, VALUE = 'Playback options', /MENU, UVALUE = $
+  'playback', SENSITIVE = (hdr.nt GT 1))
 	sh_fbwd_button		= WIDGET_BUTTON(sh_playbackmenu, VALUE = 'One frame backward', EVENT_PRO = 'CRISPEX_PB_FASTBACKWARD', ACCELERATOR = 'Shift+B')
 	sh_backward_button	= WIDGET_BUTTON(sh_playbackmenu, VALUE = 'Play backwards', EVENT_PRO = 'CRISPEX_PB_BACKWARD', ACCELERATOR = 'Shift+Backspace')
 	sh_pause_button		= WIDGET_BUTTON(sh_playbackmenu, VALUE = 'Pause', EVENT_PRO = 'CRISPEX_PB_PAUSE', ACCELERATOR = 'Shift+Space')
 	sh_forward_button	= WIDGET_BUTTON(sh_playbackmenu, VALUE = 'Play forwards', EVENT_PRO = 'CRISPEX_PB_FORWARD', ACCELERATOR = 'Shift+Tab')
 	sh_ffwd_button		= WIDGET_BUTTON(sh_playbackmenu, VALUE = 'One frame forward', EVENT_PRO = 'CRISPEX_PB_FASTFORWARD', ACCELERATOR = 'Shift+F')
-	sh_spectralmenu 	= WIDGET_BUTTON(shortcutmenu, VALUE = sp_h[heightset]+' options', /MENU, UVALUE = 'spectral', SENSITIVE = (nlp GT 1))
+	sh_spectralmenu 	= WIDGET_BUTTON(shortcutmenu, VALUE = sp_h[heightset]+' options', /MENU, $
+  UVALUE = 'spectral', SENSITIVE = (hdr.nlp GT 1))
 	sh_lp_incr_button 	= WIDGET_BUTTON(sh_spectralmenu, VALUE = sp_h[heightset]+' position +', EVENT_PRO = 'CRISPEX_SLIDER_LP_INCR', ACCELERATOR = 'Shift+S')
 	sh_lp_decr_button 	= WIDGET_BUTTON(sh_spectralmenu, VALUE = sp_h[heightset]+' position -', EVENT_PRO = 'CRISPEX_SLIDER_LP_DECR', ACCELERATOR = 'Shift+A')
 	sh_zoommenu		= WIDGET_BUTTON(shortcutmenu, VALUE = 'Zoom options',/MENU)
@@ -9911,8 +10125,8 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	lp_ref_but_field	= WIDGET_BASE(spectral_tab, /ROW, /NONEXCLUSIVE)
 	IF (heightset NE refheightset) THEN reflab = STRLOWCASE(sp_h[refheightset])+' ' ELSE reflab = ''
 	lp_ref_but		= WIDGET_BUTTON(lp_ref_but_field, VALUE = 'Lock reference '+reflab+'to main '+STRLOWCASE(sp_h[heightset])+' position', EVENT_PRO = 'CRISPEX_SLIDER_LP_REF_LOCK', $
-					SENSITIVE = (eqnlps AND (refnlp GT 1)))
-	WIDGET_CONTROL, lp_ref_but, SET_BUTTON = (eqnlps AND (refnlp GT 1))
+					SENSITIVE = (eqnlps AND (hdr.refnlp GT 1)))
+	WIDGET_CONTROL, lp_ref_but, SET_BUTTON = (eqnlps AND (hdr.refnlp GT 1))
 	lp_ref_slid = WIDGET_SLIDER(spectral_tab, TITLE = 'Reference '+STRLOWCASE(sp_h[refheightset])+' position', MIN = lp_ref_first, MAX = lp_ref_last, VALUE = lp_ref_start, EVENT_PRO = 'CRISPEX_SLIDER_LP_REF', $
 					/DRAG, SENSITIVE = (refslid_sens AND ABS(eqnlps-1)))
 
@@ -9957,7 +10171,7 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	pol_sp			= WIDGET_BASE(stokes_frame, /ROW)
 	pol_sp_label		= WIDGET_LABEL(pol_sp, VALUE = 'Detailed spectra:',/ALIGN_LEFT)
 	pol_sp_buts		= WIDGET_BASE(pol_sp, /ROW, /NONEXCLUSIVE)
-	spconstraint		= (nlp GT 1)
+	spconstraint		= (hdr.nlp GT 1)
 	pol_sp_i_but		= WIDGET_BUTTON(pol_sp_buts, VALUE = 'I', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_I', SENSITIVE = (spconstraint AND stokes_i_enabled))
 	pol_sp_q_but		= WIDGET_BUTTON(pol_sp_buts, VALUE = 'Q', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_Q', SENSITIVE = (spconstraint AND stokes_q_enabled))
 	pol_sp_u_but		= WIDGET_BUTTON(pol_sp_buts, VALUE = 'U', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_U', SENSITIVE = (spconstraint AND stokes_u_enabled))
@@ -9972,9 +10186,10 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	detspect_label_imref	= WIDGET_BASE(detspect_frame, /ROW)
 	detspect_label		= WIDGET_LABEL(detspect_label_imref, VALUE = lswintitle[heightset]+':',/ALIGN_LEFT, /DYNAMIC_RESIZE)
 	detspect_imref		= WIDGET_BASE(detspect_label_imref, /ROW, /EXCLUSIVE)
-	detspect_im_but		= WIDGET_BUTTON(detspect_imref, VALUE = 'Main', EVENT_PRO = 'CRISPEX_DISPLAYS_DETSPECT_IM_SELECT', /NO_RELEASE, SENSITIVE = (nlp GT 1), $
+	detspect_im_but		= WIDGET_BUTTON(detspect_imref, VALUE = 'Main', EVENT_PRO = $
+  'CRISPEX_DISPLAYS_DETSPECT_IM_SELECT', /NO_RELEASE, SENSITIVE = (hdr.nlp GT 1), $
 					TOOLTIP = 'Main '+STRLOWCASE(lswintitle[heightset])+' display options')
-	WIDGET_CONTROL, detspect_im_but, SET_BUTTON = (nlp GT 1)
+	WIDGET_CONTROL, detspect_im_but, SET_BUTTON = (hdr.nlp GT 1)
 	detspect_ref_but	= WIDGET_BUTTON(detspect_imref, VALUE = 'Reference', EVENT_PRO = 'CRISPEX_DISPLAYS_DETSPECT_REF_SELECT', /NO_RELEASE, SENSITIVE = showrefls, $
 					TOOLTIP = 'Reference '+STRLOWCASE(lswintitle[refheightset])+' display options')
 	detspect_buts		= WIDGET_BASE(detspect_frame, /ROW, /NONEXCLUSIVE)
@@ -9998,13 +10213,15 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	phis_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = lp_h_capital[heightset]+'-Phi', EVENT_PRO = 'CRISPEX_DISPLAYS_PHIS_TOGGLE', TOOLTIP = 'Toggle display '+STRLOWCASE(but_tooltip[heightset])+' along a slit')
 	refsp_toggle_but	= WIDGET_BUTTON(other_buts, VALUE = 'Reference '+lp_h_capital[refheightset]+'-t', EVENT_PRO = 'CRISPEX_DISPLAYS_REFSP_TOGGLE', $
 					TOOLTIP = 'Toggle display reference temporal '+STRLOWCASE(but_tooltip[refheightset]))
-	int_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = 'I-t', EVENT_PRO = 'CRISPEX_DISPLAYS_INT_TOGGLE', SENSITIVE=(nt GT 1), TOOLTIP = 'Toggle display intensity versus time plot')
+	int_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = 'I-t', EVENT_PRO = $
+  'CRISPEX_DISPLAYS_INT_TOGGLE', SENSITIVE=(hdr.nt GT 1), TOOLTIP = 'Toggle display intensity versus time plot')
 	images_disp		= WIDGET_BASE(all_other_disp, /ROW)
 	images_label		= WIDGET_LABEL(images_disp, VALUE = 'Images:')
 	images_buts		= WIDGET_BASE(images_disp, /ROW, /NONEXCLUSIVE)
 	reference_but		= WIDGET_BUTTON(images_buts, VALUE = 'Reference image', EVENT_PRO = 'CRISPEX_DISPLAYS_REF_TOGGLE', SENSITIVE = showref, TOOLTIP = 'Toggle display reference image')
 	WIDGET_CONTROL, reference_but, SET_BUTTON = showref
-	doppler_but		= WIDGET_BUTTON(images_buts, VALUE = 'Doppler image', EVENT_PRO = 'CRISPEX_DISPLAYS_DOPPLER_TOGGLE', SENSITIVE = (nlp GT 1), TOOLTIP = 'Toggle display Doppler image')
+	doppler_but		= WIDGET_BUTTON(images_buts, VALUE = 'Doppler image', EVENT_PRO = $
+  'CRISPEX_DISPLAYS_DOPPLER_TOGGLE', SENSITIVE = (hdr.nlp GT 1), TOOLTIP = 'Toggle display Doppler image')
 	param_but_field		= WIDGET_BASE(all_other_disp, /ROW, /NONEXCLUSIVE)
 	param_but		= WIDGET_BUTTON(param_but_field, VALUE = 'Parameters overview', EVENT_PRO = 'CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE', TOOLTIP = 'Toggle display parameters overview window')
 	WIDGET_CONTROL, param_but, /SET_BUTTON
@@ -10090,10 +10307,10 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	apix_base		= WIDGET_BASE(measuretool, /ROW)
 	apix_label		= WIDGET_LABEL(apix_base, VALUE = 'Pixel size:', /ALIGN_LEFT, SENSITIVE = 0)
   IF dx_fixed THEN $
-  	apix_text		= WIDGET_LABEL(apix_base, VALUE = STRTRIM(dx,2), /ALIGN_LEFT, SENSITIVE = 0) $
+  	apix_text		= WIDGET_LABEL(apix_base, VALUE = STRTRIM(hdr.dx,2), /ALIGN_LEFT, SENSITIVE = 0) $
   ELSE $
-  	apix_text		= WIDGET_TEXT(apix_base, VALUE = STRTRIM(dx,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_MEASURE_ARCSEC', SENSITIVE = 0)
-	apix_unit		= WIDGET_LABEL(apix_base, VALUE = '['+xunit+']', /ALIGN_LEFT, SENSITIVE = 0)
+  	apix_text		= WIDGET_TEXT(apix_base, VALUE = STRTRIM(hdr.dx,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_MEASURE_ARCSEC', SENSITIVE = 0)
+	apix_unit		= WIDGET_LABEL(apix_base, VALUE = '['+hdr.xunit+']', /ALIGN_LEFT, SENSITIVE = 0)
 	measure_asec		= WIDGET_BASE(measuretool, /ROW)
 	measure_asec_lab	= WIDGET_LABEL(measure_asec, VALUE = 'Distance [arcsec]:', /ALIGN_LEFT, SENSITIVE = 0)
 	measure_asec_text	= WIDGET_LABEL(measure_asec, VALUE = '0.00', /DYNAMIC_RESIZE, SENSITIVE = 0)
@@ -10113,39 +10330,43 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (setting up data pointers)...",a5)','     ') 
 	feedback_text = [feedback_text,'> Setting up data pointers... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	index = INTARR(nx,ny,2)
-	xarr = INDGEN(nx)
-	yarr = INDGEN(ny)
-	FOR i=0,nx-1 DO BEGIN
+	index = INTARR(hdr.nx,hdr.ny,2)
+	xarr = INDGEN(hdr.nx)
+	yarr = INDGEN(hdr.ny)
+	FOR i=0,hdr.nx-1 DO BEGIN
 		index[i,*,1] = yarr
 	ENDFOR
-	FOR j=0,ny-1 DO BEGIN
+	FOR j=0,hdr.ny-1 DO BEGIN
 		index[*,j,0] = xarr
 	ENDFOR
 	indexmap= PTR_NEW(index, /NO_COPY)
-	indices = PTR_NEW(INTARR(nx,ny,2))
+	indices = PTR_NEW(INTARR(hdr.nx,hdr.ny,2))
 
 	imdata	= PTR_NEW(imagefile, /NO_COPY)
-	xyslice	= PTR_NEW(BYTARR(nx,ny))
-	dopslice= PTR_NEW(BYTARR(nx,ny))
-	emptydopslice= PTR_NEW(BYTARR(nx,ny))
-	maskslice= PTR_NEW(BYTARR(nx,ny))
+	xyslice	= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
+	dopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
+	emptydopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
+	maskslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
 	maskdata = PTR_NEW(mask, /NO_COPY)
 
 	IF (spfile EQ 1) THEN spdata = PTR_NEW(spectra, /NO_COPY) ELSE spdata = 0
 	IF (refspfile EQ 1) THEN refspdata = PTR_NEW(referencespectra, /NO_COPY) ELSE refspdata = 0
 	scan	= PTR_NEW(scanfile, /NO_COPY)
-	IF (imtype EQ 1) THEN phiscan = PTR_NEW(BYTARR(nx,ny,nlp)) ELSE IF (imtype EQ 2) THEN phiscan = PTR_NEW(INTARR(nx,ny,nlp)) ELSE IF (imtype EQ 4) THEN phiscan = PTR_NEW(FLTARR(nx,ny,nlp))
-	IF (imtype EQ 1) THEN sspscan = PTR_NEW(BYTARR(nx,ny,nlp*ns)) ELSE IF (imtype EQ 2) THEN sspscan = PTR_NEW(INTARR(nx,ny,nlp*ns)) ELSE IF (imtype EQ 4) THEN sspscan = PTR_NEW(FLTARR(nx,ny,nlp*ns))
-	phislice= PTR_NEW(BYTARR(nlp,nphi))
+	IF (hdr.imtype EQ 1) THEN phiscan = PTR_NEW(BYTARR(hdr.nx,hdr.ny,hdr.nlp)) ELSE $
+  IF (hdr.imtype EQ 2) THEN phiscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.nlp)) ELSE $
+  IF (hdr.imtype EQ 4) THEN phiscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.nlp))
+	IF (hdr.imtype EQ 1) THEN sspscan = PTR_NEW(BYTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns)) ELSE $
+  IF (hdr.imtype EQ 2) THEN sspscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns)) ELSE $
+  IF (hdr.imtype EQ 4) THEN sspscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns))
+	phislice= PTR_NEW(BYTARR(hdr.nlp,nphi))
 	IF ((spfile EQ 1) OR (SINGLE_CUBE GE 1)) THEN BEGIN
-		loopslab= PTR_NEW(FLTARR(nlp,nt,nphi))
-		loopslice = PTR_NEW(BYTARR(nphi,nt))
-		refloopslab= PTR_NEW(FLTARR(nlp,nt,nphi))
-		refloopslice = PTR_NEW(BYTARR(nphi,nt))
+		loopslab= PTR_NEW(FLTARR(hdr.nlp,hdr.nt,nphi))
+		loopslice = PTR_NEW(BYTARR(nphi,hdr.nt))
+		refloopslab= PTR_NEW(FLTARR(hdr.nlp,hdr.nt,nphi))
+		refloopslice = PTR_NEW(BYTARR(nphi,hdr.nt))
 		crossloc= PTR_NEW(INTARR(nphi))
-		exact_loopslab= PTR_NEW(FLTARR(nlp,nt,nphi))
-		exact_loopslice = PTR_NEW(BYTARR(nphi,nt))
+		exact_loopslab= PTR_NEW(FLTARR(hdr.nlp,hdr.nt,nphi))
+		exact_loopslice = PTR_NEW(BYTARR(nphi,hdr.nt))
 		exact_crossloc= PTR_NEW(INTARR(nphi))
 		rest_loopslab = PTRARR(nphi,/ALLOCATE_HEAP)
 		rest_loopslice = PTRARR(nphi,/ALLOCATE_HEAP)
@@ -10155,8 +10376,8 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 			*rest_loopslice[i] = PTR_NEW(0)
 			*rest_crossloc[i]= PTR_NEW(0)
 		ENDFOR
-		det_loopslab= PTR_NEW(FLTARR(nlp,nt,nphi))
-		det_loopslice = PTR_NEW(BYTARR(nphi,nt))
+		det_loopslab= PTR_NEW(FLTARR(hdr.nlp,hdr.nt,nphi))
+		det_loopslice = PTR_NEW(BYTARR(nphi,hdr.nt))
 		det_crossloc= PTR_NEW(INTARR(nphi))
 	ENDIF ELSE BEGIN
 		loopslab = 0		&	loopslice = 0		&	crossloc = 0
@@ -10176,11 +10397,15 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	refsspscan = 0
 	IF (showref EQ 1) THEN BEGIN
 		refdata	= PTR_NEW(referencefile, /NO_COPY)
-		refslice= PTR_NEW(BYTARR(nx,ny))
-		IF ((refnlp GT 1) AND (refspfile EQ 0)) THEN BEGIN
+		refslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
+		IF ((hdr.refnlp GT 1) AND (refspfile EQ 0)) THEN BEGIN
 			refscan = PTR_NEW(refscanfile, /NO_COPY)
-			IF (refimtype EQ 1) THEN refsspscan = PTR_NEW(BYTARR(nx,ny,refnlp*refns)) ELSE IF (refimtype EQ 2) THEN refsspscan = PTR_NEW(INTARR(nx,ny,refnlp*refns)) ELSE $
-				IF (refimtype EQ 4) THEN refsspscan = PTR_NEW(FLTARR(nx,ny,refnlp*refns))
+			IF (hdr.refimtype EQ 1) THEN $
+        refsspscan = PTR_NEW(BYTARR(hdr.nx,hdr.ny,hdr.refnlp*hdr.refns)) ELSE $
+      IF (hdr.refimtype EQ 2) THEN $
+        refsspscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.refnlp*hdr.refns)) ELSE $
+			IF (hdr.refimtype EQ 4) THEN $
+        refsspscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.refnlp*hdr.refns))
 		ENDIF
 	ENDIF ELSE BEGIN
 		refdata = 0	&	refslice = 0	&	refcube = ''	
@@ -10322,18 +10547,20 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 		dopslice:dopslice, spdata:spdata, sspscan:sspscan, refspdata:refspdata, refscan:refscan, refsspscan:refsspscan, $						
 		emptydopslice:emptydopslice, scan:scan, phiscan:phiscan, phislice:phislice, $				
 		indexmap:indexmap, indices:indices, $	
-		lur:lur, lun:lun, luf:luf, lufs:lufs, lum:lum $
+		lunsp:lunsp, lunim:lunim, lunrefim:lunrefim, lunrefsp:lunrefsp, lunmask:lunmask $
 	}
 ;--------------------------------------------------------------------------------- DATA PARAMETERS
 	dataparams = { $
 		imfilename:imcube, spfilename:spcube, reffilename:refcube, refspfilename:refspcube, maskfilename:maskcube, $	
-		x:x_start, y:y_start, d_nx:nx, d_ny:ny, nx:nx, ny:ny, $								
-		lc:lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:nlp, refnlp:refnlp, ns:ns, s:0, $					
+		x:x_start, y:y_start, d_nx:hdr.nx, d_ny:hdr.ny, nx:hdr.nx, ny:hdr.ny, $								
+		ec:lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp, refnlp:hdr.refnlp,$	
+    ns:hdr.ns, s:0, $					
 		lps:lps, ms:ms, spec:mainspec, $
 		reflps:reflps, refms:refms, refspec:refspec, $
-		t:t_start, nt:nt, refnt:refnt,masknt:masknt, $		
-    dx:dx, dy:dy, $
-    bunit:[bunit,refbunit], lpunit:[lpunit,reflpunit], xunit:xunit, yunit:yunit $
+		t:t_start, nt:hdr.nt, refnt:hdr.refnt,masknt:hdr.masknt, $		
+    dx:hdr.dx, dy:hdr.dy, $
+    bunit:[hdr.bunit,hdr.refbunit], lpunit:[hdr.lpunit,hdr.reflpunit], xunit:hdr.xunit,$
+    yunit:hdr.yunit, tunit:hdr.tunit $
 	}
 ;--------------------------------------------------------------------------------- DATA SWITCH
 	dataswitch = { $
@@ -10351,10 +10578,11 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	}
 ;--------------------------------------------------------------------------------- DATA DISPLAY PARAMETERS
 	dispparams = { $
-		t_first:t_first, t_last:t_last, t_range:nt, t_low:t_first, t_upp:t_last, $					
+		t_first:t_first, t_last:t_last, t_range:hdr.nt, t_low:t_first, t_upp:t_last, $					
 		x_first:x_first, x_last:x_last, y_first:y_first, y_last:y_last, $				
-		lp_first:lp_first, lp_last:lp_last, lp_range:nlp, lp_low:lp_first, lp_upp:lp_last, $
-		lp_ref_first:lp_ref_first, lp_ref_last:lp_ref_last, lp_ref_low:lp_ref_first, lp_ref_upp:(refnlp-1), lp_ref_range:refnlp, $
+		lp_first:lp_first, lp_last:lp_last, lp_range:hdr.nlp, lp_low:lp_first, lp_upp:lp_last, $
+		lp_ref_first:lp_ref_first, lp_ref_last:lp_ref_last, lp_ref_low:lp_ref_first, $
+    lp_ref_upp:(hdr.refnlp-1), lp_ref_range:hdr.refnlp, $
 		nlpreb:nlpreb, ntreb:ntreb, refnlpreb:nlpreb, refntreb:refntreb, refloopnlxreb:nlpreb, refloopntreb:ntreb, $
 		loopnlxreb:nlpreb, loopntreb:loopntreb, restloopnlxreb:nlpreb, restloopntreb:loopntreb, $
 		retrdetnlxreb:nlpreb, retrdetntreb:loopntreb, phisnlpreb:nlpreb, nphireb:nphireb, $					
@@ -10402,7 +10630,7 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 	}
 ;--------------------------------------------------------------------------------- MEASUREMENT
 	meas = { $
-		arcsecpix:dx, spatial_measurement:0, np:0, $					
+		arcsecpix:hdr.dx, spatial_measurement:0, np:0, $					
 		xp:PTR_NEW(FLTARR(1)), yp:PTR_NEW(FLTARR(1)), $					
 		sxp:PTR_NEW(FLTARR(1)), syp:PTR_NEW(FLTARR(1)) $					
 	}
@@ -10456,7 +10684,7 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 		ls_low_y:ls_low_y, ls_upp_y:ls_upp_y, ls_yrange:ls_yrange, $		
 		ls_low_y_ref:ls_low_y_ref, ls_upp_y_ref:ls_upp_y_ref, ls_yrange_ref:ls_yrange_ref, $
 		int_low_y:int_low_y, int_upp_y:int_upp_y, int_low_t:t_first, int_upp_t:t_last, $
-		dt:dt, v_dop:v_dop, v_dop_ref:v_dop_ref $		
+		dt:hdr.dt, v_dop:v_dop, v_dop_ref:v_dop_ref $		
 	}
 ;--------------------------------------------------------------------------------- PLOT PARAMETERS
 	plotparams = { $
@@ -10709,7 +10937,8 @@ PRO CRISPEX, imcube, spcube, $										; filename of main image cube, spectral 
 			WIDGET_CONTROL, (*(*info).ctrlscp).fwd_move_slit, SENSITIVE = (*(*info).ctrlsswitch).fwd_insensitive+1
 		ENDELSE
 		WIDGET_CONTROL, sp_toggle_but, SENSITIVE=0
-		IF ((onecube EQ 0) OR (nt EQ 1)) THEN BEGIN
+;		IF ((onecube EQ 0) OR (hdr.nt EQ 1)) THEN BEGIN
+		IF (hdr.nt EQ 1) THEN BEGIN
 			WIDGET_CONTROL, fbwd_button, SENSITIVE = 0, SET_VALUE = bmpbut_fbwd_idle
 			WIDGET_CONTROL, backward_button, SENSITIVE = 0, SET_VALUE = bmpbut_bwd_idle
 			WIDGET_CONTROL, pause_button, SENSITIVE = 0, SET_VALUE = bmpbut_pause_idle
