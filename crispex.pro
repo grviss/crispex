@@ -3842,6 +3842,46 @@ PRO CRISPEX_IO_FAILSAFES_MNSPEC, mnspec, hdr, STARTUPTLB=startuptlb, $
   ENDIF
 END
 
+PRO CRISPEX_IO_FAILSAFES_LINE_CENTER, line_center, hdr, NFILES=nfiles, STARTUPTLB=startuptlb, $
+                                      SPECTFILE_SET=spectfile_set, $
+                                      REFSPECTFILE_SET=refspectfile_set, $
+                                      IO_FAILSAFE_ERROR=io_failsafe_error
+; Handles failsafes against wrongly supplied LINE_CENTER values or formatting
+  ndims = SIZE(LINE_CENTER,/N_DIMENSIONS) > 1
+  nelem = N_ELEMENTS(LINE_CENTER)
+  lcase = nelem / ndims
+  nlp_select = [hdr.nlp,hdr.refnlp] & feedback_text = ['Main','Reference']
+  io_failsafe_error = 0
+  ; Check whether conflicting with SPECTFILE
+  IF ((spectfile_set AND (ndims GE 1)) OR (refspectfile_set AND (ndims EQ 2))) THEN BEGIN
+    idx = (refspectfile_set AND (ndims EQ 2))
+    PRINT,'WARNING: Detailed '+STRLOWCASE(feedback_text[idx])+' information may not be specified '+$
+          'in both SPECTFILE and LINE_CENTER! Settings from LINE_CENTER will be ignored.'
+    io_failsafe_error = 2
+		RETURN
+  ENDIF
+  ; Check proper setting of LINE_CENTER
+  IF (((lcase EQ 1) OR (lcase EQ 3)) AND (ndims LE nfiles)) THEN BEGIN
+  ; lcase of 1: LINE_CENTER = lc or [[lc],[lc]]
+  ; lcase of 3: LINE_CENTER = [lc,cwav,dwav] or [[lc,cwav,dwav],[lc,cwav,dwav]]
+    FOR d=0,ndims-1 DO BEGIN
+      IF ((line_center[0,d] GE nlp_select[d]) OR (line_center[0,d] LT 0)) THEN BEGIN
+        PRINT,'ERROR: '+feedback_text[d]+' linecentre index value '+STRTRIM(line_center[0,d],2)+$
+              ' falls outside of allowed range [0,'+STRTRIM(nlp_select[d]-1,2)+']!'
+        IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+        io_failsafe_error = 1
+        RETURN
+      ENDIF
+    ENDFOR
+  ENDIF ELSE IF (lcase NE 2) THEN BEGIN
+  ; lcase of 2: LINE_CENTER = [cwav,dwav] or [[cwav,dwav],[cwav,dwav]]
+    PRINT,'ERROR: LINE_CENTER keyword contains too many elements for the number of cubes provided!'
+    IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+    io_failsafe_error = 1
+    RETURN
+  ENDIF
+END
+
 PRO CRISPEX_IO_MULTICHANNEL, CUBE_COMPATIBILITY=cube_compatibility, CHANNELS_LABELS=channels_labels
 ; Handles setting of parameters in case of multichannel input
   IF KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN
@@ -3894,14 +3934,81 @@ PRO CRISPEX_IO_FEEDBACK, verbosity, hdr, IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE
   ENDIF
 END
 
+PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+                                  SPECTFILE_SET=spectfile_set, REFSPECTFILE_SET=refspectfile_set, $
+                                  CUBE_COMPATIBILITY=cube_compatibility, DLAMBDA_VAL=dlambda_val, $
+                                  DLAMBDA_SET=dlambda_set, V_DOP_SET=v_dop_set, $
+                                  IO_FAILSAFE_ERROR=io_failsafe_error
+; Handles parsing of LINE_CENTER keyword
+  ; lcase of 0: LINE_CENTER = <Undefined>
+  ; lcase of 1: LINE_CENTER = lc or [[lc],[lc]]
+  ; lcase of 2: LINE_CENTER = [cwav,dwav] or [[cwav,dwav],[cwav,dwav]]
+  ; lcase of 3: LINE_CENTER = [lc,cwav,dwav] or [[lc,cwav,dwav],[lc,cwav,dwav]]
+  hdr_out = hdr_in	
+  IF (N_ELEMENTS(LINE_CENTER) GT 0) THEN BEGIN
+    ndims = SIZE(LINE_CENTER,/N_DIMENSIONS) > 1
+    nelem = N_ELEMENTS(LINE_CENTER)
+    IF (io_failsafe_error NE 2) THEN lcase = nelem / ndims ELSE lcase = 0
+  ENDIF ELSE BEGIN
+    ndims = 1
+    lcase = 0
+  ENDELSE
+  c_speed	= 2.99792458D5													; Speed of light indeed in km/s
+  lc = LONARR(nfiles)   &  dlambda_val = FLTARR(2)  &  lambda_c = FLTARR(2)
+	v_dop_set = BYTARR(2) &  dlambda_set = BYTARR(2)
+  nlp_select = [hdr_out.nlp,hdr_out.refnlp]
+  spectfile_set = [spectfile_set,refspectfile_set]
+  
+  FOR d=0,nfiles-1 DO BEGIN
+    IF ((cube_compatibility[d] NE 1) AND (N_ELEMENTS(LINE_CENTER) GT 0) AND (d NE ndims-1)) THEN BEGIN
+        PRINT,'WARNING: Calling CRISPEX with LINE_CENTER, while FITS cubes are provided, is not '+$
+              'allowed. Settings from LINE_CENTER will be ignored.'
+        lcase = 0
+    ENDIF 
+    IF (d EQ 0) THEN BEGIN
+      lps_select = hdr_out.lps    &   spec_select = hdr_out.spectrum 
+    ENDIF ELSE BEGIN
+      IF ((nfiles EQ 2) AND (ndims NE 2)) THEN lcase = 0
+      lps_select = hdr_out.reflps &   spec_select = hdr_out.refspec
+    ENDELSE
+    IF ((lcase EQ 1) OR (lcase EQ 3)) THEN $            ; First read parameters from LINE_CENTER
+      lc[d] = line_center[0,d] $
+    ELSE $              ; Or determine from mean spectrum if line centre position is not supplied
+      lc[d] = ( WHERE( spec_select EQ MIN(spec_select) ) )[0]
+    IF (lcase GE 2) THEN BEGIN
+      lambda_c[d]    = line_center[(lcase EQ 3),d]
+      dlambda_val[d] = line_center[1+(lcase EQ 3),d]
+      dlambda_set[d] = 1
+    ENDIF 
+    ; Next determine whether LPS needs to be recalculated
+    v_dop_set[d] = (spectfile_set[d] EQ 1)
+    IF (v_dop_set[d] EQ 0) THEN lps_select -= lps_select[LONG(lc[d])]
+    IF (lcase GE 2) THEN lps_select = lps_select*dlambda_val[d] + lambda_c[d]
+    v_dop_set[d] = (lps_select[LONG(lc[d])] NE 0)
+	  IF v_dop_set[d] THEN $
+      v_dop = c_speed*(lps_select/lps_select[LONG(lc[d])]-1) $
+    ELSE $
+      v_dop = FLTARR(nlp_select[d])					; array with Doppler velocities in km/s
+    IF (d EQ 0) THEN BEGIN      ; Fill hdr tags with main results
+      hdr_out.lps = lps_select
+      tag = 'v_dop'      &  tag2 = 'lc'
+    ENDIF ELSE BEGIN            ; Fill hdr tags with reference results
+      hdr_out.reflps = lps_select   
+      tag = 'v_dop_ref'  &  tag2 = 'reflc'
+    ENDELSE
+    lc_sel = lc[d]
+    hdr_out = CREATE_STRUCT(hdr_out, tag, v_dop, tag2, lc_sel)
+  ENDFOR
+END
+
 PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
                                 MNSPEC=mnspec, IMCUBE=imcube, REFCUBE=refcube, $
-                                CUBE_COMPATIBILITY=cube_compatibility, $
+                                CUBE_COMPATIBILITY=cube_compatibility, STARTUPTLB=startuptlb, $
                                 IO_FAILSAFE_ERROR=io_failsafe_error
+; Handles parsing the spectral save files into the appropriate variables
   hdr_out = hdr_in
   io_failsafe_error = 0 &  calc_from_cubes = 0
   spectfile_set = 0     &  refspectfile_set = 0
-; Handles parsing the spectral save files into the appropriate variables
   IF KEYWORD_SET(IMCUBE) THEN BEGIN
     nlp_select = hdr_out.nlp
     ns_select = hdr_out.ns
@@ -3958,8 +4065,10 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
         hdr_out = CREATE_STRUCT(hdr_out, tag, spect_pos)
       ENDIF ELSE calc_from_cubes = 1
     ENDIF ELSE BEGIN
-      PRINT,'WARNING: Calling CRISPEX with SPECTFILE, while FITS cubes are provided, is not '+$
-            'allowed. Settings from SPECTFILE will be ignored.'
+      IF ((KEYWORD_SET(IMCUBE) AND (N_ELEMENTS(SPECTFILE) EQ 1)) OR $
+          (KEYWORD_SET(REFCUBE) AND (N_ELEMENTS(SPECTFILE) EQ 2))) THEN $
+        PRINT,'WARNING: Calling CRISPEX with SPECTFILE, while FITS cubes are provided, is not '+$
+              'allowed. Settings from SPECTFILE will be ignored.'
       calc_from_cubes = 1
     ENDELSE
   ENDIF ELSE calc_from_cubes = 1
@@ -5042,7 +5151,7 @@ FUNCTION CRISPEX_READ_BMP_BUTTONS, filename, srcdir
 END
 
 ;================================================================================= READ HEADER PROCEDURE
-PRO CRISPEX_IO_PARSEHEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
                          IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, REFSPCUBE=refspcube, $
                          MASKCUBE=maskcube, CUBE_COMPATIBILITY=cube_compatibility, EXTEN_NO=exten_no
 ; Handles read-in of file header, running different parsing depending on CUBE_COMPATIBILITY setting
@@ -8705,7 +8814,7 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '578'
+	revision_number = '579'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -8807,7 +8916,10 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
   IF (N_ELEMENTS(REFCUBE) GE 1) THEN BEGIN
   	refimext = STRMID(refcube[0],STRPOS(refcube[0],'.',/REVERSE_SEARCH)+1,STRLEN(refcube[0]))
   	refimcube_compatibility = ABS(STRMATCH(refimext,'fits',/FOLD_CASE)-1)
-  ENDIF ELSE lunrefim = 0
+  ENDIF ELSE BEGIN
+    lunrefim = 0
+    refimcube_compatibility = 0
+  ENDELSE
   IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN
   	refspext = STRMID(refcube[1],STRPOS(refcube[1],'.',/REVERSE_SEARCH)+1,STRLEN(refcube[1]))
   	refspcube_compatibility = ABS(STRMATCH(refspext,'fits',/FOLD_CASE)-1)
@@ -8836,14 +8948,14 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 
   ; Parse headers 
   IF N_ELEMENTS(SPCUBE) EQ 1 THEN BEGIN
-    CRISPEX_IO_PARSEHEADER, spcube, HDR_IN=hdr, HDR_OUT=hdr, $
+    CRISPEX_IO_PARSE_HEADER, spcube, HDR_IN=hdr, HDR_OUT=hdr, $
                             CUBE_COMPATIBILITY=spcube_compatibility, EXTEN_NO=0, /SPCUBE
     onecube = 0                               
 	ENDIF ELSE BEGIN
 		spcube = ''
     onecube = 1                                     ; onecube switch if no SPCUBE has been provided
 	ENDELSE
-  CRISPEX_IO_PARSEHEADER, imcube, HDR_IN=hdr, HDR_OUT=hdr, CUBE_COMPATIBILITY=imcube_compatibility, $
+  CRISPEX_IO_PARSE_HEADER, imcube, HDR_IN=hdr, HDR_OUT=hdr, CUBE_COMPATIBILITY=imcube_compatibility, $
                           EXTEN_NO=0, /IMCUBE
 	multichannel = (hdr.ns GE 2)
   CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, single_cube, multichannel, $
@@ -8864,10 +8976,10 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 
 	IF ((N_ELEMENTS(REFCUBE) GE 1) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN					
     ; Handle reference image cube first, only after that check for reference spectral cube
-    CRISPEX_IO_PARSEHEADER, refcube[0], HDR_IN=hdr, HDR_OUT=hdr, $
+    CRISPEX_IO_PARSE_HEADER, refcube[0], HDR_IN=hdr, HDR_OUT=hdr, $
                             CUBE_COMPATIBILITY=refimcube_compatibility, EXTEN_NO=0, /REFIMCUBE
     IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN
-      CRISPEX_IO_PARSEHEADER, refcube[1], HDR_IN=hdr, HDR_OUT=hdr, $
+      CRISPEX_IO_PARSE_HEADER, refcube[1], HDR_IN=hdr, HDR_OUT=hdr, $
                               CUBE_COMPATIBILITY=refspcube_compatibility, EXTEN_NO=0, /REFSPCUBE
       CRISPEX_IO_FAILSAFES_REF, refcube, HDR=hdr, STARTUPTLB=startuptlb, $
                                 IO_FAILSAFE_ERROR=io_failsafe_ref_error
@@ -8886,7 +8998,7 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
   ENDIF
 
   IF (N_ELEMENTS(MASKCUBE) EQ 1) THEN BEGIN
-    CRISPEX_IO_PARSEHEADER, maskcube, HDR_IN=hdr, HDR_OUT=hdr, $
+    CRISPEX_IO_PARSE_HEADER, maskcube, HDR_IN=hdr, HDR_OUT=hdr, $
                             CUBE_COMPATIBILITY=maskcube_compatibility, EXTEN_NO=0, /MASKCUBE
     CRISPEX_IO_FAILSAFES_MASK, HDR=hdr, STARTUPTLB=startuptlb, $
                                 IO_FAILSAFE_ERROR=io_failsafe_mask_error
@@ -9204,278 +9316,99 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
     spectfile_set = (spectfile[0] NE '') ELSE spectfile_set = 0
   CRISPEX_IO_PARSE_SPECTFILE, spectfile, imagefile, verbosity, HDR_IN=hdr, HDR_OUT=hdr, $
                               MNSPEC=mnspec, /IMCUBE, CUBE_COMPATIBILITY=imcube_compatibility, $
-                              IO_FAILSAFE_ERROR=io_failsafe_imspectfile_error
+                              STARTUPTLB=startuptlb, IO_FAILSAFE_ERROR=io_failsafe_imspectfile_error
   IF io_failsafe_imspectfile_error THEN RETURN
   refspectfile_set = ((N_ELEMENTS(SPECTFILE) EQ 2) AND (SIZE(SPECTFILE,/TYPE) EQ 7)) 
   IF (STRCOMPRESS(refcube[0]) NE '') THEN BEGIN
     IF ((N_ELEMENTS(SPECTFILE) EQ 1) AND (refspectfile_set EQ 0)) THEN spectfile = [spectfile, '']
     CRISPEX_IO_PARSE_SPECTFILE, spectfile, referencefile, verbosity, HDR_IN=hdr, HDR_OUT=hdr, $
-                                MNSPEC=mnspec, /REFCUBE, $
+                                MNSPEC=mnspec, /REFCUBE, STARTUPTLB=startuptlb, $
                                 CUBE_COMPATIBILITY=refimcube_compatibility, $
                                 IO_FAILSAFE_ERROR=io_failsafe_refspectfile_error
     IF io_failsafe_refspectfile_error THEN RETURN
-  ENDIF 
+  ENDIF ELSE hdr = CREATE_STRUCT(hdr, 'refspec', 0, 'refms', 0, 'reflps', 0)
 
-; While LINE_CENTER handling has not been revised:
-  mainspec = hdr.mainspec
-  spectrum = hdr.spectrum
-  ms = hdr.ms
-  lps = hdr.lps
-  IF (STRCOMPRESS(refcube[0]) EQ '') THEN BEGIN
-    refspec = 0
-    refms = 0
-    reflps = 0
-  ENDIF ELSE BEGIN
-    refspec = hdr.refspec
-    refms = hdr.refms
-    reflps = hdr.reflps
-  ENDELSE
-  IF (N_ELEMENTS(REFCUBE) LT 2) THEN  BEGIN
-    reflc = 0
-    refspxtitle = 0
-  ENDIF
 ;	detspect_scale_enable = ((hdr.ms EQ 1.) AND (hdr.nlp GT 1)) 
+  IF (N_ELEMENTS(LINE_CENTER) NE 0) THEN BEGIN
+    CRISPEX_IO_FAILSAFES_LINE_CENTER, line_center, hdr, NFILES=(showref+1), STARTUPTLB=startuptlb, $
+                                      SPECTFILE_SET=spectfile_set, $
+                                      REFSPECTFILE_SET=refspectfile_set,$
+                                      IO_FAILSAFE_ERROR=io_failsafe_line_center_error
+  ENDIF ELSE io_failsafe_line_center_error = 0
+  cube_compatibility = [imcube_compatibility,refimcube_compatibility]
+  IF (io_failsafe_line_center_error EQ 1) THEN RETURN ELSE $
+    CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=(hdr.refnlp GT 1)+1, HDR_IN=hdr, HDR_OUT=hdr,$
+                                  SPECTFILE_SET=spectfile_set, REFSPECTFILE_SET=refspectfile_set,$
+                                  CUBE_COMPATIBILITY=cube_compatibility, DLAMBDA_VAL=dlambda, $
+                                  DLAMBDA_SET=dlambda_set, V_DOP_SET=v_dop_set, $
+                                  IO_FAILSAFE_ERROR=io_failsafe_line_center_error
 
-	c_speed	= 2.99792458D5													; Speed of light indeed in km/s
-	v_dop_set = 0														; Standard setting: No Doppler velocity labelling
-	v_dop_set_ref = 0													; Standard setting: No reference Doppler velocity labelling
-	dlambda_set = 0
-	dlambda_set_ref = 0
-	IF (N_ELEMENTS(LINE_CENTER) EQ 0) THEN BEGIN										; If the LINE_CENTER keyword is not set:
-		lc	= ( WHERE( spectrum EQ MIN(spectrum) ) )[0]								; autodetermine linecentre value from spectrum
-		IF (spectfile_set EQ 1) THEN BEGIN
-			v_dop_set = 1 
-			spxtitle = 'Wavelength'
-		ENDIF ELSE BEGIN
-			lps	= ( lps - lps[LONG(lc)] ) 											; reset scale to have lps=0 at lc
-			spxtitle= 'Spectral position'
-		ENDELSE
-		IF showrefls THEN BEGIN												; do the same for reference spectrum if refspfile is given
-			reflc	= ( WHERE( refspec EQ MIN(refspec) ) )[0]							
-			IF (refspectfile_set EQ 1) THEN BEGIN
-				v_dop_set_ref = 1 
-				refspxtitle = 'Wavelength'
-			ENDIF ELSE BEGIN
-				reflps	= ( reflps - reflps[LONG(reflc)] )
-				refspxtitle = 'Spectral position'
-			ENDELSE
-		ENDIF
-	ENDIF ELSE IF ((SIZE(LINE_CENTER))[0] LE 1) THEN BEGIN									; if only set for main
-		IF (N_ELEMENTS(LINE_CENTER) EQ 1) THEN BEGIN									; else, if the position is supplied
-			lc 	= line_center[0]											; use that given value
-			IF ((lc GE hdr.nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-				PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed '+$
-        'range [0,'+STRTRIM(hdr.nlp-1,2)+']!'
-				WIDGET_CONTROL, startuptlb, /DESTROY
-				RETURN
-			ENDIF
-			IF (spectfile_set EQ 1) THEN BEGIN
-				v_dop_set = 1 
-				spxtitle = 'Wavelength'
-			ENDIF ELSE BEGIN
-				lps	= ( lps - lps[LONG(lc)] ) 											; reset scale to have lps=0 at lc
-				spxtitle= 'Spectral position'
-			ENDELSE
-		ENDIF ELSE IF (N_ELEMENTS(LINE_CENTER) EQ 2) THEN BEGIN									; else, if also the wavelength is supplied
-			IF (spectfile_set EQ 1) THEN BEGIN
-				PRINT,'ERROR: Wavelength information may not be specified in both SPECTFILE and LINE_CENTER! '
-				WIDGET_CONTROL, startuptlb, /DESTROY
-				RETURN
-			ENDIF	
-			lc	 = ( WHERE( spectrum EQ MIN(spectrum) ) )[0]								; autodetermine linecentre value from spectrum
-			lambda_c= line_center[0]											; get the linecentre wavelength
-			dlambda	= line_center[1]											; and get delta lambda per lineposition
-			lps	= ( lps - lps[LONG(lc)] ) 											; reset scale to have lps=0 at lc
-			lps	= lps*dlambda + lambda_c											; reset scale to wavelength scale
-			spxtitle= 'Wavelength'												; and adapt the xtitle accordingly
-			v_dop_set = 1
-			dlambda_set = 1
-		ENDIF ELSE BEGIN													; else, if linecentre and wavelength supplied
-			IF (spectfile_set EQ 1) THEN BEGIN
-				PRINT,'ERROR: Wavelength information may not be specified in both SPECTFILE and LINE_CENTER! '
-				WIDGET_CONTROL, startuptlb, /DESTROY
-				RETURN
-			ENDIF	
-			lc 	= line_center[0]											; get the linecentre position
-			IF ((lc GE hdr.nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-				PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed '+$
-        'range [0,'+STRTRIM(hdr.nlp-1,2)+']!'
-				WIDGET_CONTROL, startuptlb, /DESTROY
-				RETURN
-			ENDIF
-			lambda_c= line_center[1]											; and the linecentre wavelength
-			dlambda	= line_center[2]											; and get delta(wavelength) per lineposition
-			lps	= ( lps - lps[LONG(lc)] ) 											; reset scale to have lps=0 at lc
-			lps	= lps*dlambda + lambda_c											; reset scale to wavelength scale
-			spxtitle= 'Wavelength'												; and adapt the xtitle accordingly
-			v_dop_set = 1
-			dlambda_set = 1
-		ENDELSE
-		IF showrefls THEN BEGIN												; do the same for reference spectrum if refspfile is given
-			reflc	= ( WHERE( refspec EQ MIN(refspec) ) )[0]							
-			reflps	= ( reflps - reflps[LONG(reflc)] )
-			refspxtitle = 'Spectral position'
-		ENDIF
-	ENDIF ELSE IF ((SIZE(LINE_CENTER))[0] EQ 2) THEN BEGIN										; if set for main and for reference
-		IF showrefls THEN BEGIN
-			IF ((SIZE(LINE_CENTER))[1] EQ 1) THEN BEGIN									; else, if the position is supplied
-				lc 	= line_center[0,0]											; use that given value
-				IF ((lc GE hdr.nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-					PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed'+$
-          'range [0,'+STRTRIM(hdr.nlp-1,2)+']!'
-					WIDGET_CONTROL, startuptlb, /DESTROY
-					RETURN
-				ENDIF
-				IF (spectfile_set EQ 1) THEN BEGIN
-					v_dop_set = 1 
-					spxtitle = 'Wavelength'
-				ENDIF ELSE BEGIN
-					lps	= ( lps - lps[LONG(lc)] ) 											; reset scale to have lps=0 at lc
-					spxtitle= 'Spectral position'
-				ENDELSE
-				reflc	= line_center[0,1]
-				IF ((reflc GE hdr.refnlp) OR (reflc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-					PRINT,'ERROR: Reference linecentre index value '+STRTRIM(LONG(reflc),2)+' falls '+$
-          'outside of allowed range [0,'+STRTRIM(hdr.refnlp-1,2)+']!'
-					WIDGET_CONTROL, startuptlb, /DESTROY
-					RETURN
-				ENDIF
-				IF (refspectfile_set EQ 1) THEN BEGIN
-					v_dop_set_ref = 1 
-					refspxtitle = 'Wavelength'
-				ENDIF ELSE BEGIN
-					reflps	= ( reflps - reflps[LONG(reflc)] ) 											; reset scale to have lps=0 at lc
-					refspxtitle= 'Spectral position'
-				ENDELSE
-			ENDIF ELSE IF ((SIZE(LINE_CENTER))[1] EQ 2) THEN BEGIN									; else, if also the wavelength is supplied
-				IF (spectfile_set EQ 1) THEN BEGIN
-					PRINT,'ERROR: Wavelength information may not be specified in both SPECTFILE and LINE_CENTER! '
-					WIDGET_CONTROL, startuptlb, /DESTROY
-					RETURN
-				ENDIF	
-				lc	 = ( WHERE( spectrum EQ MIN(spectrum) ) )[0]								; autodetermine linecentre value from spectrum
-				lambda_c= line_center[0,0]											; get the linecentre wavelength
-				dlambda	= line_center[1,0]											; and get delta lambda per lineposition
-				lps	= ( lps - lps[LONG(lc)] ) 											; reset scale to have lps=0 at lc
-				lps	= lps*dlambda + lambda_c											; reset scale to wavelength scale
-				spxtitle= 'Wavelength'												; and adapt the xtitle accordingly
-				v_dop_set = 1
-				dlambda_set = 1
-				IF (refspectfile_set EQ 1) THEN BEGIN
-					PRINT,'ERROR: Reference wavelength information may not be specified in both SPECTFILE and LINE_CENTER! '
-					WIDGET_CONTROL, startuptlb, /DESTROY
-					RETURN
-				ENDIF	
-				reflc	 	= ( WHERE( refspec EQ MIN(refspec) ) )[0]								; autodetermine linecentre value from spectrum
-				ref_lambda_c	= line_center[0,1]											; get the linecentre wavelength
-				ref_dlambda	= line_center[1,1]											; and get delta lambda per lineposition
-				reflps		= ( reflps - reflps[LONG(reflc)] ) 											; reset scale to have lps=0 at lc
-				reflps		= reflps*ref_dlambda + ref_lambda_c											; reset scale to wavelength scale
-				refspxtitle	= 'Wavelength'												; and adapt the xtitle accordingly
-				v_dop_set_ref 	= 1
-				dlambda_set_ref	= 1
-			ENDIF ELSE IF ((SIZE(LINE_CENTER))[1] EQ 3) THEN BEGIN													; else, if linecentre and wavelength supplied
-				IF (spectfile_set EQ 1) THEN BEGIN
-					PRINT,'ERROR: Wavelength information may not be specified in both SPECTFILE and LINE_CENTER! '
-					WIDGET_CONTROL, startuptlb, /DESTROY
-					RETURN
-				ENDIF	
-				lc 	= line_center[0,0]											; get the linecentre position
-				IF ((lc GE hdr.nlp) OR (lc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-					PRINT,'ERROR: Linecentre index value '+STRTRIM(LONG(lc),2)+' falls outside of allowed'+$
-          'range [0,'+STRTRIM(hdr.nlp-1,2)+']!'
-					WIDGET_CONTROL, startuptlb, /DESTROY
-					RETURN
-				ENDIF
-				lambda_c= line_center[1,0]											; and the linecentre wavelength
-				dlambda	= line_center[2,0]											; and get delta(wavelength) per lineposition
-				lps	= ( lps - lps[LONG(lc)] ) 											; reset scale to have lps=0 at lc
-				lps	= lps*dlambda + lambda_c											; reset scale to wavelength scale
-				spxtitle= 'Wavelength'												; and adapt the xtitle accordingly
-				v_dop_set = 1
-				dlambda_set = 1
-				IF (refspectfile_set EQ 1) THEN BEGIN
-					PRINT,'ERROR: Reference wavelength information may not be specified in both SPECTFILE and LINE_CENTER! '
-					WIDGET_CONTROL, startuptlb, /DESTROY
-					RETURN
-				ENDIF	
-				reflc 	= line_center[0,1]											; get the linecentre position
-				IF ((reflc GE hdr.refnlp) OR (reflc LT 0)) THEN BEGIN										; Check whether 0 LE lc LT nlp
-					PRINT,'ERROR: Reference linecentre index value '+STRTRIM(LONG(reflc),2)+' falls '+$
-          'outside of allowed range [0,'+STRTRIM(hdr.refnlp-1,2)+']!'
-					WIDGET_CONTROL, startuptlb, /DESTROY
-					RETURN
-				ENDIF
-				ref_lambda_c	= line_center[1,1]											; and the linecentre wavelength
-				ref_dlambda	= line_center[2,1]											; and get delta(wavelength) per lineposition
-				reflps		= ( reflps - reflps[LONG(reflc)] ) 											; reset scale to have lps=0 at lc
-				reflps		= reflps*ref_dlambda + ref_lambda_c											; reset scale to wavelength scale
-				refspxtitle	= 'Wavelength'												; and adapt the xtitle accordingly
-				v_dop_set_ref 	= 1
-				dlambda_set_ref = 1
-			ENDIF
-		ENDIF ELSE BEGIN
-			PRINT,'ERROR: LINE_CENTER keyword contains too many elements for the number of cubes provided!'
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDELSE 
-	ENDIF
-
-	IF (lps[LONG(lc)] EQ 0) THEN v_dop_set = 0
-	IF (reflps[LONG(reflc)] EQ 0) THEN v_dop_set_ref = 0
-
-	IF (v_dop_set EQ 1) THEN v_dop = c_speed*(lps/lps[LONG(lc)]-1) ELSE v_dop = FLTARR(hdr.nlp)					; array with Doppler velocities in km/s
-	IF showrefls THEN BEGIN
-		IF (v_dop_set_ref EQ 1) THEN v_dop_ref = c_speed*(reflps/reflps[LONG(reflc)]-1) ELSE $
-      v_dop_ref = FLTARR(hdr.refnlp)					; array with Doppler velocities in km/s
-	ENDIF ELSE v_dop_ref = 0
+  ; Process settings from LINE_CENTER parsing 
+  IF (hdr.refnlp GT 1) THEN BEGIN
+    v_dop_set_ref = v_dop_set[1]
+    refspxtitle = (['Spectral position','Wavelength'])[v_dop_set_ref]
+    dlambda_set_ref = dlambda_set[1]
+    dlambda_ref = dlambda[1]
+  ENDIF ELSE BEGIN
+    hdr = CREATE_STRUCT(hdr, 'reflc', 0, 'v_dop_ref', 0)
+    refspxtitle = ''
+    v_dop_set_ref = 0
+  ENDELSE
+  v_dop_set = v_dop_set[0]
+  spxtitle = (['Spectral position','Wavelength'])[v_dop_set]
+  dlambda_set = dlambda_set[0]
+  dlambda = dlambda[0]
 
 	IF (hdr.nlp GT 1) THEN BEGIN
 		IF dlambda_set THEN ndecimals = ABS(FLOOR(ALOG10(ABS(dlambda)))) ELSE ndecimals = 2
-		equidist = STRING((SHIFT(FLOAT(lps),-1) - FLOAT(lps))[0:hdr.nlp-2],FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
-		IF (((WHERE(equidist NE equidist[0]))[0] NE -1) AND (KEYWORD_SET(NO_WARP) EQ 0)) THEN BEGIN				; Check for non-equidistant spectral positions and allowed consequential warping
-			warpspslice = 1													; Temporal spectrum is warped to correct non-equidistant spectral positions
-			min_lps = MIN(lps)
+		equidist = STRING((SHIFT(FLOAT(hdr.lps),-1) - FLOAT(hdr.lps))[0:hdr.nlp-2],FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
+; Check for non-equidistant spectral positions and allowed consequential warping
+		IF (((WHERE(equidist NE equidist[0]))[0] NE -1) AND (KEYWORD_SET(NO_WARP) EQ 0)) THEN BEGIN				
+			warpspslice = 1			; Temporal spectrum is warped to correct non-equidistant spectral positions
+			min_lps = MIN(hdr.lps)
 			xo = FINDGEN(hdr.nlp) # REPLICATE(1,hdr.nt)
-			xi = ((lps-min_lps) / FLOAT(MAX(lps-min_lps)) * hdr.nlp) # REPLICATE(1,hdr.nt)
+			xi = ((hdr.lps-min_lps) / FLOAT(MAX(hdr.lps-min_lps)) * hdr.nlp) # REPLICATE(1,hdr.nt)
 			yo = REPLICATE(1,hdr.nlp) # FINDGEN(hdr.nt)
 			yi = yo
 		ENDIF ELSE BEGIN
-			warpspslice = 0													; Temporal spectrum is not warped to correct non-equidistant spectral positions
+			warpspslice = 0			; Temporal spectrum is not warped to correct non-equidistant spectral positions
 			xi = 0	&	yi = 0
 			xo = 0	&	yo = 0
 		ENDELSE
 	ENDIF ELSE BEGIN
-		warpspslice = 0													; Temporal spectrum is not warped to correct non-equidistant spectral positions
+		warpspslice = 0				; Temporal spectrum is not warped to correct non-equidistant spectral positions
 		xi = 0	&	yi = 0
 		xo = 0	&	yo = 0
 	ENDELSE
 	IF (refspfile AND (hdr.refnlp GT 1)) THEN BEGIN
-		IF dlambda_set_ref THEN ndecimals = ABS(FLOOR(ALOG10(ABS(ref_dlambda)))) ELSE ndecimals = 2
-		refequidist = STRING((SHIFT(FLOAT(reflps),-1) - FLOAT(reflps))[0:hdr.refnlp-2],FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
-		IF (((WHERE(refequidist NE refequidist[0]))[0] NE -1) AND (KEYWORD_SET(NO_WARP) EQ 0)) THEN BEGIN				; Check for non-equidistant spectral positions and allowed consequential warping
-			warprefspslice = 1													; Temporal spectrum is warped to correct non-equidistant spectral positions
-			min_reflps = MIN(reflps)
+		IF dlambda_set_ref THEN ndecimals = ABS(FLOOR(ALOG10(ABS(dlambda_ref)))) ELSE ndecimals = 2
+		refequidist = STRING((SHIFT(FLOAT(hdr.reflps),-1) - FLOAT(hdr.reflps))[0:hdr.refnlp-2],FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
+; Check for non-equidistant spectral positions and allowed consequential warping
+		IF (((WHERE(refequidist NE refequidist[0]))[0] NE -1) AND (KEYWORD_SET(NO_WARP) EQ 0)) THEN BEGIN				
+			warprefspslice = 1	; Temporal spectrum is warped to correct non-equidistant spectral positions
+			min_reflps = MIN(hdr.reflps)
 			xo_ref = FINDGEN(hdr.refnlp) # REPLICATE(1,hdr.nt)
-			xi_ref = ((reflps-min_reflps) / FLOAT(MAX(reflps-min_reflps)) * hdr.refnlp) # REPLICATE(1,hdr.nt)
+			xi_ref = ((hdr.reflps-min_reflps) / FLOAT(MAX(hdr.reflps-min_reflps)) * hdr.refnlp) # REPLICATE(1,hdr.nt)
 			yo_ref = REPLICATE(1,hdr.refnlp) # FINDGEN(hdr.nt)
 			yi_ref = yo_ref
 		ENDIF ELSE BEGIN
-			warprefspslice = 0													; Temporal spectrum is not warped to correct non-equidistant spectral positions
+			warprefspslice = 0	; Temporal spectrum is not warped to correct non-equidistant spectral positions
 			xi_ref = 0	&	yi_ref = 0
 			xo_ref = 0	&	yo_ref = 0
 		ENDELSE
 	ENDIF ELSE BEGIN
-		warprefspslice = 0													; Temporal spectrum is not warped to correct non-equidistant spectral positions
+		warprefspslice = 0		; Temporal spectrum is not warped to correct non-equidistant spectral positions
 		xi_ref = 0	&	yi_ref = 0
 		xo_ref = 0	&	yo_ref = 0
 	ENDELSE
 	
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (parameters from/for mean spectrum)...",a5)','done!') 
+		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (parameters from/for '+$
+                            'mean spectrum)...",a5)','done!') 
 		PRINT,'' 
 	ENDIF
-	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Parameters from/for mean spectrum... done!']
+	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],$
+                   '> Parameters from/for mean spectrum... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- INITIAL SLIT PARAMETERS
@@ -9541,14 +9474,14 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	lp_first 	= 0													; Set number of first lineposition
 	lp_last		= hdr.nlp-1													; Set number of last lineposition
 	sp		= hdr.nt * hdr.nlp												; Set spectral dimension
-	lp_start 	= lc
+	lp_start 	= hdr.lc
 	lp_ref_first = lp_first
 	IF showrefls THEN BEGIN
 		lp_ref_last = hdr.refnlp - 1
-		lp_ref_start = reflc
+		lp_ref_start = hdr.reflc
 	ENDIF ELSE IF (hdr.refnlp GT 1) THEN BEGIN
 		lp_ref_last = lp_last
-		lp_ref_start = lc
+		lp_ref_start = hdr.lc
 	ENDIF ELSE BEGIN
 		lp_ref_last = 1
 		lp_ref_start = 0
@@ -9826,13 +9759,13 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 			immax[k,j] = max_val
 			immean[k,j] = MEAN(temp_image)
 			imsdev[k,j] = STDDEV(temp_image)
-			temp_k = 2*lc - k
-			IF ((temp_k EQ lc) OR (temp_k LT 0) OR (temp_k GT lp_last)) THEN BEGIN
+			temp_k = 2*hdr.lc - k
+			IF ((temp_k EQ hdr.lc) OR (temp_k LT 0) OR (temp_k GT lp_last)) THEN BEGIN
 				dopplermin[k,j] = 0
 				dopplermax[k,j] = 0
 			ENDIF ELSE BEGIN
 				mirror_temp_image = imagefile[j*hdr.nlp + temp_k]
-				IF (temp_k GT lc) THEN BEGIN
+				IF (temp_k GT hdr.lc) THEN BEGIN
 					dopplermin[k,j] = MIN(temp_image - mirror_temp_image, MAX=max_val)
 					dopplermax[k,j] = max_val
 				ENDIF ELSE BEGIN
@@ -9842,15 +9775,15 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 			ENDELSE
 		ENDFOR
 		IF scalestokes THEN BEGIN
-			ls_low_y[j] = MIN(immin[*,j])/ms
-			ls_upp_y[j] = MAX(immax[*,j])/ms
-			ls_low_y[j] = MIN((immean[*,j]-3.*imsdev[*,j])/ms)
-			ls_upp_y[j] = MAX((immean[*,j]+3.*imsdev[*,j])/ms)
+			ls_low_y[j] = MIN(immin[*,j])/hdr.ms
+			ls_upp_y[j] = MAX(immax[*,j])/hdr.ms
+			ls_low_y[j] = MIN((immean[*,j]-3.*imsdev[*,j])/hdr.ms)
+			ls_upp_y[j] = MAX((immean[*,j]+3.*imsdev[*,j])/hdr.ms)
 		ENDIF ELSE BEGIN
-			ls_low_y[j] = MIN(immin[*,j])/ms[j]
-			ls_upp_y[j] = MAX(immax[*,j])/ms[j]
-			ls_low_y[j] = MIN((immean[*,j]-3.*imsdev[*,j])/ms[j])
-			ls_upp_y[j] = MAX((immean[*,j]+3.*imsdev[*,j])/ms[j])
+			ls_low_y[j] = MIN(immin[*,j])/hdr.ms[j]
+			ls_upp_y[j] = MAX(immax[*,j])/hdr.ms[j]
+			ls_low_y[j] = MIN((immean[*,j]-3.*imsdev[*,j])/hdr.ms[j])
+			ls_upp_y[j] = MAX((immean[*,j]+3.*imsdev[*,j])/hdr.ms[j])
 		ENDELSE
 		ls_yrange[j] = ls_upp_y[j] - ls_low_y[j]
 		max_imsdev = MAX(imsdev[*,j])
@@ -9890,8 +9823,8 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 			ENDFOR
 		ENDELSE
 		IF showrefls THEN BEGIN
-			ls_low_y_ref = MIN((refmean-3.*refdev)/refms)
-			ls_upp_y_ref = MAX((refmean+3.*refdev)/refms)
+			ls_low_y_ref = MIN((refmean-3.*refdev)/hdr.refms)
+			ls_upp_y_ref = MAX((refmean+3.*refdev)/hdr.refms)
 		ENDIF
 	ENDIF ELSE BEGIN
 		refmin = 0
@@ -10560,10 +10493,10 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		imfilename:imcube, spfilename:spcube, reffilename:refcube, refspfilename:refspcube, $
     maskfilename:maskcube, $	
 		x:x_start, y:y_start, d_nx:hdr.nx, d_ny:hdr.ny, nx:hdr.nx, ny:hdr.ny, $								
-		ec:lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp, refnlp:hdr.refnlp,$	
+		lc:hdr.lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp, refnlp:hdr.refnlp,$	
     ns:hdr.ns, s:0, $					
-		lps:lps, ms:ms, spec:mainspec, $
-		reflps:reflps, refms:refms, refspec:refspec, $
+		lps:hdr.lps, ms:hdr.ms, spec:hdr.mainspec, $
+		reflps:hdr.reflps, refms:hdr.refms, refspec:hdr.refspec, $
 		t:t_start, nt:hdr.nt, refnt:hdr.refnt,masknt:hdr.masknt, $		
     dx:hdr.dx, dy:hdr.dy, $
     bunit:[hdr.bunit,hdr.refbunit], lpunit:[hdr.lpunit,hdr.reflpunit], xunit:hdr.xunit,$
@@ -10691,7 +10624,7 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		ls_low_y:ls_low_y, ls_upp_y:ls_upp_y, ls_yrange:ls_yrange, $		
 		ls_low_y_ref:ls_low_y_ref, ls_upp_y_ref:ls_upp_y_ref, ls_yrange_ref:ls_yrange_ref, $
 		int_low_y:int_low_y, int_upp_y:int_upp_y, int_low_t:t_first, int_upp_t:t_last, $
-		dt:hdr.dt, v_dop:v_dop, v_dop_ref:v_dop_ref $		
+		dt:hdr.dt, v_dop:hdr.v_dop, v_dop_ref:hdr.v_dop_ref $		
 	}
 ;--------------------------------------------------------------------------------- PLOT PARAMETERS
 	plotparams = { $
