@@ -3892,7 +3892,7 @@ PRO CRISPEX_IO_FEEDBACK, verbosity, hdr, IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE
                          REFSPCUBE=refspcube, MASKCUBE=maskcube
 	multichannel = (hdr.ns GE 2)
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN
-  IF (N_ELEMENTS(IMCUBE) EQ 1) THEN BEGIN
+    IF (N_ELEMENTS(IMCUBE) EQ 1) THEN BEGIN
       IF ((SIZE(IMCUBE,/TYPE) NE 0) AND (STRCOMPRESS(IMCUBE) NE '')) THEN BEGIN
 		    IF multichannel THEN $
           PRINT,'CRISPEX SETUP: Read Stokes image cube: '+imcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+$
@@ -4027,7 +4027,7 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
   		  IF (N_ELEMENTS(MNSPEC) GT 0) THEN $
           PRINT,'WARNING: Calling CRISPEX with MNSPEC, while SPECTFILE is provided, is not allowed.'+$
                 ' Using SPECTFILE for mean spectrum determination.'
-        RESTORE, spectfile[refspectfile_set],VERBOSE=(TOTAL(verbosity[0:1]) GE 1) 
+        RESTORE, spectfile[refspectfile_set];,VERBOSE=(TOTAL(verbosity[0:1]) GE 1) 
   			IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Restored '+feedback_text+$
                                            'spectral file: '+spectfile[refspectfile_set]+'.'
         IF (N_ELEMENTS(norm_factor) NE 1) THEN BEGIN   ; Failsafe against old spectfiles; convert vars
@@ -4119,6 +4119,28 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
       IF (TOTAL(hdr_out.reflps) EQ 0) THEN hdr_out.reflps = FINDGEN(hdr_out.refnlp)
     ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'reflps', FINDGEN(hdr_out.refnlp))
   ENDIF
+END
+
+PRO CRISPEX_IO_PARSE_WARPSLICE, lps, nlp, nt, dlambda, dlambda_set, verbosity, NO_WARP=no_warp, $
+                                WARPSPSLICE=warpspslice, XO=xo, XI=xi, YO=yo, YI=yi
+; Handles warping of the slice, also given keyword NO_WARP
+  warpspslice = 0				; Temporal spectrum is not warped to correct non-equidistant spectral positions
+  xi = 0  &   yi = 0  &  xo = 0  &  yo = 0
+	IF (nlp GT 1) THEN BEGIN
+		IF dlambda_set THEN ndecimals = ABS(FLOOR(ALOG10(ABS(dlambda)))) ELSE ndecimals = 2
+		equidist = STRING((SHIFT(FLOAT(lps),-1) - FLOAT(lps))[0:nlp-2],$
+                        FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
+    ; Check for non-equidistant spectral positions and allowed consequential warping
+		warpspslice = (((WHERE(equidist NE equidist[0]))[0] NE -1) AND ~KEYWORD_SET(NO_WARP))
+    IF warpspslice THEN BEGIN
+		  min_lps = MIN(lps)
+		  xo = FINDGEN(nlp) # REPLICATE(1,nt)
+		  xi = ((lps-min_lps) / FLOAT(MAX(lps-min_lps)) * nlp) # REPLICATE(1,nt)
+		  yo = REPLICATE(1,nlp) # FINDGEN(nt)
+		  yi = yo
+		ENDIF 
+    IF verbosity[1] THEN PRINT,'CRISPEX SETUP: Warp spectral slice: '+STRTRIM(FIX(warpspslice),2)
+  ENDIF 
 END
 
 ;================================================================================= LOOP PROCEDURES
@@ -8814,7 +8836,7 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '579'
+	revision_number = '580'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -9193,7 +9215,6 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
         REPLICATE(i,ROUND((hdr.nlp/6.-FLOOR(hdr.nlp/6.))*6))] 
 			ENDIF ELSE selcol_diagnostics = [selcol_diagnostics, REPLICATE(i,6)]
 	ENDFOR
-
 	IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Stokes parameters: '+STRJOIN(stokes_labels,' ')
 
 	IF (hdr.refnlp NE hdr.nlp) THEN BEGIN
@@ -9217,8 +9238,8 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Restored '+cpftfile[0]+'.'
 	ENDIF ELSE BEGIN              ; If not, then initialise variables
 		IF (verbosity[1] EQ 1) THEN BEGIN
-			PRINT, 'CRISPEX SETUP: No CRISPEX performance test file (crispex.'+hostname+'.cpft) found to restore '
-			PRINT, '               in '+dir_cpft
+			PRINT, 'CRISPEX SETUP: No CRISPEX performance test file (crispex.'+hostname+'.cpft) found '+$
+             'to restore in '+dir_cpft
 		ENDIF
 		estimate_lx = 0             ; Size variable for time estimate
 		estimate_run = 0            ; Run counter for time estimate
@@ -9230,7 +9251,8 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	IF dir_inst_write THEN BEGIN    ; If instances directory is writeable, start procedures
 		instfile = FILE_SEARCH(dir_inst+instfilename, COUNT = instfilecount)
 		IF instfilecount THEN BEGIN   ; If inst file is present for current hostname, add current
-			IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Opening existing instance tracking file: '+instfilename+'.'
+			IF (verbosity[1] EQ 1) THEN $
+        PRINT, 'CRISPEX SETUP: Opening existing instance tracking file: '+instfilename+'.'
 			nlines = FILE_LINES(instfile)
 			datarr = STRARR(1,nlines)
 			OPENR,unit1,instfile,/GET_LUN
@@ -9247,18 +9269,23 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 			OPENU, unit2, dir_inst+instfilename, WIDTH = 360, /GET_LUN, /APPEND
 		ENDIF ELSE BEGIN              ; If no inst file present for current hostname, make one
 			IF (verbosity[1] EQ 1) THEN BEGIN
-				PRINT, 'CRISPEX SETUP: No CRISPEX instance tracking file ('+instfilename+') found in '+dir_inst
-				PRINT, '               Creating file.'
+				PRINT, 'CRISPEX SETUP: No CRISPEX instance tracking file ('+instfilename+') found in '+$
+                dir_inst+'. Creating file.'
 			ENDIF
 			where_crispex = -1
 			OPENW, unit2, dir_inst+instfilename, WIDTH = 360, /GET_LUN
 			PRINTF, unit2, '# routine_name	version		revision	ID'
 		ENDELSE
-		IF (where_crispex[0] NE -1) THEN set_instance_id = STRTRIM((instance_id[where_crispex])[WHERE(instance_id[where_crispex] EQ MAX(instance_id[where_crispex]))] + 1,2) ELSE set_instance_id = STRTRIM(0,2)
+		IF (where_crispex[0] NE -1) THEN $
+      set_instance_id = STRTRIM((instance_id[where_crispex])[WHERE(instance_id[where_crispex] EQ $
+                        MAX(instance_id[where_crispex]))] + 1,2) $
+    ELSE $
+      set_instance_id = STRTRIM(0,2)
 		PRINTF, unit2, 'CRISPEX	'+version_number+'	'+revision_number+'	'+set_instance_id
 		FREE_LUN, unit2
 		IF (set_instance_id GE 1) THEN instance_label = '-'+set_instance_id ELSE instance_label = ''
-		IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Written instance ID ('+set_instance_id+') to '+instfilename+'.'
+		IF (verbosity[1] EQ 1) THEN $
+      PRINT, 'CRISPEX SETUP: Written instance ID ('+set_instance_id+') to '+instfilename+'.'
 	ENDIF ELSE BEGIN
 		set_instance_id = ''
 		instance_label = ''
@@ -9347,8 +9374,6 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
   IF (hdr.refnlp GT 1) THEN BEGIN
     v_dop_set_ref = v_dop_set[1]
     refspxtitle = (['Spectral position','Wavelength'])[v_dop_set_ref]
-    dlambda_set_ref = dlambda_set[1]
-    dlambda_ref = dlambda[1]
   ENDIF ELSE BEGIN
     hdr = CREATE_STRUCT(hdr, 'reflc', 0, 'v_dop_ref', 0)
     refspxtitle = ''
@@ -9356,51 +9381,13 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
   ENDELSE
   v_dop_set = v_dop_set[0]
   spxtitle = (['Spectral position','Wavelength'])[v_dop_set]
-  dlambda_set = dlambda_set[0]
-  dlambda = dlambda[0]
-
-	IF (hdr.nlp GT 1) THEN BEGIN
-		IF dlambda_set THEN ndecimals = ABS(FLOOR(ALOG10(ABS(dlambda)))) ELSE ndecimals = 2
-		equidist = STRING((SHIFT(FLOAT(hdr.lps),-1) - FLOAT(hdr.lps))[0:hdr.nlp-2],FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
-; Check for non-equidistant spectral positions and allowed consequential warping
-		IF (((WHERE(equidist NE equidist[0]))[0] NE -1) AND (KEYWORD_SET(NO_WARP) EQ 0)) THEN BEGIN				
-			warpspslice = 1			; Temporal spectrum is warped to correct non-equidistant spectral positions
-			min_lps = MIN(hdr.lps)
-			xo = FINDGEN(hdr.nlp) # REPLICATE(1,hdr.nt)
-			xi = ((hdr.lps-min_lps) / FLOAT(MAX(hdr.lps-min_lps)) * hdr.nlp) # REPLICATE(1,hdr.nt)
-			yo = REPLICATE(1,hdr.nlp) # FINDGEN(hdr.nt)
-			yi = yo
-		ENDIF ELSE BEGIN
-			warpspslice = 0			; Temporal spectrum is not warped to correct non-equidistant spectral positions
-			xi = 0	&	yi = 0
-			xo = 0	&	yo = 0
-		ENDELSE
-	ENDIF ELSE BEGIN
-		warpspslice = 0				; Temporal spectrum is not warped to correct non-equidistant spectral positions
-		xi = 0	&	yi = 0
-		xo = 0	&	yo = 0
-	ENDELSE
-	IF (refspfile AND (hdr.refnlp GT 1)) THEN BEGIN
-		IF dlambda_set_ref THEN ndecimals = ABS(FLOOR(ALOG10(ABS(dlambda_ref)))) ELSE ndecimals = 2
-		refequidist = STRING((SHIFT(FLOAT(hdr.reflps),-1) - FLOAT(hdr.reflps))[0:hdr.refnlp-2],FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
-; Check for non-equidistant spectral positions and allowed consequential warping
-		IF (((WHERE(refequidist NE refequidist[0]))[0] NE -1) AND (KEYWORD_SET(NO_WARP) EQ 0)) THEN BEGIN				
-			warprefspslice = 1	; Temporal spectrum is warped to correct non-equidistant spectral positions
-			min_reflps = MIN(hdr.reflps)
-			xo_ref = FINDGEN(hdr.refnlp) # REPLICATE(1,hdr.nt)
-			xi_ref = ((hdr.reflps-min_reflps) / FLOAT(MAX(hdr.reflps-min_reflps)) * hdr.refnlp) # REPLICATE(1,hdr.nt)
-			yo_ref = REPLICATE(1,hdr.refnlp) # FINDGEN(hdr.nt)
-			yi_ref = yo_ref
-		ENDIF ELSE BEGIN
-			warprefspslice = 0	; Temporal spectrum is not warped to correct non-equidistant spectral positions
-			xi_ref = 0	&	yi_ref = 0
-			xo_ref = 0	&	yo_ref = 0
-		ENDELSE
-	ENDIF ELSE BEGIN
-		warprefspslice = 0		; Temporal spectrum is not warped to correct non-equidistant spectral positions
-		xi_ref = 0	&	yi_ref = 0
-		xo_ref = 0	&	yo_ref = 0
-	ENDELSE
+ 
+  ; Process settings based on LPS variable and NO_WARP keyword to (not) warp of spectral slices
+  CRISPEX_IO_PARSE_WARPSLICE, hdr.lps, hdr.nlp, hdr.nt, dlambda[0], dlambda_set[0], verbosity, $
+                              NO_WARP=no_warp, WARPSPSLICE=warpspslice, XO=xo, XI=xi, YO=yo, YI=yi
+  CRISPEX_IO_PARSE_WARPSLICE, hdr.reflps, hdr.refnlp, hdr.nt, dlambda[1], dlambda_set[1], $
+                              verbosity, NO_WARP=no_warp, WARPSPSLICE=warprefspslice, $
+                              XO=xo_ref, XI=xi_ref, YO=yo_ref, YI=yi_ref
 	
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
 		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (parameters from/for '+$
@@ -9415,7 +9402,7 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial slit parameters)...",a5)','     ') 
 	feedback_text = [feedback_text,'> Initial slit parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	nphi	= LONG(CEIL(SQRT( FLOAT(hdr.nx)^2 + FLOAT(hdr.ny)^2 )))									; Determine maximum number of slitpositions
+	nphi	= LONG(CEIL(SQRT( FLOAT(hdr.nx)^2 + FLOAT(hdr.ny)^2 )))	; Determine maximum number of slitpositions
 	angle = 45														; Set initial angle of the slit
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
 		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial slit parameters)...",a5)','done!') 
