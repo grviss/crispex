@@ -3673,8 +3673,8 @@ PRO CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, input_single_cube, multic
     ; Check whether SPCUBE and IMCUBE are actually the same
 		IF ((spcube EQ imcube) OR ((hdr_in.nlp EQ hdr_in.nx) AND (hdr_in.nt EQ hdr_in.ny) AND $
        (hdr_in.spnt EQ hdr_in.imnt))) THEN BEGIN
-			PRINT,'ERROR: IMCUBE and SPCUBE must be different. Please check input (you seem to have '+$
-              'provided the same file twice).';,/IOERROR
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'IMCUBE and SPCUBE must be different. Please check '+$
+        'input (you seem to have provided the same file twice).',/ERROR,/NO_ROUTINE
 			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
       io_failsafe_error = 1
 			RETURN
@@ -3682,9 +3682,10 @@ PRO CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, input_single_cube, multic
     ; Check whether condensed third dimensions of SPCUBE and IMCUBE are incompatible
 		IF ((hdr_in.nx*hdr_in.ny*hdr_in.ns NE hdr_in.spnt) OR $
        (hdr_in.nt*hdr_in.nlp*hdr_in.ns NE hdr_in.imnt)) THEN BEGIN							
-			PRINT,'ERROR: IMCUBE and SPCUBE have incompatible dimensions and seem to belong to '+$
-              'different datasets. Please check whether the input is correct (you provided '+$
-              'IMCUBE='+STRTRIM(imcube,2)+' and SPCUBE='+STRTRIM(spcube,2)+').';,/IOERROR
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'IMCUBE and SPCUBE have incompatible dimensions and '+$
+        'seem to belong to different datasets. Please check whether the input is correct (you '+$
+        'provided IMCUBE='+STRTRIM(imcube,2)+' and SPCUBE='+STRTRIM(spcube,2)+').',/ERROR,$
+        /NO_ROUTINE
 			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
       io_failsafe_error = 1
 			RETURN
@@ -3692,9 +3693,10 @@ PRO CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, input_single_cube, multic
     ; Check, for multichannel cube, whether channels are incompatible
 		IF multichannel THEN BEGIN
 			IF ((hdr_in.spstokes NE hdr_in.imstokes) OR (hdr_in.spns NE hdr_in.imns)) THEN BEGIN
-        PRINT,'ERROR: IMCUBE and SPCUBE have incompatible number of channels and seem to '+$
-                'belong to different datasets. Please check whether the input is correct (you '+$
-                'provided IMCUBE='+STRTRIM(imcube,2)+' and SPCUBE='+STRTRIM(spcube,2)+').';,/IOERROR
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'IMCUBE and SPCUBE have incompatible number of '+$
+          'channels and seem to belong to different datasets. Please check whether the input is '+$
+          'correct (you provided IMCUBE='+STRTRIM(imcube,2)+' and SPCUBE='+STRTRIM(spcube,2)+').',$
+          /ERROR,/NO_ROUTINE
 				IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
         io_failsafe_error = 1
 				RETURN
@@ -3703,8 +3705,9 @@ PRO CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, input_single_cube, multic
 		ENDIF ELSE hdr_out.ns = 1L       ; If not multiple channels, set general number channels to 1
     ; Check whether SINGLE_CUBE keyword has been set in combination with provided SPCUBE
 		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) GT 0) THEN BEGIN
-			PRINT,'WARNING: Calling CRISPEX with SINGLE_CUBE, while SPCUBE is provided, is not '+$
-              'allowed. SINGLE_CUBE keyword will be ignored.';,/IOERROR
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Calling CRISPEX with SINGLE_CUBE, while SPCUBE is '+$
+        'provided, is not allowed. SINGLE_CUBE keyword will be ignored.', /WARNING, /NO_ROUTINE
+      io_failsafe_error = 2
 			onecube = 0
 		ENDIF
 		single_cube = 0
@@ -3716,7 +3719,8 @@ PRO CRISPEX_IO_FAILSAFES_MAIN, spfile, imcube, spcube, input_single_cube, multic
 				onecube = 1
 				hdr_out.nt = hdr_in.imnt / hdr_in.nlp / hdr_in.ns
 			ENDIF ELSE BEGIN                              ; Else throw error message
-				PRINT,'ERROR: SINGLE_CUBE must be provided with a single integer.';,/IOERROR
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'SINGLE_CUBE must be provided with a single '+$
+          'integer.',/ERROR,/NO_ROUTINE
 			  IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
         io_failsafe_error = 1
 				RETURN
@@ -3743,28 +3747,20 @@ PRO CRISPEX_IO_FAILSAFES_MAIN_REF, HDR=hdr, STARTUPTLB=startuptlb, $
          (hdr.refimnt EQ hdr.nlp) OR $                      ; or reference being snapshot
          (hdr.nt EQ 1))) THEN BEGIN                         ; or main being snapshot
     io_failsafe_error = 0
-;			IF (((hdr.refnt GT hdr.nt) AND (hdr.nt NE 1)) OR $
-;        (hdr.refnt EQ hdr.nlp)) THEN hdr.refnlp = hdr.nlp ELSE BEGIN
-;				  IF (hdr.refnt EQ hdr.nt) THEN $
-;            hdr.refnlp = 1 
-;          ELSE $
-;            hdr.refnlp = hdr.refnt
-;			ENDELSE
   ENDIF ELSE BEGIN                                          ; If not, throw error messages and exit
     IF ((hdr.refnt NE hdr.nt) AND (hdr.refnt NE 1)) THEN BEGIN
-	    PRINT,'ERROR: Dimensions of the reference cube (['+$
-            STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+$
-            ']) are not compatible with those of the main cube (['+$
-            STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.imnt,2)+'])!'
-			PRINT,'       Number of timesteps times the number of spectral positions must be equal to '+$
-            'that of the main cube ('+STRTRIM(hdr.imnt,2)+').'
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Dimensions of the reference cube (['+$
+        STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+']) are not '+$
+        'compatible with those of the main cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+$
+        STRTRIM(hdr.imnt,2)+'])! Number of timesteps times the number of spectral positions '+$
+        'must be equal to that of the main cube ('+STRTRIM(hdr.imnt,2)+').', /ERROR, /NO_ROUTINE, $
+        /NEWLINE
     ENDIF ELSE BEGIN
-				PRINT,'ERROR: Dimensions of the reference cube (['+$
-              STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+$
-              ']) are not compatible with those of the main cube (['+$
-              STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.nt,2)+'])!'
-				PRINT,'       Number of timesteps must be either equal to that of the main cube ('+$
-              STRTRIM(hdr.nt,2)+') or to 1.'
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Dimensions of the reference cube (['+$
+        STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+']) are not '+$
+        'compatible with those of the main cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+$
+        ','+STRTRIM(hdr.nt,2)+'])! Number of timesteps must be either equal to that of the main '+$
+        'cube ('+STRTRIM(hdr.nt,2)+') or to 1.', /ERROR, /NO_ROUTINE, /NEWLINE
 	  ENDELSE
 		IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
     io_failsafe_error = 1
@@ -3781,17 +3777,19 @@ PRO CRISPEX_IO_FAILSAFES_REF, refcube, HDR=hdr, STARTUPTLB=startuptlb, $
     (hdr.refnlp EQ hdr.refspnx) AND $         ; the cubes have same first dimensions
     (hdr.refnt EQ hdr.refspny) AND $          ; the cubes have same second dimenions
     (hdr.refspnt EQ hdr.refimnt)) THEN BEGIN  ; the cubes have same third dimensions
-		PRINT,'ERROR: The reference image and spectral cubes must be different. '+$
-          'Please check input (you seem to have provided the same file twice).'
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image and spectral cubes must be '+$
+      'different. Please check input (you seem to have provided the same file twice).', /ERROR, $
+      /NO_ROUTINE, /NEWLINE
 		IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
     io_failsafe_error = 1
 		RETURN
 	ENDIF
   ; Failsafe against providing incompatible REFIMCUBE and REFSPCUBE
 	IF ((hdr.refnx*hdr.refny NE hdr.refspnt) OR (hdr.refnt*hdr.refnlp NE hdr.refimnt)) THEN BEGIN							
-		PRINT,'ERROR: The reference image and spectral cubes have incompatible dimensions and seem '+$
-          'to belong to different datasets. Please check whether the input is correct (you '+$
-          'provided REFCUBE[0]='+STRTRIM(refcube[0],2)+' and REFCUBE[1]='+STRTRIM(refcube[1],2)+').'
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image and spectral cubes have '+$
+      'incompatible dimensions and seem to belong to different datasets. Please check whether '+$
+      'the input is correct (you provided REFCUBE[0]='+STRTRIM(refcube[0],2)+' and REFCUBE[1]='+$
+      STRTRIM(refcube[1],2)+').', /ERROR, /NO_ROUTINE, /NEWLINE
 	  IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
     io_failsafe_error = 1
 		RETURN
@@ -3806,15 +3804,17 @@ PRO CRISPEX_IO_FAILSAFES_MASK, maskcube, HDR=hdr, STARTUPTLB=startuptlb, $
     io_failsafe_error = 0
 	ENDIF ELSE BEGIN
 	  IF ((hdr.masknx NE hdr.nx) OR (hdr.maskny NE hdr.ny)) THEN BEGIN
-      PRINT,'ERROR: Dimensions of the mask cube (['+STRTRIM(hdr.masknx,2)+','+$
-            STRTRIM(hdr.maskny,2)+','+STRTRIM(hdr.masknt,2)+']) are not compatible with those '+$
-            'of the main image cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.nt,2)+'])!'
-			PRINT,'       Number of pixels in the x- and y-dimension must be equal to those of the main image cube.'
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Dimensions of the mask cube (['+$
+        STRTRIM(hdr.masknx,2)+','+STRTRIM(hdr.maskny,2)+','+STRTRIM(hdr.masknt,2)+']) are not '+$
+        'compatible with those of the main image cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+$
+        ','+STRTRIM(hdr.nt,2)+'])! Number of pixels in the x- and y-dimension must be equal to '+$
+        'those of the main image cube.', /ERROR, /NO_ROUTINE, /NEWLINE
 	  ENDIF ELSE IF ((hdr.masknt NE hdr.nt) AND (hdr.masknt NE 1)) THEN BEGIN
-			PRINT,'ERROR: Dimensions of the mask cube (['+STRTRIM(hdr.masknx,2)+','+STRTRIM(hdr.maskny,2)+','+STRTRIM(hdr.masknt,2)+']) are not compatible with those of the main image '+$
-					'cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.nt,2)+'])!'
-				PRINT,'       Number of timesteps must be either equal to that of the main image cube '+$
-              '('+STRTRIM(hdr.nt,2)+') or to 1.'
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Dimensions of the mask cube (['+$
+        STRTRIM(hdr.masknx,2)+','+STRTRIM(hdr.maskny,2)+','+STRTRIM(hdr.masknt,2)+']) are not '+$
+        'compatible with those of the main image cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+$
+        ','+STRTRIM(hdr.nt,2)+'])! Number of timesteps must be either equal to that of the main '+$
+        'image cube ('+STRTRIM(hdr.nt,2)+') or to 1.', /ERROR, /NO_ROUTINE, /NEWLINE
 	  ENDIF
     IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
     io_failsafe_error = 1
@@ -3835,8 +3835,8 @@ PRO CRISPEX_IO_FAILSAFES_MNSPEC, mnspec, hdr, STARTUPTLB=startuptlb, $
   ENDIF ELSE feedback_text = ' ('+STRTRIM(mnspec[0],2)+')' 
   io_failsafe_error = (TOTAL(cumulative_error) NE 0)
   IF io_failsafe_error THEN BEGIN
-	  PRINT,'ERROR: MNSPEC value'+feedback_text+' must fall within allowed range '+$
-    '[0,'+STRTRIM(LONG(hdr.nt-1),2)+']'+extra_text+'!'
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'MNSPEC value'+feedback_text+' must fall within '+$
+      'allowed range [0,'+STRTRIM(LONG(hdr.nt-1),2)+']'+extra_text+'!',/ERROR,/NO_ROUTINE,/NEWLINE
 	  IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
 	  RETURN
   ENDIF
@@ -3855,8 +3855,9 @@ PRO CRISPEX_IO_FAILSAFES_LINE_CENTER, line_center, hdr, NFILES=nfiles, STARTUPTL
   ; Check whether conflicting with SPECTFILE
   IF ((spectfile_set AND (ndims GE 1)) OR (refspectfile_set AND (ndims EQ 2))) THEN BEGIN
     idx = (refspectfile_set AND (ndims EQ 2))
-    PRINT,'WARNING: Detailed '+STRLOWCASE(feedback_text[idx])+' information may not be specified '+$
-          'in both SPECTFILE and LINE_CENTER! Settings from LINE_CENTER will be ignored.'
+    CRISPEX_UDPATE_STARTUP_SETUP_FEEDBACK, 'Detailed '+STRLOWCASE(feedback_text[idx])+$
+      ' information may not be specified in both SPECTFILE and LINE_CENTER! Settings from '+$
+      'LINE_CENTER will be ignored.',/WARNING,/NO_ROUTINE
     io_failsafe_error = 2
 		RETURN
   ENDIF
@@ -3866,8 +3867,9 @@ PRO CRISPEX_IO_FAILSAFES_LINE_CENTER, line_center, hdr, NFILES=nfiles, STARTUPTL
   ; lcase of 3: LINE_CENTER = [lc,cwav,dwav] or [[lc,cwav,dwav],[lc,cwav,dwav]]
     FOR d=0,ndims-1 DO BEGIN
       IF ((line_center[0,d] GE nlp_select[d]) OR (line_center[0,d] LT 0)) THEN BEGIN
-        PRINT,'ERROR: '+feedback_text[d]+' linecentre index value '+STRTRIM(line_center[0,d],2)+$
-              ' falls outside of allowed range [0,'+STRTRIM(nlp_select[d]-1,2)+']!'
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, feedback_text[d]+' linecentre index value '+$
+          STRTRIM(line_center[0,d],2)+' falls outside of allowed range [0,'+$
+          STRTRIM(nlp_select[d]-1,2)+']!',/ERROR,/NO_ROUTINE,NEWLINE=(io_failsafe_error EQ 2)
         IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
         io_failsafe_error = 1
         RETURN
@@ -3875,7 +3877,8 @@ PRO CRISPEX_IO_FAILSAFES_LINE_CENTER, line_center, hdr, NFILES=nfiles, STARTUPTL
     ENDFOR
   ENDIF ELSE IF (lcase NE 2) THEN BEGIN
   ; lcase of 2: LINE_CENTER = [cwav,dwav] or [[cwav,dwav],[cwav,dwav]]
-    PRINT,'ERROR: LINE_CENTER keyword contains too many elements for the number of cubes provided!'
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'LINE_CENTER keyword contains too many elements for '+$
+      'the number of cubes provided!', /ERROR, /NO_ROUTINE, NEWLINE=(io_failsafe_error EQ 2)
     IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
     io_failsafe_error = 1
     RETURN
@@ -3895,41 +3898,46 @@ PRO CRISPEX_IO_FEEDBACK, verbosity, hdr, IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE
     IF (N_ELEMENTS(IMCUBE) EQ 1) THEN BEGIN
       IF ((SIZE(IMCUBE,/TYPE) NE 0) AND (STRCOMPRESS(IMCUBE) NE '')) THEN BEGIN
 		    IF multichannel THEN $
-          PRINT,'CRISPEX SETUP: Read Stokes image cube: '+imcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+$
-                STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.imnt,2)+').' ELSE $
-			    PRINT,'CRISPEX SETUP: Read image cube: '+imcube+'. Dimensions: (nx,ny,nt*nlp*ns) = ('+$
-                STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.imnt,2)+').'
+          CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Read Stokes image cube: '+imcube+$
+            '. Dimensions: (nx,ny,nt*nlp*ns) = ('+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+$
+            STRTRIM(hdr.imnt,2)+').' $
+        ELSE $
+          CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Read image cube: '+imcube+$
+            '. Dimensions: (nx,ny,nt*nlp*ns) = ('+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+$
+            STRTRIM(hdr.imnt,2)+').'
 		    IF (verbosity[1] EQ 1) THEN $
-          PRINT,'CRISPEX SETUP: Main cube(s) dimensions: (nx,ny,nt,nlp,ns) = ('+STRTRIM(hdr.nx,2)+','+$
-                STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.nt,2)+','+STRTRIM(hdr.nlp,2)+','+STRTRIM(hdr.ns,2)+')'
-	    ENDIF ELSE PRINT,'CRISPEX SETUP: No main image cube supplied.'
+          CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Main cube(s) dimensions: (nx,ny,nt,nlp,ns) = ('+$
+            STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.nt,2)+','+STRTRIM(hdr.nlp,2)+$
+            ','+STRTRIM(hdr.ns,2)+')'
+	    ENDIF ELSE CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'No main image cube supplied.'
     ENDIF ELSE IF (N_ELEMENTS(SPCUBE) EQ 1) THEN BEGIN
       IF ((SIZE(SPCUBE,/TYPE) NE 0) AND (STRCOMPRESS(SPCUBE) NE '')) THEN $
-        PRINT,'CRISPEX SETUP: Read main spectral cube: '+spcube+$
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Read main spectral cube: '+spcube+$
               '. Dimensions: (nlp,nt,nx*ny*ns) = ('+STRTRIM(hdr.nlp,2)+','+STRTRIM(hdr.nt,2)+$
               ','+STRTRIM(hdr.spnt,2)+').' $
-      ELSE PRINT,'CRISPEX SETUP: No main spectral cube supplied.'
+      ELSE CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'No main spectral cube supplied.'
     ENDIF ELSE IF (N_ELEMENTS(REFIMCUBE) EQ 1) THEN BEGIN
       IF ((SIZE(REFIMCUBE,/TYPE) NE 0) AND (STRCOMPRESS(REFIMCUBE) NE '')) THEN BEGIN
-        PRINT,'CRISPEX SETUP: Read reference image cube: '+refimcube+$
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Read reference image cube: '+refimcube+$
               '. Dimensions: (nx,ny,nt*nlp*ns) = ('+STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+$
               ','+STRTRIM(hdr.refnt*hdr.refnlp*hdr.refns,2)+').'  
 			  IF (verbosity[1] EQ 1) THEN $
-          PRINT,'CRISPEX SETUP: Reference cubes dimensions: (nx,ny,nt,nlp,ns) = ('+$
+          CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Reference cubes dimensions: (nx,ny,nt,nlp,ns) = ('+$
                 STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+','+$
                 STRTRIM(hdr.refnlp,2)+','+STRTRIM(hdr.refns,2)+')'
-      ENDIF ELSE PRINT,'CRISPEX SETUP: No reference image cube supplied.'
+      ENDIF ELSE CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'No reference image cube supplied.'
     ENDIF ELSE IF (N_ELEMENTS(REFSPCUBE) EQ 1) THEN BEGIN
       IF ((SIZE(REFSPCUBE,/TYPE) NE 0) AND (STRCOMPRESS(REFSPCUBE) NE '')) THEN $
-        PRINT,'CRISPEX SETUP: Read reference spectral cube: '+refspcube+$
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Read reference spectral cube: '+refspcube+$
               '. Dimensions: (nlp,nt,nx*ny) = ('+STRTRIM(hdr.refnlp,2)+','+STRTRIM(hdr.refnt,2)+$
               ','+STRTRIM(hdr.refspnt,2)+').' $
-      ELSE PRINT,'CRISPEX SETUP: No reference spectral cube supplied.'
+      ELSE CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'No reference spectral cube supplied.'
     ENDIF ELSE IF (N_ELEMENTS(MASKCUBE) EQ 1) THEN BEGIN
       IF ((SIZE(MASKCUBE,/TYPE) NE 0) AND (STRCOMPRESS(MASKCUBE) NE '')) THEN $
-        PRINT,'CRISPEX SETUP: Read mask cube: '+maskcube+'. Dimensions: (nx,ny,nt) = ('+$
-              STRTRIM(hdr.masknx,2)+','+STRTRIM(hdr.maskny,2)+','+STRTRIM(hdr.masknt,2)+').' $
-      ELSE PRINT,'CRISPEX SETUP: No mask cube supplied.'
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Read mask cube: '+maskcube+$
+          '. Dimensions: (nx,ny,nt) = ('+STRTRIM(hdr.masknx,2)+','+STRTRIM(hdr.maskny,2)+','+$
+          STRTRIM(hdr.masknt,2)+').' $
+      ELSE CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'No mask cube supplied.'
     ENDIF
   ENDIF
 END
@@ -3961,8 +3969,9 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
   
   FOR d=0,nfiles-1 DO BEGIN
     IF ((cube_compatibility[d] NE 1) AND (N_ELEMENTS(LINE_CENTER) GT 0) AND (d NE ndims-1)) THEN BEGIN
-        PRINT,'WARNING: Calling CRISPEX with LINE_CENTER, while FITS cubes are provided, is not '+$
-              'allowed. Settings from LINE_CENTER will be ignored.'
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Calling CRISPEX with LINE_CENTER, while FITS cubes '+$
+        'are provided, is not allowed. Settings from LINE_CENTER will be ignored.', /WARNING, $
+        /NO_ROUTINE
         lcase = 0
     ENDIF 
     IF (d EQ 0) THEN BEGIN
@@ -3980,11 +3989,13 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
       dlambda_val[d] = line_center[1+(lcase EQ 3),d]
       dlambda_set[d] = 1
     ENDIF 
-    ; Next determine whether LPS needs to be recalculated
-    v_dop_set[d] = (spectfile_set[d] EQ 1)
-    IF (v_dop_set[d] EQ 0) THEN lps_select -= lps_select[LONG(lc[d])]
-    IF (lcase GE 2) THEN lps_select = lps_select*dlambda_val[d] + lambda_c[d]
-    v_dop_set[d] = (lps_select[LONG(lc[d])] NE 0)
+    ; Next determine whether LPS needs to be recalculated, only when in compatibility mode
+    IF cube_compatibility[d] THEN BEGIN
+      v_dop_set[d] = (spectfile_set[d] EQ 1)
+      IF (v_dop_set[d] EQ 0) THEN lps_select -= lps_select[LONG(lc[d])]
+      IF (lcase GE 2) THEN lps_select = lps_select*dlambda_val[d] + lambda_c[d]
+      v_dop_set[d] = (lps_select[LONG(lc[d])] NE 0)
+    ENDIF ELSE v_dop_set[d] = 0
 	  IF v_dop_set[d] THEN $
       v_dop = c_speed*(lps_select/lps_select[LONG(lc[d])]-1) $
     ELSE $
@@ -4024,20 +4035,23 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
       spectfile_set = KEYWORD_SET(IMCUBE)
       refspectfile_set = KEYWORD_SET(REFCUBE)
       IF (spectfile[refspectfile_set] NE '') THEN BEGIN ; Check whether SPECTFILE even has been given
-  		  IF (N_ELEMENTS(MNSPEC) GT 0) THEN $
-          PRINT,'WARNING: Calling CRISPEX with MNSPEC, while SPECTFILE is provided, is not allowed.'+$
-                ' Using SPECTFILE for mean spectrum determination.'
+  		  IF (N_ELEMENTS(MNSPEC) GT 0) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+          'WARNING: Calling CRISPEX with MNSPEC, while SPECTFILE is provided, is not allowed.'+$
+          ' Using SPECTFILE for mean spectrum determination.', /NO_ROUTINE
+          io_failsafe_error = 2
         RESTORE, spectfile[refspectfile_set];,VERBOSE=(TOTAL(verbosity[0:1]) GE 1) 
-  			IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Restored '+feedback_text+$
+  			IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Restored '+feedback_text+$
                                            'spectral file: '+spectfile[refspectfile_set]+'.'
         IF (N_ELEMENTS(norm_factor) NE 1) THEN BEGIN   ; Failsafe against old spectfiles; convert vars
           spect_pos = ll
           norm_factor = 1/mn
           norm_spect = spec
-  				PRINT,'WARNING: The restored '+feedback_text+'spectral file ('+spectfile[refspectfile_set]+$
-                ') has a format pre-dating CRISPEX v1.6. If possible, please update the '+$
-                feedback_text+'spectral file to the newest format. Reading spectral file in '+$
-                'compatibility mode.'
+  				CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'WARNING: The restored '+feedback_text+$
+            'spectral file ('+spectfile[refspectfile_set]+$
+            ') has a format pre-dating CRISPEX v1.6. If possible, please update the '+$
+            feedback_text+'spectral file to the newest format. Reading spectral file in '+$
+            'compatibility mode.', /NO_ROUTINE, NEWLINE=(io_failsafe_error NE 2)
+          io_failsafe_error = 2
         ENDIF ELSE BEGIN                       ; Else, dealing with new spectfile, check title labels
   				IF (N_ELEMENTS(xtitle_label) EQ 1) THEN BEGIN                     ; If xtitle_label exists
   					IF ((STRCOMPRESS(xtitle_label) NE '') AND $                     ; and it's non-zero
@@ -4052,10 +4066,11 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
         ENDELSE
         ; Failsafe against data-incompatible SPECTFILE
         IF (N_ELEMENTS(spect_pos[*,0]) NE nlp_select) THEN BEGIN  
-  					PRINT,'ERROR: Number of spectral positions in '+feedback_text+'SPECTFILE (nlp='+$
-            STRTRIM(N_ELEMENTS(spect_pos[*,0]),2)+') is incompatible with that in the '+$
-            feedback_text+'datacubes (nlp='+STRTRIM(nlp_select,2)+'). Please load the correct '+$
-            feedback_text+'spectral file.'
+          CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'ERROR: Number of spectral positions in '+$
+            feedback_text+'SPECTFILE (nlp='+STRTRIM(N_ELEMENTS(spect_pos[*,0]),2)+$
+            ') is incompatible with that in the '+feedback_text+'datacubes (nlp='+$
+            STRTRIM(nlp_select,2)+'). Please load the correct '+feedback_text+'spectral file.', $
+            /NO_ROUTINE, NEWLINE=(io_failsafe_error NE 2)
   					IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
             io_failsafe_error = 1
   					RETURN
@@ -4067,8 +4082,10 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
     ENDIF ELSE BEGIN
       IF ((KEYWORD_SET(IMCUBE) AND (N_ELEMENTS(SPECTFILE) EQ 1)) OR $
           (KEYWORD_SET(REFCUBE) AND (N_ELEMENTS(SPECTFILE) EQ 2))) THEN $
-        PRINT,'WARNING: Calling CRISPEX with SPECTFILE, while FITS cubes are provided, is not '+$
-              'allowed. Settings from SPECTFILE will be ignored.'
+          CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'WARNING: Calling CRISPEX with SPECTFILE, while'+$
+            ' FITS cubes are provided, is not allowed. Settings from SPECTFILE will be ignored.', $
+            /NO_ROUTINE, NEWLINE=(io_failsafe_error NE 2)
+        io_failsafe_error = 2
       calc_from_cubes = 1
     ENDELSE
   ENDIF ELSE calc_from_cubes = 1
@@ -4122,10 +4139,12 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
 END
 
 PRO CRISPEX_IO_PARSE_WARPSLICE, lps, nlp, nt, dlambda, dlambda_set, verbosity, NO_WARP=no_warp, $
-                                WARPSPSLICE=warpspslice, XO=xo, XI=xi, YO=yo, YI=yi
+                                WARPSPSLICE=warpspslice, XO=xo, XI=xi, YO=yo, YI=yi, $
+                                REFERENCE=reference
 ; Handles warping of the slice, also given keyword NO_WARP
   warpspslice = 0				; Temporal spectrum is not warped to correct non-equidistant spectral positions
   xi = 0  &   yi = 0  &  xo = 0  &  yo = 0
+  feedback_text = ['main','reference']  &  warp_text = ['No warp','Warp']
 	IF (nlp GT 1) THEN BEGIN
 		IF dlambda_set THEN ndecimals = ABS(FLOOR(ALOG10(ABS(dlambda)))) ELSE ndecimals = 2
 		equidist = STRING((SHIFT(FLOAT(lps),-1) - FLOAT(lps))[0:nlp-2],$
@@ -4139,7 +4158,9 @@ PRO CRISPEX_IO_PARSE_WARPSLICE, lps, nlp, nt, dlambda, dlambda_set, verbosity, N
 		  yo = REPLICATE(1,nlp) # FINDGEN(nt)
 		  yi = yo
 		ENDIF 
-    IF verbosity[1] THEN PRINT,'CRISPEX SETUP: Warp spectral slice: '+STRTRIM(FIX(warpspslice),2)
+    IF verbosity[1] THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, warp_text[warpspslice]+$
+                          ' applied to '+feedback_text[KEYWORD_SET(REFERENCE)]+$
+                          ' spectral slice.', /NO_ROUTINE
   ENDIF 
 END
 
@@ -8527,7 +8548,35 @@ PRO CRISPEX_UPDATE_STARTUP_FEEDBACK, bgim, xout, yout, feedback_text
 	LOADCT,3,/SILENT
 	TVSCL,bgim
 	LOADCT,0,/SILENT
-	FOR i=0,N_ELEMENTS(feedback_text)-1 DO XYOUTS, xout[i], yout[i], feedback_text[i], COLOR=255, /DEVICE, CHARSIZE=1.125
+	FOR i=0,N_ELEMENTS(feedback_text)-1 DO XYOUTS, xout[i], yout[i], feedback_text[i], COLOR=255, $
+                                                 /DEVICE, CHARSIZE=1.125
+END
+
+PRO CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, msg, OVERWRITEABLE=overwriteable, DONE=done, OPT=opt, $
+                                           WIDGET=widget, NEWLINE=newline, FAILED=failed, $
+                                           REPEAT_STAGE=repeat_stage, NO_ROUTINE=no_routine, $
+                                           WARNING=warning, ERROR=error
+  routine = 'CRISPEX SETUP: '
+  stages = [KEYWORD_SET(OPT),KEYWORD_SET(WIDGET),KEYWORD_SET(WARNING),KEYWORD_SET(ERROR)]
+  stage_set = (WHERE(stages EQ 1))[0]+1
+  stage_lab = ['','Setting start-up options ','Setting up widget ','WARNING: ','ERROR: ']
+  IF KEYWORD_SET(NO_ROUTINE) THEN routine = STRJOIN(REPLICATE(' ',STRLEN(routine)))
+  IF KEYWORD_SET(FAILED) THEN donetext = 'failed.' ELSE donetext = 'done!'
+  IF KEYWORD_SET(REPEAT_STAGE) THEN outputtext = routine+stage_lab[stage_set]+msg+'... ' $
+    ELSE outputtext = ''
+  IF KEYWORD_SET(OVERWRITEABLE) THEN BEGIN
+    IF KEYWORD_SET(DONE) THEN BEGIN
+	    WRITEU,-1,outputtext+donetext
+      PRINT,''
+    ENDIF ELSE WRITEU,-1,routine+stage_lab[stage_set]+msg+'... '
+  ENDIF ELSE BEGIN
+    IF KEYWORD_SET(NEWLINE) THEN PRINT,''
+    FOR i=0,N_ELEMENTS(msg)-1 DO BEGIN
+      IF (i NE 0) THEN temp_routine = STRJOIN(REPLICATE(' ',STRLEN(routine))) $
+        ELSE temp_routine = routine
+      PRINT, temp_routine+stage_lab[stage_set]+msg[i]
+    ENDFOR
+  ENDELSE
 END
 
 ;================================================================================= VERBOSE PROCEDURES
@@ -8836,7 +8885,7 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '580'
+	revision_number = '581'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -8861,7 +8910,8 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	dir_inst        = dir_settings+'inst'+PATH_SEP()              ; Path to instances file dir
 	dir_cpft_write  = FILE_TEST(dir_cpft, /WRITE)                 ; Check for cpft dir writeability
 	dir_inst_write  = FILE_TEST(dir_inst, /WRITE)                 ; Check for inst dir writeability
-	IF (verbosity[1] EQ 1) THEN PRINT,'CRISPEX SETUP: CRISPEX has been compiled from: '+file_crispex
+	IF (verbosity[1] EQ 1) THEN $
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK,'CRISPEX has been compiled from: '+file_crispex
 
 ;========================= LOAD PREFERENCES
   ; Define default preferences
@@ -8874,7 +8924,7 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	IF (cpreffilecount GE 1) THEN BEGIN     ; If preference file is present, load preference file
 		RESTORE, cpreffiles[0] 
 		IF (verbosity[1] EQ 1) THEN $
-      PRINT,'CRISPEX SETUP: Preferences restored from: '+dir_settings+'crispex.cpref'
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Preferences restored from: '+dir_settings+'crispex.cpref'
 		resave_preferences = ((N_ELEMENTS(phislice_update) NE 1) OR (N_ELEMENTS(slices_imscale) NE 1))
     ; Failsafe inheritances from older CRISPEX versions
     ; Automatic phislice update
@@ -9114,11 +9164,11 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 			  hdr.refnlp = 1
 			  hdr.refns = 1
 		  ENDIF ELSE BEGIN
-			  PRINT,'ERROR: Dimensions of the reference cube (['+STRTRIM(hdr.refnx,2)+','+$
-              STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+']) are not compatible with those of '+$
-              'the main image cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+','+$
-              STRTRIM(hdr.nt,2)+'])! Number of pixels in the x- and y-direction must be the same '+$
-              'for both.'
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Dimensions of the reference cube (['+$
+          STRTRIM(hdr.refnx,2)+','+STRTRIM(hdr.refny,2)+','+STRTRIM(hdr.refnt,2)+']) are not '+$
+          'compatible with those of the main image cube (['+STRTRIM(hdr.nx,2)+','+$
+          STRTRIM(hdr.ny,2)+','+STRTRIM(hdr.nt,2)+'])! Number of pixels in the x- and '+$
+          'y-direction must be the same for both.', /ERROR, /NO_ROUTINE, /NEWLINE
 			WIDGET_CONTROL, startuptlb, /DESTROY
 			RETURN
 		  ENDELSE
@@ -9215,7 +9265,8 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
         REPLICATE(i,ROUND((hdr.nlp/6.-FLOOR(hdr.nlp/6.))*6))] 
 			ENDIF ELSE selcol_diagnostics = [selcol_diagnostics, REPLICATE(i,6)]
 	ENDFOR
-	IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Stokes parameters: '+STRJOIN(stokes_labels,' ')
+	IF (verbosity[1] EQ 1) THEN $
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Stokes parameters: '+STRJOIN(stokes_labels,' ')
 
 	IF (hdr.refnlp NE hdr.nlp) THEN BEGIN
 		eqnlps = 0 
@@ -9235,11 +9286,11 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	cpftfile = FILE_SEARCH(dir_cpft+'crispex.'+hostname+'.cpft', COUNT = cpftfilecount)
 	IF cpftfilecount THEN BEGIN   ; If cpft file is present, restore
 		RESTORE, cpftfile[0] 
-		IF (verbosity[1] EQ 1) THEN PRINT, 'CRISPEX SETUP: Restored '+cpftfile[0]+'.'
+		IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Restored '+cpftfile[0]+'.'
 	ENDIF ELSE BEGIN              ; If not, then initialise variables
 		IF (verbosity[1] EQ 1) THEN BEGIN
-			PRINT, 'CRISPEX SETUP: No CRISPEX performance test file (crispex.'+hostname+'.cpft) found '+$
-             'to restore in '+dir_cpft
+			CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, ['No CRISPEX performance test file (crispex.'+hostname+$
+                                             '.cpft) found to restore in ',dir_cpft]
 		ENDIF
 		estimate_lx = 0             ; Size variable for time estimate
 		estimate_run = 0            ; Run counter for time estimate
@@ -9252,7 +9303,8 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		instfile = FILE_SEARCH(dir_inst+instfilename, COUNT = instfilecount)
 		IF instfilecount THEN BEGIN   ; If inst file is present for current hostname, add current
 			IF (verbosity[1] EQ 1) THEN $
-        PRINT, 'CRISPEX SETUP: Opening existing instance tracking file: '+instfilename+'.'
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Opening existing instance tracking file: '+$
+                                               instfilename+'.'
 			nlines = FILE_LINES(instfile)
 			datarr = STRARR(1,nlines)
 			OPENR,unit1,instfile,/GET_LUN
@@ -9269,8 +9321,8 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 			OPENU, unit2, dir_inst+instfilename, WIDTH = 360, /GET_LUN, /APPEND
 		ENDIF ELSE BEGIN              ; If no inst file present for current hostname, make one
 			IF (verbosity[1] EQ 1) THEN BEGIN
-				PRINT, 'CRISPEX SETUP: No CRISPEX instance tracking file ('+instfilename+') found in '+$
-                dir_inst+'. Creating file.'
+				CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'No CRISPEX instance tracking file ('+instfilename+$
+                                               ') found in '+dir_inst+'. Creating file.'
 			ENDIF
 			where_crispex = -1
 			OPENW, unit2, dir_inst+instfilename, WIDTH = 360, /GET_LUN
@@ -9285,20 +9337,22 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		FREE_LUN, unit2
 		IF (set_instance_id GE 1) THEN instance_label = '-'+set_instance_id ELSE instance_label = ''
 		IF (verbosity[1] EQ 1) THEN $
-      PRINT, 'CRISPEX SETUP: Written instance ID ('+set_instance_id+') to '+instfilename+'.'
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Written instance ID ('+set_instance_id+') to '+$
+                                             instfilename+'.'
 	ENDIF ELSE BEGIN
 		set_instance_id = ''
 		instance_label = ''
 		instfilecount = 0
 		IF (verbosity[1] EQ 1) THEN BEGIN
-			PRINT, 'CRISPEX SETUP ERROR: Could not write CRISPEX instance tracking file '+instfilename 
-			PRINT, '                     to '+dir_inst+'. Permission denied.'
+ 			CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'ERROR: Could not write CRISPEX instance tracking '+$
+                                             'file '+instfilename+'to '+dir_inst+'. Permission denied.'
 		ENDIF
 	ENDELSE
 	
 ;========================= SETTING START-UP OPTIONS 
 ;------------------------- PARAMETERS FROM MEAN SPEC
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (parameters from/for mean spectrum)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(parameters from/for mean spectrum)', /OPT, /OVER
 	feedback_text = ['Setting start-up options... ','> Parameters from/for mean spectrum... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	detspect_scale_enable = (hdr.nlp GT 1)
@@ -9340,11 +9394,14 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
   ; Handle SPECTFILE input; will only be done when cube is read in compatibility mode (i.e., for
   ; non-FITS cubes). Check whether SPECTFILE has been provided with save files
   IF ((N_ELEMENTS(SPECTFILE) GE 1) AND (SIZE(SPECTFILE,/TYPE) EQ 7)) THEN $
-    spectfile_set = (spectfile[0] NE '') ELSE spectfile_set = 0
+    spectfile_set = (spectfile[0] NE '') ELSE BEGIN
+    spectfile_set = 0
+    io_failsafe_imspectfile_error = 0
+  ENDELSE
   CRISPEX_IO_PARSE_SPECTFILE, spectfile, imagefile, verbosity, HDR_IN=hdr, HDR_OUT=hdr, $
                               MNSPEC=mnspec, /IMCUBE, CUBE_COMPATIBILITY=imcube_compatibility, $
                               STARTUPTLB=startuptlb, IO_FAILSAFE_ERROR=io_failsafe_imspectfile_error
-  IF io_failsafe_imspectfile_error THEN RETURN
+  IF (io_failsafe_imspectfile_error EQ 1) THEN RETURN 
   refspectfile_set = ((N_ELEMENTS(SPECTFILE) EQ 2) AND (SIZE(SPECTFILE,/TYPE) EQ 7)) 
   IF (STRCOMPRESS(refcube[0]) NE '') THEN BEGIN
     IF ((N_ELEMENTS(SPECTFILE) EQ 1) AND (refspectfile_set EQ 0)) THEN spectfile = [spectfile, '']
@@ -9353,7 +9410,10 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
                                 CUBE_COMPATIBILITY=refimcube_compatibility, $
                                 IO_FAILSAFE_ERROR=io_failsafe_refspectfile_error
     IF io_failsafe_refspectfile_error THEN RETURN
-  ENDIF ELSE hdr = CREATE_STRUCT(hdr, 'refspec', 0, 'refms', 0, 'reflps', 0)
+  ENDIF ELSE BEGIN
+    hdr = CREATE_STRUCT(hdr, 'refspec', 0, 'refms', 0, 'reflps', 0)
+    io_failsafe_refspectfile_error = 0
+  ENDELSE
 
 ;	detspect_scale_enable = ((hdr.ms EQ 1.) AND (hdr.nlp GT 1)) 
   IF (N_ELEMENTS(LINE_CENTER) NE 0) THEN BEGIN
@@ -9373,46 +9433,50 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
   ; Process settings from LINE_CENTER parsing 
   IF (hdr.refnlp GT 1) THEN BEGIN
     v_dop_set_ref = v_dop_set[1]
-    refspxtitle = (['Spectral position','Wavelength'])[v_dop_set_ref]
+    IF cube_compatibility[1] THEN refspxtitle = (['Spectral position','Wavelength'])[v_dop_set_ref]$
+      ELSE refspxtitle = hdr.xtitle[1]
   ENDIF ELSE BEGIN
     hdr = CREATE_STRUCT(hdr, 'reflc', 0, 'v_dop_ref', 0)
     refspxtitle = ''
     v_dop_set_ref = 0
   ENDELSE
   v_dop_set = v_dop_set[0]
-  spxtitle = (['Spectral position','Wavelength'])[v_dop_set]
+  IF cube_compatibility[0] THEN spxtitle = (['Spectral position','Wavelength'])[v_dop_set] $
+    ELSE spxtitle = hdr.xtitle[0]
  
   ; Process settings based on LPS variable and NO_WARP keyword to (not) warp of spectral slices
   CRISPEX_IO_PARSE_WARPSLICE, hdr.lps, hdr.nlp, hdr.nt, dlambda[0], dlambda_set[0], verbosity, $
                               NO_WARP=no_warp, WARPSPSLICE=warpspslice, XO=xo, XI=xi, YO=yo, YI=yi
   CRISPEX_IO_PARSE_WARPSLICE, hdr.reflps, hdr.refnlp, hdr.nt, dlambda[1], dlambda_set[1], $
                               verbosity, NO_WARP=no_warp, WARPSPSLICE=warprefspslice, $
-                              XO=xo_ref, XI=xi_ref, YO=yo_ref, YI=yi_ref
+                              XO=xo_ref, XI=xi_ref, YO=yo_ref, YI=yi_ref, /REFERENCE
 	
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (parameters from/for '+$
-                            'mean spectrum)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(parameters from/for mean spectrum)', /OPT, /OVER, /DONE, $
+                                        REPEAT_STAGE=(verbosity[1] OR $
+                                          (io_failsafe_imspectfile_error EQ 2) OR $
+                                          (io_failsafe_refspectfile_error EQ 2))
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],$
                    '> Parameters from/for mean spectrum... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- INITIAL SLIT PARAMETERS
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial slit parameters)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial slit parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Initial slit parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	nphi	= LONG(CEIL(SQRT( FLOAT(hdr.nx)^2 + FLOAT(hdr.ny)^2 )))	; Determine maximum number of slitpositions
+
+  nphi	= LONG(CEIL(SQRT( FLOAT(hdr.nx)^2 + FLOAT(hdr.ny)^2 )))	; Determine maximum number of slitpositions
 	angle = 45														; Set initial angle of the slit
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial slit parameters)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+
+  IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial slit parameters)', /OPT, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial slit parameters... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- INITIAL PLAYBACK PARAMETERS
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial playback parameters)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial playback parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Initial playback parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	t_first		= 0													; Set number of first frame		
@@ -9436,7 +9500,9 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 			dt_set = 1
 			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = 'Time (s)'
 		ENDIF ELSE BEGIN
-			PRINT,'WARNING: Calling CRISPEX with DT has no influence when no SPCUBE is supplied. Setting seconds per timestep to default value.'
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Calling CRISPEX with DT has no influence when '+$
+        'no SPCUBE is supplied. Setting seconds per timestep to default value.', /WARNING, $
+        /NO_ROUTINE, /NEWLINE
 			dt_set = 0
 			hdr.dt = 1.
 			spytitle = 'Frame number'
@@ -9447,15 +9513,14 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		spytitle = 'Frame number'
 	ENDELSE
 
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial playback parameters)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial playback parameters)', /OPT, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial playback parameters... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- INITIAL SPECTRAL PARAMETERS
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial spectral parameters)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial spectral parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Initial spectral parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	lp_first 	= 0													; Set number of first lineposition
@@ -9473,16 +9538,15 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		lp_ref_last = 1
 		lp_ref_start = 0
 	ENDELSE
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial spectral parameters)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial spectral parameters)', /OPT, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial spectral parameters... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- WINDOW SIZES (CHANGE ONLY
 ;--------------------------------------------------------------------------------- NUMERICAL VALUES!)
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (window sizes)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(window sizes)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Window sizes... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	
@@ -9547,17 +9611,17 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		IF ((hdr.nx LT 0.48 * x_scr_size) AND (hdr.ny LT (0.48 * x_scr_size / ratio)) AND KEYWORD_SET(WINDOW_LARGE)) THEN BEGIN				; If xsize is small, then still go to old settings procedures
 			imwinx 	= 0.48 * x_scr_size											; Set maximum x-extent of image window
 			imwiny 	= imwinx / ratio											; Set maximum y-extent of image window
-			IF (verbosity[1] EQ 1) THEN BEGIN
-				PRINT,''
-				PRINT,'CRISPEX SETUP: User screen resolution allows 1:1 image window sizing, but dimensions are small. Reverting. Image window is '+STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.'
-			ENDIF
+			IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'User screen resolution '+$
+                                    'allows 1:1 image window sizing, but dimensions are small. '+$
+                                    'Reverting to image window size of '+STRTRIM(imwinx,2)+'x'+$
+                                    STRTRIM(imwiny,2)+'.', /NEWLINE, /NO_ROUTINE
 		ENDIF ELSE BEGIN
 			imwinx	= hdr.nx													; - use actual nx as imwinx
 			imwiny	= hdr.ny													; - use actual ny as imwiny
-			IF (verbosity[1] EQ 1) THEN BEGIN
-				PRINT,''
-				PRINT,'CRISPEX SETUP: User screen resolution allows 1:1 image window sizing. Image window is '+STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.'
-			ENDIF
+			IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'User screen resolution '+$
+                                    'allows 1:1 image window sizing. Image window is '+$
+                                    STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.', /NEWLINE, $
+                                    /NO_ROUTINE
 		ENDELSE
 	ENDIF ELSE BEGIN													; Else use the old procedures to determine imwinx and imwiny
 		imwinx 	= 0.48 * x_scr_size											; Set maximum x-extent of image window
@@ -9566,10 +9630,9 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 			imwiny = 0.85 * y_scr_size											; screensize
 			imwinx = imwiny * ratio
 		ENDIF
-		IF (verbosity[1] EQ 1) THEN BEGIN 
-			PRINT,'' 
-			PRINT,'CRISPEX SETUP: User screen resolution does not allow for 1:1 image window sizing. Image window is '+STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.' 
-		ENDIF
+		IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'User screen resolution '+$
+                                  'does not allow for 1:1 image window sizing. Image window is '+$
+                                  STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.', /NEWLINE, /NO_ROUTINE
 	ENDELSE
 
 	windowx		= 0.2 * x_scr_size											; Set maximum x-extent of spectral win
@@ -9695,15 +9758,15 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	loopyplspw	= loopy1 - spy0
 	loopntreb	= loopyplspw * windowy
 
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (window sizes)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(window sizes)', /OPT, /OVER, /DONE, $
+                                        REPEAT_STAGE=verbosity[1]
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Window sizes... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- INITIAL SPATIAL PARAMETERS
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial spatial parameters)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial spatial parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Initial spatial parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	x_first		= 0													; Set number of first x-coordinate
@@ -9715,15 +9778,14 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	y_start		= FLOAT(FLOOR(hdr.ny/2))												; Determine the middle y-coordinate
 	sy_start	= y_start * imwiny / FLOAT(hdr.ny)										; Convert that to device
   arcsecpix	= hdr.dx
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (initial spatial parameters)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial spatial parameters)', /OPT, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial spatial parameters... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- SCALING PARAMETERS
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (image scaling parameters)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial scaling parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Initial scaling parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	imagescale = PTR_NEW([0,0,0])												; Image scaling based on first image
@@ -9825,15 +9887,14 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	scale_min_val = [0., 0.]
 	rel_scale_max_val = [100., 100.]
 	rel_scale_min_val = [0.,0.]
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (image scaling parameters)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial scaling parameters)', /OPT, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial scaling parameters... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- OTHER PARAMETERS
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (other parameters)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(other parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Other parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	CD, CURRENT=curpath
@@ -9852,8 +9913,9 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	IF (SINGLE_CUBE GE 1) THEN BEGIN
 		IF (hdr.nt GT 1) THEN BEGIN
 			exts_set = 1						; Automatically set EXTS when providing a (single lineposition) 3D cube
-			PRINT,'WARNING: The exact timeslice (EXTS) keyword has been automatically set to enable the '
-			PRINT,'		drawing of loop paths and extraction of timeslices!'
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The exact timeslice (EXTS) keyword has been '+$
+        'automatically set to enable the drawing of loop paths and extraction of timeslices!', $
+        /WARNING, /NO_ROUTINE, /NEWLINE
 		ENDIF ELSE exts_set=0
 	ENDIF
 	refexts_set = (refspfile NE 1)
@@ -9864,63 +9926,66 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	lp_last_vals = hdr.nlp-1
 
 	scale_cubes_vals = [1.,1.]
-	IF (N_ELEMENTS(SCALE_CUBES) EQ 1) THEN scale_cubes_vals[0] = scale_cubes ELSE IF (N_ELEMENTS(SCALE_CUBES) EQ 2) THEN scale_cubes_vals = scale_cubes
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting start-up options (other parameters)...",a5)','done!') 
-		IF (verbosity[1] EQ 1) THEN BEGIN
-			PRINT,'' 
-			PRINT,'CRISPEX SETUP: Input path set to: '+STRTRIM(ipath,2)
-			PRINT,'CRISPEX SETUP: Output path set to: '+STRTRIM(opath,2)
-		ENDIF
-	ENDIF
-	feedback_text = [feedback_text[0]+'done!',feedback_text[1:N_ELEMENTS(feedback_text)-2],'> Other parameters... done!']
+	IF (N_ELEMENTS(SCALE_CUBES) EQ 1) THEN scale_cubes_vals[0] = scale_cubes ELSE $
+    IF (N_ELEMENTS(SCALE_CUBES) EQ 2) THEN scale_cubes_vals = scale_cubes
+  IF verbosity[1] THEN BEGIN
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Input path set to: '+STRTRIM(ipath,2), /NEWLINE, $
+                                           /NO_ROUTINE
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Output path set to: '+STRTRIM(opath,2), /NO_ROUTINE
+  ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(other parameters)', /OPT, /OVER, /DONE,$
+                                        REPEAT_STAGE=verbosity[1]
+	feedback_text = [feedback_text[0]+'done!',feedback_text[1:N_ELEMENTS(feedback_text)-2],$
+    '> Other parameters... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	WAIT,0.1
 
 ;================================================================================= SETTING UP WIDGET
 ;--------------------------------------------------------------------------------- INITIALISE CONTROL PANEL
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (loading BMP buttons)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(loading BMP buttons)', /WIDGET, /OVER
 	feedback_text = ['Setting up widget... ','> Loading BMP buttons... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	bmpbut_search = FILE_SEARCH(dir_buttons, '*.bmp', COUNT=bmpbut_count)
 	IF (bmpbut_count EQ 16) THEN BEGIN
-		bmpbut_fbwd_idle 	= CRISPEX_READ_BMP_BUTTONS('fbwd_idle.bmp',dir_buttons)
-		bmpbut_fbwd_pressed 	= CRISPEX_READ_BMP_BUTTONS('fbwd_pressed.bmp',dir_buttons)
-		bmpbut_bwd_idle 	= CRISPEX_READ_BMP_BUTTONS('bwd_idle.bmp',dir_buttons)
-		bmpbut_bwd_pressed 	= CRISPEX_READ_BMP_BUTTONS('bwd_pressed.bmp',dir_buttons)
-		bmpbut_pause_idle	= CRISPEX_READ_BMP_BUTTONS('pause_idle.bmp',dir_buttons)
-		bmpbut_pause_pressed 	= CRISPEX_READ_BMP_BUTTONS('pause_pressed.bmp',dir_buttons)
-		bmpbut_fwd_idle 	= CRISPEX_READ_BMP_BUTTONS('fwd_idle.bmp',dir_buttons)
-		bmpbut_fwd_pressed 	= CRISPEX_READ_BMP_BUTTONS('fwd_pressed.bmp',dir_buttons)
-		bmpbut_ffwd_idle 	= CRISPEX_READ_BMP_BUTTONS('ffwd_idle.bmp',dir_buttons)
-		bmpbut_ffwd_pressed 	= CRISPEX_READ_BMP_BUTTONS('ffwd_pressed.bmp',dir_buttons)
-		bmpbut_loop_idle	= CRISPEX_READ_BMP_BUTTONS('loop_idle.bmp',dir_buttons)
-		bmpbut_loop_pressed	= CRISPEX_READ_BMP_BUTTONS('loop_pressed.bmp',dir_buttons)
-		bmpbut_cycle_idle	= CRISPEX_READ_BMP_BUTTONS('cycle_idle.bmp',dir_buttons)
-		bmpbut_cycle_pressed	= CRISPEX_READ_BMP_BUTTONS('cycle_pressed.bmp',dir_buttons)
-		bmpbut_blink_idle	= CRISPEX_READ_BMP_BUTTONS('blink_idle.bmp',dir_buttons)
-		bmpbut_blink_pressed	= CRISPEX_READ_BMP_BUTTONS('blink_pressed.bmp',dir_buttons)
-		donetext = 'done!'
+		bmpbut_fbwd_idle     = CRISPEX_READ_BMP_BUTTONS('fbwd_idle.bmp',dir_buttons)
+		bmpbut_fbwd_pressed  = CRISPEX_READ_BMP_BUTTONS('fbwd_pressed.bmp',dir_buttons)
+		bmpbut_bwd_idle      = CRISPEX_READ_BMP_BUTTONS('bwd_idle.bmp',dir_buttons)
+		bmpbut_bwd_pressed   = CRISPEX_READ_BMP_BUTTONS('bwd_pressed.bmp',dir_buttons)
+		bmpbut_pause_idle    = CRISPEX_READ_BMP_BUTTONS('pause_idle.bmp',dir_buttons)
+		bmpbut_pause_pressed = CRISPEX_READ_BMP_BUTTONS('pause_pressed.bmp',dir_buttons)
+		bmpbut_fwd_idle      = CRISPEX_READ_BMP_BUTTONS('fwd_idle.bmp',dir_buttons)
+		bmpbut_fwd_pressed   = CRISPEX_READ_BMP_BUTTONS('fwd_pressed.bmp',dir_buttons)
+		bmpbut_ffwd_idle     = CRISPEX_READ_BMP_BUTTONS('ffwd_idle.bmp',dir_buttons)
+		bmpbut_ffwd_pressed  = CRISPEX_READ_BMP_BUTTONS('ffwd_pressed.bmp',dir_buttons)
+		bmpbut_loop_idle     = CRISPEX_READ_BMP_BUTTONS('loop_idle.bmp',dir_buttons)
+		bmpbut_loop_pressed  = CRISPEX_READ_BMP_BUTTONS('loop_pressed.bmp',dir_buttons)
+		bmpbut_cycle_idle    = CRISPEX_READ_BMP_BUTTONS('cycle_idle.bmp',dir_buttons)
+		bmpbut_cycle_pressed = CRISPEX_READ_BMP_BUTTONS('cycle_pressed.bmp',dir_buttons)
+		bmpbut_blink_idle    = CRISPEX_READ_BMP_BUTTONS('blink_idle.bmp',dir_buttons)
+		bmpbut_blink_pressed = CRISPEX_READ_BMP_BUTTONS('blink_pressed.bmp',dir_buttons)
+    failed = 0
 	ENDIF ELSE BEGIN
-		bmpbut_fbwd_idle 	= '<<'		&	bmpbut_fbwd_pressed 	= bmpbut_fbwd_idle
-		bmpbut_bwd_idle 	= '<'		&	bmpbut_bwd_pressed 	= bmpbut_bwd_idle
-		bmpbut_pause_idle	= '||'		&	bmpbut_pause_pressed 	= bmpbut_pause_idle
-		bmpbut_fwd_idle 	= '>'		&	bmpbut_fwd_pressed 	= bmpbut_fwd_idle
-		bmpbut_ffwd_idle 	= '>>'		&	bmpbut_ffwd_pressed 	= bmpbut_ffwd_idle
-		bmpbut_loop_idle	= 'Loop'	&	bmpbut_loop_pressed	= bmpbut_loop_idle
-		bmpbut_cycle_idle	= 'Cycle'	&	bmpbut_cycle_pressed	= bmpbut_cycle_idle
-		bmpbut_blink_idle	= 'Blink'	&	bmpbut_blink_pressed	= bmpbut_blink_idle
-		donetext = 'failed.'
+		bmpbut_fbwd_idle  = '<<'    & bmpbut_fbwd_pressed  = bmpbut_fbwd_idle
+		bmpbut_bwd_idle   = '<'     & bmpbut_bwd_pressed   = bmpbut_bwd_idle
+		bmpbut_pause_idle = '||'    & bmpbut_pause_pressed = bmpbut_pause_idle
+		bmpbut_fwd_idle   = '>'     & bmpbut_fwd_pressed   = bmpbut_fwd_idle
+		bmpbut_ffwd_idle  = '>>'    & bmpbut_ffwd_pressed  = bmpbut_ffwd_idle
+		bmpbut_loop_idle  = 'Loop'  & bmpbut_loop_pressed  = bmpbut_loop_idle
+		bmpbut_cycle_idle = 'Cycle' & bmpbut_cycle_pressed = bmpbut_cycle_idle
+		bmpbut_blink_idle = 'Blink' & bmpbut_blink_pressed = bmpbut_blink_idle
+    failed = 1
 	ENDELSE
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (loading BMP buttons)...",a5)',donetext) 
-		PRINT,'' 
-	ENDIF
+  IF failed THEN donetext = 'failed.' ELSE donetext = 'done!'
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(loading BMP buttons)', /WIDGET, /OVER, /DONE, FAIL=failed
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Loading BMP buttons... '+donetext]
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- INITIALISE CONTROL PANEL
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (initializing control panel)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initialising control panel)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Initializing control panel... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	control_panel		= WIDGET_BASE(TITLE = 'CRISPEX'+instance_label+': Control Panel', TLB_FRAME_ATTR = 1, /COLUMN, /FRAME, KILL_NOTIFY = 'CRISPEX_CLOSE_CLEANUP', MBAR = menubar, TLB_SIZE_EVENTS = 1)
@@ -10245,15 +10310,14 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	measure_km_text		= WIDGET_LABEL(measure_km, VALUE = '0.00', /DYNAMIC_RESIZE, SENSITIVE = 0)
 
 	bg = WIDGET_BASE(control_panel, EVENT_PRO = 'CRISPEX_PB_BG')
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (initializing control panel)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initialising control panel)', /WIDGET, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initializing control panel... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- SETTING UP DATA POINTERS
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (setting up data pointers)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(setting up data pointers)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Setting up data pointers... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	index = INTARR(hdr.nx,hdr.ny,2)
@@ -10343,10 +10407,8 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	WIDGET_CONTROL, xydrawid, EVENT_PRO = 'CRISPEX_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, /TRACKING_EVENTS,$
 		/DRAW_BUTTON_EVENTS
 	
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (setting up data pointers)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(setting up data pointers)', /WIDGET, /OVER, /DONE
 	IF startupwin THEN BEGIN
 		WSET, startupwid
 		WSHOW, startupwid
@@ -10355,7 +10417,8 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	ENDIF
 
 ;--------------------------------------------------------------------------------- DEFINE INFO POINTER
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (defining info pointer)...",a5)','     ') 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(defining main pointer)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Defining info pointer... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
@@ -10825,15 +10888,14 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	WIDGET_CONTROL, imwin, SET_UVALUE = info
 
 	pseudoevent = { WIDGET_BUTTON, id:control_panel, top:control_panel, handler:0L, select:1 }
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (defining info pointer)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
-	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Defining info pointer... done!']
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(defining main pointer)', /WIDGET, /OVER, /DONE
+	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Defining main pointer... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
 ;--------------------------------------------------------------------------------- DETERMINE DISPLAY OF PLOTS
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (determining display of plots)...",a5)','     ')
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(determining display of plots)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Determining display of plots... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	IF ((*(*info).dataswitch).spfile EQ 1) THEN BEGIN
@@ -10898,15 +10960,14 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		WIDGET_CONTROL, ls_toggle_but, SET_BUTTON = 1
 		(*(*info).winswitch).showls = 1
 	ENDELSE
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (determining display of plots)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(determining display of plots)', /WIDGET, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Determining display of plots... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 ;--------------------------------------------------------------------------------- OPENING WINDOWS
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (realizing widget)...",a5)','     ')
-	feedback_text = [feedback_text,'> Realizing widget... ']
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(realising widget)', /WIDGET, /OVER
+	feedback_text = [feedback_text,'> Realising widget... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	CRISPEX_MASK_BUTTONS_SET, pseudoevent
 	IF (*(*info).winswitch).showsp THEN BEGIN
@@ -10971,32 +11032,29 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		lsoffset = (*(*info).winswitch).showrefls * (reflswiny + (*(*info).winsizes).ydelta)
 	WIDGET_CONTROL, control_panel, /REALIZE, TLB_SET_XOFFSET = (*(*info).winsizes).xywinx + (*(*info).winsizes).xdelta + spwset * ((*(*info).winsizes).xdelta + (*(*info).winsizes).spwinx), $
 		TLB_SET_YOFFSET = lsoffset
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (realizing widget)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(realising widget)', /WIDGET, /OVER, /DONE
 	IF startupwin THEN BEGIN
 		WSET, startupwid
-		feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Realizing widget... done!']
+		feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Realising widget... done!']
 		CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	ENDIF
 
 ;--------------------------------------------------------------------------------- START MANAGING
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (start managing)...",a5)','     ')
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(start mangaing)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Start managing... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	XMANAGER, 'CRISPEX', control_panel, /NO_BLOCK
 	XMANAGER, 'CRISPEX', imwin, /NO_BLOCK
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN 
-		WRITEU,-1,STRING(FORMAT='(%"\rCRISPEX SETUP: Setting up widget (start managing)...",a5)','done!') 
-		PRINT,'' 
-	ENDIF
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(start mangaing)', /WIDGET, /OVER, /DONE
 	feedback_text = [feedback_text[0]+'done!',feedback_text[1:N_ELEMENTS(feedback_text)-2],'> Start managing... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	WAIT,0.1
 	IF (*(*info).prefs).autoplay THEN CRISPEX_PB_FORWARD, pseudoevent
 	IF resave_preferences THEN CRISPEX_PREFERENCES_SAVE_SETTINGS, pseudoevent, /RESAVE
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN PRINT,'CRISPEX SETUP: Set-up done!'
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Set-up done!'
 	IF startupwin THEN BEGIN
 		WSET, startupwid
 		CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Set-up done!'
