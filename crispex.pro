@@ -519,7 +519,8 @@ PRO CRISPEX_CURSOR, event
 			ENDIF		
 			IF (!D.WINDOW NE -1) THEN DEVICE, /CURSOR_CROSSHAIR 
 		ENDELSE
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [event.ENTER], labels=['WIDGET_TRACKING: event.Enter']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [event.ENTER], labels=['WIDGET_TRACKING: event.Enter']
 	ENDIF ELSE IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_DRAW' THEN BEGIN
 		CASE event.TYPE OF
 		0:	CASE event.PRESS OF
@@ -532,29 +533,38 @@ PRO CRISPEX_CURSOR, event
 					(*(*info).curs).sx = (*(*info).curs).sxlock
 					(*(*info).curs).sy = (*(*info).curs).sylock
 					IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
-						(*(*info).curs).xlock = FLOAT((*(*info).curs).sxlock * (*(*info).dataparams).nx) / (*(*info).winsizes).xywinx
-						(*(*info).curs).ylock = FLOAT((*(*info).curs).sylock * (*(*info).dataparams).ny) / (*(*info).winsizes).xywiny
+						(*(*info).curs).xlock = FLOAT((*(*info).curs).sxlock * (*(*info).dataparams).nx) / $
+                                    (*(*info).winsizes).xywinx
+						(*(*info).curs).ylock = FLOAT((*(*info).curs).sylock * (*(*info).dataparams).ny) / $
+                                    (*(*info).winsizes).xywiny
 					ENDIF ELSE BEGIN
-						(*(*info).curs).xlock = FLOAT((*(*info).curs).sxlock * ((*(*info).dataparams).d_nx+1)) / (*(*info).winsizes).xywinx + (*(*info).zooming).xpos
-						(*(*info).curs).ylock = FLOAT((*(*info).curs).sylock * ((*(*info).dataparams).d_ny+1)) / (*(*info).winsizes).xywiny + (*(*info).zooming).ypos
+						(*(*info).curs).xlock = FLOAT((*(*info).curs).sxlock * ((*(*info).dataparams).d_nx+1)) $
+                                    / (*(*info).winsizes).xywinx + (*(*info).zooming).xpos
+						(*(*info).curs).ylock = FLOAT((*(*info).curs).sylock * ((*(*info).dataparams).d_ny+1)) $
+                                    / (*(*info).winsizes).xywiny + (*(*info).zooming).ypos
 					ENDELSE
 					(*(*info).dataparams).x = (*(*info).curs).xlock
 					(*(*info).dataparams).y = (*(*info).curs).ylock
 					IF (*(*info).overlayswitch).loopslit THEN BEGIN
 						(*(*info).loopparams).np += 1
-						IF ((*(*info).loopparams).np EQ 2) THEN WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, SET_VALUE = 'Erase loop path'
+						IF ((*(*info).loopparams).np EQ 2) THEN $
+              WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, SET_VALUE = 'Erase loop path'
 						IF ((*(*info).loopparams).np GE 2) THEN BEGIN
 							*(*(*info).loopparams).xp = [[*(*(*info).loopparams).xp],[(*(*info).curs).xlock]]
 							*(*(*info).loopparams).yp = [[*(*(*info).loopparams).yp],[(*(*info).curs).ylock]]
 							*(*(*info).overlayparams).sxp = [[*(*(*info).overlayparams).sxp],[(*(*info).curs).sxlock]]
 							*(*(*info).overlayparams).syp = [[*(*(*info).overlayparams).syp],[(*(*info).curs).sylock]]
-							IF ((*(*info).winids).looptlb EQ 0) THEN WIDGET_CONTROL, (*(*info).ctrlscp).loop_slice_but, SENSITIVE = 1
-							IF ((*(*info).loopparams).np EQ 3) THEN WIDGET_CONTROL, (*(*info).ctrlscp).rem_loop_pt_but, SENSITIVE = 1
+							IF ((*(*info).winids).looptlb EQ 0) THEN $
+                WIDGET_CONTROL, (*(*info).ctrlscp).loop_slice_but, SENSITIVE = 1
+							IF ((*(*info).loopparams).np EQ 3) THEN $
+                WIDGET_CONTROL, (*(*info).ctrlscp).rem_loop_pt_but, SENSITIVE = 1
 							CRISPEX_LOOP_GET, event
 							CRISPEX_UPDATE_LP, event
 							IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-								*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-								*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
+								*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - $
+                  (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
+								*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - $
+                  (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
 							ENDIF
 						ENDIF ELSE BEGIN
 							(*(*(*info).loopparams).xp)[0] = (*(*info).curs).xlock
@@ -607,18 +617,26 @@ PRO CRISPEX_CURSOR, event
 					(*(*info).curs).sy = event.Y
 					CRISPEX_CURSOR_GET_XY, event
 					CRISPEX_COORDSLIDERS_SET, 1, 1, event 
-				ENDIF ELSE IF ((*(*info).overlayswitch).loopslit AND (*(*info).overlayswitch).looppath_feedback AND ((*(*info).loopparams).np GE 1)) THEN BEGIN
+				ENDIF ELSE IF ((*(*info).overlayswitch).loopslit AND $
+                       (*(*info).overlayswitch).looppath_feedback AND $
+                       ((*(*info).loopparams).np GE 1)) THEN BEGIN
 					(*(*info).curs).sx = event.X
 					(*(*info).curs).sy = event.Y
 					CRISPEX_CURSOR_GET_XY, event
-					*(*(*info).loopparams).xp = [[(*(*(*info).loopparams).xp)[*,0:(*(*info).loopparams).np-1]],[(*(*info).dataparams).x]]
-					*(*(*info).loopparams).yp = [[(*(*(*info).loopparams).yp)[*,0:(*(*info).loopparams).np-1]],[(*(*info).dataparams).y]]
-					*(*(*info).overlayparams).sxp = [[(*(*(*info).overlayparams).sxp)[*,0:(*(*info).loopparams).np-1]],[(*(*info).curs).sx]]
-					*(*(*info).overlayparams).syp = [[(*(*(*info).overlayparams).syp)[*,0:(*(*info).loopparams).np-1]],[(*(*info).curs).sy]]
+					*(*(*info).loopparams).xp = [[(*(*(*info).loopparams).xp)[$
+                                        *,0:(*(*info).loopparams).np-1]],[(*(*info).dataparams).x]]
+					*(*(*info).loopparams).yp = [[(*(*(*info).loopparams).yp)[$
+                                        *,0:(*(*info).loopparams).np-1]],[(*(*info).dataparams).y]]
+					*(*(*info).overlayparams).sxp = [[(*(*(*info).overlayparams).sxp)[$
+                                            *,0:(*(*info).loopparams).np-1]],[(*(*info).curs).sx]]
+					*(*(*info).overlayparams).syp = [[(*(*(*info).overlayparams).syp)[$
+                                            *,0:(*(*info).loopparams).np-1]],[(*(*info).curs).sy]]
 					CRISPEX_LOOP_GET_PATH, event
 					IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-						*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-						*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
+						*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) *$
+              (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
+						*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) *$
+              (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
 					ENDIF
 					CRISPEX_COORDSLIDERS_SET, 0, 0, event
 				ENDIF ELSE IF ((*(*info).meas).spatial_measurement AND ((*(*info).meas).np EQ 1)) THEN BEGIN
@@ -635,8 +653,10 @@ PRO CRISPEX_CURSOR, event
 			END
 		ELSE: RETURN
 		ENDCASE
-		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [event.TYPE,event.PRESS,(*(*info).dataparams).x,(*(*info).dataparams).y,(*(*info).curs).sx,(*(*info).curs).sy], $
-			labels=['WIDGET_DRAW: event.TYPE','WIDGET_DRAW: event.PRESS','x','y','sx','sy']
+		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, $
+      [event.TYPE,event.PRESS,(*(*info).dataparams).x,(*(*info).dataparams).y,(*(*info).curs).sx,$
+      (*(*info).curs).sy], labels=['WIDGET_DRAW: event.TYPE','WIDGET_DRAW: event.PRESS','x','y',$
+      'sx','sy']
 		IF (*(*info).winswitch).showphis THEN BEGIN
 			CRISPEX_PHISLIT_DIRECTION, event
 			CRISPEX_UPDATE_PHIS, event
@@ -647,15 +667,19 @@ END
 PRO CRISPEX_CURSOR_GET_XY, event
 ; Converts the window x and y coordinates to data x and y coordinates
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CURSOR_GET_XY'
-	IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
-		(*(*info).dataparams).x = (*(*info).curs).sx * (*(*info).dataparams).nx / (*(*info).winsizes).xywinx
-		(*(*info).dataparams).y = (*(*info).curs).sy * (*(*info).dataparams).ny / (*(*info).winsizes).xywiny
-	ENDIF ELSE BEGIN
-		(*(*info).dataparams).x = (*(*info).curs).sx * ((*(*info).dataparams).d_nx+1) / (*(*info).winsizes).xywinx + (*(*info).zooming).xpos
-		(*(*info).dataparams).y = (*(*info).curs).sy * ((*(*info).dataparams).d_ny+1) / (*(*info).winsizes).xywiny + (*(*info).zooming).ypos
-	ENDELSE
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).x,(*(*info).dataparams).y], labels=['x','y']
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CURSOR_GET_XY'
+;	IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
+;		(*(*info).dataparams).x = (*(*info).curs).sx * (*(*info).dataparams).nx / (*(*info).winsizes).xywinx
+;		(*(*info).dataparams).y = (*(*info).curs).sy * (*(*info).dataparams).ny / (*(*info).winsizes).xywiny
+;	ENDIF ELSE BEGIN
+		(*(*info).dataparams).x = (*(*info).curs).sx * ((*(*info).dataparams).d_nx+1) / $
+                              (*(*info).winsizes).xywinx + (*(*info).zooming).xpos
+		(*(*info).dataparams).y = (*(*info).curs).sy * ((*(*info).dataparams).d_ny+1) / $
+                              (*(*info).winsizes).xywiny + (*(*info).zooming).ypos
+;	ENDELSE
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, $
+    [(*(*info).dataparams).x,(*(*info).dataparams).y], labels=['x','y']
 END
 
 PRO CRISPEX_CURSOR_LOCK, event								
@@ -3146,8 +3170,8 @@ PRO CRISPEX_DRAW_REFLS, event
 	ls_upp_y = (*(*info).plotaxes).ls_upp_y_ref
 	order_corr=0.
 	IF (*(*info).dispswitch).ref_detspect_scale THEN reflsytitle = 'Scaled '+STRLOWCASE((*(*info).plottitles).reflsytitle) ELSE BEGIN
-		IF ((FLOOR(ALOG10(ls_low_y)) LE -2) OR (FLOOR(ALOG10(ls_upp_y)) GE 3)) THEN BEGIN
-			order_corr = FLOOR(ALOG10(ls_upp_y))
+		IF ((FLOOR(ALOG10(ABS(ls_low_y))) LE -2) OR (FLOOR(ALOG10(ABS(ls_upp_y))) GE 3)) THEN BEGIN
+			order_corr = FLOOR(ALOG10(ABS(ls_upp_y)))
 			reflsytitle = (*(*info).plottitles).reflsytitle+' (x10!U'+STRTRIM(order_corr,2)+'!N)'
 		ENDIF ELSE reflsytitle = (*(*info).plottitles).reflsytitle
 		ls_low_y /= (10.^(order_corr))
@@ -3255,8 +3279,8 @@ PRO CRISPEX_DRAW_LS, event
 		ls_upp_y = (*(*(*info).plotaxes).ls_upp_y)[s]
 		order_corr=0.
 		IF (*(*info).dispswitch).detspect_scale THEN lsytitle = 'Scaled '+STRLOWCASE((*(*info).plottitles).lsytitle) ELSE BEGIN
-			IF ((FLOOR(ALOG10(ls_low_y)) LE -2) OR (FLOOR(ALOG10(ls_upp_y)) GE 3)) THEN BEGIN
-				order_corr = FLOOR(ALOG10(ls_upp_y))
+			IF ((FLOOR(ALOG10(ABS(ls_low_y))) LE -2) OR (FLOOR(ALOG10(ABS(ls_upp_y))) GE 3)) THEN BEGIN
+				order_corr = FLOOR(ALOG10(ABS(ls_upp_y)))
 				lsytitle = (*(*info).plottitles).lsytitle+' (x10!U'+STRTRIM(order_corr,2)+'!N)'
 			ENDIF ELSE lsytitle = (*(*info).plottitles).lsytitle
 			ls_low_y /= (10.^(order_corr))
@@ -8325,9 +8349,11 @@ END
 PRO CRISPEX_SLIDER_XPOS, event
 ; Handles change in x-slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_XPOS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_XPOS'
 	(*(*info).zooming).xpos = event.VALUE
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).xpos], labels=['xpos']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).xpos], labels=['xpos']
 	CRISPEX_UPDATE_SX, event
 	CRISPEX_UPDATE_T, event
 	CRISPEX_DRAW, event
@@ -8349,9 +8375,11 @@ END
 PRO CRISPEX_SLIDER_YPOS, event
 ; Handles change in y-slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_YPOS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_YPOS'
 	(*(*info).zooming).ypos = event.VALUE
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).ypos], labels=['ypos']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).ypos], labels=['ypos']
 	CRISPEX_UPDATE_SY, event
 	CRISPEX_UPDATE_T, event
 	CRISPEX_DRAW, event
@@ -8406,80 +8434,153 @@ END
 PRO CRISPEX_UPDATE_T, event
 ; Handles the updated of displayed data after change in framenumber
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_T'
-	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_T'
+;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
 		x_low = (*(*info).zooming).xpos
-		x_upp = (*(*info).zooming).xpos + (*(*info).dataparams).d_nx
 		y_low = (*(*info).zooming).ypos
-		y_upp = (*(*info).zooming).ypos + (*(*info).dataparams).d_ny
-		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [x_low,x_upp,(*(*info).dataparams).d_nx,(*(*info).dataparams).nx,y_low,y_upp,(*(*info).dataparams).d_ny,(*(*info).dataparams).ny],$
+;    IF ((*(*info).zooming).handle_extreme EQ 2) THEN BEGIN
+;      IF ((*(*info).data).ratio GT 1) THEN BEGIN
+;        d_nx = (*(*info).dataparams).d_nx
+;        d_ny = (*(*info).dataparams).ny-1
+;      ENDIF ELSE BEGIN
+;        IF ((*(*info).zooming).factor LE 1) THEN d_nx = (*(*info).dataparams).nx-1 ELSE $
+;          d_nx = (*(*info).dataparams).d_nx
+;;        true_winy = ny * 8
+;;        fake_winy = xywiny
+;;        part = xywiny / (ny * 8)
+;;        dny = part * ny = xywiny / 8. 
+;        d_ny = (*(*info).winsizes).xywiny / 8. ;(*(*info).dataparams).ny * 8
+;      ENDELSE
+;    ENDIF ELSE BEGIN
+      d_nx = (*(*info).dataparams).d_nx
+      d_ny = (*(*info).dataparams).d_ny
+;    ENDELSE
+  	x_upp = (*(*info).zooming).xpos + d_nx
+  	y_upp = (*(*info).zooming).ypos + d_ny
+		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, $
+      [x_low,x_upp,(*(*info).dataparams).d_nx,(*(*info).dataparams).nx,$
+       y_low,y_upp,(*(*info).dataparams).d_ny,(*(*info).dataparams).ny],$
 			labels=['x_low','x_upp','d_nx','nx','y_low','y_upp','d_ny','ny']
-	ENDIF
+;	ENDIF
 	IF (*(*info).winswitch).showdop THEN BEGIN
 		(*(*info).dataparams).lp_dop = 2*(*(*info).dataparams).lc - (*(*info).dataparams).lp
-		(*(*info).dispswitch).drawdop = (((*(*info).dataparams).lp_dop GE (*(*info).dispparams).lp_low) AND ((*(*info).dataparams).lp_dop LE (*(*info).dispparams).lp_upp) AND $
-			((*(*info).dataparams).lp_dop NE (*(*info).dataparams).lc)) 
+		(*(*info).dispswitch).drawdop = (((*(*info).dataparams).lp_dop GE (*(*info).dispparams).lp_low)$
+                                 AND ((*(*info).dataparams).lp_dop LE (*(*info).dispparams).lp_upp)$
+                                 AND ((*(*info).dataparams).lp_dop NE (*(*info).dataparams).lc)) 
 	ENDIF
+  ; Determine main image, in case the cube has a spectral dimension
 	IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN BEGIN
-		IF((*(*info).zooming).factor NE 1) THEN BEGIN
-			*(*(*info).data).xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[(*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
-			(*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) 
+    basecubeidx = (*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
+			            (*(*info).dataparams).s * (*(*info).dataparams).nlp
+;		IF((*(*info).zooming).factor NE 1) THEN BEGIN
+			*(*(*info).data).xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[$
+        basecubeidx + (*(*info).dataparams).lp])[x_low:x_upp, y_low:y_upp]), $
+        (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) 
 			IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
-				temp_xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[(*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
-				(*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp_dop])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
-		ENDIF ELSE BEGIN
-			*(*(*info).data).xyslice = REFORM((*(*(*info).data).imagedata)[(*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
-			(*(*info).dataparams).lp])
-			IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN temp_xyslice = REFORM((*(*(*info).data).imagedata)[(*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
-				(*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp_dop])
-		ENDELSE
+				temp_xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[$
+          basecubeidx + (*(*info).dataparams).lp_dop])[x_low:x_upp, y_low:y_upp]), $
+          (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
+;		ENDIF ELSE BEGIN
+;			*(*(*info).data).xyslice = REFORM((*(*(*info).data).imagedata)[basecubeidx + $
+;        (*(*info).dataparams).lp])
+;			IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
+;        temp_xyslice = REFORM((*(*(*info).data).imagedata)[basecubeidx + $
+;          (*(*info).dataparams).lp_dop])
+;		ENDELSE
+  ; Determine main image, in case the cube has no spectral dimension
 	ENDIF ELSE BEGIN
-		IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-			*(*(*info).data).xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[(*(*info).dataparams).s * (*(*info).dataparams).nlp + $
-			(*(*info).dataparams).lp])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx,(*(*info).winsizes).xywiny ) 
-			IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN temp_xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[(*(*info).dataparams).s * (*(*info).dataparams).nlp + $
-				(*(*info).dataparams).lp_dop])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx,(*(*info).winsizes).xywiny )
-		ENDIF ELSE BEGIN
-			*(*(*info).data).xyslice = REFORM((*(*(*info).data).imagedata)[(*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp] ) 
+    basecubeidx = (*(*info).dataparams).s * (*(*info).dataparams).nlp 
+;		IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+			*(*(*info).data).xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[basecubeidx + $
+        (*(*info).dataparams).lp])[x_low:x_upp, y_low:y_upp]), $
+        (*(*info).winsizes).xywinx,(*(*info).winsizes).xywiny ) 
 			IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
-				temp_xyslice = REFORM((*(*(*info).data).imagedata)[(*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp_dop] ) 
-		ENDELSE
+        temp_xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[basecubeidx + $
+        (*(*info).dataparams).lp_dop])[x_low:x_upp, y_low:y_upp]), $
+        (*(*info).winsizes).xywinx,(*(*info).winsizes).xywiny )
+;		ENDIF ELSE BEGIN
+;			*(*(*info).data).xyslice = REFORM((*(*(*info).data).imagedata)[basecubeidx + $
+;        (*(*info).dataparams).lp] ) 
+;			IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
+;				temp_xyslice = REFORM((*(*(*info).data).imagedata)[basecubeidx + $
+;          (*(*info).dataparams).lp_dop] ) 
+;		ENDELSE
 	ENDELSE
+;  IF ((*(*info).zooming).handle_extreme EQ 2) THEN BEGIN
+;    *(*(*info).data).xyslice = (*(*info).data).padded_bg + *(*(*info).data).xyslice
+;    stop
+;  ENDIF
+  ; Determine Doppler image
 	IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN BEGIN
-		IF ((*(*info).dataparams).lp_dop GT (*(*info).dataparams).lc) THEN *(*(*info).data).dopslice = temp_xyslice - *(*(*info).data).xyslice ELSE *(*(*info).data).dopslice = *(*(*info).data).xyslice - temp_xyslice 
+		IF ((*(*info).dataparams).lp_dop GT (*(*info).dataparams).lc) THEN $
+      *(*(*info).data).dopslice = temp_xyslice - *(*(*info).data).xyslice $
+    ELSE $
+      *(*(*info).data).dopslice = *(*(*info).data).xyslice - temp_xyslice 
 	ENDIF
+  ; Determine reference image
 	IF ((*(*info).winswitch).showref OR (*(*info).winswitch).showimref) THEN BEGIN
 		IF (*(*info).dataswitch).refspfile THEN BEGIN
-			IF ((*(*info).zooming).factor NE 1) THEN *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[(*(*info).dataparams).t * (*(*info).dataparams).refnlp + $
-				(*(*info).dataparams).lp_ref])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ELSE $
-				*(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[(*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref])
+      refidx = (*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref
+;			IF ((*(*info).zooming).factor NE 1) THEN $
+        *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[refidx])$
+          [x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
+;      ELSE $
+;				*(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[refidx])
 		ENDIF ELSE BEGIN
 			IF ((*(*info).dataparams).refnt EQ 0) THEN BEGIN
-				IF ((*(*info).zooming).factor NE 1) THEN *(*(*info).data).refslice = CONGRID( (*(*(*info).data).refdata)[x_low:x_upp, y_low:y_upp], (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) $
-				ELSE *(*(*info).data).refslice = *(*(*info).data).refdata 
+;				IF ((*(*info).zooming).factor NE 1) THEN $
+          *(*(*info).data).refslice = CONGRID( (*(*(*info).data).refdata)$
+          [x_low:x_upp, y_low:y_upp], (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
+;				ELSE $
+;          *(*(*info).data).refslice = *(*(*info).data).refdata 
 			ENDIF ELSE IF ((*(*info).dataparams).refnt EQ 1) THEN BEGIN
 				IF ((*(*info).dataparams).refnlp NE 1) THEN BEGIN
-					IF ((*(*info).zooming).factor NE 1) THEN *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[(*(*info).dataparams).lp_ref])[x_low:x_upp, y_low:y_upp]), $
-						(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ELSE *(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[(*(*info).dataparams).lp_ref])
+;					IF ((*(*info).zooming).factor NE 1) THEN $
+            *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[$
+              (*(*info).dataparams).lp_ref])[x_low:x_upp, y_low:y_upp]), $
+						  (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
+;          ELSE $
+;            *(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[$
+;              (*(*info).dataparams).lp_ref])
 				ENDIF ELSE BEGIN
-					IF ((*(*info).zooming).factor NE 1) THEN *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[0])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, $
-						(*(*info).winsizes).xywiny) ELSE *(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[0]) 
+;					IF ((*(*info).zooming).factor NE 1) THEN $
+            *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[0])$
+              [x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
+;          ELSE $
+;            *(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[0]) 
 				ENDELSE
 			ENDIF ELSE IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN BEGIN
-				IF ((*(*info).zooming).factor NE 1) THEN *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[(*(*info).dataparams).t])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, $
-				(*(*info).winsizes).xywiny) ELSE *(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[(*(*info).dataparams).t])
-			ENDIF ELSE IF ((*(*info).zooming).factor NE 1) THEN *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[(*(*info).dataparams).t * (*(*info).dataparams).refnlp + $
-				(*(*info).dataparams).lp_ref])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ELSE $
-				*(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[(*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref])
+;				IF ((*(*info).zooming).factor NE 1) THEN $
+          *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[$
+            (*(*info).dataparams).t])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, $
+				    (*(*info).winsizes).xywiny) ;$
+;        ELSE $
+;          *(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[(*(*info).dataparams).t])
+			ENDIF ELSE $;IF ((*(*info).zooming).factor NE 1) THEN $
+        *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[$
+          (*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref])$
+          [x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
+;      ELSE $
+;				*(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[$
+;          (*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref])
 		ENDELSE
 	ENDIF
+  ; Determine mask image
 	IF (*(*info).dataswitch).maskfile THEN BEGIN
 		IF ((*(*info).dataparams).masknt GT 1) THEN BEGIN
-			IF ((*(*info).zooming).factor NE 1) THEN *(*(*info).data).maskslice = CONGRID( REFORM( ((*(*(*info).data).maskdata)[(*(*info).dataparams).t])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, $
-				(*(*info).winsizes).xywiny) ELSE *(*(*info).data).maskslice = REFORM( (*(*(*info).data).maskdata)[(*(*info).dataparams).t])
+;			IF ((*(*info).zooming).factor NE 1) THEN $
+        *(*(*info).data).maskslice = CONGRID( REFORM( ((*(*(*info).data).maskdata)[$
+          (*(*info).dataparams).t])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, $
+				  (*(*info).winsizes).xywiny) ;$
+;      ELSE $
+;        *(*(*info).data).maskslice = REFORM( (*(*(*info).data).maskdata)[(*(*info).dataparams).t])
 		ENDIF ELSE BEGIN
-			IF ((*(*info).zooming).factor NE 1) THEN *(*(*info).data).maskslice = CONGRID( REFORM( ((*(*(*info).data).maskdata)[0])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) $
-				ELSE *(*(*info).data).maskslice = (*(*(*info).data).maskdata)[0]
+;			IF ((*(*info).zooming).factor NE 1) THEN $
+        *(*(*info).data).maskslice = CONGRID( REFORM( ((*(*(*info).data).maskdata)[0])$
+          [x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
+;			ELSE $
+;        *(*(*info).data).maskslice = (*(*(*info).data).maskdata)[0]
 		ENDELSE
 	ENDIF
 END
@@ -8487,41 +8588,53 @@ END
 PRO CRISPEX_UPDATE_SX, event
 ; Handles the change in xy- and reference image x-position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_SX'
-	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		sx = ((*(*info).dataparams).x - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-		sxp = (*(*(*info).loopparams).xp - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-		sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-	ENDIF ELSE BEGIN
-		sx = (*(*info).dataparams).x * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
-		sxp = *(*(*info).loopparams).xp * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
-		sxr = *(*(*info).loopparams).xr * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
-	ENDELSE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_SX'
+;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+		sx = ((*(*info).dataparams).x - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+          ((*(*info).dataparams).d_nx+1)
+		sxp = (*(*(*info).loopparams).xp - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+          ((*(*info).dataparams).d_nx+1)
+		sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+          ((*(*info).dataparams).d_nx+1)
+;	ENDIF ELSE BEGIN
+;		sx = (*(*info).dataparams).x * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
+;		sxp = *(*(*info).loopparams).xp * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
+;		sxr = *(*(*info).loopparams).xr * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
+;	ENDELSE
 	(*(*info).curs).sxlock = sx 
 	(*(*info).curs).sx = (*(*info).curs).sxlock
 	*(*(*info).overlayparams).sxp = sxp 
 	*(*(*info).overlayparams).sxr = sxr 
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).x, (*(*info).curs).sxlock, (*(*info).curs).sx],labels=['x','sxlock','sx']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET,event,[(*(*info).dataparams).x,(*(*info).curs).sxlock,(*(*info).curs).sx],$
+      labels=['x','sxlock','sx']
 END
 
 PRO CRISPEX_UPDATE_SY, event
 ; Handles the change in xy- and reference image y-position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_SY'
-	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		sy = ((*(*info).dataparams).y - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-		syp = (*(*(*info).loopparams).yp - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-		syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-	ENDIF ELSE BEGIN
-		sy = (*(*info).dataparams).y * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
-		syp = *(*(*info).loopparams).yp * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
-		syr = *(*(*info).loopparams).yr * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
-	ENDELSE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_SY'
+;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+		sy = ((*(*info).dataparams).y - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+          ((*(*info).dataparams).d_ny+1)
+		syp = (*(*(*info).loopparams).yp - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+          ((*(*info).dataparams).d_ny+1)
+		syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+          ((*(*info).dataparams).d_ny+1)
+;	ENDIF ELSE BEGIN
+;		sy = (*(*info).dataparams).y * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
+;		syp = *(*(*info).loopparams).yp * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
+;		syr = *(*(*info).loopparams).yr * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
+;	ENDELSE
 	(*(*info).curs).sylock = sy 
 	(*(*info).curs).sy = (*(*info).curs).sylock
 	*(*(*info).overlayparams).syp = syp 
 	*(*(*info).overlayparams).syr = syr 
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).y, (*(*info).curs).sylock, (*(*info).curs).sy],labels=['y','sylock','sy']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET,event,[(*(*info).dataparams).y,(*(*info).curs).sylock,(*(*info).curs).sy],$
+      labels=['y','sylock','sy']
 END
 
 PRO CRISPEX_UPDATE_USER_FEEDBACK, event, title=title, var=var, minvar=minvar, maxvar=maxvar, feedback_text=feedback_text, destroy_top=destroy_top, close_button=close_button, session=session
@@ -8710,16 +8823,21 @@ END
 PRO CRISPEX_ZOOM, event, NO_DRAW=no_draw
 ; Handles the zoom event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM'
 	CRISPEX_UPDATE_SX, event
 	CRISPEX_UPDATE_SY, event
 	IF (*(*info).overlayswitch).loopslit THEN CRISPEX_ZOOM_LOOP, event
 	IF ((*(*info).meas).np GE 1) THEN CRISPEX_ZOOM_MEAS, event
 	xposconstr 	= ((*(*info).dataparams).nx-1) - (*(*info).dataparams).d_nx
 	yposconstr	= ((*(*info).dataparams).ny-1) - (*(*info).dataparams).d_ny
-	WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SET_SLIDER_MIN = 0, SET_SLIDER_MAX = xposconstr, SET_VALUE = (*(*info).zooming).xpos 
-	WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SET_SLIDER_MIN = 0, SET_SLIDER_MAX = yposconstr, SET_VALUE = (*(*info).zooming).ypos 
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).factor,xposconstr,yposconstr], labels=['Zoomfactor','Maximum xpos','Maximum ypos']
+	WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SET_SLIDER_MIN = 0, SET_SLIDER_MAX = xposconstr,$
+                  SET_VALUE = (*(*info).zooming).xpos 
+	WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SET_SLIDER_MIN = 0, SET_SLIDER_MAX = yposconstr,$
+                  SET_VALUE = (*(*info).zooming).ypos 
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).factor,xposconstr,yposconstr], $
+                         labels=['Zoomfactor','Maximum xpos','Maximum ypos']
 	CRISPEX_UPDATE_T, event
 	IF ~KEYWORD_SET(NO_DRAW) THEN CRISPEX_DRAW, event
 END
@@ -8727,7 +8845,8 @@ END
 PRO CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
 ; Handles cursor setting as a result of zoom
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_CURSORPOS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_CURSORPOS'
 	IF (*(*info).curs).lockset THEN BEGIN
 		cursor_x = (*(*info).curs).xlock
 		cursor_y = (*(*info).curs).ylock
@@ -8735,47 +8854,80 @@ PRO CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
 		cursor_x = (*(*info).dataparams).x
 		cursor_y = (*(*info).dataparams).y
 	END
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [cursor_x, cursor_y], labels=['cursor_x','cursor_y']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [cursor_x, cursor_y], labels=['cursor_x','cursor_y']
 END	
 
-PRO CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y
+PRO CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SENSITIVE=sensitive
 ; Handles the update of xpos and ypos sliders when changing zoomfactor
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_UPDATE_SLIDERS'
-	(*(*info).dataparams).d_nx = (*(*info).dataparams).nx / (*(*info).zooming).factor
-	(*(*info).dataparams).d_ny = (*(*info).dataparams).ny / (*(*info).zooming).factor
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_UPDATE_SLIDERS'
+  IF (N_ELEMENTS(SENSITIVE) EQ 1) THEN $
+    sensitive = REPLICATE(sensitive,2)  $
+  ELSE IF (N_ELEMENTS(SENSITIVE) LT 1) THEN $
+    sensitive = [1,1]
+  nx_max = (*(*info).dataparams).nx-1
+  ny_max = (*(*info).dataparams).ny-1
+  IF ((*(*info).zooming).handle_extreme EQ 2) THEN BEGIN
+    IF ((*(*info).data).ratio GT 1) THEN BEGIN
+      (*(*info).dataparams).d_nx = (*(*info).winsizes).xywinx / (8. * (*(*info).zooming).factor)
+      (*(*info).dataparams).d_ny = ((*(*info).dataparams).ny / (*(*info).zooming).factor) < ny_max
+    ENDIF ELSE BEGIN
+      (*(*info).dataparams).d_nx = ((*(*info).dataparams).nx / (*(*info).zooming).factor) < nx_max
+      (*(*info).dataparams).d_ny = (*(*info).winsizes).xywiny / (8. * (*(*info).zooming).factor)
+    ENDELSE
+  ENDIF ELSE BEGIN
+  	(*(*info).dataparams).d_nx = ((*(*info).dataparams).nx / (*(*info).zooming).factor) < nx_max
+  	(*(*info).dataparams).d_ny = ((*(*info).dataparams).ny / (*(*info).zooming).factor) < ny_max
+  ENDELSE
 	(*(*info).phiparams).d_nphi_set = (*(*info).phiparams).nphi_set / (*(*info).zooming).factor
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).d_nx, (*(*info).dataparams).d_ny], labels=['d_nx','d_ny']
-	(*(*info).zooming).xpos = (cursor_x - (*(*info).dataparams).d_nx / 2.) 
-	(*(*info).zooming).ypos = (cursor_y - (*(*info).dataparams).d_ny / 2.) 
-	(*(*info).zooming).xpos = (*(*info).zooming).xpos > 0
-	(*(*info).zooming).ypos = (*(*info).zooming).ypos > 0
-	IF (((*(*info).zooming).xpos+(*(*info).dataparams).d_nx) GE (*(*info).dataparams).nx) THEN (*(*info).zooming).xpos = ((*(*info).dataparams).nx-1) - (*(*info).dataparams).d_nx
-	IF (((*(*info).zooming).ypos+(*(*info).dataparams).d_ny) GE (*(*info).dataparams).ny) THEN (*(*info).zooming).ypos = ((*(*info).dataparams).ny-1) - (*(*info).dataparams).d_ny
+	(*(*info).zooming).xpos = (cursor_x - (*(*info).dataparams).d_nx / 2.) > 0
+	(*(*info).zooming).ypos = (cursor_y - (*(*info).dataparams).d_ny / 2.) > 0
+;	(*(*info).zooming).xpos = (*(*info).zooming).xpos > 0
+;	(*(*info).zooming).ypos = (*(*info).zooming).ypos > 0
+	IF (((*(*info).zooming).xpos+(*(*info).dataparams).d_nx) GE (*(*info).dataparams).nx) THEN $
+    (*(*info).zooming).xpos = (((*(*info).dataparams).nx-1) - (*(*info).dataparams).d_nx) > 0
+	IF (((*(*info).zooming).ypos+(*(*info).dataparams).d_ny) GE (*(*info).dataparams).ny) THEN $
+    (*(*info).zooming).ypos = (((*(*info).dataparams).ny-1) - (*(*info).dataparams).d_ny) > 0
 	(*(*info).zooming).xpos = FIX((*(*info).zooming).xpos)
 	(*(*info).zooming).ypos = FIX((*(*info).zooming).ypos)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).xpos, (*(*info).zooming).ypos], labels=['xpos','ypos']
-	WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SENSITIVE = 1
-	WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SENSITIVE = 1
-
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).xpos, (*(*info).zooming).ypos, $
+      (*(*info).dataparams).d_nx, (*(*info).dataparams).d_ny], labels=['xpos','ypos','d_nx','d_ny']
+	WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SENSITIVE = sensitive[0], $
+    SET_VALUE = (*(*info).zooming).xpos
+	WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SENSITIVE = sensitive[1], $
+    SET_VALUE = (*(*info).zooming).ypos
 END
 
-
-PRO CRISPEX_ZOOMFAC_ONE, event
+PRO CRISPEX_ZOOMFAC_ONE, event, NO_DRAW=no_draw
 ; Sets the zoomfactor to 1 and changes options and paramters accordingly
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_ONE'
-	(*(*info).zooming).factor = 1	&	(*(*info).zooming).xpos = 0	&	(*(*info).zooming).ypos = 0
-	WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SENSITIVE = 0, SET_VALUE = (*(*info).zooming).xpos
-	WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SENSITIVE = 0, SET_VALUE = (*(*info).zooming).ypos
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_ONE'
+	(*(*info).zooming).factor = 1
+  IF ((*(*info).zooming).handle_extreme NE 2) THEN BEGIN
+    (*(*info).zooming).xpos = 0	&	(*(*info).zooming).ypos = 0
+    sensitive = [0,0]
+  ENDIF ELSE $
+    sensitive = [(((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio GT 1)),$
+                 (((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio LT 1))]
+  CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
+	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SENSITIVE=sensitive
+;	WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SENSITIVE = $
+;    ((*(*info).zooming).handle_extreme EQ 2), SET_VALUE = (*(*info).zooming).xpos
+;	WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SENSITIVE = $
+;    ((*(*info).zooming).handle_extreme EQ 2), SET_VALUE = (*(*info).zooming).ypos
 	WIDGET_CONTROL, (*(*info).ctrlscp).zoom_one, /SET_BUTTON
-	CRISPEX_ZOOM, event
+	CRISPEX_ZOOM, event, NO_DRAW=no_draw
 END
 
 PRO CRISPEX_ZOOMFAC_TWO, event
 ; Sets the zoomfactor to 2 and changes options and paramters accordingly
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_TWO'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_TWO'
 	CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
 	(*(*info).zooming).factor = 2.
 	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y
@@ -8856,36 +9008,37 @@ END
 ;===================================================================================================
 ;================================== MAIN PROGRAM CODE ==============================================
 ;===================================================================================================
-PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spectral cube
-              REFCUBE=refcube, $            ; filename(s) of reference image (and spectral) cube(s)
-              MASKCUBE=maskcube, $          ; filename of mask cube
-              SPECTFILE=spectfile, $        ; filename(s) of spectral save file(s)
-              LINE_CENTER=line_center, $		; line centre and/or wavelength information
-	            DT=dt, $                      ; time step in seconds
-              EXTS=exts, $                  ; exact timeslices keyword
-              MNSPEC=mnspec, $              ; mean spectrum over selected scans
-              SINGLE_CUBE=single_cube, $    ; single full cube call
-              SCALE_STOKES=scale_stokes, $  ; scale Stokes spectra internally
-              VALS_IMG=vals_img, $          ; get main cube values under cursor
-              VALS_REF=vals_ref, $          ; get reference cube values under cursor
-              NO_WARP=no_warp, $            ; don't warp nonequidistant spectral slices
-              SCALE_CUBES=scale_cubes, $    ; scale cubes
+PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spectral cube
+              REFCUBE=refcube, $              ; filename(s) of reference image (& spectral) cube(s)
+              MASKCUBE=maskcube, $            ; filename of mask cube
+              SPECTFILE=spectfile, $          ; filename(s) of spectral save file(s)
+              LINE_CENTER=line_center, $		  ; line centre and/or wavelength information
+	            DT=dt, $                        ; time step in seconds
+              EXTS=exts, $                    ; exact timeslices keyword
+              MNSPEC=mnspec, $                ; mean spectrum over selected scans
+              SINGLE_CUBE=single_cube, $      ; single full cube call
+              SCALE_STOKES=scale_stokes, $    ; scale Stokes spectra internally
+              VALS_IMG=vals_img, $            ; get main cube values under cursor
+              VALS_REF=vals_ref, $            ; get reference cube values under cursor
+              NO_WARP=no_warp, $              ; don't warp nonequidistant spectral slices
+              SCALE_CUBES=scale_cubes, $      ; scale cubes
               XTITLE=xtitle, YTITLE=ytitle,$; custom detailed spectrum xtitle and ytitle
-              WINDOW_LARGE=window_large, $  ; draw large windows for small cubes
-              VERBOSE=verbose               ; program verbosity
+              WINDOW_LARGE=window_large, $    ; draw large windows for small cubes
+              HANDLE_EXTREME=handle_extreme,$ ; handling procedure for extreme image axis ratio
+              VERBOSE=verbose                 ; program verbosity
 
 ;========================= PROGRAM-INFO ON CALL W/O PARAMS
 	IF N_PARAMS() LT 1 THEN BEGIN
 		PRINT,'CRISPEX, imcube, spcube, REFCUBE=refcube, LINE_CENTER=line_center, DT=dt, EXTS=exts, $'
 		PRINT,'	MNSPEC=mnspec, SINGLE_CUBE=single_cube, SCALE_STOKES=scale_stokes, VALS_REF=vals_ref, $'
 		PRINT,'	VALS_IMG=vals_img, NO_WARP=no_warp, SCALE_CUBES=scale_cubes, XTITLE=xtitle, YTITLE=ytitle, $'
-		PRINT,'	MASKCUBE=maskcube, WINDOW_LARGE=window_large, VERBOSE=verbose'
+		PRINT,'	MASKCUBE=maskcube, WINDOW_LARGE=window_large, HANDLE_EXTREME=handle_extreme, VERBOSE=verbose'
 		RETURN
 	ENDIF
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '581'
+	revision_number = '582'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -9603,12 +9756,20 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	ydelta		= 40													; Extra yoffset for positioning of windows
 	refxoffset	= 0
 	refyoffset	= ydelta
+  minsize   = 200.
 
-	ratio 		= FLOAT(hdr.nx) / FLOAT(hdr.ny)											; Determine x/y-ratio
-	x_scr_size = screensizes[2,monitor_order[0]]
-	y_scr_size = screensizes[3,monitor_order[0]]
-	IF ((x_scr_size GT (hdr.nx+2*xdelta+0.45*x_scr_size)) AND (y_scr_size GT (hdr.ny+ydelta+90))) THEN BEGIN		; If xsize > nx+space for spectral windows AND ysize > ny+space for params window, then:
-		IF ((hdr.nx LT 0.48 * x_scr_size) AND (hdr.ny LT (0.48 * x_scr_size / ratio)) AND KEYWORD_SET(WINDOW_LARGE)) THEN BEGIN				; If xsize is small, then still go to old settings procedures
+  ratio      = FLOAT(hdr.nx) / FLOAT(hdr.ny)                  ; Determine image aspect ratio
+	x_scr_size = screensizes[2,monitor_order[0]]                ; Get main screen xsize
+	y_scr_size = screensizes[3,monitor_order[0]]                ; Get main screen ysize
+  extreme_aspect = (((ratio GT 5.) AND (hdr.ny LT minsize)) OR $
+                    ((ratio LT 0.2) AND (hdr.nx LT minsize))) ; Extreme aspect ratio and small dim
+  ; If extreme_aspect = 1 run adjusted settings
+  ; Else, run default settings
+  ; If xsize > nx+space for spectral windows AND ysize > ny+space for params window, then:
+	IF ((x_scr_size GT (hdr.nx+2*xdelta+0.45*x_scr_size)) AND (y_scr_size GT (hdr.ny+ydelta+90))) THEN BEGIN		
+    ; If xsize is small, then still go to old settings procedures
+		IF ((hdr.nx LT 0.48 * x_scr_size) AND $
+        (hdr.ny LT (0.48 * x_scr_size / ratio)) AND KEYWORD_SET(WINDOW_LARGE)) THEN BEGIN				
 			imwinx 	= 0.48 * x_scr_size											; Set maximum x-extent of image window
 			imwiny 	= imwinx / ratio											; Set maximum y-extent of image window
 			IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'User screen resolution '+$
@@ -9634,6 +9795,29 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
                                   'does not allow for 1:1 image window sizing. Image window is '+$
                                   STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.', /NEWLINE, /NO_ROUTINE
 	ENDELSE
+
+  ; HANDLE_EXTREME: handling procedures for extreme image axis ratio
+  ; 0 - do nothing
+  ; 1 - zoom in, pixels are not 1:1
+  ; 2 - zoom in, pixels are 1:1
+  ; 3 - pad with zeroes (still to be implemented)
+  IF (N_ELEMENTS(HANDLE_EXTREME) NE 1) THEN handle_extreme = 0
+  zoomfactor = 1
+  padded_bg = 0
+  IF extreme_aspect THEN BEGIN
+    IF (handle_extreme EQ 1) THEN BEGIN             ; Zoom in, no correction for stretched pixels
+      imwinx = 8*hdr.nx
+      imwiny = 0.85 * y_scr_size
+    ENDIF ELSE IF (handle_extreme EQ 2) THEN BEGIN  ; Zoom in, with correction for stretched pixels
+      IF (ratio GT 1) THEN BEGIN
+        imwinx = hdr.nx
+        imwiny = (8.*hdr.ny) < (0.85 * y_scr_size)
+      ENDIF ELSE BEGIN
+        imwinx = (8.*hdr.nx) < (0.48 * x_scr_size)
+        imwiny = hdr.ny
+      ENDELSE
+    ENDIF 
+  ENDIF 
 
 	windowx		= 0.2 * x_scr_size											; Set maximum x-extent of spectral win
 	IF (hdr.nt GE 50) THEN windowy = imwiny ELSE windowy = imwiny/2.
@@ -9663,7 +9847,10 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	lsy1 = FLTARR(npanels)
 	lswidth = (xsize/lswinx - (cols*lsmargin + lswall))/FLOAT(cols)
 	lsheight = lswidth * 2D / (1 + SQRT(5))
-	IF (v_dop_set EQ 1) THEN lswiny = (lsmargin + rows*lsheight + rows*lsmargin + (rows-1)*lswall) * lswinx ELSE lswiny = (lswall + rows*lsheight + rows*lsmargin) * lswinx
+	IF (v_dop_set EQ 1) THEN $
+    lswiny = (lsmargin + rows*lsheight + rows*lsmargin + (rows-1)*lswall) * lswinx $
+  ELSE $
+    lswiny = (lswall + rows*lsheight + rows*lsmargin) * lswinx
 	lsx0 		= lsmargin * lswinx/lswinx + (INDGEN(npanels) MOD cols) * (lswidth + lsmargin) * lswinx/lswinx
 	lsx1 		= lsx0 + lswidth * lswinx/lswinx
 	lsy0 		= lsmargin * lswinx/lswiny + rowarr * (lsheight + lsmargin + v_dop_set*lswall) * lswinx/lswiny
@@ -9677,7 +9864,10 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	reflswidth 	= (xsize/lswinx - (lsmargin + lswall))
 	reflsheight 	= reflswidth * 2D / (1 + SQRT(5))
 	reflswinx	= lswinx
-	IF (v_dop_set_ref EQ 1) THEN reflswiny = (lsmargin + reflsheight + lsmargin) * lswinx ELSE reflswiny = (lsmargin + reflsheight + lswall) * lswinx
+	IF (v_dop_set_ref EQ 1) THEN $
+    reflswiny = (lsmargin + reflsheight + lsmargin) * lswinx $
+  ELSE $
+    reflswiny = (lsmargin + reflsheight + lswall) * lswinx
 	reflsx0 	= lsmargin * reflswinx/reflswinx 
 	reflsx1 	= reflsx0 + reflswidth * reflswinx/reflswinx
 	reflsy0 	= lsmargin * reflswinx/reflswiny
@@ -9721,7 +9911,10 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		spheight = (1. - (spmargin + spwall) * spwinx/spwiny)
 		phisheight = (1. - (spmargin + spwall) * phiswinx/phiswiny)
 	ENDELSE
-	IF (v_dop_set_ref EQ 1) THEN refspheight = (1. - (spmargin * 2.) * spwinx/spwiny) ELSE refspheight = (1. - (spmargin + spwall) * spwinx/spwiny)
+	IF (v_dop_set_ref EQ 1) THEN $
+    refspheight = (1. - (spmargin * 2.) * spwinx/spwiny) $
+  ELSE $
+    refspheight = (1. - (spmargin + spwall) * spwinx/spwiny)
 	refspwiny	= windowy
 
 	spx0 		= spmargin * spwinx/spwinx 
@@ -10535,7 +10728,7 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 		imagedata:imdata, xyslice:xyslice, refdata:refdata, refslice:refslice, maskdata:maskdata, maskslice:maskslice, $
 		dopslice:dopslice, spdata:spdata, sspscan:sspscan, refspdata:refspdata, refscan:refscan, refsspscan:refsspscan, $						
 		emptydopslice:emptydopslice, scan:scan, phiscan:phiscan, phislice:phislice, $				
-		indexmap:indexmap, indices:indices, $	
+		indexmap:indexmap, indices:indices, ratio:ratio, $;padded_bg:padded_bg, $	
 		lunsp:lunsp, lunim:lunim, lunrefim:lunrefim, lunrefsp:lunrefsp, lunmask:lunmask $
 	}
 ;--------------------------------------------------------------------------------- DATA PARAMETERS
@@ -10828,7 +11021,7 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	}
 ;--------------------------------------------------------------------------------- ZOOMING 
 	zooming = { $
-		factor:1, xpos:0., ypos:0. $								
+		factor:zoomfactor, xpos:0., ypos:0., handle_extreme:handle_extreme $								
 	}
 ;--------------------------------------------------------------------------------- DEFINE INFO POINTER
 	info = { $
@@ -10970,6 +11163,7 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 	feedback_text = [feedback_text,'> Realising widget... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	CRISPEX_MASK_BUTTONS_SET, pseudoevent
+  CRISPEX_ZOOMFAC_ONE, pseudoevent, /NO_DRAW
 	IF (*(*info).winswitch).showsp THEN BEGIN
 		(*(*info).winswitch).showsp = 0
 		CRISPEX_DISPLAYS_SP_TOGGLE, pseudoevent
@@ -11013,7 +11207,8 @@ PRO CRISPEX, imcube, spcube, $              ; filename of main image cube, spect
 
 	CRISPEX_UPDATE_T, pseudoevent
 	CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, pseudoevent
-	IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN CRISPEX_UPDATE_SLICES, pseudoevent
+	IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN $
+    CRISPEX_UPDATE_SLICES, pseudoevent
 	IF showrefls THEN BEGIN
 		IF (ref_detspect_scale EQ 0) THEN BEGIN
 			CRISPEX_DISPRANGE_LS_SCALE_REF, pseudoevent
