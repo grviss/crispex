@@ -131,9 +131,6 @@
 ;		- (selected) timeseries as JPEG files;
 ;		- current session (*.CSES file).
 ;
-; COMMON BLOCKS:
-;     	None.
-;
 ; SIDE EFFECTS:
 ;     	None.
 ;
@@ -532,17 +529,17 @@ PRO CRISPEX_CURSOR, event
 					(*(*info).curs).sylock = event.Y
 					(*(*info).curs).sx = (*(*info).curs).sxlock
 					(*(*info).curs).sy = (*(*info).curs).sylock
-					IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
-						(*(*info).curs).xlock = FLOAT((*(*info).curs).sxlock * (*(*info).dataparams).nx) / $
-                                    (*(*info).winsizes).xywinx
-						(*(*info).curs).ylock = FLOAT((*(*info).curs).sylock * (*(*info).dataparams).ny) / $
-                                    (*(*info).winsizes).xywiny
-					ENDIF ELSE BEGIN
+;					IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
+;						(*(*info).curs).xlock = FLOAT((*(*info).curs).sxlock * (*(*info).dataparams).nx) / $
+;                                    (*(*info).winsizes).xywinx
+;						(*(*info).curs).ylock = FLOAT((*(*info).curs).sylock * (*(*info).dataparams).ny) / $
+;                                    (*(*info).winsizes).xywiny
+;					ENDIF ELSE BEGIN
 						(*(*info).curs).xlock = FLOAT((*(*info).curs).sxlock * ((*(*info).dataparams).d_nx+1)) $
                                     / (*(*info).winsizes).xywinx + (*(*info).zooming).xpos
 						(*(*info).curs).ylock = FLOAT((*(*info).curs).sylock * ((*(*info).dataparams).d_ny+1)) $
                                     / (*(*info).winsizes).xywiny + (*(*info).zooming).ypos
-					ENDELSE
+;					ENDELSE
 					(*(*info).dataparams).x = (*(*info).curs).xlock
 					(*(*info).dataparams).y = (*(*info).curs).ylock
 					IF (*(*info).overlayswitch).loopslit THEN BEGIN
@@ -560,12 +557,12 @@ PRO CRISPEX_CURSOR, event
                 WIDGET_CONTROL, (*(*info).ctrlscp).rem_loop_pt_but, SENSITIVE = 1
 							CRISPEX_LOOP_GET, event
 							CRISPEX_UPDATE_LP, event
-							IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+;							IF ((*(*info).zooming).factor NE 1) THEN BEGIN
 								*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - $
                   (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
 								*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - $
                   (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-							ENDIF
+;							ENDIF
 						ENDIF ELSE BEGIN
 							(*(*(*info).loopparams).xp)[0] = (*(*info).curs).xlock
 							(*(*(*info).loopparams).yp)[0] = (*(*info).curs).ylock
@@ -1168,31 +1165,38 @@ END
 PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event 
 ; Sets up the parameter overview window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE', /IGNORE_LAST
 	(*(*info).winswitch).showparam = event.SELECT
 	IF ((*(*info).winswitch).showparam EQ 1) THEN BEGIN
-		base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Parameters overview', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
+		base = WIDGET_BASE(TITLE='CRISPEX'+(*(*info).sesparams).instance_label+': Parameters overview',$
+           GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
 		disp_base = WIDGET_BASE(base, /ROW)
     ; Column 1 of parameters overview containing cursor x,y and zoomfactor
 		disp = WIDGET_BASE(disp_base, /COLUMN)
     ; Cursor x info
 		x_coord_base = WIDGET_BASE(disp, /ROW)
 		x_coord_txt = WIDGET_LABEL(x_coord_base, VALUE = 'Cursor x:')
-		(*(*info).ctrlsparam).x_coord_val = WIDGET_LABEL(x_coord_base, VALUE = STRTRIM((*(*info).dataparams).x,2), /DYNAMIC_RESIZE)
+		(*(*info).ctrlsparam).x_coord_val = WIDGET_LABEL(x_coord_base, $
+      VALUE = STRTRIM((*(*info).dataparams).x,2), /DYNAMIC_RESIZE)
     ; Cursor y info
 		y_coord_base = WIDGET_BASE(disp, /ROW)
 		y_coord_txt = WIDGET_LABEL(y_coord_base, VALUE = 'Cursor y:')
-		(*(*info).ctrlsparam).y_coord_val = WIDGET_LABEL(y_coord_base, VALUE = STRTRIM((*(*info).dataparams).y,2), /DYNAMIC_RESIZE)
+		(*(*info).ctrlsparam).y_coord_val = WIDGET_LABEL(y_coord_base, $
+      VALUE = STRTRIM((*(*info).dataparams).y,2), /DYNAMIC_RESIZE)
     ; Zommfactor info
 		zoom_base = WIDGET_BASE(disp, /ROW)
 		zoom_txt = WIDGET_LABEL(zoom_base, VALUE = 'Zoomfactor:')
-		(*(*info).ctrlsparam).zoom_val = WIDGET_LABEL(zoom_base, VALUE = STRTRIM(LONG((*(*info).zooming).factor),2), /DYNAMIC_RESIZE)
+		(*(*info).ctrlsparam).zoom_val = WIDGET_LABEL(zoom_base, $
+      VALUE = STRTRIM(LONG((*(*info).zooming).factor),2), /DYNAMIC_RESIZE)
     ; Column 2 containing main spectral/height info, including Doppler
 		disp2 = WIDGET_BASE(disp_base, /COLUMN)
     ; Main spectral info
 		lp_coord_base = WIDGET_BASE(disp2, /ROW)
-		lp_coord_txt = WIDGET_LABEL(lp_coord_base, VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' index:')
-		(*(*info).ctrlsparam).lp_coord_val = WIDGET_LABEL(lp_coord_base, VALUE = STRTRIM(LONG((*(*info).dataparams).lp),2), /DYNAMIC_RESIZE)
+		lp_coord_txt = WIDGET_LABEL(lp_coord_base, $
+      VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' index:')
+		(*(*info).ctrlsparam).lp_coord_val = WIDGET_LABEL(lp_coord_base, $
+      VALUE = STRTRIM(LONG((*(*info).dataparams).lp),2), /DYNAMIC_RESIZE)
 		act_lp_base = WIDGET_BASE(disp2, /ROW)
 		act_lp_txt = WIDGET_LABEL(act_lp_base, $
       VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' ['+$
@@ -1207,7 +1211,9 @@ PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
   		v_dop_base = WIDGET_BASE(disp2, /ROW)
   		v_dop_txt = WIDGET_LABEL(v_dop_base, VALUE = 'Doppler velocity (km/s):')
   		IF (*(*info).plotswitch).v_dop_set THEN BEGIN
-  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = STRTRIM(STRING((*(*info).plotaxes).v_dop[(*(*info).dataparams).lp],FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
+  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, $
+          VALUE = STRTRIM(STRING((*(*info).plotaxes).v_dop[(*(*info).dataparams).lp],$
+                  FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
   		ENDIF ELSE IF (*(*info).plotswitch).heightset THEN BEGIN
   			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
   		ENDIF ELSE BEGIN
@@ -1219,8 +1225,10 @@ PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
 			dispref = WIDGET_BASE(disp_base, /COLUMN)
       ; Reference spectral info
 			lp_ref_coord_base = WIDGET_BASE(dispref, /ROW)
-			lp_ref_coord_txt = WIDGET_LABEL(lp_ref_coord_base, VALUE = 'Reference '+STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' index:')
-			(*(*info).ctrlsparam).lp_ref_coord_val = WIDGET_LABEL(lp_ref_coord_base, VALUE = STRTRIM(LONG((*(*info).dataparams).lp_ref),2), /DYNAMIC_RESIZE)
+			lp_ref_coord_txt = WIDGET_LABEL(lp_ref_coord_base, VALUE = 'Reference '+$
+        STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' index:')
+			(*(*info).ctrlsparam).lp_ref_coord_val = WIDGET_LABEL(lp_ref_coord_base, $
+        VALUE = STRTRIM(LONG((*(*info).dataparams).lp_ref),2), /DYNAMIC_RESIZE)
 			act_lp_ref_base = WIDGET_BASE(dispref, /ROW)
 			act_lp_ref_txt = WIDGET_LABEL(act_lp_ref_base, VALUE = 'Reference '+$
         STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' ['+$
@@ -1235,7 +1243,9 @@ PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
   			v_dop_ref_base = WIDGET_BASE(dispref, /ROW)
   			v_dop_ref_txt = WIDGET_LABEL(v_dop_ref_base, VALUE = 'Reference Doppler velocity (km/s):')
   			IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
-  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = STRTRIM(STRING((*(*info).plotaxes).v_dop_ref[(*(*info).dataparams).lp_ref],FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
+  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, $
+            VALUE = STRTRIM(STRING((*(*info).plotaxes).v_dop_ref[(*(*info).dataparams).lp_ref],$
+                    FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
   			ENDIF ELSE IF (*(*info).plotswitch).refheightset THEN BEGIN
   				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
   			ENDIF ELSE BEGIN
@@ -1248,16 +1258,22 @@ PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
     ; Channel info
 		stokes_base = WIDGET_BASE(disp3, /ROW)
 		stokes_txt = WIDGET_LABEL(stokes_base, VALUE = 'Stokes:')
-		(*(*info).ctrlsparam).stokes_val = WIDGET_LABEL(stokes_base, VALUE = STRTRIM(((*(*info).stokesparams).labels)[(*(*info).dataparams).s],2), /DYNAMIC_RESIZE)
+		(*(*info).ctrlsparam).stokes_val = WIDGET_LABEL(stokes_base, $
+      VALUE = STRTRIM(((*(*info).stokesparams).labels)[(*(*info).dataparams).s],2), /DYNAMIC_RESIZE)
     ; Time info
 		t_coord_base = WIDGET_BASE(disp3, /ROW)
 		t_coord_txt = WIDGET_LABEL(t_coord_base, VALUE = 'Time index:')
-		(*(*info).ctrlsparam).t_coord_val = WIDGET_LABEL(t_coord_base, VALUE = STRTRIM((*(*info).dataparams).t,2), /DYNAMIC_RESIZE)
+		(*(*info).ctrlsparam).t_coord_val = WIDGET_LABEL(t_coord_base, $
+      VALUE = STRTRIM((*(*info).dataparams).t,2), /DYNAMIC_RESIZE)
 		act_t_base = WIDGET_BASE(disp3, /ROW)
 ;		act_t_txt = WIDGET_LABEL(act_t_base, VALUE = 'Actual time (s):')
 		act_t_txt = WIDGET_LABEL(act_t_base, VALUE = 'Actual '+(*(*info).plottitles).spytitle+':')
-		IF (*(*info).paramswitch).dt_set THEN (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = STRTRIM(STRING((*(*info).dataparams).t * (*(*info).plotaxes).dt, FORMAT='(3(F9.2,x))'),2), $
-			/DYNAMIC_RESIZE) ELSE (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = 'N/A')
+		IF (*(*info).paramswitch).dt_set THEN $
+      (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = $
+        STRTRIM(STRING((*(*info).dataparams).t * (*(*info).plotaxes).dt, FORMAT='(3(F9.2,x))'),2), $
+			  /DYNAMIC_RESIZE) $
+    ELSE $
+      (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = 'N/A')
     ; Column 5 (if reference present, else column 4) containing image values below cursor
     ; Main image value info
 		IF (*(*info).paramswitch).img_get THEN BEGIN
@@ -1265,7 +1281,8 @@ PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
 			img_base = WIDGET_BASE(disp4, /ROW)
 			img_label = WIDGET_LABEL(img_base, VALUE = 'Main cube value ['+$
         ((*(*info).dataparams).bunit)[0]+'] :')
-			(*(*info).ctrlsparam).img_val = WIDGET_LABEL(img_base, VALUE = STRTRIM(STRING((*(*info).paramparams).img_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
+			(*(*info).ctrlsparam).img_val = WIDGET_LABEL(img_base, VALUE = $
+        STRTRIM(STRING((*(*info).paramparams).img_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
 		ENDIF
     ; Reference image value info
 		IF (*(*info).paramswitch).ref_get THEN BEGIN
@@ -1273,7 +1290,8 @@ PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
 			ref_base = WIDGET_BASE(disp4, /ROW)
 			ref_label = WIDGET_LABEL(ref_base, VALUE = 'Reference cube value ['+$
         ((*(*info).dataparams).bunit)[1]+'] :')
-      (*(*info).ctrlsparam).ref_val = WIDGET_LABEL(ref_base, VALUE = STRTRIM(STRING((*(*info).paramparams).ref_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
+      (*(*info).ctrlsparam).ref_val = WIDGET_LABEL(ref_base, VALUE = $
+        STRTRIM(STRING((*(*info).paramparams).ref_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
 		ENDIF
 		IF ((*(*info).paramswitch).img_get OR (*(*info).paramswitch).ref_get) THEN BEGIN
 			IF ((*(*info).paramswitch).ref_get EQ 0) THEN BEGIN
@@ -1283,17 +1301,30 @@ PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
 				mainlabel = 'cube values, main:'
 				extra_label = ','
 			ENDELSE
-			IF ((*(*info).paramswitch).img_get EQ 0) THEN mainlabel = 'reference cube value:' ELSE label = 'reference:'
+			IF ((*(*info).paramswitch).img_get EQ 0) THEN $
+        mainlabel = 'reference cube value:'  $
+      ELSE $
+        label = 'reference:'
 			sc_base = WIDGET_BASE(disp4, /ROW)
 			sc_label = WIDGET_LABEL(sc_base, VALUE = 'Scaled '+mainlabel)
-			IF (*(*info).paramswitch).img_get THEN (*(*info).ctrlsparam).imgsc_val = WIDGET_LABEL(sc_base, VALUE = STRTRIM(STRING((*(*info).paramparams).imgsc_get_val,FORMAT='(3(F9.2,x))'),2)+extra_label,$
-				/DYNAMIC_RESIZE)
+			IF (*(*info).paramswitch).img_get THEN $
+        (*(*info).ctrlsparam).imgsc_val = WIDGET_LABEL(sc_base, VALUE = $
+          STRTRIM(STRING((*(*info).paramparams).imgsc_get_val,FORMAT='(3(F9.2,x))'),2)+extra_label,$
+				  /DYNAMIC_RESIZE)
 			IF (*(*info).paramswitch).ref_get THEN BEGIN
 				IF (*(*info).paramswitch).img_get THEN refsc_label = WIDGET_LABEL(sc_base, VALUE = label)
-				(*(*info).ctrlsparam).refsc_val = WIDGET_LABEL(sc_base, VALUE = STRTRIM(STRING((*(*info).paramparams).refsc_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
+				(*(*info).ctrlsparam).refsc_val = WIDGET_LABEL(sc_base, VALUE = $
+          STRTRIM(STRING((*(*info).paramparams).refsc_get_val,FORMAT='(3(F9.2,x))'),2),$
+          /DYNAMIC_RESIZE)
 			ENDIF
 		ENDIF
-		WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = 0, TLB_SET_YOFFSET = (*(*info).winsizes).xywiny + (*(*info).winsizes).ydelta
+    ; Window realisation
+    IF ((*(*info).winsizes).xywiny GT (*(*info).winsizes).spwiny) THEN $
+      y_off = (*(*info).winsizes).xywiny $
+    ELSE $
+      y_off = (*(*info).winsizes).spwiny
+		WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = 0, TLB_SET_YOFFSET = $
+                    y_off + (*(*info).winsizes).ydelta
 		WIDGET_CONTROL, base, SET_UVALUE = info
 		XMANAGER, 'CRISPEX', base, /NO_BLOCK
 		(*(*info).winids).paramtlb = base
@@ -1302,7 +1333,8 @@ PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
 		(*(*info).winids).paramtlb = 0
 		(*(*info).winswitch).showparam = 0
 	ENDELSE
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).looptlb], labels=['looptlb']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).looptlb], labels=['looptlb']
 END
 
 PRO CRISPEX_DISPLAYS_PLOT_RESIZE, event, new_xres_tmp, new_yres_tmp, init_xres, init_yres, init_xmargin, init_xwall, new_xres, new_yres, new_width, new_height, $
@@ -1575,19 +1607,23 @@ END
 PRO CRISPEX_DISPLAYS_REF_TOGGLE, event, NO_DRAW=no_draw
 ; Reference image window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_REF_TOGGLE', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_REF_TOGGLE', /IGNORE_LAST
 	(*(*info).winswitch).showref = event.SELECT
 	IF (*(*info).winswitch).showref THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Reference image'
-		CRISPEX_WINDOW, (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny, (*(*info).winids).root, title, reftlb, refwid, (*(*info).winsizes).xdelta,(*(*info).winsizes).ydelta, $
-			DRAWID = refdrawid, DRAWBASE = refdrawbase
-		(*(*info).winids).reftlb = reftlb		&	(*(*info).winids).refwid = refwid	&	(*(*info).winids).refdrawid = refdrawid
+		CRISPEX_WINDOW, (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny, (*(*info).winids).root,$
+                    title, reftlb, refwid, (*(*info).winsizes).refxoffset,$
+                    (*(*info).winsizes).refyoffset, DRAWID = refdrawid, DRAWBASE = refdrawbase
+		(*(*info).winids).reftlb = reftlb		&	(*(*info).winids).refwid = refwid	
+    (*(*info).winids).refdrawid = refdrawid
 		(*(*info).winids).refdrawbase = refdrawbase	&	(*(*info).winids).refwintitle = title
 		IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
 			CRISPEX_UPDATE_T, event
 			CRISPEX_DRAW_REF, event
 		ENDIF
-		WIDGET_CONTROL, refdrawid, EVENT_PRO = 'CRISPEX_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, /TRACKING_EVENTS,/DRAW_BUTTON_EVENTS
+		WIDGET_CONTROL, refdrawid, EVENT_PRO = 'CRISPEX_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, $
+                    /TRACKING_EVENTS,/DRAW_BUTTON_EVENTS
 		WIDGET_CONTROL, reftlb, SET_UVALUE = info
 		XMANAGER, 'CRISPEX', reftlb, /NO_BLOCK
 	ENDIF ELSE BEGIN
@@ -1598,9 +1634,12 @@ PRO CRISPEX_DISPLAYS_REF_TOGGLE, event, NO_DRAW=no_draw
 		(*(*info).winids).reftlb = 0
 	ENDELSE
 	WIDGET_CONTROL, (*(*info).ctrlscp).ref_scaling_but, SENSITIVE = (*(*info).winswitch).showref
-	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE = (((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND ((*(*info).dataparams).refnlp GT 1))
+	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE = $
+    (((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND ((*(*info).dataparams).refnlp GT 1))
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, SENSITIVE = ((*(*info).dataparams).refnlp GT 1)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).reftlb,(*(*info).winids).refwid,(*(*info).winids).refdrawid], labels=['reftlb','refwid','refdrawid']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).reftlb,(*(*info).winids).refwid,$
+                         (*(*info).winids).refdrawid], labels=['reftlb','refwid','refdrawid']
 END
 
 PRO CRISPEX_DISPLAYS_RESIZE_ERROR, event
@@ -2715,30 +2754,43 @@ PRO CRISPEX_DRAW_LOOP_LINESTYLE_2, event
 	CRISPEX_DRAW, event
 END
 
-PRO CRISPEX_DRAW_LOOP_OVERLAYS, event, no_number=no_number, thick=thick, no_endpoints=no_endpoints, symsize=symsize
+PRO CRISPEX_DRAW_LOOP_OVERLAYS, event, no_number=no_number, thick=thick, $
+  no_endpoints=no_endpoints, symsize=symsize
 ; Handles overplotting of loop paths from the restored and retrieved loops as well as from the retrieved detections
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_LOOP_OVERLAYS'
-	IF (((*(*info).loopswitch).restore_loops EQ 1) AND ((*(*info).restoreparams).cfilecount GT 0)) THEN BEGIN
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_LOOP_OVERLAYS'
+	IF (((*(*info).loopswitch).restore_loops EQ 1) AND $
+      ((*(*info).restoreparams).cfilecount GT 0)) THEN BEGIN
 		drawrestore = 0
 		FOR i=0,(*(*info).restoreparams).cfilecount-1 DO BEGIN
-			IF (((*(*info).overlayswitch).overlalways EQ 1) OR ((*(*(*info).restoreparams).lp_restored)[i] EQ (*(*info).dataparams).lp) AND ((*(*(*info).restoreparams).sel_loops)[i] EQ 1)) THEN BEGIN
+			IF (((*(*info).overlayswitch).overlalways EQ 1) OR $
+          ((*(*(*info).restoreparams).lp_restored)[i] EQ (*(*info).dataparams).lp) AND $
+          ((*(*(*info).restoreparams).sel_loops)[i] EQ 1)) THEN BEGIN
 				drawrestore += 1
-				xp_orig = (*(*(*info).restoreparams).xp_restored)[(0+(*(*(*info).restoreparams).psizes)[i]):((*(*(*info).restoreparams).psizes)[i+1]-1)]
-				yp_orig = (*(*(*info).restoreparams).yp_restored)[(0+(*(*(*info).restoreparams).psizes)[i]):((*(*(*info).restoreparams).psizes)[i+1]-1)]
-				xr_orig = (*(*(*info).restoreparams).xr_restored)[(0+(*(*(*info).restoreparams).rsizes)[i]):((*(*(*info).restoreparams).rsizes)[i+1]-1)]
-				yr_orig = (*(*(*info).restoreparams).yr_restored)[(0+(*(*(*info).restoreparams).rsizes)[i]):((*(*(*info).restoreparams).rsizes)[i+1]-1)]
-				IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-					sxp = (xp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-					syp = (yp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-					sxr = (xr_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-					syr = (yr_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-				ENDIF ELSE BEGIN
-					sxp = xp_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-					syp = yp_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-					sxr = xr_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx	
-					syr = yr_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-				ENDELSE
+				xp_orig = (*(*(*info).restoreparams).xp_restored)[$
+          (0+(*(*(*info).restoreparams).psizes)[i]):((*(*(*info).restoreparams).psizes)[i+1]-1)]
+				yp_orig = (*(*(*info).restoreparams).yp_restored)[$
+          (0+(*(*(*info).restoreparams).psizes)[i]):((*(*(*info).restoreparams).psizes)[i+1]-1)]
+				xr_orig = (*(*(*info).restoreparams).xr_restored)[$
+          (0+(*(*(*info).restoreparams).rsizes)[i]):((*(*(*info).restoreparams).rsizes)[i+1]-1)]
+				yr_orig = (*(*(*info).restoreparams).yr_restored)[$
+          (0+(*(*(*info).restoreparams).rsizes)[i]):((*(*(*info).restoreparams).rsizes)[i+1]-1)]
+;				IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+					sxp = (xp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+            ((*(*info).dataparams).d_nx+1)
+					syp = (yp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+            ((*(*info).dataparams).d_ny+1)
+					sxr = (xr_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+            ((*(*info).dataparams).d_nx+1)
+					syr = (yr_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+            ((*(*info).dataparams).d_ny+1)
+;				ENDIF ELSE BEGIN
+;					sxp = xp_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
+;					syp = yp_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
+;					sxr = xr_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx	
+;					syr = yr_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
+;				ENDELSE
 				sxp_last = sxp[(SIZE(sxp))[1]-1]-1.5*(*(*info).zooming).factor
 				syp_last = syp[(SIZE(sxp))[1]-1]+1.5*(*(*info).zooming).factor
 				IF ~KEYWORD_SET(NO_ENDPOINTS) THEN BEGIN
@@ -2746,32 +2798,46 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS, event, no_number=no_number, thick=thick, no_endp
 					PLOTS, sxp, syp, PSYM = 4, COLOR = !P.COLOR, /DEVICE, THICK=thick, SYMSIZE=symsize
 				ENDIF
 				IF ~KEYWORD_SET(NO_NUMBER) THEN XYOUTS,sxp_last,syp_last,STRTRIM(i,2), /DEVICE
-				IF ((*(*info).overlayparams).loop_linestyle EQ 1) THEN PLOTS, sxr, syr, PSYM = 3, COLOR = !P.COLOR, /DEVICE, THICK=thick $
-				ELSE PLOTS, sxr, syr, LINESTYLE = (*(*info).overlayparams).loop_linestyle, COLOR = !P.COLOR, /DEVICE, THICK=thick
+				IF ((*(*info).overlayparams).loop_linestyle EQ 1) THEN $
+          PLOTS, sxr, syr, PSYM = 3, COLOR = !P.COLOR, /DEVICE, THICK=thick $
+				ELSE $
+          PLOTS, sxr, syr, LINESTYLE = (*(*info).overlayparams).loop_linestyle, COLOR = !P.COLOR,$
+            /DEVICE, THICK=thick
 			ENDIF
 		ENDFOR
-		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).restoreparams).cfilecount,drawrestore], labels=['Loops restored','Loops drawn']
+		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+      CRISPEX_VERBOSE_GET, event, [(*(*info).restoreparams).cfilecount,drawrestore], $
+                           labels=['Loops restored','Loops drawn']
 	ENDIF 
-	IF (((*(*info).retrparams).clfilecount GT 0) AND ((*(*info).loopswitch).retrieve_loops EQ 1)) THEN BEGIN
+	IF (((*(*info).retrparams).clfilecount GT 0) AND $
+      ((*(*info).loopswitch).retrieve_loops EQ 1)) THEN BEGIN
 		drawretr = 0
 		FOR k=0,(*(*info).retrparams).clfilecount-1 DO BEGIN
 			IF ((*(*(*info).retrparams).sel_loops)[k] EQ 1) THEN BEGIN
 				drawretr += 1
-				xlp_orig = (*(*(*info).retrparams).xlp_restored)[(0+(*(*(*info).retrparams).lpsizes)[k]):((*(*(*info).retrparams).lpsizes)[k+1]-1)]
-				ylp_orig = (*(*(*info).retrparams).ylp_restored)[(0+(*(*(*info).retrparams).lpsizes)[k]):((*(*(*info).retrparams).lpsizes)[k+1]-1)]
-				xlr_orig = (*(*(*info).retrparams).xlr_restored)[(0+(*(*(*info).retrparams).lrsizes)[k]):((*(*(*info).retrparams).lrsizes)[k+1]-1)]
-				ylr_orig = (*(*(*info).retrparams).ylr_restored)[(0+(*(*(*info).retrparams).lrsizes)[k]):((*(*(*info).retrparams).lrsizes)[k+1]-1)]
-				IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-					sxlp = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-					sylp = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-					sxlr = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-					sylr = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-				ENDIF ELSE BEGIN
-					sxlp = xlp_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-					sylp = ylp_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-				sxlr = xlr_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-					sylr = ylr_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-				ENDELSE
+				xlp_orig = (*(*(*info).retrparams).xlp_restored)[$
+          (0+(*(*(*info).retrparams).lpsizes)[k]):((*(*(*info).retrparams).lpsizes)[k+1]-1)]
+				ylp_orig = (*(*(*info).retrparams).ylp_restored)[$
+          (0+(*(*(*info).retrparams).lpsizes)[k]):((*(*(*info).retrparams).lpsizes)[k+1]-1)]
+				xlr_orig = (*(*(*info).retrparams).xlr_restored)[$
+          (0+(*(*(*info).retrparams).lrsizes)[k]):((*(*(*info).retrparams).lrsizes)[k+1]-1)]
+				ylr_orig = (*(*(*info).retrparams).ylr_restored)[$
+          (0+(*(*(*info).retrparams).lrsizes)[k]):((*(*(*info).retrparams).lrsizes)[k+1]-1)]
+;				IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+					sxlp = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+            ((*(*info).dataparams).d_nx+1)
+					sylp = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+            ((*(*info).dataparams).d_ny+1)
+					sxlr = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+            ((*(*info).dataparams).d_nx+1)
+					sylr = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+            ((*(*info).dataparams).d_ny+1)
+;				ENDIF ELSE BEGIN
+;					sxlp = xlp_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
+;					sylp = ylp_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
+;				sxlr = xlr_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
+;					sylr = ylr_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
+;				ENDELSE
 				sxlp_last = sxlp[(SIZE(sxlp))[1]-1]-1.5*(*(*info).zooming).factor
 				sylp_last = sylp[(SIZE(sxlp))[1]-1]+1.5*(*(*info).zooming).factor
 				IF ~KEYWORD_SET(NO_ENDPOINTS) THEN BEGIN
@@ -2779,25 +2845,39 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS, event, no_number=no_number, thick=thick, no_endp
 					PLOTS, sxlp, sylp, PSYM = 4, COLOR = !P.COLOR, /DEVICE, THICK=thick, SYMSIZE=symsize
 				ENDIF
 				IF ~KEYWORD_SET(NO_NUMBER) THEN XYOUTS,sxlp_last,sylp_last,'L'+STRTRIM(k,2), /DEVICE
-				IF ((*(*info).overlayparams).loop_linestyle EQ 1) THEN PLOTS, sxlr, sylr, PSYM = 3, COLOR = !P.COLOR, /DEVICE, THICK=thick $
-				ELSE PLOTS, sxlr, sylr, LINESTYLE = (*(*info).overlayparams).loop_linestyle, COLOR = !P.COLOR, /DEVICE, THICK=thick
+				IF ((*(*info).overlayparams).loop_linestyle EQ 1) THEN $
+          PLOTS, sxlr, sylr, PSYM = 3, COLOR = !P.COLOR, /DEVICE, THICK=thick $
+				ELSE $
+          PLOTS, sxlr, sylr, LINESTYLE = (*(*info).overlayparams).loop_linestyle, COLOR = !P.COLOR,$
+            /DEVICE, THICK=thick
 			ENDIF
 		ENDFOR
-		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).retrparams).clfilecount,drawretr], labels=['Loops retrieved','Retrieved loops drawn']
+		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+      CRISPEX_VERBOSE_GET, event, [(*(*info).retrparams).clfilecount,drawretr], $
+                           labels=['Loops retrieved','Retrieved loops drawn']
 	ENDIF 
 	IF ((*(*info).loopswitch).retrieve_detfile EQ 1) THEN BEGIN
 		low = (*(*info).detparams).mid-FLOOR((*(*info).detparams).width/2.)
 		upp = (*(*info).detparams).mid+FLOOR((*(*info).detparams).width/2.)
 		condition = WHERE(*(*(*info).detparams).sel_dets EQ 1, conditioncount)
 		IF (*(*info).overlayswitch).det_overlay_all THEN BEGIN
-			FOR j=0,(*(*info).detparams).nr_dets-1 DO CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS, event, j, low, upp, NO_NUMBER=no_number, THICK=thick, NO_ENDPOINTS=no_endpoints, SYMSIZE=symsize
+			FOR j=0,(*(*info).detparams).nr_dets-1 DO $
+        CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS, event, j, low, upp, NO_NUMBER=no_number, $
+                                                  THICK=thick, NO_ENDPOINTS=no_endpoints, $
+                                                  SYMSIZE=symsize
 			detdrawn = (*(*info).detparams).nr_dets
-		ENDIF ELSE IF (((*(*info).overlayswitch).det_overlay_all EQ 0) AND (N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) THEN BEGIN
+		ENDIF ELSE IF (((*(*info).overlayswitch).det_overlay_all EQ 0) AND $
+                   (N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) THEN BEGIN
 				indices = WHERE((*(*(*info).detparams).sel_dets) EQ 1)
-				FOR m=0,N_ELEMENTS(condition)-1 DO CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS, event, indices[m], low, upp, NO_NUMBER=no_number, THICK=thick, NO_ENDPOINTS=no_endpoints, SYMSIZE=symsize
+				FOR m=0,N_ELEMENTS(condition)-1 DO $
+          CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS, event, indices[m], low, upp, $
+                                                    NO_NUMBER=no_number, THICK=thick, $
+                                                    NO_ENDPOINTS=no_endpoints, SYMSIZE=symsize
 				detdrawn = N_ELEMENTS(indices)
 		ENDIF ELSE detdrawn = 0
-		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).detparams).nr_dets,conditioncount,detdrawn], labels=['Detections retrieved','Detections selected','Detections drawn']
+		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+      CRISPEX_VERBOSE_GET, event, [(*(*info).detparams).nr_dets,conditioncount,detdrawn], $
+                           labels=['Detections retrieved','Detections selected','Detections drawn']
 	ENDIF ELSE RETURN
 END
 
@@ -2807,13 +2887,13 @@ PRO CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS, event, j, low, upp, no_number=no_n
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS'
 	xlp_orig = (*(*(*info).detparams).xlp_restored)[(0+(*(*(*info).detparams).lpsizes)[j]):((*(*(*info).detparams).lpsizes)[j+1]-1)]
 	ylp_orig = (*(*(*info).detparams).ylp_restored)[(0+(*(*(*info).detparams).lpsizes)[j]):((*(*(*info).detparams).lpsizes)[j+1]-1)]
-	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
 		sxlp = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
 		sylp = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-	ENDIF ELSE BEGIN
-		sxlp = xlp_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-		sylp = ylp_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-	ENDELSE
+;	ENDIF ELSE BEGIN
+;		sxlp = xlp_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
+;		sylp = ylp_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
+;	ENDELSE
 	sxlp_last = sxlp[(SIZE(sxlp))[1]-1]-1.5*(*(*info).zooming).factor
 	sylp_last = sylp[(SIZE(sxlp))[1]-1]+1.5*(*(*info).zooming).factor
 	IF ~KEYWORD_SET(NO_ENDPOINTS) THEN BEGIN
@@ -2824,13 +2904,13 @@ PRO CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS, event, j, low, upp, no_number=no_n
 	FOR i=low,upp DO BEGIN
 		xlr_orig = (*(*(*info).detparams).xlr_restored)[(0+(*(*(*info).detparams).lrsizes)[j]):((*(*(*info).detparams).lrsizes)[j+1]-1),i]
 		ylr_orig = (*(*(*info).detparams).ylr_restored)[(0+(*(*(*info).detparams).lrsizes)[j]):((*(*(*info).detparams).lrsizes)[j+1]-1),i]
-		IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+;		IF ((*(*info).zooming).factor NE 1) THEN BEGIN
 			sxlr = (xlr_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
 			sylr = (ylr_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-		ENDIF ELSE BEGIN
-			sxlr = xlr_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-			sylr = ylr_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-		ENDELSE
+;		ENDIF ELSE BEGIN
+;			sxlr = xlr_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
+;			sylr = ylr_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
+;		ENDELSE
 		IF ((*(*info).overlayparams).loop_linestyle EQ 1) THEN PLOTS, sxlr, sylr, PSYM = 3, COLOR = !P.COLOR, /DEVICE, THICK=thick $
 		ELSE PLOTS, sxlr, sylr, LINESTYLE = (*(*info).overlayparams).loop_linestyle, COLOR = !P.COLOR,/DEVICE, THICK=thick
 	ENDFOR
@@ -2840,17 +2920,17 @@ PRO CRISPEX_DRAW_MASK_OVERLAYS, event
 ; Handles the overlay of a mask
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_MASK_OVERLAYS'
-	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
 		x_low = (*(*info).zooming).xpos
 		x_upp = (*(*info).zooming).xpos + (*(*info).dataparams).d_nx
 		y_low = (*(*info).zooming).ypos
 		y_upp = (*(*info).zooming).ypos + (*(*info).dataparams).d_ny
-	ENDIF ELSE BEGIN
-		x_low = 0
-		x_upp = (*(*info).dataparams).nx-1
-		y_low = 0
-		y_upp = (*(*info).dataparams).ny-1
-	ENDELSE
+;	ENDIF ELSE BEGIN
+;		x_low = 0
+;		x_upp = (*(*info).dataparams).nx-1
+;		y_low = 0
+;		y_upp = (*(*info).dataparams).ny-1
+;	ENDELSE
 	LOADCT, (*(*info).overlayparams).maskct, /SILENT
 	CONTOUR,*(*(*info).data).maskslice,COLOR=(*(*info).overlayparams).maskcolor, LEVELS = 1, /ISOTROPIC, XS=13,YS=13,POSITION=[0,0,1,1],/NORMAL, /NOERASE
 	LOADCT, 0, /SILENT
@@ -3985,13 +4065,14 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
     ndims = 1
     lcase = 0
   ENDELSE
-  c_speed	= 2.99792458D5													; Speed of light indeed in km/s
+  c_speed	= 2.99792458D5													; Speed of light in km/s
   lc = LONARR(nfiles)   &  dlambda_val = FLTARR(2)  &  lambda_c = FLTARR(2)
 	v_dop_set = BYTARR(2) &  dlambda_set = BYTARR(2)
   nlp_select = [hdr_out.nlp,hdr_out.refnlp]
   spectfile_set = [spectfile_set,refspectfile_set]
   
   FOR d=0,nfiles-1 DO BEGIN
+    IF (d EQ 0) THEN tag2 = 'lc' ELSE tag2 = 'reflc'
     IF ((cube_compatibility[d] NE 1) AND (N_ELEMENTS(LINE_CENTER) GT 0) AND (d NE ndims-1)) THEN BEGIN
       CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Calling CRISPEX with LINE_CENTER, while FITS cubes '+$
         'are provided, is not allowed. Settings from LINE_CENTER will be ignored.', /WARNING, $
@@ -4006,8 +4087,14 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
     ENDELSE
     IF ((lcase EQ 1) OR (lcase EQ 3)) THEN $            ; First read parameters from LINE_CENTER
       lc[d] = line_center[0,d] $
-    ELSE $              ; Or determine from mean spectrum if line centre position is not supplied
-      lc[d] = ( WHERE( spec_select EQ MIN(spec_select) ) )[0]
+    ELSE BEGIN              ; Or determine from mean spectrum if line centre position is not supplied
+      IF (WHERE(TAG_NAMES(hdr_out) EQ STRUPCASE(tag2)) EQ -1) THEN $          ; Check whether LPS exists
+        lc[d] = ( WHERE( spec_select EQ MIN(spec_select) ) )[0] $
+      ELSE BEGIN
+        IF (d EQ 0) THEN lc[d] = hdr_out.lc ELSE lc[d] = hdr_out.reflc
+        print,lc[d]
+      ENDELSE
+    ENDELSE
     IF (lcase GE 2) THEN BEGIN
       lambda_c[d]    = line_center[(lcase EQ 3),d]
       dlambda_val[d] = line_center[1+(lcase EQ 3),d]
@@ -4018,21 +4105,23 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
       v_dop_set[d] = (spectfile_set[d] EQ 1)
       IF (v_dop_set[d] EQ 0) THEN lps_select -= lps_select[LONG(lc[d])]
       IF (lcase GE 2) THEN lps_select = lps_select*dlambda_val[d] + lambda_c[d]
+    ENDIF ;ELSE v_dop_set[d] = 0
       v_dop_set[d] = (lps_select[LONG(lc[d])] NE 0)
-    ENDIF ELSE v_dop_set[d] = 0
 	  IF v_dop_set[d] THEN $
       v_dop = c_speed*(lps_select/lps_select[LONG(lc[d])]-1) $
     ELSE $
       v_dop = FLTARR(nlp_select[d])					; array with Doppler velocities in km/s
     IF (d EQ 0) THEN BEGIN      ; Fill hdr tags with main results
       hdr_out.lps = lps_select
-      tag = 'v_dop'      &  tag2 = 'lc'
+      tag = 'v_dop'
     ENDIF ELSE BEGIN            ; Fill hdr tags with reference results
       hdr_out.reflps = lps_select   
-      tag = 'v_dop_ref'  &  tag2 = 'reflc'
+      tag = 'v_dop_ref'
     ENDELSE
-    lc_sel = lc[d]
-    hdr_out = CREATE_STRUCT(hdr_out, tag, v_dop, tag2, lc_sel)
+    IF (WHERE(TAG_NAMES(hdr_out) EQ STRUPCASE(tag2)) EQ -1) THEN BEGIN
+      lc_sel = lc[d]
+      hdr_out = CREATE_STRUCT(hdr_out, tag, v_dop, tag2, lc_sel)
+    ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, tag, v_dop)
   ENDFOR
 END
 
@@ -4429,17 +4518,20 @@ END
 PRO CRISPEX_MEASURE_ARCSEC, event
 ; Handles the change of arcseconds per pixel resolution
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_ARCSEC', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_ARCSEC', /IGNORE_LAST
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, GET_VALUE = textvalue
 	(*(*info).meas).arcsecpix = FLOAT(textvalue[0])
 	IF ((*(*info).meas).np GT 0) THEN CRISPEX_MEASURE_CALC, event
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).meas).arcsecpix], labels=['arcsecpix']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).meas).arcsecpix], labels=['arcsecpix']
 END
 
 PRO CRISPEX_MEASURE_ENABLE, event
 ; Enables the spatial measurement tool
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_ENABLE', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_ENABLE', /IGNORE_LAST
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, SENSITIVE = event.SELECT
@@ -4448,7 +4540,8 @@ PRO CRISPEX_MEASURE_ENABLE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_lab, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_text, SENSITIVE = event.SELECT
 	(*(*info).meas).spatial_measurement = event.SELECT
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).meas).spatial_measurement], labels=['Enabled measurement']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).meas).spatial_measurement], labels=['Enabled measurement']
 	IF (event.SELECT EQ 0) THEN BEGIN
 		(*(*info).meas).np = 0
 		*(*(*info).meas).xp = 0
@@ -4470,7 +4563,8 @@ END
 PRO CRISPEX_MEASURE_CALC, event
 ; Computes the actual distance from the measurement line length and resolution
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_CALC'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_CALC'
   au = 149697870. 
 	delta_x = FLOAT((*(*(*info).meas).xp)[1]-(*(*(*info).meas).xp)[0]) * (*(*info).dataparams).dx
 	delta_y = FLOAT((*(*(*info).meas).yp)[1]-(*(*(*info).meas).yp)[0]) * (*(*info).dataparams).dy
@@ -4490,7 +4584,8 @@ PRO CRISPEX_MEASURE_CALC, event
   ENDELSE
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, SET_VALUE = STRTRIM(delta_asec,2)
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_text, SET_VALUE = STRTRIM(delta_km,2)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [delta_asec,delta_km], labels=['Arcseconds','Kilometers']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [delta_asec,delta_km], labels=['Arcseconds','Kilometers']
 END
 
 ;================================================================================= PLAYBACK PROCEDURES
@@ -5225,7 +5320,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
   ; Start filling data header structure with header info from inputfile
   IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN
     offset = FITSPOINTER(filename, EXTEN_NO=exten_no, header)   ; Get header offset to data
-    PARSEHEADER, header, key                                    ; Parse FITS header into key struct
+    PARSEHEADER, header, key, filename                          ; Parse FITS header into key struct
   ENDIF ELSE BEGIN
     offset = 512                                                ; Set header offset to data
     CRISPEX_READ_HEADER, filename, datatype=datatype, $         ; Parse old header into variables
@@ -5247,7 +5342,12 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.tlabel = key.tlab         &  hdr_out.tunit = key.tunit
       hdr_out.lplabel = key.lplab       &  hdr_out.lpunit = key.lpunit
       hdr_out.dt = key.dt
-      hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam)
+      lcval = SXPAR(header,'CRVAL3')
+      lc = (WHERE(key.lam EQ lcval))[0]
+      IF (lc NE -1 ) THEN $
+        hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam, 'lc', lc) $
+      ELSE $
+        hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam)
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.imtype = datatype         &  hdr_out.imendian = endian
       hdr_out.nx = nx                   &  hdr_out.dx = 0.0592
@@ -5278,7 +5378,12 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.refxlabel = key.xlab      &  hdr_out.refxunit = key.xunit
       hdr_out.refylabel = key.ylab      &  hdr_out.refyunit = key.yunit
       hdr_out.reflplabel = key.lplab    &  hdr_out.reflpunit = key.lpunit
-      hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam)
+      reflcval = SXPAR(header,'CRVAL3')
+      reflc = (WHERE(key.lam EQ reflcval))[0]
+      IF (reflc NE -1) THEN $
+        hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', reflc) $
+      ELSE $
+        hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam)
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.refimtype = datatype      &  hdr_out.refimendian = endian
       hdr_out.refnx = nx                &  hdr_out.refny = ny
@@ -8982,27 +9087,33 @@ END
 PRO CRISPEX_ZOOM_MEAS, event
 ; Handles the change in measurement position after a zoom event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_MEAS'
-	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		(*(*(*info).meas).sxp) = ((*(*(*info).meas).xp) - (*(*info).zooming).xpos ) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-		(*(*(*info).meas).syp) = ((*(*(*info).meas).yp) - (*(*info).zooming).ypos ) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-	ENDIF ELSE BEGIN
-		(*(*(*info).meas).sxp) = (*(*(*info).meas).xp) * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
-		(*(*(*info).meas).syp) = (*(*(*info).meas).yp) * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
-	ENDELSE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_MEAS'
+;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+		(*(*(*info).meas).sxp) = ((*(*(*info).meas).xp) - (*(*info).zooming).xpos ) * $
+                              (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
+		(*(*(*info).meas).syp) = ((*(*(*info).meas).yp) - (*(*info).zooming).ypos ) * $
+                              (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
+;	ENDIF ELSE BEGIN
+;		(*(*(*info).meas).sxp) = (*(*(*info).meas).xp) * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
+;		(*(*(*info).meas).syp) = (*(*(*info).meas).yp) * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
+;	ENDELSE
 END	
 
 PRO CRISPEX_ZOOM_LOOP, event
 ; Handles the change in loop positions after a zoom event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_LOOP'
-	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-		*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-	ENDIF ELSE BEGIN
-		*(*(*info).overlayparams).sxr = *(*(*info).loopparams).xr * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-		*(*(*info).overlayparams).syr = *(*(*info).loopparams).yr * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-	ENDELSE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_LOOP'
+;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
+		*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * $
+                                    (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
+		*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * $
+                                    (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
+;	ENDIF ELSE BEGIN
+;		*(*(*info).overlayparams).sxr = *(*(*info).loopparams).xr * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
+;		*(*(*info).overlayparams).syr = *(*(*info).loopparams).yr * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
+;	ENDELSE
 END
 
 ;===================================================================================================
@@ -9038,7 +9149,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '582'
+	revision_number = '583'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -9754,31 +9865,41 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 	xdelta		= 20													; Extra xoffset for positioning of windows
 	ydelta		= 40													; Extra yoffset for positioning of windows
-	refxoffset	= 0
-	refyoffset	= ydelta
   minsize   = 200.
 
   ratio      = FLOAT(hdr.nx) / FLOAT(hdr.ny)                  ; Determine image aspect ratio
-	x_scr_size = screensizes[2,monitor_order[0]]                ; Get main screen xsize
+  pixelratio = FLOAT(hdr.dx) / FLOAT(hdr.dy)                  ; Determine pixel aspect ratio
+  imwinx_default = hdr.nx
+  imwiny_default = hdr.ny
+  ; Handle pixel aspect ratio
+  IF (pixelratio GT 1) THEN imwinx_default *= pixelratio ELSE $
+    IF (pixelratio LT 1) THEN imwiny_default *= pixelratio
+	
+  x_scr_size = screensizes[2,monitor_order[0]]                ; Get main screen xsize
 	y_scr_size = screensizes[3,monitor_order[0]]                ; Get main screen ysize
-  extreme_aspect = (((ratio GT 5.) AND (hdr.ny LT minsize)) OR $
-                    ((ratio LT 0.2) AND (hdr.nx LT minsize))) ; Extreme aspect ratio and small dim
-  ; If extreme_aspect = 1 run adjusted settings
-  ; Else, run default settings
+  extreme_aspect = (((ratio GT 5.) AND (imwiny_default LT minsize)) OR $
+                    ((ratio LT 0.2) AND (imwinx_default LT minsize))) ; Extreme aspect ratio and small dim
+
   ; If xsize > nx+space for spectral windows AND ysize > ny+space for params window, then:
-	IF ((x_scr_size GT (hdr.nx+2*xdelta+0.45*x_scr_size)) AND (y_scr_size GT (hdr.ny+ydelta+90))) THEN BEGIN		
+	IF ((x_scr_size GT (imwinx_default+2*xdelta+0.45*x_scr_size)) AND $
+      (y_scr_size GT (imwiny_default+ydelta+90))) THEN BEGIN		
     ; If xsize is small, then still go to old settings procedures
-		IF ((hdr.nx LT 0.48 * x_scr_size) AND $
-        (hdr.ny LT (0.48 * x_scr_size / ratio)) AND KEYWORD_SET(WINDOW_LARGE)) THEN BEGIN				
+		IF ((imwinx_default LT 0.48 * x_scr_size) AND $
+        (imwiny_default LT (0.48 * x_scr_size / ratio)) AND $
+        (extreme_aspect OR KEYWORD_SET(WINDOW_LARGE))) THEN BEGIN				
 			imwinx 	= 0.48 * x_scr_size											; Set maximum x-extent of image window
 			imwiny 	= imwinx / ratio											; Set maximum y-extent of image window
+		  IF (imwiny GT y_scr_size) THEN BEGIN										; Failsafe to avoid a window larger than the 
+			  imwiny = 0.85 * y_scr_size											; screensize
+			  imwinx = imwiny * ratio
+		  ENDIF
 			IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'User screen resolution '+$
                                     'allows 1:1 image window sizing, but dimensions are small. '+$
                                     'Reverting to image window size of '+STRTRIM(imwinx,2)+'x'+$
                                     STRTRIM(imwiny,2)+'.', /NEWLINE, /NO_ROUTINE
 		ENDIF ELSE BEGIN
-			imwinx	= hdr.nx													; - use actual nx as imwinx
-			imwiny	= hdr.ny													; - use actual ny as imwiny
+			imwinx	= hdr.nx                                  ; - use actual nx as imwinx
+			imwiny	= hdr.ny                                  ; - use actual ny as imwiny
 			IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'User screen resolution '+$
                                     'allows 1:1 image window sizing. Image window is '+$
                                     STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.', /NEWLINE, $
@@ -9798,17 +9919,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
   ; HANDLE_EXTREME: handling procedures for extreme image axis ratio
   ; 0 - do nothing
-  ; 1 - zoom in, pixels are not 1:1
-  ; 2 - zoom in, pixels are 1:1
-  ; 3 - pad with zeroes (still to be implemented)
+  ; 1 - zoom in, no correction for non-square pixels
+  ; 2 - zoom in, with correction for non-square pixels
+  ; 3 - pad with zeroes, window as big as for setting 2, zoom in correctly
   IF (N_ELEMENTS(HANDLE_EXTREME) NE 1) THEN handle_extreme = 0
   zoomfactor = 1
   padded_bg = 0
   IF extreme_aspect THEN BEGIN
-    IF (handle_extreme EQ 1) THEN BEGIN             ; Zoom in, no correction for stretched pixels
+    IF (handle_extreme EQ 1) THEN BEGIN
       imwinx = 8*hdr.nx
       imwiny = 0.85 * y_scr_size
-    ENDIF ELSE IF (handle_extreme EQ 2) THEN BEGIN  ; Zoom in, with correction for stretched pixels
+    ENDIF ELSE IF (handle_extreme EQ 2) THEN BEGIN
       IF (ratio GT 1) THEN BEGIN
         imwinx = hdr.nx
         imwiny = (8.*hdr.ny) < (0.85 * y_scr_size)
@@ -9816,14 +9937,24 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
         imwinx = (8.*hdr.nx) < (0.48 * x_scr_size)
         imwiny = hdr.ny
       ENDELSE
-    ENDIF 
+    ENDIF
   ENDIF 
+  IF (pixelratio GT 1) THEN imwinx *= pixelratio ELSE IF (pixelratio LT 1) THEN imwiny *= pixelratio
 
 	windowx		= 0.2 * x_scr_size											; Set maximum x-extent of spectral win
-	IF (hdr.nt GE 50) THEN windowy = imwiny ELSE windowy = imwiny/2.
-	lswinx 		= 0.25 * x_scr_size											; Set maximum x-extent of loc spec win
-	
-	spxoffset = imwinx + xdelta
+	IF (hdr.nt GE 50) THEN windowy = imwiny ELSE windowy = imwiny/2. > (y_scr_size/2.)
+	lswinx 		= 0.2 * x_scr_size											; Set maximum x-extent of loc spec win
+
+  ; If reference cube present, check if it would fit next to main image
+  refxoffset = 0
+  refyoffset = 0
+  IF showref THEN BEGIN
+    windows_xextent = imwinx*2 + windowx + lswinx + xdelta*3
+    IF (windows_xextent LE x_scr_size) THEN refxoffset = imwinx + xdelta $
+      ELSE refyoffset = ydelta
+  ENDIF
+
+	spxoffset = imwinx + refxoffset + xdelta
 	lsxoffset = spxoffset + windowx + xdelta
 
 	xswinx		= windowx												; Set maximum x-extent of x-slice window
@@ -11011,7 +11142,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		loopxres:spwinx, loopyres:spwiny, restloopxres:spwinx, restloopyres:spwiny, $			
 		retrdetxres:spwinx, retrdetyres:spwiny, intxres:lswinx, intyres:intwiny, $							
 		xdelta:xdelta, ydelta:ydelta, spxoffset:spxoffset, lsxoffset:lsxoffset, $
-		aboutxoffset:startup_xpos, aboutyoffset:startup_ypos $
+    refxoffset:refxoffset, refyoffset:refyoffset, aboutxoffset:startup_xpos, $
+    aboutyoffset:startup_ypos $
 		}
 ;--------------------------------------------------------------------------------- WINDOW SWITCHES
 	winswitch = { $
@@ -11222,10 +11354,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ENDIF
 	CRISPEX_DRAW, pseudoevent
 	
-	IF ((*(*info).winswitch).showsp OR (*(*info).winswitch).showphis OR (*(*info).winswitch).showrefsp) THEN spwset = 1 ELSE spwset = 0
-	IF (*(*info).winswitch).showls THEN lsoffset = (*(*info).winswitch).showls * ((*(*info).winsizes).lswiny + (*(*info).winsizes).ydelta) + (*(*info).dataswitch).refspfile * (*(*info).winsizes).ydelta ELSE $
+;	IF ((*(*info).winswitch).showsp OR (*(*info).winswitch).showphis OR (*(*info).winswitch).showrefsp) THEN spwset = 1 ELSE spwset = 0
+	spwset = ((*(*info).winswitch).showsp OR (*(*info).winswitch).showphis OR $
+            (*(*info).winswitch).showrefsp) 
+	IF (*(*info).winswitch).showls THEN $
+    lsoffset = (*(*info).winswitch).showls * ((*(*info).winsizes).lswiny + $
+    (*(*info).winsizes).ydelta) + (*(*info).dataswitch).refspfile * (*(*info).winsizes).ydelta $
+   ELSE $
 		lsoffset = (*(*info).winswitch).showrefls * (reflswiny + (*(*info).winsizes).ydelta)
-	WIDGET_CONTROL, control_panel, /REALIZE, TLB_SET_XOFFSET = (*(*info).winsizes).xywinx + (*(*info).winsizes).xdelta + spwset * ((*(*info).winsizes).xdelta + (*(*info).winsizes).spwinx), $
+	WIDGET_CONTROL, control_panel, /REALIZE, $
+    TLB_SET_XOFFSET = (*(*info).winsizes).xywinx + (*(*info).winsizes).refxoffset + $
+    (*(*info).winsizes).xdelta + spwset * ((*(*info).winsizes).xdelta + (*(*info).winsizes).spwinx), $
 		TLB_SET_YOFFSET = lsoffset
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(realising widget)', /WIDGET, /OVER, /DONE
