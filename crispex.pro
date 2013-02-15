@@ -1350,7 +1350,7 @@ PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
     ELSE $
       y_off = (*(*info).winsizes).spwiny
 		WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = 0, TLB_SET_YOFFSET = $
-                    y_off + (*(*info).winsizes).ydelta
+                    y_off + 2*(*(*info).winsizes).ydelta
 		WIDGET_CONTROL, base, SET_UVALUE = info
 		XMANAGER, 'CRISPEX', base, /NO_BLOCK
 		(*(*info).winids).paramtlb = base
@@ -8926,16 +8926,32 @@ PRO CRISPEX_VERBOSE_SET_BUTTONS, event
 END
 
 ;================================================================================= GENERAL WINDOW PROCEDURES
-PRO CRISPEX_WINDOW, xsize, ysize, leader, title, base, wid, xoffset, yoffset, DRAWID = drawid, DRAWBASE =disp, SCROLL = xscrollsize, YSCROLL = yscrollsize, SCROLL = scroll, RESIZING = resizing, $
-	RES_HANDLER = res_handler
+PRO CRISPEX_WINDOW, xsize, ysize, leader, title, base, wid, xoffset, yoffset, DRAWID = drawid, $
+                    DRAWBASE =disp, XSCROLL = xscroll, YSCROLL = yscroll, SCROLL = scroll, $
+                    RESIZING = resizing, RES_HANDLER = res_handler
 ; Sets up the display windows
 	IF (N_ELEMENTS(RESIZING) EQ 0) THEN resizing = 0
-	IF (N_ELEMENTS(LEADER) EQ 0) THEN base = WIDGET_BASE(TITLE = title, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS, TLB_SIZE_EVENTS = resizing) ELSE $
-		base = WIDGET_BASE(TITLE = STRTRIM(title), GROUP_LEADER = leader, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS, TLB_SIZE_EVENTS = resizing)
+	IF (N_ELEMENTS(LEADER) EQ 0) THEN $
+    base = WIDGET_BASE(TITLE = title, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS, $
+                        TLB_SIZE_EVENTS = resizing) $
+  ELSE $
+		base = WIDGET_BASE(TITLE = STRTRIM(title), GROUP_LEADER = leader, TLB_FRAME_ATTR = 1, $
+                        /TLB_KILL_REQUEST_EVENTS, TLB_SIZE_EVENTS = resizing)
 	disp = WIDGET_BASE(base, /COLUMN)
-	drawid = WIDGET_DRAW(disp, XSIZE = xsize, YSIZE = ysize, RETAIN = 2)
+  IF KEYWORD_SET(SCROLL) THEN BEGIN
+    draw_verslid_base = WIDGET_BASE(disp,/ROW)
+    draw_horslid_base = WIDGET_BASE(disp,/ROW)
+  ENDIF ELSE draw_verslid_base = disp
+	drawid = WIDGET_DRAW(draw_verslid_base, XSIZE = xsize, YSIZE = ysize, RETAIN = 2)
+  IF KEYWORD_SET(SCROLL) THEN BEGIN
+    yscroll = WIDGET_SLIDER(draw_verslid_base,VALUE=0,MIN=0,MAX=1,/SUPPRESS,/DRAG,$
+                            EVENT_PRO='CRISPEX_SLIDER_YPOS',/VERTICAL, YSIZE=ysize)
+    xscroll = WIDGET_SLIDER(draw_horslid_base,VALUE=0,MIN=0,MAX=1,/SUPPRESS,/DRAG,$
+                            EVENT_PRO='CRISPEX_SLIDER_XPOS', XSIZE=xsize)
+  ENDIF
 	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET=xoffset, TLB_SET_YOFFSET=yoffset
-	IF (N_ELEMENTS(RES_HANDLER) GT 0) THEN XMANAGER, 'CRISPEX', base, EVENT_HANDLER = res_handler, /NO_BLOCK
+	IF (N_ELEMENTS(RES_HANDLER) GT 0) THEN $
+    XMANAGER, 'CRISPEX', base, EVENT_HANDLER = res_handler, /NO_BLOCK
 	WIDGET_CONTROL, drawid, GET_VALUE = wid
 END
 
@@ -9204,7 +9220,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '585'
+	revision_number = '586'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -9938,7 +9954,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
   ; If xsize > nx+space for spectral windows AND ysize > ny+space for params window, then:
 	IF ((x_scr_size GT (imwinx_default+2*xdelta+0.45*x_scr_size)) AND $
-      (y_scr_size GT (imwiny_default+ydelta+90))) THEN BEGIN		
+      (y_scr_size GT (imwiny_default+1.5*ydelta+90))) THEN BEGIN		
     ; If xsize is small, then still go to old settings procedures
 		IF ((imwinx_default LT 0.48 * x_scr_size) AND $
         (imwiny_default LT (0.48 * x_scr_size / ratio)) AND $
@@ -10007,11 +10023,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   refyoffset = 0
   IF showref THEN BEGIN
     windows_xextent = imwinx*2 + windowx + lswinx + xdelta*3
-    IF (windows_xextent LE x_scr_size) THEN refxoffset = imwinx + xdelta $
+    IF (windows_xextent LE x_scr_size) THEN refxoffset = imwinx + 2*xdelta $
       ELSE refyoffset = ydelta
   ENDIF
 
-	spxoffset = imwinx + refxoffset + xdelta
+	spxoffset = imwinx + refxoffset + (1+(windows_xextent GT x_scr_size))*xdelta
 	lsxoffset = spxoffset + windowx + xdelta
 
 	xswinx		= windowx												; Set maximum x-extent of x-slice window
@@ -10513,19 +10529,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	unlockbut		= WIDGET_BUTTON(lock_field, VALUE = 'Unlock from position', TOOLTIP = 'Unlock cursor from current position')
 	WIDGET_CONTROL, unlockbut, SET_BUTTON = 1
 
-	zoom_sup_frame	= WIDGET_BASE(cursor_frame, /FRAME, /COLUMN)
-	zoom_frame		  = WIDGET_BASE(zoom_sup_frame, /ROW)
+	zoom_frame		  = WIDGET_BASE(cursor_frame, /ROW)
 	zoom_label		  = WIDGET_LABEL(zoom_frame, VALUE = 'Zoom:', /ALIGN_LEFT)
 	zoom_but_field  = WIDGET_BASE(zoom_frame, /ROW )
 	zoom_buts	      = CW_BGROUP(zoom_but_field,STRTRIM(FIX(zoomfactors),2)+REPLICATE('x',$
                       N_ELEMENTS(zoomfactors)), BUTTON_UVALUE=INDGEN(N_ELEMENTS(zoomfactors)), $
                       IDS=zoom_button_ids,/EXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_ZOOMFAC_SET')
-	xpos_slider		  = WIDGET_SLIDER(zoom_sup_frame, MIN = x_first, MAX = x_last, VALUE = x_first, $
-                      TITLE = 'X position of image (lower left corner) [pixel]', $
-                      EVENT_PRO = 'CRISPEX_SLIDER_XPOS', /DRAG, SENSITIVE = 0)
-	ypos_slider		= WIDGET_SLIDER(zoom_sup_frame, MIN = y_first, MAX = y_last, VALUE = y_first, $
-                    TITLE = 'Y position of image (lower left corner) [pixel]',  $
-                    EVENT_PRO = 'CRISPEX_SLIDER_YPOS', /DRAG, SENSITIVE = 0)
 
   stokes_tab		= WIDGET_BASE(tab_tlb, TITLE='Stokes', /COLUMN)
 	stokes_frame  = WIDGET_BASE(stokes_tab, /FRAME, /COLUMN)
@@ -10782,7 +10791,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 	imwintitle = 'CRISPEX'+instance_label+': Main image'
 	CRISPEX_WINDOW, imwinx, imwiny, control_panel, imwintitle, imwin, xywid, DRAWID = xydrawid, $
-		DRAWBASE = drawbase, 0, 0;, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_XYREF_RESIZE'
+		DRAWBASE = drawbase, 0, 0, /SCROLL, XSCROLL=xpos_slider, YSCROLL=ypos_slider;XSCROLL=imwinx, YSCROLL=imwiny
+    ;, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_XYREF_RESIZE'
 	WIDGET_CONTROL, xydrawid, EVENT_PRO = 'CRISPEX_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, /TRACKING_EVENTS,$
 		/DRAW_BUTTON_EVENTS
 	
@@ -11419,7 +11429,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		lsoffset = (*(*info).winswitch).showrefls * (reflswiny + (*(*info).winsizes).ydelta)
 	WIDGET_CONTROL, control_panel, /REALIZE, $
     TLB_SET_XOFFSET = (*(*info).winsizes).xywinx + (*(*info).winsizes).refxoffset + $
-    (*(*info).winsizes).xdelta + spwset * ((*(*info).winsizes).xdelta + (*(*info).winsizes).spwinx), $
+    2*(*(*info).winsizes).xdelta + spwset * ((*(*info).winsizes).xdelta + (*(*info).winsizes).spwinx), $
 		TLB_SET_YOFFSET = lsoffset
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(realising widget)', /WIDGET, /OVER, /DONE
