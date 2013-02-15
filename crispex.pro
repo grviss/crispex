@@ -1,4 +1,3 @@
-;---------------------------------------------------------------------------------------------------
 ;+
 ; NAME:
 ;   CRISPEX: CRIsp SPectral EXplorer
@@ -19,12 +18,12 @@
 ; INPUTS:
 ;	  Imcube        - 3D image datacube (dimensions [nx,ny,nt*nlp*ns]) or, if SPCUBE is not provided,
 ;                   a scan (dimensions [nx,ny,nlp]). If SINGLE_CUBE is specified a 3D datacube may 
-;                   be provided even if SPCUBE is not.
+;                   be provided even if SPCUBE is not. Allowed data types: BYTE, INTEGER, FLOAT.
 ;
 ; OPTIONAL INPUTS:
 ;	  Spcube        - 3D spectral datacube (dimensions [nlp,nt,nx*ny*ns]). Required input if 
 ;                   SINGLE_CUBE is not supplied with the number of linepositions and Imcube is a 
-;                   time series.
+;                   time series. Allowed data types: BYTE, INTEGER, FLOAT.
 ;
 ; KEYWORDS:
 ;	  REFCUBE	      - Reference data of same spatial dimensions as main data. REFCUBE may be supplied
@@ -38,10 +37,11 @@
 ;                       (dimensions [nx,ny,nt*refnlp]), the second element pointing to the 
 ;                       corresponding reference spectral cube (dimensions [refnlp,refnt,nx*ny]). 
 ;                       Again, refnt must be equal to 1 or nt, while any (positive integer) value of 
-;                       refnlp is allowed.
+;                       refnlp is allowed. 
+;                   Allowed data types: BYTE, INTEGER, FLOAT.
 ;	  MASKCUBE	    - Mask data of same spatial dimensions as main data. Must be supplied with a scalar
 ;                   string pointing to a mask image cube of dimensions [nx,nx,masknt] where masknt 
-;                   must be equal to nt or 1.
+;                   must be equal to nt or 1. Allowed data types: BYTE, INTEGER, FLOAT.
 ;	  SPECTFILE	    - File containing the normalised spectrum as function of the linepositions or 
 ;                   wavelength. Contains the required variables:
 ;			                * NORM_SPECT (normalised spectrum)
@@ -234,14 +234,15 @@
 ;				  - 'increase spectral position' (Shift+S); 
 ;				  - 'decrease spectral position' (Shift+A).
 ;			  - 'Zoom options':
-;		  		- '1x' (Ctrl+Shift+1); 
-;				  - '2x' (Ctrl+Shift+2);
-;				  - '3x' (Ctrl+Shift+3);
-;				  - '4x' (Ctrl+Shift+4);
-;				  - '6x' (Ctrl+Shift+6);
-;				  - '8x' (Ctrl+Shift+8).
+;		  		- 'In' (Ctrl+Shift+I); 
+;				  - 'Out' (Ctrl+Shift+O).
 ;			  - 'Runtime options:
-;				  - 'Interrupt' (Ctrl+Shift+C).
+;				  - 'Interrupt' (Ctrl+Shift+C);
+;         - 'Verbosity':
+;           - 'No verbosity' (Shift+0);
+;           - 'Basic runtime verbosity' (Shift+4);
+;           - 'Extended runtime verbosity' (Shift+8);
+;           - 'Enable playback statistics' (Shift+P).
 ;
 ;	  Further information on the calling sequence and specific options can be found in the online 
 ;   reference pages, which can be reached through the in-program help function or by going directly 
@@ -304,7 +305,6 @@
 ;	  @ Institute of Theoretical Astrophysics, University of Oslo
 ;   $Id$
 ;-
-;---------------------------------------------------------------------------------------------------------
 
 ;================================================================================= ABOUT WINDOW PROCEDURES
 PRO CRISPEX_ABOUT_WINDOW, event 							
@@ -522,16 +522,16 @@ PRO CRISPEX_CURSOR, event
 			DEVICE, CURSOR_IMAGE = ci, CURSOR_MASK = cim, CURSOR_XY = [8,8]
 		ENDIF ELSE BEGIN
 			IF (((*(*info).loopparams).np GE 1) AND (*(*info).overlayswitch).looppath_feedback AND ((*(*info).curs).lockset GT 0)) THEN BEGIN
-				*(*(*info).loopparams).xp = (*(*(*info).loopparams).xp)[*,0:(*(*info).loopparams).np-1]
-				*(*(*info).loopparams).yp = (*(*(*info).loopparams).yp)[*,0:(*(*info).loopparams).np-1]
-				*(*(*info).overlayparams).sxp = (*(*(*info).overlayparams).sxp)[*,0:(*(*info).loopparams).np-1]
-				*(*(*info).overlayparams).syp = (*(*(*info).overlayparams).syp)[*,0:(*(*info).loopparams).np-1]
+				*(*(*info).loopparams).xp = (*(*(*info).loopparams).xp)[0:(*(*info).loopparams).np-1]
+				*(*(*info).loopparams).yp = (*(*(*info).loopparams).yp)[0:(*(*info).loopparams).np-1]
+				*(*(*info).overlayparams).sxp = (*(*(*info).overlayparams).sxp)[0:(*(*info).loopparams).np-1]
+				*(*(*info).overlayparams).syp = (*(*(*info).overlayparams).syp)[0:(*(*info).loopparams).np-1]
 				IF ((*(*info).loopparams).np GE 2) THEN CRISPEX_LOOP_GET_PATH, event ELSE BEGIN
 					*(*(*info).loopparams).xr = *(*(*info).loopparams).xp
 					*(*(*info).loopparams).yr = *(*(*info).loopparams).yp
 				ENDELSE
-				(*(*info).dataparams).x = (*(*(*info).loopparams).xp)[*,(*(*info).loopparams).np-1]
-				(*(*info).dataparams).y = (*(*(*info).loopparams).yp)[*,(*(*info).loopparams).np-1]
+				(*(*info).dataparams).x = (*(*(*info).loopparams).xp)[(*(*info).loopparams).np-1]
+				(*(*info).dataparams).y = (*(*(*info).loopparams).yp)[(*(*info).loopparams).np-1]
 				CRISPEX_COORDSLIDERS_SET, 0, 0, event
 				IF (*(*info).winswitch).showphis THEN BEGIN
 					(*(*info).curs).sx = (*(*info).curs).sxlock
@@ -573,10 +573,10 @@ PRO CRISPEX_CURSOR, event
 						IF ((*(*info).loopparams).np EQ 2) THEN $
               WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, SET_VALUE = 'Erase loop path'
 						IF ((*(*info).loopparams).np GE 2) THEN BEGIN
-							*(*(*info).loopparams).xp = [[*(*(*info).loopparams).xp],[(*(*info).curs).xlock]]
-							*(*(*info).loopparams).yp = [[*(*(*info).loopparams).yp],[(*(*info).curs).ylock]]
-							*(*(*info).overlayparams).sxp = [[*(*(*info).overlayparams).sxp],[(*(*info).curs).sxlock]]
-							*(*(*info).overlayparams).syp = [[*(*(*info).overlayparams).syp],[(*(*info).curs).sylock]]
+							*(*(*info).loopparams).xp = [*(*(*info).loopparams).xp,(*(*info).curs).xlock]
+							*(*(*info).loopparams).yp = [*(*(*info).loopparams).yp,(*(*info).curs).ylock]
+							*(*(*info).overlayparams).sxp = [*(*(*info).overlayparams).sxp,(*(*info).curs).sxlock]
+							*(*(*info).overlayparams).syp = [*(*(*info).overlayparams).syp,(*(*info).curs).sylock]
 							IF ((*(*info).winids).looptlb EQ 0) THEN $
                 WIDGET_CONTROL, (*(*info).ctrlscp).loop_slice_but, SENSITIVE = 1
 							IF ((*(*info).loopparams).np EQ 3) THEN $
@@ -646,14 +646,14 @@ PRO CRISPEX_CURSOR, event
 					(*(*info).curs).sx = event.X
 					(*(*info).curs).sy = event.Y
 					CRISPEX_CURSOR_GET_XY, event
-					*(*(*info).loopparams).xp = [[(*(*(*info).loopparams).xp)[$
-                                        *,0:(*(*info).loopparams).np-1]],[(*(*info).dataparams).x]]
-					*(*(*info).loopparams).yp = [[(*(*(*info).loopparams).yp)[$
-                                        *,0:(*(*info).loopparams).np-1]],[(*(*info).dataparams).y]]
-					*(*(*info).overlayparams).sxp = [[(*(*(*info).overlayparams).sxp)[$
-                                            *,0:(*(*info).loopparams).np-1]],[(*(*info).curs).sx]]
-					*(*(*info).overlayparams).syp = [[(*(*(*info).overlayparams).syp)[$
-                                            *,0:(*(*info).loopparams).np-1]],[(*(*info).curs).sy]]
+					*(*(*info).loopparams).xp = [(*(*(*info).loopparams).xp)[$
+                                        0:(*(*info).loopparams).np-1],(*(*info).dataparams).x]
+					*(*(*info).loopparams).yp = [(*(*(*info).loopparams).yp)[$
+                                        0:(*(*info).loopparams).np-1],(*(*info).dataparams).y]
+					*(*(*info).overlayparams).sxp = [(*(*(*info).overlayparams).sxp)[$
+                                            0:(*(*info).loopparams).np-1],(*(*info).curs).sx]
+					*(*(*info).overlayparams).syp = [(*(*(*info).overlayparams).syp)[$
+                                            0:(*(*info).loopparams).np-1],(*(*info).curs).sy]
 					CRISPEX_LOOP_GET_PATH, event
 					IF ((*(*info).zooming).factor NE 1) THEN BEGIN
 						*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) *$
@@ -4409,7 +4409,7 @@ PRO CRISPEX_LOOP_GET_PATH, event
 ; Gets the actual loop path from spline interpolation
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_GET_PATH'
-	np_local = (SIZE(*(*(*info).loopparams).xp))[2] 
+	np_local = (SIZE(*(*(*info).loopparams).xp))[1] 
 	IF (np_local GE 2) THEN BEGIN
 		IF ((*(*(*info).loopparams).xp)[np_local-1] EQ (*(*(*info).loopparams).xp)[np_local-2]) AND ((*(*(*info).loopparams).yp)[np_local-1] EQ (*(*(*info).loopparams).yp)[np_local-2]) THEN RETURN
 	ENDIF
@@ -4532,10 +4532,10 @@ PRO CRISPEX_LOOP_REMOVE_POINT, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_REMOVE_POINT'
 	(*(*info).loopparams).np -= 1
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).loopparams).np], labels=['np']
-	*(*(*info).loopparams).xp = (*(*(*info).loopparams).xp)[*,0:(*(*info).loopparams).np-1]
-	*(*(*info).loopparams).yp = (*(*(*info).loopparams).yp)[*,0:(*(*info).loopparams).np-1]
-	*(*(*info).overlayparams).sxp = (*(*(*info).overlayparams).sxp)[*,0:(*(*info).loopparams).np-1]
-	*(*(*info).overlayparams).syp = (*(*(*info).overlayparams).syp)[*,0:(*(*info).loopparams).np-1]
+	*(*(*info).loopparams).xp = (*(*(*info).loopparams).xp)[0:(*(*info).loopparams).np-1]
+	*(*(*info).loopparams).yp = (*(*(*info).loopparams).yp)[0:(*(*info).loopparams).np-1]
+	*(*(*info).overlayparams).sxp = (*(*(*info).overlayparams).sxp)[0:(*(*info).loopparams).np-1]
+	*(*(*info).overlayparams).syp = (*(*(*info).overlayparams).syp)[0:(*(*info).loopparams).np-1]
 	(*(*info).dataparams).x = (*(*(*info).loopparams).xp)[(*(*info).loopparams).np-1]
 	(*(*info).dataparams).y = (*(*(*info).loopparams).yp)[(*(*info).loopparams).np-1]
 	(*(*info).curs).sxlock = (*(*(*info).overlayparams).sxp)[(*(*info).loopparams).np-1]
@@ -7487,7 +7487,7 @@ PRO CRISPEX_SAVE_APPROX_LOOPSLAB, event, SAVE_SLICE=save_slice
 		average_spectrum = ((*(*info).dataparams).spec)[*,(*(*info).dataparams).s] 
 		scaling_factor = (*(*info).dataparams).ms
 		vertices = *(*(*info).loopsdata).crossloc
-		x_coords = REFORM((*(*(*info).loopparams).xp)[0,*])	&	y_coords = REFORM((*(*(*info).loopparams).yp)[0,*])
+		x_coords = *(*(*info).loopparams).xp	&	y_coords = *(*(*info).loopparams).yp
 		x_loop_pts = *(*(*info).loopparams).xr			&	y_loop_pts = *(*(*info).loopparams).yr
 		w_loop_pts = *(*(*info).loopparams).w_lpts		&	spect_pos = (*(*info).dataparams).lp
 		t_saved = (*(*info).dataparams).t			&	loop_size= (*(*info).loopsdata).loopsize
@@ -7573,7 +7573,7 @@ PRO CRISPEX_SAVE_EXACT_LOOPSLAB, event, SAVE_SLICE=save_slice
 	average_spectrum = ((*(*info).dataparams).spec)[*,(*(*info).dataparams).s] 
 	scaling_factor = (*(*info).dataparams).ms
 	vertices = *(*(*info).loopsdata).exact_crossloc
-	x_coords = REFORM((*(*(*info).loopparams).xp)[0,*])		&	y_coords = REFORM((*(*(*info).loopparams).yp)[0,*])
+	x_coords = *(*(*info).loopparams).xp  &	y_coords = *(*(*info).loopparams).yp
 	x_loop_pts = *(*(*info).loopparams).xr				&	y_loop_pts = *(*(*info).loopparams).yr
 	spect_pos = (*(*info).dataparams).lp				&	loop_size= (*(*info).loopsdata).exact_loopsize
 	spect_pos_low = lp_low						&	spect_pos_upp = lp_upp
@@ -7679,7 +7679,7 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
 			scaling_factor = (*(*info).dataparams).refms
 		ENDELSE
 		vertices = *(*(*info).loopsdata).exact_crossloc
-		x_coords = REFORM((*(*(*info).loopparams).xp)[0,*])		&	y_coords = REFORM((*(*(*info).loopparams).yp)[0,*])
+		x_coords = *(*(*info).loopparams).xp		&	y_coords = *(*(*info).loopparams).yp
 		x_loop_pts = *(*(*info).loopparams).xr				&	y_loop_pts = *(*(*info).loopparams).yr
 		spect_pos_low = lp_low						&	spect_pos_upp = lp_upp
 		loop_size= (*(*info).loopsdata).exact_loopsize
@@ -9083,82 +9083,60 @@ PRO CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SE
     SET_VALUE = (*(*info).zooming).ypos
 END
 
-PRO CRISPEX_ZOOMFAC_ONE, event, NO_DRAW=no_draw
-; Sets the zoomfactor to 1 and changes options and paramters accordingly
+FUNCTION CRISPEX_ZOOMFAC_SET, event, NO_DRAW=no_draw, SET_FACTOR_IDX=set_factor_idx, $
+                              UNSET_FACTOR_IDX=unset_factor_idx
+; Sets the zoomfactor and changes options and paramters accordingly
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_ONE'
-	(*(*info).zooming).factor = 1
-  IF ((*(*info).zooming).handle_extreme NE 2) THEN BEGIN
-    (*(*info).zooming).xpos = 0	&	(*(*info).zooming).ypos = 0
-    sensitive = [0,0]
-  ENDIF ELSE $
-    sensitive = [(((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio GT 1)),$
-                 (((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio LT 1))]
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_SET'
+  IF (N_ELEMENTS(SET_FACTOR_IDX) EQ 1) THEN BEGIN
+    idx = set_factor_idx   & select = 1B
+    IF (N_ELEMENTS(UNSET_FACTOR_IDX) EQ 1) THEN (*(*info).zooming).factorswitch[unset_factor_idx]= 0B
+  ENDIF ELSE BEGIN
+    idx = event.VALUE & select = BYTE(event.SELECT)
+  ENDELSE
+  (*(*info).zooming).factorswitch[idx] = select
+  (*(*info).zooming).factor = ((*(*info).zooming).factors)[idx]
+;  IF ((*(*info).zooming).handle_extreme NE 2) THEN BEGIN
+    IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
+      (*(*info).zooming).xpos = 0	&	(*(*info).zooming).ypos = 0
+    ENDIF
+;    sensitive = [0,0]
+;  ENDIF ELSE $
+    sensitive = [(((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio GT 1) OR $
+                  ((*(*info).zooming).factor NE 1)),$
+                 (((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio LT 1) OR $
+                  ((*(*info).zooming).factor NE 1))]
   CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
 	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SENSITIVE=sensitive
-;	WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SENSITIVE = $
-;    ((*(*info).zooming).handle_extreme EQ 2), SET_VALUE = (*(*info).zooming).xpos
-;	WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SENSITIVE = $
-;    ((*(*info).zooming).handle_extreme EQ 2), SET_VALUE = (*(*info).zooming).ypos
-	WIDGET_CONTROL, (*(*info).ctrlscp).zoom_one, /SET_BUTTON
+  FOR i=0,N_ELEMENTS((*(*info).zooming).factors)-1 DO $
+    WIDGET_CONTROL, ((*(*info).ctrlscp).zoom_button_ids)[i], $
+                    SET_BUTTON = ((*(*info).zooming).factorswitch)[i]
 	CRISPEX_ZOOM, event, NO_DRAW=no_draw
 END
 
-PRO CRISPEX_ZOOMFAC_TWO, event
-; Sets the zoomfactor to 2 and changes options and paramters accordingly
+PRO CRISPEX_ZOOMFAC_DECR, event
+; Decreases the zoomfactor and calls CRISPEX_ZOOMFAC_SET
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_TWO'
-	CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
-	(*(*info).zooming).factor = 2.
-	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y
-	WIDGET_CONTROL, (*(*info).ctrlscp).zoom_two, /SET_BUTTON
-	CRISPEX_ZOOM, event
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_DECR'
+  old_factor_idx = WHERE((*(*info).zooming).factorswitch EQ 1)
+  set_factor_idx = ( old_factor_idx - 1 ) > 0
+  IF (set_factor_idx NE old_factor_idx) THEN $
+    set_zoomfac = CRISPEX_ZOOMFAC_SET(event, SET_FACTOR_IDX=set_factor_idx, $
+                                      UNSET_FACTOR_IDX=old_factor_idx)
 END
 
-PRO CRISPEX_ZOOMFAC_THREE, event
-; Sets the zoomfactor to 3 and changes options and paramters accordingly
+PRO CRISPEX_ZOOMFAC_INCR, event
+; Increases the zoomfactor and calls CRISPEX_ZOOMFAC_SET
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_THREE'
-	CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
-	(*(*info).zooming).factor = 3.
-	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y
-	WIDGET_CONTROL, (*(*info).ctrlscp).zoom_three, /SET_BUTTON
-	CRISPEX_ZOOM, event
-END
-
-PRO CRISPEX_ZOOMFAC_FOUR, event
-; Sets the zoomfactor to 4 and changes options and paramters accordingly
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_FOUR'
-	CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
-	(*(*info).zooming).factor = 4.
-	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y
-	WIDGET_CONTROL, (*(*info).ctrlscp).zoom_four, /SET_BUTTON
-	CRISPEX_ZOOM, event
-END
-
-PRO CRISPEX_ZOOMFAC_SIX, event
-; Sets the zoomfactor to 6 and changes options and paramters accordingly
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_SIX'
-	CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
-	(*(*info).zooming).factor = 6.
-	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y
-	WIDGET_CONTROL, (*(*info).ctrlscp).zoom_six, /SET_BUTTON
-	CRISPEX_ZOOM, event
-END
-
-PRO CRISPEX_ZOOMFAC_EIGHT, event
-; Sets the zoomfactor to 8 and changes options and paramters accordingly
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_EIGHT'
-	CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
-	(*(*info).zooming).factor = 8.
-	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y
-	WIDGET_CONTROL, (*(*info).ctrlscp).zoom_eight, /SET_BUTTON
-	CRISPEX_ZOOM, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_INCR'
+  old_factor_idx = WHERE((*(*info).zooming).factorswitch EQ 1)
+  set_factor_idx = ( old_factor_idx + 1 ) < (N_ELEMENTS((*(*info).zooming).factorswitch)-1)
+  IF (set_factor_idx NE old_factor_idx) THEN $
+    set_zoomfac = CRISPEX_ZOOMFAC_SET(event, SET_FACTOR_IDX=set_factor_idx, $
+                                      UNSET_FACTOR_IDX=old_factor_idx)
 END
 
 PRO CRISPEX_ZOOM_MEAS, event
@@ -9226,7 +9204,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '584'
+	revision_number = '585'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -10001,7 +9979,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   ; 2 - zoom in, with correction for non-square pixels
   ; 3 - pad with zeroes, window as big as for setting 2, zoom in correctly
   IF (N_ELEMENTS(HANDLE_EXTREME) NE 1) THEN handle_extreme = 0
-  zoomfactor = 1
+  zoomfactors = [1.,2.,3.,4.,6.,8.]
+  factorswitch = [1B,BYTARR(N_ELEMENTS(zoomfactors)-1)]
   padded_bg = 0
   IF extreme_aspect THEN BEGIN
     IF (handle_extreme EQ 1) THEN BEGIN
@@ -10455,12 +10434,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	sh_lp_incr_button 	= WIDGET_BUTTON(sh_spectralmenu, VALUE = sp_h[heightset]+' position +', EVENT_PRO = 'CRISPEX_SLIDER_LP_INCR', ACCELERATOR = 'Shift+S')
 	sh_lp_decr_button 	= WIDGET_BUTTON(sh_spectralmenu, VALUE = sp_h[heightset]+' position -', EVENT_PRO = 'CRISPEX_SLIDER_LP_DECR', ACCELERATOR = 'Shift+A')
 	sh_zoommenu		= WIDGET_BUTTON(shortcutmenu, VALUE = 'Zoom options',/MENU)
-	sh_zoom_one		= WIDGET_BUTTON(sh_zoommenu, VALUE = 'Zoom 1x', EVENT_PRO = 'CRISPEX_ZOOMFAC_ONE',/NO_RELEASE, ACCELERATOR = 'Ctrl+Shift+1')
-	sh_zoom_two		= WIDGET_BUTTON(sh_zoommenu, VALUE = 'Zoom 2x', EVENT_PRO = 'CRISPEX_ZOOMFAC_TWO',/NO_RELEASE, ACCELERATOR = 'Ctrl+Shift+2')
-	sh_zoom_three		= WIDGET_BUTTON(sh_zoommenu, VALUE = 'Zoom 3x', EVENT_PRO = 'CRISPEX_ZOOMFAC_THREE',/NO_RELEASE, ACCELERATOR = 'Ctrl+Shift+3')
-	sh_zoom_four		= WIDGET_BUTTON(sh_zoommenu, VALUE = 'Zoom 4x', EVENT_PRO = 'CRISPEX_ZOOMFAC_FOUR',/NO_RELEASE, ACCELERATOR = 'Ctrl+Shift+4')
-	sh_zoom_six		= WIDGET_BUTTON(sh_zoommenu, VALUE = 'Zoom 6x', EVENT_PRO = 'CRISPEX_ZOOMFAC_SIX',/NO_RELEASE, ACCELERATOR = 'Ctrl+Shift+6')
-	sh_zoom_eight		= WIDGET_BUTTON(sh_zoommenu, VALUE = 'Zoom 8x', EVENT_PRO = 'CRISPEX_ZOOMFAC_EIGHT',/NO_RELEASE, ACCELERATOR = 'Ctrl+Shift+8')
+	sh_zoom_in		= WIDGET_BUTTON(sh_zoommenu, VALUE='Zoom in', EVENT_PRO='CRISPEX_ZOOMFAC_INCR',$
+                                ACCELERATOR='Ctrl+Shift+I')
+	sh_zoom_out		= WIDGET_BUTTON(sh_zoommenu, VALUE='Zoom out', EVENT_PRO='CRISPEX_ZOOMFAC_DECR',$
+                                ACCELERATOR='Ctrl+Shift+O')
 	sh_runtime_menu		= WIDGET_BUTTON(shortcutmenu, VALUE = 'Runtime options', /MENU, UVALUE = 'runtime')
 	sh_runtime_interrupt	= WIDGET_BUTTON(sh_runtime_menu, VALUE = 'Interrupt', EVENT_PRO = 'CRISPEX_INTERRUPT', ACCELERATOR = 'Ctrl+Shift+C')
 	sh_runtime_verb_menu	= WIDGET_BUTTON(sh_runtime_menu, VALUE = 'Verbosity', /MENU, UVALUE = 'verbosity')
@@ -10536,21 +10513,19 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	unlockbut		= WIDGET_BUTTON(lock_field, VALUE = 'Unlock from position', TOOLTIP = 'Unlock cursor from current position')
 	WIDGET_CONTROL, unlockbut, SET_BUTTON = 1
 
-	zoom_sup_frame		= WIDGET_BASE(cursor_frame, /FRAME, /COLUMN)
-	zoom_frame		= WIDGET_BASE(zoom_sup_frame, /ROW)
-	zoom_label		= WIDGET_LABEL(zoom_frame, VALUE = 'Zoom:', /ALIGN_LEFT)
-	zoom_but_field		= WIDGET_BASE(zoom_frame, /ROW, /EXCLUSIVE)
-	zoom_one		= WIDGET_BUTTON(zoom_but_field, VALUE = '1x', EVENT_PRO = 'CRISPEX_ZOOMFAC_ONE',/NO_RELEASE)
-	zoom_two		= WIDGET_BUTTON(zoom_but_field, VALUE = '2x', EVENT_PRO = 'CRISPEX_ZOOMFAC_TWO',/NO_RELEASE)
-	zoom_three		= WIDGET_BUTTON(zoom_but_field, VALUE = '3x', EVENT_PRO = 'CRISPEX_ZOOMFAC_THREE',/NO_RELEASE)
-	zoom_four		= WIDGET_BUTTON(zoom_but_field, VALUE = '4x', EVENT_PRO = 'CRISPEX_ZOOMFAC_FOUR',/NO_RELEASE)
-	zoom_six		= WIDGET_BUTTON(zoom_but_field, VALUE = '6x', EVENT_PRO = 'CRISPEX_ZOOMFAC_SIX',/NO_RELEASE)
-	zoom_eight		= WIDGET_BUTTON(zoom_but_field, VALUE = '8x', EVENT_PRO = 'CRISPEX_ZOOMFAC_EIGHT',/NO_RELEASE)
-	WIDGET_CONTROL, zoom_one, SET_BUTTON = 1
-	xpos_slider		= WIDGET_SLIDER(zoom_sup_frame, TITLE = 'X position of image (lower left corner) [pixel]', MIN = x_first, MAX = x_last, VALUE = x_first, EVENT_PRO = 'CRISPEX_SLIDER_XPOS',$
-					/DRAG, SENSITIVE = 0)
-	ypos_slider		= WIDGET_SLIDER(zoom_sup_frame, TITLE = 'Y position of image (lower left corner) [pixel]', MIN = y_first, MAX = y_last, VALUE = y_first, EVENT_PRO = 'CRISPEX_SLIDER_YPOS',$
-					/DRAG, SENSITIVE = 0)
+	zoom_sup_frame	= WIDGET_BASE(cursor_frame, /FRAME, /COLUMN)
+	zoom_frame		  = WIDGET_BASE(zoom_sup_frame, /ROW)
+	zoom_label		  = WIDGET_LABEL(zoom_frame, VALUE = 'Zoom:', /ALIGN_LEFT)
+	zoom_but_field  = WIDGET_BASE(zoom_frame, /ROW )
+	zoom_buts	      = CW_BGROUP(zoom_but_field,STRTRIM(FIX(zoomfactors),2)+REPLICATE('x',$
+                      N_ELEMENTS(zoomfactors)), BUTTON_UVALUE=INDGEN(N_ELEMENTS(zoomfactors)), $
+                      IDS=zoom_button_ids,/EXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_ZOOMFAC_SET')
+	xpos_slider		  = WIDGET_SLIDER(zoom_sup_frame, MIN = x_first, MAX = x_last, VALUE = x_first, $
+                      TITLE = 'X position of image (lower left corner) [pixel]', $
+                      EVENT_PRO = 'CRISPEX_SLIDER_XPOS', /DRAG, SENSITIVE = 0)
+	ypos_slider		= WIDGET_SLIDER(zoom_sup_frame, MIN = y_first, MAX = y_last, VALUE = y_first, $
+                    TITLE = 'Y position of image (lower left corner) [pixel]',  $
+                    EVENT_PRO = 'CRISPEX_SLIDER_YPOS', /DRAG, SENSITIVE = 0)
 
   stokes_tab		= WIDGET_BASE(tab_tlb, TITLE='Stokes', /COLUMN)
 	stokes_frame  = WIDGET_BASE(stokes_tab, /FRAME, /COLUMN)
@@ -10841,8 +10816,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		lp_speed_slider:lp_speed_slid, lp_blink_slider:lp_blink_slid, $	
 		lp_blink_but:lp_blink_but, lp_ref_but:lp_ref_but, lp_ref_slider:lp_ref_slid, $
 		x_slider:x_slid, y_slider:y_slid, lock_button:lockbut, unlock_button:unlockbut, $
-		zoom_one:zoom_one, zoom_two:zoom_two, zoom_three:zoom_three, zoom_four:zoom_four,$ 		
-		zoom_six:zoom_six, zoom_eight:zoom_eight, xpos_slider:xpos_slider, ypos_slider:ypos_slider, $			
+		zoom_button_ids:zoom_button_ids, xpos_slider:xpos_slider, ypos_slider:ypos_slider, $			
 		pol_xy_i_but:pol_xy_i_but, pol_xy_q_but:pol_xy_q_but, pol_xy_u_but:pol_xy_u_but,$		
 		pol_sp_i_but:pol_sp_i_but, pol_sp_q_but:pol_sp_q_but, pol_sp_u_but:pol_sp_u_but,$		
 		pol_sp_v_but:pol_sp_v_but, pol_xy_v_but:pol_xy_v_but, $						
@@ -11233,7 +11207,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- ZOOMING 
 	zooming = { $
-		factor:zoomfactor, xpos:0., ypos:0., handle_extreme:handle_extreme $								
+		factor:zoomfactors[0], factorswitch:factorswitch, factors:zoomfactors, xpos:0., ypos:0., $
+    handle_extreme:handle_extreme $								
 	}
 ;--------------------------------------------------------------------------------- DEFINE INFO POINTER
 	info = { $
@@ -11375,7 +11350,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	feedback_text = [feedback_text,'> Realising widget... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	CRISPEX_MASK_BUTTONS_SET, pseudoevent
-  CRISPEX_ZOOMFAC_ONE, pseudoevent, /NO_DRAW
+  set_zoomfac = CRISPEX_ZOOMFAC_SET(pseudoevent, /NO_DRAW, SET_FACTOR=0)
 	IF (*(*info).winswitch).showsp THEN BEGIN
 		(*(*info).winswitch).showsp = 0
 		CRISPEX_DISPLAYS_SP_TOGGLE, pseudoevent
