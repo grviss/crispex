@@ -2222,135 +2222,74 @@ PRO CRISPEX_DISPLAYS_SP_TOGGLE, event, NO_DRAW=no_draw
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).sptlb,(*(*info).winids).spwid,(*(*info).winids).spdrawid], labels=['sptlb','spwid','spdrawid']
 END
 
-PRO CRISPEX_DISPLAYS_STOKES_SELECT_XY_I, event
-; Stokes I for main image and temporal spectrum selection 
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_I'
-	(*(*info).dataparams).s = WHERE((*(*info).stokesparams).labels EQ 'I')
-	CRISPEX_DISPLAYS_STOKES_SELECT_XY_CONT, event
-END
-
-PRO CRISPEX_DISPLAYS_STOKES_SELECT_XY_Q, event
-; Stokes Q for main image and temporal spectrum selection 
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_Q'
-	(*(*info).dataparams).s = WHERE((*(*info).stokesparams).labels EQ 'Q')
-	CRISPEX_DISPLAYS_STOKES_SELECT_XY_CONT, event
-END
-
-PRO CRISPEX_DISPLAYS_STOKES_SELECT_XY_U, event
-; Stokes U for main image and temporal spectrum selection 
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_U'
-	(*(*info).dataparams).s = WHERE((*(*info).stokesparams).labels EQ 'U')
-	CRISPEX_DISPLAYS_STOKES_SELECT_XY_CONT, event
-END
-
-PRO CRISPEX_DISPLAYS_STOKES_SELECT_XY_V, event
-; Stokes V for main image and temporal spectrum selection 
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_V'
-	(*(*info).dataparams).s = WHERE((*(*info).stokesparams).labels EQ 'V')
-	CRISPEX_DISPLAYS_STOKES_SELECT_XY_CONT, event
-END
-
-PRO CRISPEX_DISPLAYS_STOKES_SELECT_XY_CONT, event
-; Processing of Stokes component for main image and temporal spectrum selection
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_CONT'
-	WIDGET_CONTROL, (*(*info).ctrlsparam).stokes_val, SET_VALUE = STRTRIM(((*(*info).stokesparams).labels)[(*(*info).dataparams).s],2)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [((*(*info).stokesparams).labels)[(*(*info).dataparams).s]], labels=['Stokes image selected']
-	CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE, event
-	CRISPEX_UPDATE_T, event
-	CRISPEX_UPDATE_SLICES, event
-	IF ((*(*(*info).scaling).imagescale)[0] EQ 2) THEN CRISPEX_SCALING_MAN_FIRST, event
-	IF ((*(*(*info).scaling).imagescale)[0] EQ 3) THEN CRISPEX_SCALING_MAN_CURR, event
-	IF ((*(*info).winids).sptlb GT 0) THEN CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
-	CRISPEX_DRAW, event
+FUNCTION CRISPEX_DISPLAYS_STOKES_SELECT_XY, event, NO_DRAW=no_draw;, SET_STOKES=set_stokes
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_XY'
+;  IF (N_ELEMENTS(SET_STOKES) NE 1) THEN idx = event.VALUE ELSE idx = set_stokes
+  (*(*info).dataparams).s = $
+    WHERE((*(*info).stokesparams).labels EQ (*(*info).stokesparams).button_labels[event.VALUE])
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [((*(*info).stokesparams).labels)[(*(*info).dataparams).s]],$
+                         labels=['Stokes image selected']
+  IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
+  	WIDGET_CONTROL, (*(*info).ctrlsparam).stokes_val, $
+      SET_VALUE = STRTRIM(((*(*info).stokesparams).labels)[(*(*info).dataparams).s],2)
+  	CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE, event
+  	CRISPEX_UPDATE_T, event
+  	CRISPEX_UPDATE_SLICES, event
+  	IF ((*(*(*info).scaling).imagescale)[0] EQ 2) THEN CRISPEX_SCALING_MAN_FIRST, event
+  	IF ((*(*(*info).scaling).imagescale)[0] EQ 3) THEN CRISPEX_SCALING_MAN_CURR, event
+  	IF ((*(*info).winids).sptlb GT 0) THEN CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
+	  CRISPEX_DRAW, event
+  ENDIF
 END
 
 PRO CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE, event
 ; Restores lower/upper y-values of specific Stokes component detailed spectrum plot for input
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE'
-	WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],2)
-	WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],2)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],(*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s]], $
-		labels=['Lower detspect y-value','Upper detspect y-value']
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE'
+	WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, $
+    SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],2)
+	WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, $
+    SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],2)
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],$
+                                 (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s]], $
+                            		labels=['Lower detspect y-value','Upper detspect y-value']
 	IF (*(*info).winswitch).showint THEN BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlsint).lower_y_int_text, SET_VALUE = STRTRIM((*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s],2)
-		WIDGET_CONTROL, (*(*info).ctrlsint).upper_y_int_text, SET_VALUE = STRTRIM((*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s],2)
-		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s],(*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s]], $
-			labels=['Lower int y-value','Upper int y-value']
+		WIDGET_CONTROL, (*(*info).ctrlsint).lower_y_int_text, $
+      SET_VALUE = STRTRIM((*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s],2)
+		WIDGET_CONTROL, (*(*info).ctrlsint).upper_y_int_text, $
+      SET_VALUE = STRTRIM((*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s],2)
+		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+      CRISPEX_VERBOSE_GET, event, [(*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s],$
+                                   (*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s]], $
+                            			labels=['Lower int y-value','Upper int y-value']
 	ENDIF
 END
 
-PRO CRISPEX_DISPLAYS_STOKES_SELECT_SP_I, event
-; Stokes I for detailed spectrum selection
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_I'
+FUNCTION CRISPEX_DISPLAYS_STOKES_SELECT_SP, event, NO_DRAW=no_draw
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_SP'
 	(*(*info).stokesparams).prev_select_sp = (*(*info).stokesparams).select_sp
-	IF (TOTAL((*(*info).stokesparams).select_sp) EQ 1) THEN BEGIN
-		(*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ 'I')] = event.SELECT
-		CRISPEX_DISPLAYS_STOKES_SELECT_SP_SENSBUTTON, event, 1
-	ENDIF ELSE (*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ 'I')] = event.SELECT
-	IF (TOTAL((*(*info).stokesparams).select_sp) EQ 1) THEN CRISPEX_DISPLAYS_STOKES_SELECT_SP_SENSBUTTON, event, 0
-	CRISPEX_DISPLAYS_LS_RESIZE, event, /STOKES_SELECT
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [STRJOIN(((*(*info).stokesparams).labels)[WHERE((*(*info).stokesparams).select_sp EQ 1)],', ')],labels=['Stokes detspect selected']
-END
-
-PRO CRISPEX_DISPLAYS_STOKES_SELECT_SP_Q, event
-; Stokes Q for detailed spectrum selection
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_Q'
-	(*(*info).stokesparams).prev_select_sp = (*(*info).stokesparams).select_sp
-	IF (TOTAL((*(*info).stokesparams).select_sp) EQ 1) THEN BEGIN
-		(*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ 'Q')] = event.SELECT
-		CRISPEX_DISPLAYS_STOKES_SELECT_SP_SENSBUTTON, event, 1
-	ENDIF ELSE (*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ 'Q')] = event.SELECT
-	IF (TOTAL((*(*info).stokesparams).select_sp) EQ 1) THEN CRISPEX_DISPLAYS_STOKES_SELECT_SP_SENSBUTTON, event, 0
-	CRISPEX_DISPLAYS_LS_RESIZE, event, /STOKES_SELECT
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [STRJOIN(((*(*info).stokesparams).labels)[WHERE((*(*info).stokesparams).select_sp EQ 1)],', ')],labels=['Stokes detspect selected']
-END
-
-PRO CRISPEX_DISPLAYS_STOKES_SELECT_SP_U, event
-; Stokes U for detailed spectrum selection
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_U'
-	(*(*info).stokesparams).prev_select_sp = (*(*info).stokesparams).select_sp
-	IF (TOTAL((*(*info).stokesparams).select_sp) EQ 1) THEN BEGIN
-		(*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ 'U')] = event.SELECT
-		CRISPEX_DISPLAYS_STOKES_SELECT_SP_SENSBUTTON, event, 1
-	ENDIF ELSE (*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ 'U')] = event.SELECT
-	IF (TOTAL((*(*info).stokesparams).select_sp) EQ 1) THEN CRISPEX_DISPLAYS_STOKES_SELECT_SP_SENSBUTTON, event, 0 
-	CRISPEX_DISPLAYS_LS_RESIZE, event, /STOKES_SELECT
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [STRJOIN(((*(*info).stokesparams).labels)[WHERE((*(*info).stokesparams).select_sp EQ 1)],', ')],labels=['Stokes detspect selected']
-END
-
-PRO CRISPEX_DISPLAYS_STOKES_SELECT_SP_V, event
-; Stokes V for detailed spectrum selection
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_V'
-	(*(*info).stokesparams).prev_select_sp = (*(*info).stokesparams).select_sp
-	IF (TOTAL((*(*info).stokesparams).select_sp) EQ 1) THEN BEGIN
-		(*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ 'V')] = event.SELECT
-		CRISPEX_DISPLAYS_STOKES_SELECT_SP_SENSBUTTON, event, 1
-	ENDIF ELSE (*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ 'V')] = event.SELECT
-	IF (TOTAL((*(*info).stokesparams).select_sp) EQ 1) THEN CRISPEX_DISPLAYS_STOKES_SELECT_SP_SENSBUTTON, event, 0 
-	CRISPEX_DISPLAYS_LS_RESIZE, event, /STOKES_SELECT
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [STRJOIN(((*(*info).stokesparams).labels)[WHERE((*(*info).stokesparams).select_sp EQ 1)],', ')],labels=['Stokes detspect selected']
-END
-
-PRO CRISPEX_DISPLAYS_STOKES_SELECT_SP_SENSBUTTON, event, sens
-; Processing of button sensitivity of Stokes component for detailed spectrum selection
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_SENSBUTTON'
+		(*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ $
+                                      (*(*info).stokesparams).button_labels[event.VALUE])] = $
+                                      event.SELECT
+  sens = (TOTAL((*(*info).stokesparams).select_sp) NE 1)
 	FOR i=0,TOTAL((*(*info).stokesparams).select_sp)-1 DO BEGIN
-		IF (((*(*info).stokesparams).labels)[(WHERE((*(*info).stokesparams).select_sp EQ 1))[i]] EQ 'I') THEN WIDGET_CONTROL, (*(*info).ctrlscp).pol_sp_i_but, SENSITIVE = sens, /SET_BUTTON 
-		IF (((*(*info).stokesparams).labels)[(WHERE((*(*info).stokesparams).select_sp EQ 1))[i]] EQ 'Q') THEN WIDGET_CONTROL, (*(*info).ctrlscp).pol_sp_q_but, SENSITIVE = sens, /SET_BUTTON 
-		IF (((*(*info).stokesparams).labels)[(WHERE((*(*info).stokesparams).select_sp EQ 1))[i]] EQ 'U') THEN WIDGET_CONTROL, (*(*info).ctrlscp).pol_sp_u_but, SENSITIVE = sens, /SET_BUTTON 
-		IF (((*(*info).stokesparams).labels)[(WHERE((*(*info).stokesparams).select_sp EQ 1))[i]] EQ 'V') THEN WIDGET_CONTROL, (*(*info).ctrlscp).pol_sp_v_but, SENSITIVE = sens, /SET_BUTTON
+    FOR k=0,N_ELEMENTS((*(*info).stokesparams).button_labels)-1 DO BEGIN
+		  IF (((*(*info).stokesparams).labels)[(WHERE((*(*info).stokesparams).select_sp EQ 1))[i]] EQ $
+           (*(*info).stokesparams).button_labels[k]) THEN $
+        WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[k], SENSITIVE = sens, /SET_BUTTON 
+    ENDFOR
 	ENDFOR
+	CRISPEX_DISPLAYS_LS_RESIZE, event, /STOKES_SELECT
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [STRJOIN(((*(*info).stokesparams).labels)[$
+      WHERE((*(*info).stokesparams).select_sp EQ 1)],', ')],labels=['Stokes detspect selected']
 END
 
 ;================================================================================= DISPLAY RANGE PROCEDURES
@@ -9220,7 +9159,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '586'
+	revision_number = '587'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -9533,6 +9472,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   CRISPEX_IO_FEEDBACK, verbosity, hdr, MASKCUBE=maskcube
 
   ; Handle Stokes and diagnostics labels
+  stokes_button_labels = ['I','Q','U','V']
+  stokes_enabled = [0,0,0,0]
   IF multichannel THEN BEGIN
 ;		stokes_comp = STRSPLIT(STRSPLIT(STRJOIN(STRSPLIT(hdr.imstokes,',',/EXTRACT)),']',/EXTRACT),'[',/EXTRACT)
     stokes_labels = STRSPLIT(STRMID(hdr.imstokes,1,STRLEN(hdr.imstokes)-2),',',/EXTRACT)
@@ -9549,31 +9490,27 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 			stokes_select_sp = INTARR(hdr.ns)
 ;			stokes_labels = STRMID(stokes_comp,INDGEN(hdr.ns),1)
 			IF ((WHERE(stokes_labels EQ 'I') GE 0) AND (WHERE(stokes_labels EQ 'I') LE hdr.imns-1)) THEN BEGIN
-				stokes_i_enabled = 1 
+				stokes_enabled[0] = 1 
 				stokes_select_sp[WHERE(stokes_labels EQ 'I')] = 1
-			ENDIF ELSE stokes_i_enabled = 0
+			ENDIF 
 			IF ((WHERE(stokes_labels EQ 'Q') GE 0) AND (WHERE(stokes_labels EQ 'Q') LE hdr.imns-1)) THEN BEGIN
-				stokes_q_enabled = 1 
+				stokes_enabled[1] = 1 
 				stokes_select_sp[WHERE(stokes_labels EQ 'Q')] = 1
-			ENDIF ELSE stokes_q_enabled = 0
+			ENDIF 
 			IF ((WHERE(stokes_labels EQ 'U') GE 0) AND (WHERE(stokes_labels EQ 'U') LE hdr.imns-1)) THEN BEGIN
-				stokes_u_enabled = 1 
+				stokes_enabled[2] = 1 
 				stokes_select_sp[WHERE(stokes_labels EQ 'U')] = 1
-			ENDIF ELSE stokes_u_enabled = 0
+			ENDIF 
 			IF ((WHERE(stokes_labels EQ 'V') GE 0) AND (WHERE(stokes_labels EQ 'V') LE hdr.imns-1)) THEN BEGIN
-				stokes_v_enabled = 1 
+				stokes_enabled[3] = 1 
 				stokes_select_sp[WHERE(stokes_labels EQ 'V')] = 1
-			ENDIF ELSE stokes_v_enabled = 0
+			ENDIF
 		ENDELSE
 	ENDIF ELSE BEGIN
-		stokes_i_enabled = 0
-		stokes_q_enabled = 0
-		stokes_u_enabled = 0
-		stokes_v_enabled = 0
 		stokes_labels = ['I']
 		stokes_select_sp = 1
 	ENDELSE
-	scalestokes_max = (stokes_q_enabled OR stokes_u_enabled OR stokes_v_enabled)
+	scalestokes_max = (TOTAL(stokes_enabled[1:3]) GE 1)
 	diagnostics = STRARR(hdr.nlp)
 	IF (N_ELEMENTS(hdr.imdiagnostics) GT 0) THEN BEGIN
 		diagsplit = STRSPLIT(hdr.imdiagnostics,',',/EXTRACT)
@@ -10025,7 +9962,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     windows_xextent = imwinx*2 + windowx + lswinx + xdelta*3
     IF (windows_xextent LE x_scr_size) THEN refxoffset = imwinx + 2*xdelta $
       ELSE refyoffset = ydelta
-  ENDIF
+  ENDIF ELSE windows_xextent = imwinx + windowx + lswinx + xdelta*2
 
 	spxoffset = imwinx + refxoffset + (1+(windows_xextent GT x_scr_size))*xdelta
 	lsxoffset = spxoffset + windowx + xdelta
@@ -10538,27 +10475,31 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
   stokes_tab		= WIDGET_BASE(tab_tlb, TITLE='Stokes', /COLUMN)
 	stokes_frame  = WIDGET_BASE(stokes_tab, /FRAME, /COLUMN)
-	stokes_disp_label		= WIDGET_LABEL(stokes_frame, VALUE = 'Stokes parameter:                                    ', /ALIGN_LEFT)
+	stokes_disp_label		= WIDGET_LABEL(stokes_frame, $
+    VALUE = 'Stokes parameter:                                    ', /ALIGN_LEFT)
 	stokes_main			= WIDGET_BASE(stokes_frame, /ROW)
 	stokes_main_label		= WIDGET_LABEL(stokes_main, VALUE = 'Main image:',/ALIGN_LEFT)
-	pol_xy_buts		= WIDGET_BASE(stokes_main, /ROW, /EXCLUSIVE)
-  pol_xy_i_but		= WIDGET_BUTTON(pol_xy_buts, VALUE = 'I', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_I', SENSITIVE = stokes_i_enabled, /NO_RELEASE)
-	WIDGET_CONTROL, pol_xy_i_but, /SET_BUTTON
-	pol_xy_q_but		= WIDGET_BUTTON(pol_xy_buts, VALUE = 'Q', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_Q', SENSITIVE = stokes_q_enabled, /NO_RELEASE)
-	pol_xy_u_but		= WIDGET_BUTTON(pol_xy_buts, VALUE = 'U', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_U', SENSITIVE = stokes_u_enabled, /NO_RELEASE)
-	pol_xy_v_but		= WIDGET_BUTTON(pol_xy_buts, VALUE = 'V', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_V', SENSITIVE = stokes_v_enabled, /NO_RELEASE)
+	pol_xy_but_field= WIDGET_BASE(stokes_main, /ROW )
+  pol_xy_buts     = CW_BGROUP(pol_xy_but_field, stokes_button_labels, $
+                      BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), IDS=stokes_button_ids,$
+                      /EXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY')
+  FOR i=0,N_ELEMENTS(stokes_button_labels)-1 DO $
+    WIDGET_CONTROL, stokes_button_ids[i], SENSITIVE=stokes_enabled[i], SET_BUTTON=(i EQ 0)
+
 	pol_sp			= WIDGET_BASE(stokes_frame, /ROW)
 	pol_sp_label		= WIDGET_LABEL(pol_sp, VALUE = 'Detailed spectra:',/ALIGN_LEFT)
-	pol_sp_buts		= WIDGET_BASE(pol_sp, /ROW, /NONEXCLUSIVE)
+  pol_sp_buts     = CW_BGROUP(pol_sp, stokes_button_labels, $
+                      BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), IDS=stokes_spbutton_ids,$
+                      /NONEXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP')
 	spconstraint		= (hdr.nlp GT 1)
-	pol_sp_i_but		= WIDGET_BUTTON(pol_sp_buts, VALUE = 'I', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_I', SENSITIVE = (spconstraint AND stokes_i_enabled))
-	pol_sp_q_but		= WIDGET_BUTTON(pol_sp_buts, VALUE = 'Q', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_Q', SENSITIVE = (spconstraint AND stokes_q_enabled))
-	pol_sp_u_but		= WIDGET_BUTTON(pol_sp_buts, VALUE = 'U', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_U', SENSITIVE = (spconstraint AND stokes_u_enabled))
-	pol_sp_v_but		= WIDGET_BUTTON(pol_sp_buts, VALUE = 'V', EVENT_PRO = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP_V', SENSITIVE = (spconstraint AND stokes_v_enabled))
-	IF multichannel THEN WIDGET_CONTROL, pol_sp_i_but, SET_BUTTON=(spconstraint AND stokes_i_enabled) ELSE WIDGET_CONTROL, pol_sp_i_but, SET_BUTTON=spconstraint
-	WIDGET_CONTROL, pol_sp_q_but, SET_BUTTON=(spconstraint AND stokes_q_enabled)
-	WIDGET_CONTROL, pol_sp_u_but, SET_BUTTON=(spconstraint AND stokes_u_enabled)
-	WIDGET_CONTROL, pol_sp_v_but, SET_BUTTON=(spconstraint AND stokes_v_enabled)
+  FOR i=0,N_ELEMENTS(stokes_button_labels)-1 DO BEGIN
+    IF (multichannel OR (i GT 0)) THEN $
+      set_constraint = (spconstraint AND stokes_enabled[i]) $
+    ELSE $
+      set_constraint = spconstraint
+    WIDGET_CONTROL, stokes_spbutton_ids[i], SENSITIVE=(spconstraint AND stokes_enabled[i]), $
+      SET_BUTTON=set_constraint
+  ENDFOR
 
 	display_tab		= WIDGET_BASE(tab_tlb, TITLE = 'Displays', /COLUMN)
 	detspect_frame		= WIDGET_BASE(display_tab, /FRAME, /COLUMN)
@@ -10827,9 +10768,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		lp_blink_but:lp_blink_but, lp_ref_but:lp_ref_but, lp_ref_slider:lp_ref_slid, $
 		x_slider:x_slid, y_slider:y_slid, lock_button:lockbut, unlock_button:unlockbut, $
 		zoom_button_ids:zoom_button_ids, xpos_slider:xpos_slider, ypos_slider:ypos_slider, $			
-		pol_xy_i_but:pol_xy_i_but, pol_xy_q_but:pol_xy_q_but, pol_xy_u_but:pol_xy_u_but,$		
-		pol_sp_i_but:pol_sp_i_but, pol_sp_q_but:pol_sp_q_but, pol_sp_u_but:pol_sp_u_but,$		
-		pol_sp_v_but:pol_sp_v_but, pol_xy_v_but:pol_xy_v_but, $						
+    stokes_button_ids:stokes_button_ids, stokes_spbutton_ids:stokes_spbutton_ids, $
+;		pol_xy_i_but:pol_xy_i_but, pol_xy_q_but:pol_xy_q_but, pol_xy_u_but:pol_xy_u_but,$		
+;		pol_sp_i_but:pol_sp_i_but, pol_sp_q_but:pol_sp_q_but, pol_sp_u_but:pol_sp_u_but,$		
+;		pol_sp_v_but:pol_sp_v_but, $
+;    pol_xy_v_but:pol_xy_v_but, $						
 		detspect_label:detspect_label, scale_detspect_but:scale_detspect_but, $
 		detspect_im_but:detspect_im_but, detspect_ref_but:detspect_ref_but, $
 		ls_toggle_but:ls_toggle_but, subtract_but:subtract_but, $		
@@ -11168,7 +11111,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- STOKES PARAMS
 	stokesparams = { $
-		labels:stokes_labels, select_sp:stokes_select_sp, $	
+		labels:stokes_labels, button_labels:stokes_button_labels, select_sp:stokes_select_sp, $	
 		prev_select_sp:stokes_select_sp $
 	}
 ;--------------------------------------------------------------------------------- VERSION INFO
@@ -11361,6 +11304,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	CRISPEX_MASK_BUTTONS_SET, pseudoevent
   set_zoomfac = CRISPEX_ZOOMFAC_SET(pseudoevent, /NO_DRAW, SET_FACTOR=0)
+;  set_stokes = CRISPEX_DISPLAYS_STOKES_SELECT_XY(pseudoevent, /NO_DRAW, SET_STOKES=0)
 	IF (*(*info).winswitch).showsp THEN BEGIN
 		(*(*info).winswitch).showsp = 0
 		CRISPEX_DISPLAYS_SP_TOGGLE, pseudoevent
