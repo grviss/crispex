@@ -7112,46 +7112,44 @@ PRO CRISPEX_SESSION_RESTORE, event
 			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, SET_VALUE = (*(*info).dataparams).lp_ref, SENSITIVE = ((*(*info).dataswitch).refspfile AND ABS((*(*info).ctrlsswitch).lp_ref_lock-1))
 			CRISPEX_PB_BUTTONS_SET, event, bwd_set=((*(*info).pbparams).direction EQ -1), pause_set=((*(*info).pbparams).mode EQ 'PAUSE'), fwd_set=((*(*info).pbparams).direction EQ 1), $
 				loop_set=((*(*info).pbparams).lmode EQ 'LOOP'),	cycle_set=((*(*info).pbparams).lmode EQ 'CYCLE'), blink_set=((*(*info).pbparams).lmode EQ 'BLINK')
-			; Spatial
+			; ==================== Spatial Tab ====================
+      ; Set cursor sliders and lock/unlock buttons
 			CRISPEX_COORDSLIDERS_SET, ABS((*(*info).curs).lockset-1), ABS((*(*info).curs).lockset-1), event
 			WIDGET_CONTROL, (*(*info).ctrlscp).lock_button, SET_BUTTON = (*(*info).curs).lockset
 			WIDGET_CONTROL, (*(*info).ctrlscp).unlock_button, SET_BUTTON = ABS((*(*info).curs).lockset-1)
-			IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-				CRISPEX_ZOOM, event, /NO_DRAW
-				WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, /SENSITIVE
-				WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, /SENSITIVE
-			ENDIF
-			WIDGET_CONTROL, (*(*info).ctrlscp).zoom_one, SET_BUTTON = ((*(*info).zooming).factor EQ 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).zoom_two, SET_BUTTON = ((*(*info).zooming).factor EQ 2)
-			WIDGET_CONTROL, (*(*info).ctrlscp).zoom_three, SET_BUTTON = ((*(*info).zooming).factor EQ 3)
-			WIDGET_CONTROL, (*(*info).ctrlscp).zoom_four, SET_BUTTON = ((*(*info).zooming).factor EQ 4)
-			WIDGET_CONTROL, (*(*info).ctrlscp).zoom_six, SET_BUTTON = ((*(*info).zooming).factor EQ 6)
-			WIDGET_CONTROL, (*(*info).ctrlscp).zoom_eight, SET_BUTTON = ((*(*info).zooming).factor EQ 8)
-			WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SET_VALUE = (*(*info).zooming).xpos
-			WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SET_VALUE = (*(*info).zooming).ypos
-			; Stokes
-			stokes_i_available = (WHERE(((*(*info).stokesparams).labels) EQ 'I') GE 0)
-			stokes_q_available = (WHERE(((*(*info).stokesparams).labels) EQ 'Q') GE 0)
-			stokes_u_available = (WHERE(((*(*info).stokesparams).labels) EQ 'U') GE 0)
-			stokes_v_available = (WHERE(((*(*info).stokesparams).labels) EQ 'V') GE 0)
-			WIDGET_CONTROL, (*(*info).ctrlscp).pol_xy_i_but, SET_BUTTON = (((*(*info).stokesparams).labels)[(*(*info).dataparams).s] EQ 'I'), SENSITIVE = stokes_i_available
-			WIDGET_CONTROL, (*(*info).ctrlscp).pol_xy_q_but, SET_BUTTON = (((*(*info).stokesparams).labels)[(*(*info).dataparams).s] EQ 'Q'), SENSITIVE = stokes_q_available
-			WIDGET_CONTROL, (*(*info).ctrlscp).pol_xy_u_but, SET_BUTTON = (((*(*info).stokesparams).labels)[(*(*info).dataparams).s] EQ 'U'), SENSITIVE = stokes_u_available
-			WIDGET_CONTROL, (*(*info).ctrlscp).pol_xy_v_but, SET_BUTTON = (((*(*info).stokesparams).labels)[(*(*info).dataparams).s] EQ 'V'), SENSITIVE = stokes_v_available
-			pol_sp_i_set = (WHERE(((*(*info).stokesparams).labels)[(WHERE((*(*info).stokesparams).select_sp EQ 1))] EQ 'I') GE 0)
-			pol_sp_q_set = (WHERE(((*(*info).stokesparams).labels)[(WHERE((*(*info).stokesparams).select_sp EQ 1))] EQ 'Q') GE 0)
-			pol_sp_u_set = (WHERE(((*(*info).stokesparams).labels)[(WHERE((*(*info).stokesparams).select_sp EQ 1))] EQ 'U') GE 0)
-			pol_sp_v_set = (WHERE(((*(*info).stokesparams).labels)[(WHERE((*(*info).stokesparams).select_sp EQ 1))] EQ 'V') GE 0)
-			pol_sp_i_sens = (((TOTAL((*(*info).stokesparams).select_sp) GT 1) AND stokes_i_available) OR ((TOTAL((*(*info).stokesparams).select_sp) EQ 1) AND ABS(pol_sp_i_set-1) AND stokes_i_available))
-			pol_sp_q_sens = (((TOTAL((*(*info).stokesparams).select_sp) GT 1) AND stokes_q_available) OR ((TOTAL((*(*info).stokesparams).select_sp) EQ 1) AND ABS(pol_sp_q_set-1) AND stokes_q_available))
-			pol_sp_u_sens = (((TOTAL((*(*info).stokesparams).select_sp) GT 1) AND stokes_u_available) OR ((TOTAL((*(*info).stokesparams).select_sp) EQ 1) AND ABS(pol_sp_u_set-1) AND stokes_u_available))
-			pol_sp_v_sens = (((TOTAL((*(*info).stokesparams).select_sp) GT 1) AND stokes_v_available) OR ((TOTAL((*(*info).stokesparams).select_sp) EQ 1) AND ABS(pol_sp_v_set-1) AND stokes_v_available))
-			WIDGET_CONTROL, (*(*info).ctrlscp).pol_sp_i_but, SENSITIVE = pol_sp_i_sens, SET_BUTTON = pol_sp_i_set
-			WIDGET_CONTROL, (*(*info).ctrlscp).pol_sp_q_but, SENSITIVE = pol_sp_q_sens, SET_BUTTON = pol_sp_q_set
-			WIDGET_CONTROL, (*(*info).ctrlscp).pol_sp_u_but, SENSITIVE = pol_sp_u_sens, SET_BUTTON = pol_sp_u_set
-			WIDGET_CONTROL, (*(*info).ctrlscp).pol_sp_v_but, SENSITIVE = pol_sp_v_sens, SET_BUTTON = pol_sp_v_set
-			IF ((*(*info).dataparams).nlp EQ 1) THEN WIDGET_CONTROL, (*(*info).ctrlscp).pol_sp_i_but, SET_BUTTON = 0
-			; Displays
+      ; Set zooming buttons
+			IF ((*(*info).zooming).factor NE 1) THEN CRISPEX_ZOOM, event, /NO_DRAW
+      set_zoomfac = CRISPEX_ZOOMFAC_SET(event, /NO_DRAW, /NO_UPDATE_SLIDERS, $
+        SET_FACTOR=WHERE((*(*info).zooming).factors EQ (*(*info).zooming).factor))
+      ; Set scrolling sliders
+			WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SET_VALUE = (*(*info).zooming).xpos, $
+        SENSITIVE = ((*(*info).zooming).factor NE 1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SET_VALUE = (*(*info).zooming).ypos, $
+        SENSITIVE = ((*(*info).zooming).factor NE 1)
+			; ==================== Stokes Tab ====================
+      FOR i=0,N_ELEMENTS((*(*info).stokesparams).button_labels)-1 DO BEGIN
+        ; Stokes parameter available in data?
+        stokes_enabled = (WHERE(((*(*info).stokesparams).labels) EQ $
+                                 (*(*info).stokesparams).button_labels[i]) GE 0)
+        ; Stokes parameter selected for detailed spectrum plot?
+			  stokes_sp_select = (*(*info).stokesparams).labels[$
+                           (WHERE((*(*info).stokesparams).select_sp EQ 1))]
+        ; Determine setting of buttons accordingly
+        stokes_sp_set = (WHERE(stokes_sp_select EQ (*(*info).stokesparams).button_labels[i]) GE 0)
+        ; Total number of selected Stokes parameters for detailed spectrum plot?
+        total_sp_select = TOTAL((*(*info).stokesparams).select_sp)
+        ; Set Stokes image buttons
+        WIDGET_CONTROL, (*(*info).ctrlscp).stokes_button_ids[i], SENSITIVE=stokes_enabled, $
+          SET_BUTTON = (((*(*info).stokesparams).labels)[(*(*info).dataparams).s] EQ $
+                         (*(*info).stokesparams).button_labels[i])
+        ; Set Stokes detailed spectrum buttons
+        WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[i], SET_BUTTON=stokes_sp_set, $
+          SENSITIVE=(stokes_enabled AND ((total_sp_select GT 1) OR $
+                                         (total_sp_select AND ABS(stokes_sp_set-1))))
+      ENDFOR
+			IF ((*(*info).dataparams).nlp EQ 1) THEN $
+        WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[0], SET_BUTTON = 0
+			; ==================== Displays Tab ====================
 			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_im_but, SET_BUTTON = ABS((*(*info).ctrlsswitch).imrefdetspect-1)
 			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_ref_but, SET_BUTTON = (*(*info).ctrlsswitch).imrefdetspect, SENSITIVE = (*(*info).dataswitch).refspfile
 			CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
@@ -9038,8 +9036,8 @@ PRO CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SE
     SET_VALUE = (*(*info).zooming).ypos
 END
 
-FUNCTION CRISPEX_ZOOMFAC_SET, event, NO_DRAW=no_draw, SET_FACTOR_IDX=set_factor_idx, $
-                              UNSET_FACTOR_IDX=unset_factor_idx
+FUNCTION CRISPEX_ZOOMFAC_SET, event, NO_DRAW=no_draw, NO_UPDATE_SLIDERS=no_update_sliders, $
+                              SET_FACTOR_IDX=set_factor_idx, UNSET_FACTOR_IDX=unset_factor_idx
 ; Sets the zoomfactor and changes options and paramters accordingly
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
@@ -9063,7 +9061,8 @@ FUNCTION CRISPEX_ZOOMFAC_SET, event, NO_DRAW=no_draw, SET_FACTOR_IDX=set_factor_
                  (((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio LT 1) OR $
                   ((*(*info).zooming).factor NE 1))]
   CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
-	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SENSITIVE=sensitive
+  IF ~KEYWORD_SET(NO_UPDATE_SLIDERS) THEN $
+  	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SENSITIVE=sensitive
   FOR i=0,N_ELEMENTS((*(*info).zooming).factors)-1 DO $
     WIDGET_CONTROL, ((*(*info).ctrlscp).zoom_button_ids)[i], $
                     SET_BUTTON = ((*(*info).zooming).factorswitch)[i]
@@ -9150,16 +9149,18 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= PROGRAM-INFO ON CALL W/O PARAMS
 	IF N_PARAMS() LT 1 THEN BEGIN
-		PRINT,'CRISPEX, imcube, spcube, REFCUBE=refcube, LINE_CENTER=line_center, DT=dt, EXTS=exts, $'
-		PRINT,'	MNSPEC=mnspec, SINGLE_CUBE=single_cube, SCALE_STOKES=scale_stokes, VALS_REF=vals_ref, $'
-		PRINT,'	VALS_IMG=vals_img, NO_WARP=no_warp, SCALE_CUBES=scale_cubes, XTITLE=xtitle, YTITLE=ytitle, $'
-		PRINT,'	MASKCUBE=maskcube, WINDOW_LARGE=window_large, HANDLE_EXTREME=handle_extreme, VERBOSE=verbose'
+		MESSAGE,'Syntax: CRISPEX, imcube, spcube, REFCUBE=refcube, MASKCUBE=maskcube, '+$
+            'SPECTFILE=spectfile, LINE_CENTER=line_center, DT=dt, EXTS=exts, MNSPEC=mnspec, '+$
+            'SINGLE_CUBE=single_cube, SCALE_STOKES=scale_stokes, VALS_IMG=vals_img, '+$
+            'VALS_REF=vals_ref, NO_WARP=no_warp, SCALE_CUBES=scale_cubes, XTITLE=xtitle, '+$
+            'YTITLE=ytitle, WINDOW_LARGE=window_large, HANDLE_EXTREME=handle_extreme, '+$
+            'VERBOSE=verbose', /INFO
 		RETURN
 	ENDIF
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '587'
+	revision_number = '588'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -10479,20 +10480,18 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     VALUE = 'Stokes parameter:                                    ', /ALIGN_LEFT)
 	stokes_main			= WIDGET_BASE(stokes_frame, /ROW)
 	stokes_main_label		= WIDGET_LABEL(stokes_main, VALUE = 'Main image:',/ALIGN_LEFT)
-	pol_xy_but_field= WIDGET_BASE(stokes_main, /ROW )
-  pol_xy_buts     = CW_BGROUP(pol_xy_but_field, stokes_button_labels, $
+	stokes_xy_but_field= WIDGET_BASE(stokes_main, /ROW )
+  stokes_xy_buts     = CW_BGROUP(stokes_xy_but_field, stokes_button_labels, $
                       BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), IDS=stokes_button_ids,$
                       /EXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_DISPLAYS_STOKES_SELECT_XY')
-  FOR i=0,N_ELEMENTS(stokes_button_labels)-1 DO $
-    WIDGET_CONTROL, stokes_button_ids[i], SENSITIVE=stokes_enabled[i], SET_BUTTON=(i EQ 0)
-
-	pol_sp			= WIDGET_BASE(stokes_frame, /ROW)
-	pol_sp_label		= WIDGET_LABEL(pol_sp, VALUE = 'Detailed spectra:',/ALIGN_LEFT)
-  pol_sp_buts     = CW_BGROUP(pol_sp, stokes_button_labels, $
+	stokes_sp			= WIDGET_BASE(stokes_frame, /ROW)
+	stokes_sp_label		= WIDGET_LABEL(stokes_sp, VALUE = 'Detailed spectra:',/ALIGN_LEFT)
+  stokes_sp_buts     = CW_BGROUP(stokes_sp, stokes_button_labels, $
                       BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), IDS=stokes_spbutton_ids,$
                       /NONEXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_DISPLAYS_STOKES_SELECT_SP')
 	spconstraint		= (hdr.nlp GT 1)
   FOR i=0,N_ELEMENTS(stokes_button_labels)-1 DO BEGIN
+    WIDGET_CONTROL, stokes_button_ids[i], SENSITIVE=stokes_enabled[i], SET_BUTTON=(i EQ 0)
     IF (multichannel OR (i GT 0)) THEN $
       set_constraint = (spconstraint AND stokes_enabled[i]) $
     ELSE $
@@ -10769,10 +10768,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		x_slider:x_slid, y_slider:y_slid, lock_button:lockbut, unlock_button:unlockbut, $
 		zoom_button_ids:zoom_button_ids, xpos_slider:xpos_slider, ypos_slider:ypos_slider, $			
     stokes_button_ids:stokes_button_ids, stokes_spbutton_ids:stokes_spbutton_ids, $
-;		pol_xy_i_but:pol_xy_i_but, pol_xy_q_but:pol_xy_q_but, pol_xy_u_but:pol_xy_u_but,$		
-;		pol_sp_i_but:pol_sp_i_but, pol_sp_q_but:pol_sp_q_but, pol_sp_u_but:pol_sp_u_but,$		
-;		pol_sp_v_but:pol_sp_v_but, $
-;    pol_xy_v_but:pol_xy_v_but, $						
 		detspect_label:detspect_label, scale_detspect_but:scale_detspect_but, $
 		detspect_im_but:detspect_im_but, detspect_ref_but:detspect_ref_but, $
 		ls_toggle_but:ls_toggle_but, subtract_but:subtract_but, $		
