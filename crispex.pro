@@ -4162,6 +4162,74 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
   hdr_out.ytitle[0] = hdr_out.blabel+ytitle_unit
   hdr_out.xtitle[0] = hdr_out.lplabel+xtitle_unit
   hdr_out.spytitle = hdr_out.tlabel+spytitle_unit
+  ; Handle Stokes 
+  IF hdr_out.multichannel THEN BEGIN
+    stokes_labels = STRSPLIT(STRMID(hdr_out.imstokes,1,STRLEN(hdr_out.imstokes)-2),',',/EXTRACT)
+		IF (N_ELEMENTS(stokes_labels) NE hdr_out.imns) THEN BEGIN
+			PRINT,'ERROR: The number of Stokes components ('+STRTRIM(hdr_out.imns,2)+') does not '+$
+            'correspond to the number of Stokes labels ('+STRTRIM(N_ELEMENTS(stokes_labels),2)+').'
+			PRINT,'       Please check whether the Stokes cube production has proceded correctly.'
+			WIDGET_CONTROL, startuptlb, /DESTROY
+      io_failsafe_main_error = 1
+			RETURN
+		ENDIF ELSE BEGIN
+			stokes_select_sp = INTARR(hdr_out.ns)
+			IF ((WHERE(stokes_labels EQ 'I') GE 0) AND $
+          (WHERE(stokes_labels EQ 'I') LE hdr_out.imns-1)) THEN BEGIN
+				hdr_out.stokes_enabled[0] = 1 
+				stokes_select_sp[WHERE(stokes_labels EQ 'I')] = 1
+			ENDIF 
+			IF ((WHERE(stokes_labels EQ 'Q') GE 0) AND $
+          (WHERE(stokes_labels EQ 'Q') LE hdr_out.imns-1)) THEN BEGIN
+				hdr_out.stokes_enabled[1] = 1 
+				stokes_select_sp[WHERE(stokes_labels EQ 'Q')] = 1
+			ENDIF 
+			IF ((WHERE(stokes_labels EQ 'U') GE 0) AND $
+          (WHERE(stokes_labels EQ 'U') LE hdr_out.imns-1)) THEN BEGIN
+				hdr_out.stokes_enabled[2] = 1 
+				stokes_select_sp[WHERE(stokes_labels EQ 'U')] = 1
+			ENDIF 
+			IF ((WHERE(stokes_labels EQ 'V') GE 0) AND $
+          (WHERE(stokes_labels EQ 'V') LE hdr_out.imns-1)) THEN BEGIN
+				hdr_out.stokes_enabled[3] = 1 
+				stokes_select_sp[WHERE(stokes_labels EQ 'V')] = 1
+			ENDIF
+		ENDELSE
+	ENDIF ELSE BEGIN
+    stokes_labels = ['I']
+    stokes_select_sp = 1
+  ENDELSE
+	hdr_out.scalestokes_max = (TOTAL(hdr_out.stokes_enabled[1:3]) GE 1)
+  hdr_out = CREATE_STRUCT(hdr_out, 'stokes_labels', stokes_labels, 'stokes_select_sp', $
+                          stokes_select_sp)
+	IF (hdr_out.verbosity[1] EQ 1) THEN $
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Stokes parameters: '+STRJOIN(hdr_out.stokes_labels,' ')
+  ; Handle diagnostics
+	diagnostics = STRARR(hdr_out.nlp)
+	IF (hdr_out.imdiagnostics NE '') THEN BEGIN
+		diagsplit = STRSPLIT(hdr_out.imdiagnostics,',',/EXTRACT)
+		ndiag = N_ELEMENTS(diagsplit)
+		diagsplit[0] = STRMID(diagsplit[0],STRPOS(diagsplit[0],'[')+1,STRLEN(diagsplit[0]))
+		diagsplit[ndiag-1] = STRMID(diagsplit[ndiag-1],0,$
+                                STRLEN(diagsplit[ndiag-1])-(STRPOS(diagsplit[ndiag-1],']') GT 0))
+		IF (ndiag GE hdr_out.nlp) THEN $
+      diagnostics = diagsplit[0:(hdr_out.nlp-1)] $
+    ELSE IF (ndiag LT hdr_out.nlp) THEN BEGIN
+			diagnostics[0:(ndiag-1)] = diagsplit[0:(ndiag-1)]
+			diagnostics[ndiag:(hdr_out.nlp-1)] = REPLICATE('Undefined',(hdr_out.nlp-ndiag))
+		ENDIF 
+	ENDIF ELSE diagnostics = REPLICATE('SST ',hdr_out.nlp)+STRTRIM(INDGEN(hdr_out.nlp),2)
+	sel_diagnostics = REPLICATE(1,hdr_out.nlp)
+	lines_diagnostics = (INDGEN(hdr_out.nlp) MOD 6)
+	FOR i=0,FLOOR(hdr_out.nlp/6.) DO BEGIN
+		IF (i EQ 0) THEN selcol_diagnostics = REPLICATE(i,6) ELSE $
+			IF (i EQ (FLOOR(hdr_out.nlp/6.))) THEN BEGIN
+				IF (hdr_out.nlp/6. NE FLOOR(hdr_out.nlp/6.)) THEN selcol_diagnostics = [selcol_diagnostics,$
+        REPLICATE(i,ROUND((hdr_out.nlp/6.-FLOOR(hdr_out.nlp/6.))*6))] 
+			ENDIF ELSE selcol_diagnostics = [selcol_diagnostics, REPLICATE(i,6)]
+	ENDFOR
+  hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics, 'sel_diagnostics', sel_diagnostics, $
+    'lines_diagnostics', lines_diagnostics, 'selcol_diagnostics', selcol_diagnostics)
   CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_out, HDR_OUT=hdr_out
 END
 
@@ -9575,7 +9643,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '589'
+	revision_number = '590'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -9767,6 +9835,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
             xunit:'arcsec', yunit:'arcsec', tunit:'', lpunit:'', sunit:'', bunit:'counts', $
             xlabel:'x', ylabel:'y', tlabel:'Frame number', lplabel:'Spectral position', $
             slabel:'', blabel:'I', $
+            stokes_enabled:[0,0,0,0], scalestokes_max:0, $
             refxunit:'arcsec', refyunit:'arcsec', reflpunit:'', refbunit:'counts', $
             refxlabel:'x', refylabel:'y', reftlabel:'', reflplabel:'', refblabel:'I', $
             xtitle:STRARR(2), ytitle:STRARR(2), refspxtitle:'', spxtitle:'', spytitle:'', $
@@ -9794,75 +9863,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   CRISPEX_IO_OPEN_MASKCUBE, MASKCUBE=maskcube, HDR_IN=hdr, HDR_OUT=hdr, STARTUPTLB=startuptlb, $
                             IO_FAILSAFE_MASK_ERROR=io_failsafe_mask_error
   IF (io_failsafe_mask_error EQ 1) THEN RETURN
-
-  ; Handle Stokes and diagnostics labels
-  stokes_button_labels = ['I','Q','U','V']
-  stokes_enabled = [0,0,0,0]
-  IF hdr.multichannel THEN BEGIN
-;		stokes_comp = STRSPLIT(STRSPLIT(STRJOIN(STRSPLIT(hdr.imstokes,',',/EXTRACT)),']',/EXTRACT),'[',/EXTRACT)
-    stokes_labels = STRSPLIT(STRMID(hdr.imstokes,1,STRLEN(hdr.imstokes)-2),',',/EXTRACT)
-;		IF (STRLEN(stokes_comp) NE imns) THEN BEGIN
-		IF (N_ELEMENTS(stokes_labels) NE hdr.imns) THEN BEGIN
-			PRINT,'ERROR: The number of Stokes components ('+STRTRIM(hdr.imns,2)+') does not '+$
-            'correspond to the number of Stokes labels ('+STRTRIM(N_ELEMENTS(stokes_labels),2)+').'
-			PRINT,'       Please check whether the Stokes cube production has proceded correctly.'
-			WIDGET_CONTROL, startuptlb, /DESTROY
-			RETURN
-		ENDIF ELSE BEGIN
-;			ns = hdr.imns
-;			stokes_labels = STRARR(ns)
-			stokes_select_sp = INTARR(hdr.ns)
-;			stokes_labels = STRMID(stokes_comp,INDGEN(hdr.ns),1)
-			IF ((WHERE(stokes_labels EQ 'I') GE 0) AND (WHERE(stokes_labels EQ 'I') LE hdr.imns-1)) THEN BEGIN
-				stokes_enabled[0] = 1 
-				stokes_select_sp[WHERE(stokes_labels EQ 'I')] = 1
-			ENDIF 
-			IF ((WHERE(stokes_labels EQ 'Q') GE 0) AND (WHERE(stokes_labels EQ 'Q') LE hdr.imns-1)) THEN BEGIN
-				stokes_enabled[1] = 1 
-				stokes_select_sp[WHERE(stokes_labels EQ 'Q')] = 1
-			ENDIF 
-			IF ((WHERE(stokes_labels EQ 'U') GE 0) AND (WHERE(stokes_labels EQ 'U') LE hdr.imns-1)) THEN BEGIN
-				stokes_enabled[2] = 1 
-				stokes_select_sp[WHERE(stokes_labels EQ 'U')] = 1
-			ENDIF 
-			IF ((WHERE(stokes_labels EQ 'V') GE 0) AND (WHERE(stokes_labels EQ 'V') LE hdr.imns-1)) THEN BEGIN
-				stokes_enabled[3] = 1 
-				stokes_select_sp[WHERE(stokes_labels EQ 'V')] = 1
-			ENDIF
-		ENDELSE
-	ENDIF ELSE BEGIN
-		stokes_labels = ['I']
-		stokes_select_sp = 1
-	ENDELSE
-	scalestokes_max = (TOTAL(stokes_enabled[1:3]) GE 1)
-	diagnostics = STRARR(hdr.nlp)
-	IF (N_ELEMENTS(hdr.imdiagnostics) GT 0) THEN BEGIN
-		diagsplit = STRSPLIT(hdr.imdiagnostics,',',/EXTRACT)
-		ndiag = N_ELEMENTS(diagsplit)
-		diagsplit[0] = STRMID(diagsplit[0],STRPOS(diagsplit[0],'[')+1,STRLEN(diagsplit[0]))
-		diagsplit[ndiag-1] = STRMID(diagsplit[ndiag-1],0,$
-                                STRLEN(diagsplit[ndiag-1])-(STRPOS(diagsplit[ndiag-1],']') GT 0))
-		IF (ndiag GE hdr.nlp) THEN $
-      diagnostics = diagsplit[0:(hdr.nlp-1)] $
-    ELSE IF (ndiag LT hdr.nlp) THEN BEGIN
-			diagnostics[0:(ndiag-1)] = diagsplit[0:(ndiag-1)]
-			diagnostics[ndiag:(hdr.nlp-1)] = REPLICATE('Undefined',(hdr.nlp-ndiag))
-		ENDIF 
-	ENDIF ELSE diagnostics = REPLICATE('SST ',hdr.nlp)+STRTRIM(INDGEN(hdr.nlp),2)
-	sel_diagnostics = REPLICATE(1,hdr.nlp)
-	lines_diagnostics = (INDGEN(hdr.nlp) MOD 6)
-	linlab_diagnostics = ['Solid', 'Dotted', 'Dashed', 'Dash Dot', 'Dash Dot Dot', 'Long Dashes'] 
-	colors_diagnostics = [0,200,135,120,100,90,230,40]
-	collab_diagnostics = ['Black', 'Red', 'Pink', 'Purple', 'Blue', 'Turquoise', 'Grey', 'Green']
-	FOR i=0,FLOOR(hdr.nlp/6.) DO BEGIN
-		IF (i EQ 0) THEN selcol_diagnostics = REPLICATE(i,6) ELSE $
-			IF (i EQ (FLOOR(hdr.nlp/6.))) THEN BEGIN
-				IF (hdr.nlp/6. NE FLOOR(hdr.nlp/6.)) THEN selcol_diagnostics = [selcol_diagnostics,$
-        REPLICATE(i,ROUND((hdr.nlp/6.-FLOOR(hdr.nlp/6.))*6))] 
-			ENDIF ELSE selcol_diagnostics = [selcol_diagnostics, REPLICATE(i,6)]
-	ENDFOR
-	IF (verbosity[1] EQ 1) THEN $
-    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Stokes parameters: '+STRJOIN(stokes_labels,' ')
 
 	IF (hdr.refnlp NE hdr.nlp) THEN BEGIN
 		eqnlps = 0 
@@ -10669,6 +10669,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	stokes_main			= WIDGET_BASE(stokes_frame, /ROW)
 	stokes_main_label		= WIDGET_LABEL(stokes_main, VALUE = 'Main image:',/ALIGN_LEFT)
 	stokes_xy_but_field= WIDGET_BASE(stokes_main, /ROW )
+  stokes_button_labels = ['I','Q','U','V']
   stokes_xy_buts     = CW_BGROUP(stokes_xy_but_field, stokes_button_labels, $
                       BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), IDS=stokes_button_ids,$
                       /EXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_BGROUP_STOKES_SELECT_XY')
@@ -10679,12 +10680,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                       /NONEXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_BGROUP_STOKES_SELECT_SP')
 	spconstraint		= (hdr.nlp GT 1)
   FOR i=0,N_ELEMENTS(stokes_button_labels)-1 DO BEGIN
-    WIDGET_CONTROL, stokes_button_ids[i], SENSITIVE=stokes_enabled[i], SET_BUTTON=(i EQ 0)
+    WIDGET_CONTROL, stokes_button_ids[i], SENSITIVE=hdr.stokes_enabled[i], SET_BUTTON=(i EQ 0)
     IF (hdr.multichannel OR (i GT 0)) THEN $
-      set_constraint = (spconstraint AND stokes_enabled[i]) $
+      set_constraint = (spconstraint AND hdr.stokes_enabled[i]) $
     ELSE $
       set_constraint = spconstraint
-    WIDGET_CONTROL, stokes_spbutton_ids[i], SENSITIVE=(spconstraint AND stokes_enabled[i]), $
+    WIDGET_CONTROL, stokes_spbutton_ids[i], SENSITIVE=(spconstraint AND hdr.stokes_enabled[i]), $
       SET_BUTTON=set_constraint
   ENDFOR
 
@@ -11120,10 +11121,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- INT PARAMS
 	intparams = { $
-		sel_diagnostics:PTR_NEW(sel_diagnostics), lines_diagnostics:PTR_NEW(lines_diagnostics), $
-		linlab_diagnostics:linlab_diagnostics, colors_diagnostics:colors_diagnostics, $
-		collab_diagnostics:collab_diagnostics, selcol_diagnostics:PTR_NEW(selcol_diagnostics), $
-		diagnostics:diagnostics, lock_t:1 $ 
+		sel_diagnostics:PTR_NEW(hdr.sel_diagnostics), lines_diagnostics:PTR_NEW(hdr.lines_diagnostics), $
+	  linlab_diagnostics:['Solid', 'Dotted', 'Dashed', 'Dash Dot', 'Dash Dot Dot', 'Long Dashes'],$
+	  colors_diagnostics:[0,200,135,120,100,90,230,40],$
+	  collab_diagnostics:['Black', 'Red', 'Pink', 'Purple', 'Blue', 'Turquoise', 'Grey', 'Green'],$
+    selcol_diagnostics:PTR_NEW(hdr.selcol_diagnostics), $
+		diagnostics:hdr.diagnostics, lock_t:1 $ 
 	}
 ;--------------------------------------------------------------------------------- I/O PARAMS
 	ioparams = { $
@@ -11308,12 +11311,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		scale_max_val:PTR_NEW([255.,255.,255.]), scale_min_val:PTR_NEW([0.,0.,0.]), $				
 		rel_scale_max_val:PTR_NEW([100.,100.,100.]), rel_scale_min_val:PTR_NEW([0.,0.,0.]), $			
 		refmin:refmin, refmax:refmax, imrefscaling:0, relative:relative_scaling, $	
-		scalestokes_max:scalestokes_max, dopplermin:dopplermin, dopplermax:dopplermax $
+		scalestokes_max:hdr.scalestokes_max, dopplermin:dopplermin, dopplermax:dopplermax $
 	}
 ;--------------------------------------------------------------------------------- STOKES PARAMS
 	stokesparams = { $
-		labels:stokes_labels, button_labels:stokes_button_labels, select_sp:stokes_select_sp, $	
-		prev_select_sp:stokes_select_sp $
+		labels:hdr.stokes_labels, button_labels:stokes_button_labels, select_sp:hdr.stokes_select_sp, $	
+		prev_select_sp:hdr.stokes_select_sp $
 	}
 ;--------------------------------------------------------------------------------- VERSION INFO
 	versioninfo = { $
