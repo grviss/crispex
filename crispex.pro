@@ -2628,14 +2628,33 @@ PRO CRISPEX_DISPRANGE_T_RESET, event, NO_DRAW=no_draw
 	IF ((*(*info).winswitch).showint AND (*(*info).intparams).lock_t) THEN CRISPEX_DISPRANGE_INT_T_RESET, event ELSE CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw
 END
 
+PRO CRISPEX_DISPRANGE_GET_WARP, event
+; Handles change in lower s-value of accessed data cube
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_GET_WARP'
+  lps_sel = ((*(*info).dataparams).lps)[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp]
+  min_lps = MIN(lps_sel)
+  (*(*info).dispparams).xo = FINDGEN((*(*info).dispparams).lp_range) # $
+                              REPLICATE(1,(*(*info).dataparams).nt)
+  (*(*info).dispparams).xi = ((lps_sel-min_lps) / FLOAT(MAX(lps_sel-min_lps)) * $
+                              (*(*info).dispparams).lp_range) # REPLICATE(1,(*(*info).dataparams).nt)
+  (*(*info).dispparams).yo = REPLICATE(1,(*(*info).dispparams).lp_range) # $
+                              FINDGEN((*(*info).dataparams).nt)
+  (*(*info).dispparams).yi = (*(*info).dispparams).yo
+END
+
 PRO CRISPEX_DISPRANGE_LP_LOW, event
 ; Handles change in lower s-value of accessed data cube
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_LOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_LOW'
 	WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, GET_VALUE = textvalue
 	(*(*info).dispparams).lp_low = FLOAT(textvalue[0])
-	IF ((*(*info).dispparams).lp_low GE (*(*info).dispparams).lp_upp) THEN (*(*info).dispparams).lp_low = (*(*info).dispparams).lp_upp - 1
-	IF ((*(*info).dispparams).lp_low LT (*(*info).dispparams).lp_first) THEN (*(*info).dispparams).lp_low = (*(*info).dispparams).lp_first
+	IF ((*(*info).dispparams).lp_low GE (*(*info).dispparams).lp_upp) THEN $
+    (*(*info).dispparams).lp_low = (*(*info).dispparams).lp_upp - 1
+	IF ((*(*info).dispparams).lp_low LT (*(*info).dispparams).lp_first) THEN $
+    (*(*info).dispparams).lp_low = (*(*info).dispparams).lp_first
 	WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, SET_VALUE = STRTRIM((*(*info).dispparams).lp_low,2)
 	CRISPEX_DISPRANGE_LP_RANGE, event
 END
@@ -2643,11 +2662,14 @@ END
 PRO CRISPEX_DISPRANGE_LP_UPP, event
 ; Handles change in upper s-value of accessed data cube
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_UPP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_UPP'
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, GET_VALUE = textvalue
 	(*(*info).dispparams).lp_upp = FLOAT(textvalue[0])
-	IF ((*(*info).dispparams).lp_upp LE (*(*info).dispparams).lp_low) THEN (*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_low + 1
-	IF ((*(*info).dispparams).lp_upp GT (*(*info).dispparams).lp_last) THEN (*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_last
+	IF ((*(*info).dispparams).lp_upp LE (*(*info).dispparams).lp_low) THEN $
+    (*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_low + 1
+	IF ((*(*info).dispparams).lp_upp GT (*(*info).dispparams).lp_last) THEN $
+    (*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_last
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, SET_VALUE = STRTRIM((*(*info).dispparams).lp_upp,2)
 	CRISPEX_DISPRANGE_LP_RANGE, event
 END
@@ -2655,13 +2677,21 @@ END
 PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
 ; Determines range from change in lower or upper s-value and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_RANGE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_RANGE'
 	(*(*info).dispparams).lp_range = (*(*info).dispparams).lp_upp - (*(*info).dispparams).lp_low + 1
-	IF ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp) THEN WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, /SENSITIVE ELSE WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, SENSITIVE = 0
-	IF ((*(*info).dataparams).lp LT (*(*info).dispparams).lp_low) THEN (*(*info).dataparams).lp = (*(*info).dispparams).lp_low ELSE $
-		IF ((*(*info).dataparams).lp GT (*(*info).dispparams).lp_upp) THEN (*(*info).dataparams).lp = (*(*info).dispparams).lp_upp ELSE $
+	IF ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp) THEN $
+    WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, /SENSITIVE $
+  ELSE $
+    WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, SENSITIVE = 0
+	IF ((*(*info).dataparams).lp LT (*(*info).dispparams).lp_low) THEN $
+    (*(*info).dataparams).lp = (*(*info).dispparams).lp_low $
+  ELSE IF ((*(*info).dataparams).lp GT (*(*info).dispparams).lp_upp) THEN $
+    (*(*info).dataparams).lp = (*(*info).dispparams).lp_upp $
+  ELSE $
 		(*(*info).dataparams).lp = (*(*info).dataparams).lp
-	WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_SLIDER_MIN = (*(*info).dispparams).lp_low, SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, SET_VALUE = (*(*info).dataparams).lp
+	WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_SLIDER_MIN = (*(*info).dispparams).lp_low, $
+                  SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, SET_VALUE = (*(*info).dataparams).lp
 	IF ((*(*info).dispparams).lp_range - 1 EQ 1) THEN BEGIN
 		lp_step = 1
 		lp_sens = 0 
@@ -2669,26 +2699,37 @@ PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
 		lp_step = (*(*info).pbparams).lp_step
 		lp_sens = 1
 	ENDELSE
-	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_SLIDER_MAX = (*(*info).dispparams).lp_range - 1, SET_VALUE = lp_step, SENSITIVE = lp_sens
+	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, $
+    SET_SLIDER_MAX = (*(*info).dispparams).lp_range - 1, SET_VALUE = lp_step, SENSITIVE = lp_sens
+  IF (*(*info).dispswitch).warpspslice THEN CRISPEX_DISPRANGE_GET_WARP, event
 	IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
 		IF (*(*info).winswitch).showsp THEN CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
 		CRISPEX_UPDATE_T, event
 		CRISPEX_DRAW, event
 	ENDIF
 	IF (*(*info).winswitch).showphis THEN BEGIN
-		IF (*(*info).dataswitch).onecube THEN WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SET_VALUE = 'Update spectral windows', SENSITIVE = 1 ELSE WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 1
+		IF (*(*info).dataswitch).onecube THEN $
+      WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SET_VALUE = 'Update spectral windows', $
+                      SENSITIVE = 1  $
+    ELSE $
+      WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 1
 	ENDIF
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).lp_low,(*(*info).dispparams).lp_upp], labels=['Lower lp-value','Upper lp-value']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).lp_low,(*(*info).dispparams).lp_upp], $
+                        labels=['Lower lp-value','Upper lp-value']
 END
 
 PRO CRISPEX_DISPRANGE_LP_RESET, event, NO_DRAW=no_draw
 ; Handles reset of spectral boundaries and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_RESET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_RESET'
 	(*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_last
 	(*(*info).dispparams).lp_low = (*(*info).dispparams).lp_first
-	WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, SET_VALUE = STRTRIM((*(*info).dispparams).lp_upp,2), /SENSITIVE
-	WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, SET_VALUE = STRTRIM((*(*info).dispparams).lp_low,2), /SENSITIVE
+	WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, $
+                  SET_VALUE = STRTRIM((*(*info).dispparams).lp_upp,2), /SENSITIVE
+	WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, $
+                  SET_VALUE = STRTRIM((*(*info).dispparams).lp_low,2), /SENSITIVE
 	WIDGET_CONTROL, (*(*info).ctrlscp).reset_trange_but, SENSITIVE = 0
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, /SENSITIVE
 	CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
@@ -3465,8 +3506,8 @@ PRO CRISPEX_DRAW_SP, event
   ELSE $
     minimum = MIN(spslice,MAX=maximum)
 	IF (*(*info).dispswitch).warpspslice THEN $                   ; Warp slice if non-equidistant lp
-    dispslice = WARP_TRI((*(*info).dispparams).xi, (*(*info).dispparams).yi, $
-                         (*(*info).dispparams).xo, (*(*info).dispparams).yo, spslice) $
+    dispslice = WARP_TRI( (*(*info).dispparams).xi,(*(*info).dispparams).yi,$
+                          (*(*info).dispparams).xo,(*(*info).dispparams).yo, spslice) $
   ELSE $
     dispslice = spslice
   ; Display slice
@@ -9643,7 +9684,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '590'
+	revision_number = '591'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
