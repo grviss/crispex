@@ -1690,29 +1690,27 @@ PRO CRISPEX_DISPLAYS_PHIS_TOGGLE, event, NO_DRAW=no_draw
 	IF ((*(*info).winswitch).showphis EQ 0) THEN BEGIN
 		WIDGET_CONTROL,/HOURGLASS
 		IF (*(*info).winswitch).showsp THEN BEGIN
-			IF ((*(*info).dataparams).nt GT 1) THEN *(*(*info).data).sspscan = (*(*(*info).data).scan)[(*(*info).dataparams).t] ELSE *(*(*info).data).sspscan = (*(*(*info).data).scan)
-			*(*(*info).data).phiscan = (*(*(*info).data).sspscan)[*,*,((*(*info).dataparams).s * (*(*info).dataparams).nlp):(((*(*info).dataparams).s+1)*(*(*info).dataparams).nlp-1)] 
+			IF ((*(*info).dataparams).nt GT 1) THEN $
+        *(*(*info).data).sspscan = (*(*(*info).data).scan)[(*(*info).dataparams).t] $
+      ELSE $
+        *(*(*info).data).sspscan = (*(*(*info).data).scan)
+			*(*(*info).data).phiscan = (*(*(*info).data).sspscan)[*,*,$
+        ((*(*info).dataparams).s * (*(*info).dataparams).nlp):$
+        (((*(*info).dataparams).s+1)*(*(*info).dataparams).nlp-1)] 
 		ENDIF
-;		IF (*(*info).plotswitch).v_dop_set THEN extratitle = '!C' ELSE extratitle = ''
-;		IF (*(*info).plotswitch).multichannel THEN title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle ELSE title = ''
-		wintitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+((*(*info).plottitles).phiswintitle)[(*(*info).plotswitch).heightset]
-		CRISPEX_WINDOW, (*(*info).winsizes).phisxres, (*(*info).winsizes).phisyres, (*(*info).winids).root, wintitle, tlb, wid, $
-			(*(*info).winsizes).spxoffset, (*(*info).winswitch).showsp * (*(*info).winsizes).ydelta, DRAWID = phisdrawid, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_PHIS_RESIZE'
-;		PLOT, (*(*info).dataparams).lps, FINDGEN((*(*info).phiparams).nphi), /NODATA, YRANGE = [-(*(*info).phiparams).nphi/2.,(*(*info).phiparams).nphi/2.], /YSTYLE, $
-;			XR = [(*(*info).dataparams).lps[(*(*info).dispparams).lp_low], (*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]], POS = [(*(*info).plotpos).phisx0,(*(*info).plotpos).phisy0,$
-;			(*(*info).plotpos).phisx1,(*(*info).plotpos).phisy1], YTICKLEN = (*(*info).plotaxes).phisyticklen, XTICKLEN = (*(*info).plotaxes).phisxticklen, XTITLE = (*(*info).plottitles).spxtitle, $
-;			YTITLE = 'Position along slit [pixel]', XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, BACKGROUND = (*(*info).plotparams).bgplotcol, COLOR = (*(*info).plotparams).plotcol
-;		IF ((*(*info).plotswitch).v_dop_set EQ 1) THEN $
-;			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).phisxticklen, XRANGE = [((*(*info).plotaxes).v_dop)[(*(*info).dispparams).lp_low], ((*(*info).plotaxes).v_dop)[(*(*info).dispparams).lp_upp]], XSTYLE=1, $
-;				XTITLE = 'Doppler velocity [km/s]', COLOR = (*(*info).plotparams).plotcol ELSE $
-;			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).phisxticklen, XRANGE = [(*(*info).dataparams).lps[(*(*info).dispparams).lp_low], (*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]], XSTYLE=1, $
-;				XTICKNAME = REPLICATE(' ',60), XTITLE = title, COLOR = (*(*info).plotparams).plotcol
+		wintitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+$
+      ((*(*info).plottitles).phiswintitle)[(*(*info).plotswitch).heightset]
+		CRISPEX_WINDOW, (*(*info).winsizes).phisxres, (*(*info).winsizes).phisyres, $
+      (*(*info).winids).root, wintitle, tlb, wid, (*(*info).winsizes).spxoffset, $
+      (*(*info).winswitch).showsp * (*(*info).winsizes).ydelta, DRAWID = phisdrawid, $
+      RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_PHIS_RESIZE'
 		(*(*info).winids).phistlb = tlb			&	(*(*info).winids).phiswid = wid
 		(*(*info).winids).phisdrawid = phisdrawid	&	(*(*info).winids).phiswintitle = wintitle 
 		WIDGET_CONTROL, (*(*info).winids).phistlb, SET_UVALUE = info
 		(*(*info).ctrlsswitch).bwd_insensitive = 0	
 		(*(*info).ctrlsswitch).fwd_insensitive = 0
 		(*(*info).winswitch).showphis = 1
+    CRISPEX_DISPRANGE_LP_RANGE, event, /NO_DRAW
 	ENDIF ELSE BEGIN
 		WIDGET_CONTROL, (*(*info).winids).phistlb, /DESTROY
 		(*(*info).winids).phistlb = 0
@@ -1727,7 +1725,9 @@ PRO CRISPEX_DISPLAYS_PHIS_TOGGLE, event, NO_DRAW=no_draw
 		CRISPEX_UPDATE_PHIS, event
 	ENDIF
 	WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 0
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).phistlb,(*(*info).winids).phiswid,(*(*info).winids).phisdrawid], labels=['phistlb','phiswid','phisdrawid']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).phistlb,(*(*info).winids).phiswid,$
+      (*(*info).winids).phisdrawid], labels=['phistlb','phiswid','phisdrawid']
 END
 
 PRO CRISPEX_DISPLAYS_REF_TOGGLE, event, NO_DRAW=no_draw
@@ -2675,7 +2675,7 @@ PRO CRISPEX_DISPRANGE_LS_UPP, event
 	CRISPEX_DISPRANGE_LS_RANGE, event
 END
 
-PRO CRISPEX_DISPRANGE_LS_RANGE, event
+PRO CRISPEX_DISPRANGE_LS_RANGE, event, NO_DRAW=no_draw
 ; Determines range from change in lower or upper y-value of detailed spectrum display window and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LS_RANGE'
@@ -2683,7 +2683,7 @@ PRO CRISPEX_DISPRANGE_LS_RANGE, event
 		(*(*(*info).plotaxes).ls_yrange)[(*(*info).dataparams).s] = (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] - (*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] 
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],(*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],$
 		(*(*info).plotaxes).ls_low_y_ref,(*(*info).plotaxes).ls_upp_y_ref], labels=['Lower main y-value','Upper main y-value','Lower ref y-value','Upper ref y-value']
-	CRISPEX_DRAW, event
+	IF ~KEYWORD_SET(NO_DRAW) THEN CRISPEX_DRAW, event
 END
 
 PRO CRISPEX_DISPRANGE_LS_SCALE_SELECT, event
@@ -2824,20 +2824,53 @@ PRO CRISPEX_DISPRANGE_T_RESET, event, NO_DRAW=no_draw
 	IF ((*(*info).winswitch).showint AND (*(*info).intparams).lock_t) THEN CRISPEX_DISPRANGE_INT_T_RESET, event ELSE CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw
 END
 
-PRO CRISPEX_DISPRANGE_GET_WARP, event
-; Handles change in lower s-value of accessed data cube
+PRO CRISPEX_DISPRANGE_GET_WARP, event, PHIS=phis
+; Handles determining warping tie points
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_GET_WARP'
   lps_sel = ((*(*info).dataparams).lps)[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp]
   min_lps = MIN(lps_sel)
-  (*(*info).dispparams).xo = FINDGEN((*(*info).dispparams).lp_range) # $
-                              REPLICATE(1,(*(*info).dataparams).nt)
-  (*(*info).dispparams).xi = ((lps_sel-min_lps) / FLOAT(MAX(lps_sel-min_lps)) * $
-                              (*(*info).dispparams).lp_range) # REPLICATE(1,(*(*info).dataparams).nt)
-  (*(*info).dispparams).yo = REPLICATE(1,(*(*info).dispparams).lp_range) # $
-                              FINDGEN((*(*info).dataparams).nt)
-  (*(*info).dispparams).yi = (*(*info).dispparams).yo
+  IF KEYWORD_SET(PHIS) THEN $
+    nt = (*(*info).phiparams).nphi $
+  ELSE $
+    nt = (*(*info).dataparams).nt
+    xi = FINDGEN((*(*info).dispparams).lp_range) # REPLICATE(1,nt)
+    xo = ((lps_sel-min_lps) / FLOAT(MAX(lps_sel-min_lps)) * $
+          (*(*info).dispparams).lp_range) # REPLICATE(1,nt)
+    yi = REPLICATE(1,(*(*info).dispparams).lp_range) # FINDGEN(nt)
+  IF KEYWORD_SET(PHIS) THEN BEGIN
+    *(*(*info).dispparams).phisxi = xi
+    *(*(*info).dispparams).phisyi = yi
+    *(*(*info).dispparams).phisxo = xo
+    *(*(*info).dispparams).phisyo = *(*(*info).dispparams).phisyi
+  ENDIF ELSE BEGIN
+    (*(*info).dispparams).xi = xi
+    (*(*info).dispparams).yi = yi
+    (*(*info).dispparams).xo = xo
+    (*(*info).dispparams).yo = (*(*info).dispparams).yi
+  ENDELSE
+END
+
+PRO CRISPEX_DISPRANGE_GET_WARP_TRIANGULATE, event, xo, yo, xi, yi, slice, PHIS=phis, NX=nx, NY=ny
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+  WIDGET_CONTROL, /HOURGLASS
+  ; Functionality taken from IDL's WARP_TRI
+  IF (N_ELEMENTS(NX) NE 1) THEN nx = (SIZE(slice))[1]
+  IF (N_ELEMENTS(NY) NE 1) THEN ny = (SIZE(slice))[2]
+  gs = [1,1]				        ;Grid spacing
+  b = [0,0, nx-1, ny-1]			;Bounds
+  ; Triangulate given the input and output tie points
+  TRIANGULATE, xo, yo, tr, bounds
+  xtri_new = TRIGRID(xo, yo, xi, tr, gs, b)
+  ytri_new = TRIGRID(xo, yo, yi, tr, gs, b)
+  IF KEYWORD_SET(PHIS) THEN BEGIN
+    *(*(*info).dispparams).phisxtri = xtri_new
+    *(*(*info).dispparams).phisytri = ytri_new
+  ENDIF ELSE BEGIN
+    *(*(*info).dispparams).xtri = xtri_new
+    *(*(*info).dispparams).ytri = ytri_new
+  ENDELSE
 END
 
 PRO CRISPEX_DISPRANGE_LP_LOW, event
@@ -2897,7 +2930,15 @@ PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
 	ENDELSE
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, $
     SET_SLIDER_MAX = (*(*info).dispparams).lp_range - 1, SET_VALUE = lp_step, SENSITIVE = lp_sens
-  IF (*(*info).dispswitch).warpspslice THEN CRISPEX_DISPRANGE_GET_WARP, event
+  IF ((*(*info).dispswitch).warpspslice AND (*(*info).winswitch).showphis) THEN BEGIN
+    WIDGET_CONTROL, /HOURGLASS
+    CRISPEX_DISPRANGE_GET_WARP, event, /PHIS
+    CRISPEX_DISPRANGE_GET_WARP_TRIANGULATE, event, $
+      *(*(*info).dispparams).phisxo,*(*(*info).dispparams).phisyo,$
+      *(*(*info).dispparams).phisxi,*(*(*info).dispparams).phisyi, $
+      (*(*(*info).data).phislice)[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp,*], $
+      /PHIS, NY=(*(*info).phiparams).nphi
+  ENDIF
 	IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
 		IF (*(*info).winswitch).showsp THEN CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
 		CRISPEX_UPDATE_T, event
@@ -3650,8 +3691,8 @@ PRO CRISPEX_DRAW_REFSP, event
   ELSE $
     refmin = MIN(refspslice,MAX=refmax)
 	IF (*(*info).dispswitch).warprefspslice THEN $                ; Warp slice if non-equidistant lp
-    dispslice = WARP_TRI((*(*info).dispparams).xi_ref, (*(*info).dispparams).yi_ref, $
-                         (*(*info).dispparams).xo_ref, (*(*info).dispparams).yo_ref, refspslice) $
+    dispslice = WARP_TRI((*(*info).dispparams).xo_ref, (*(*info).dispparams).yo_ref, $
+                         (*(*info).dispparams).xi_ref, (*(*info).dispparams).yi_ref, refspslice) $
 	ELSE $
     dispslice = refspslice
   ; Display slice
@@ -3945,8 +3986,8 @@ PRO CRISPEX_DRAW_SP, event
   ELSE $
     minimum = MIN(spslice,MAX=maximum)
 	IF (*(*info).dispswitch).warpspslice THEN $                   ; Warp slice if non-equidistant lp
-    dispslice = WARP_TRI( (*(*info).dispparams).xi,(*(*info).dispparams).yi,$
-                          (*(*info).dispparams).xo,(*(*info).dispparams).yo, spslice) $
+    dispslice = WARP_TRI( (*(*info).dispparams).xo,(*(*info).dispparams).yo,$
+                          (*(*info).dispparams).xi,(*(*info).dispparams).yi, spslice) $
   ELSE $
     dispslice = spslice
   IF ((*(*info).intparams).ndiagnostics GT 1) THEN CRISPEX_DISPLAYS_SP_REPLOT_AXES, event,/NO_AXES
@@ -4052,27 +4093,46 @@ PRO CRISPEX_DRAW_PHIS, event
                   (*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]], XSTYLE=1, $
 				XTICKNAME = REPLICATE(' ',60), XTITLE = title, COLOR = (*(*info).plotparams).plotcol
 	ENDIF
-	dispslice = (*(*(*info).data).phislice)[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp,*]
-	IF (*(*info).dispparams).slices_imscale THEN $
-    CRISPEX_DRAW_XYSLICE_SCALING,event,imdisp,minimum,maximum $
-  ELSE $
-    minimum = MIN(dispslice,MAX=maximum)
-  ; Display slice
-	TV, CONGRID( BYTSCL(dispslice, MIN=minimum, MAX=maximum), (*(*info).dispparams).phisnlpreb, $
-    (*(*info).dispparams).nphireb, INTERP = (*(*info).dispparams).interpspslice), $
-    (*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, /NORM
-  ; Overplot slit center indicator
-	PLOTS, [(*(*info).plotpos).phisx0, (*(*info).plotpos).phisx1], $
-    [1,1] * ( (((*(*info).phiparams).nw_cur - (*(*info).phiparams).nphi)/2. + $
-                (*(*info).phiparams).sphi+0.5)/FLOAT((*(*info).phiparams).nw_cur)*$
-                (*(*info).plotpos).phisyplspw + (*(*info).plotpos).phisy0), /NORMAL, COLOR = 100
-  ; Overplot lp indicator
-  lp_disprange = ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp] - $
-                  (*(*info).dataparams).lps[(*(*info).dispparams).lp_low])
-	PLOTS, [1,1] * ( ((*(*info).dataparams).lps[(*(*info).dataparams).lp] - $
-                    (*(*info).dataparams).lps[(*(*info).dispparams).lp_low]) / lp_disprange * $
-    (*(*info).plotpos).phisxplspw + (*(*info).plotpos).phisx0 ), $
-		[(*(*info).plotpos).phisy0, (*(*info).plotpos).phisy1], /NORMAL, COLOR = 100
+  ; Get phislice
+	phislice = (*(*(*info).data).phislice)[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp,*]
+  ; If 2D, then display
+  IF ((SIZE(phislice))[0] EQ 2) THEN BEGIN
+  	IF (*(*info).dispparams).slices_imscale THEN $
+      CRISPEX_DRAW_XYSLICE_SCALING,event,imdisp,minimum,maximum $
+    ELSE $
+      minimum = MIN(phislice,MAX=maximum)
+    ; Warp slice if non-equidistant lp
+  	IF (*(*info).dispswitch).warpspslice THEN BEGIN
+      dispslice = INTERPOLATE(phislice,$
+        (*(*(*info).dispparams).phisxtri)[*,0:(SIZE(phislice))[2]-1],$
+        (*(*(*info).dispparams).phisytri)[*,0:(SIZE(phislice))[2]-1])
+    ENDIF ELSE $
+      dispslice = phislice
+    ; Display slice
+  	TV, CONGRID( BYTSCL(dispslice, MIN=minimum, MAX=maximum), (*(*info).dispparams).phisnlpreb, $
+      (*(*info).dispparams).nphireb, INTERP = (*(*info).dispparams).interpspslice), $
+      (*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, /NORM
+    ; Overplot slit center indicator
+  	PLOTS, [(*(*info).plotpos).phisx0, (*(*info).plotpos).phisx1], $
+      [1,1] * ( (((*(*info).phiparams).nw_cur - (*(*info).phiparams).nphi)/2. + $
+                  (*(*info).phiparams).sphi+0.5)/FLOAT((*(*info).phiparams).nw_cur)*$
+                  (*(*info).plotpos).phisyplspw + (*(*info).plotpos).phisy0), /NORMAL, COLOR = 100
+    ; Overplot lp indicator
+    lp_disprange = ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp] - $
+                    (*(*info).dataparams).lps[(*(*info).dispparams).lp_low])
+  	PLOTS, [1,1] * ( ((*(*info).dataparams).lps[(*(*info).dataparams).lp] - $
+                      (*(*info).dataparams).lps[(*(*info).dispparams).lp_low]) / lp_disprange * $
+      (*(*info).plotpos).phisxplspw + (*(*info).plotpos).phisx0 ), $
+  		[(*(*info).plotpos).phisy0, (*(*info).plotpos).phisy1], /NORMAL, COLOR = 100
+  ; If not 2D, then show black screen and "error" message
+  ENDIF ELSE BEGIN
+    TV, CONGRID(*(*(*info).data).emptydopslice,(*(*info).dispparams).phisnlpreb, $
+      (*(*info).dispparams).nphireb), (*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, /NORMAL
+		XYOUTS, (*(*info).plotpos).phisxplspw/2.+(*(*info).plotpos).phisx0,$
+            (*(*info).plotpos).phisyplspw/2.+(*(*info).plotpos).phisy0,$
+            'No Phi-slice availabe for !C selected pixel position', COLOR = 255, ALIGNMENT = 0.5, $
+            CHARSIZE=1.2, /NORMAL
+  ENDELSE
 END
 
 PRO CRISPEX_DRAW_LOOPSLAB, event
@@ -4690,6 +4750,8 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
   CRISPEX_IO_PARSE_HEADER, hdr_out.imfilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                             CUBE_COMPATIBILITY=hdr_out.imcube_compatibility, EXTEN_NO=0, /IMCUBE
 	hdr_out.multichannel = (hdr_out.ns GE 2)
+  ; If single_cube value has been set from single FITS cube, use that
+  IF (hdr_out.single_cube NE 0) THEN single_cube = hdr_out.single_cube
   CRISPEX_IO_FAILSAFES_MAIN, hdr_out.imfilename, hdr_out.spfilename, single_cube, $
                              HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                              STARTUPTLB=startuptlb, $
@@ -5126,6 +5188,10 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
                               hdr_out.dlambda_set[0], hdr_out.verbosity, NO_WARP=no_warp, $
                               WARPSPSLICE=warpspslice, XO=xo, XI=xi, YO=yo, YI=yi, $
                               IDX_SELECT=idx_select
+;  CRISPEX_IO_PARSE_WARPSLICE, hdr_out.lps, hdr_out.nlp, CEIL(1.1*SQRT(hdr_out.nx^2+hdr_out.ny^2)), hdr_out.dlambda[0], $
+;                              hdr_out.dlambda_set[0], hdr_out.verbosity, NO_WARP=no_warp, $
+;                              XO=phisxo, XI=phisxi, YO=phisyo, YI=phisyi, $
+;                              IDX_SELECT=idx_select
   IF (hdr_out.nrefdiagnostics GT 1) THEN BEGIN
     refidx = LINDGEN(hdr_out.refnlp)
     FOR d=0,hdr_out.nrefdiagnostics-1 DO BEGIN
@@ -5143,6 +5209,7 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
                               YI=yi_ref, IDX_SELECT=refidx_select, /REFERENCE
   hdr_out = CREATE_STRUCT(hdr_out, 'xo', xo, 'xi', xi, 'yo', yo, 'yi', yi, 'xo_ref', xo_ref, $
                                     'xi_ref', xi_ref, 'yo_ref', yo_ref, 'yi_ref', yi_ref, $
+;                                    'phisxo',phisxo,'phisxi',phisxi,'phisyo',phisyo,'phisyi',phisyi,$
                                     'warpspslice', warpspslice, 'warprefspslice', warprefspslice)
 END
 
@@ -5368,10 +5435,10 @@ PRO CRISPEX_IO_PARSE_WARPSLICE, lps, nlp, nt, dlambda, dlambda_set, verbosity, N
 		warpspslice = (((WHERE(equidist NE equidist[0]))[0] NE -1) AND ~KEYWORD_SET(NO_WARP))
     IF warpspslice THEN BEGIN
 		  min_lps = MIN(lps)
-		  xo = FINDGEN(nlp) # REPLICATE(1,nt)
-		  xi = ((lps-min_lps) / FLOAT(MAX(lps-min_lps)) * nlp) # REPLICATE(1,nt)
-		  yo = REPLICATE(1,nlp) # FINDGEN(nt)
-		  yi = yo
+		  xi = FINDGEN(nlp) # REPLICATE(1,nt)
+		  xo = ((lps-min_lps) / FLOAT(MAX(lps-min_lps)) * nlp) # REPLICATE(1,nt)
+		  yi = REPLICATE(1,nlp) # FINDGEN(nt)
+		  yo = yi
 		ENDIF 
     IF verbosity[1] THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, warp_text[warpspslice]+$
                           ' applied to '+feedback_text[KEYWORD_SET(REFERENCE)]+$
@@ -6430,7 +6497,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.ylabel = key.ylab         &  hdr_out.yunit = key.yunit
       hdr_out.tlabel = key.tlab         &  hdr_out.tunit = key.tunit
       hdr_out.lplabel = key.lplab       &  hdr_out.lpunit = key.lpunit
-      hdr_out.dt = key.dt
+      hdr_out.dt = key.dt               &  hdr_out.single_cube = key.nlp
       lcval = SXPAR(header,'CRVAL3')
       lc = (WHERE(key.lam EQ lcval))[0]
       IF (lc NE -1 ) THEN $
@@ -10273,7 +10340,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '593'
+	revision_number = '594'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -11736,7 +11803,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		loopnlxreb:nlpreb, loopntreb:loopntreb, restloopnlxreb:nlpreb, restloopntreb:loopntreb, $
 		retrdetnlxreb:nlpreb, retrdetntreb:loopntreb, phisnlpreb:nlpreb, nphireb:nphireb, $					
 		xi:hdr.xi, yi:hdr.yi, xo:hdr.xo, yo:hdr.yo, xi_ref:hdr.xi_ref, yi_ref:hdr.yi_ref, $
-    xo_ref:hdr.xo_ref, yo_ref:hdr.yo_ref, $
+    xo_ref:hdr.xo_ref, yo_ref:hdr.yo_ref, phisxtri:PTR_NEW(0), phisytri:PTR_NEW(0), $
+    phisxi:PTR_NEW(0), phisyi:PTR_NEW(0), phisxo:PTR_NEW(0), phisyo:PTR_NEW(0), $
 		interpspslice:interpspslice, phislice_update:phislice_update, slices_imscale:slices_imscale $				
 	}
 ;--------------------------------------------------------------------------------- DATA DISPLAY SWITCHES
@@ -12176,7 +12244,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ENDIF
 	IF (*(*info).winswitch).showphis THEN BEGIN
 		(*(*info).winswitch).showphis = 0
-		CRISPEX_DISPLAYS_PHIS_TOGGLE, pseudoevent
+		CRISPEX_DISPLAYS_PHIS_TOGGLE, pseudoevent, /NO_DRAW
 		IF startupwin THEN WSHOW, startupwid
 	ENDIF
 
@@ -12189,17 +12257,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	CRISPEX_UPDATE_T, pseudoevent
 	CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, pseudoevent
 	IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN $
-    CRISPEX_UPDATE_SLICES, pseudoevent
+    CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW
 	IF showrefls THEN BEGIN
 		IF (ref_detspect_scale EQ 0) THEN BEGIN
 			CRISPEX_DISPRANGE_LS_SCALE_REF, pseudoevent
-			CRISPEX_DISPRANGE_LS_RANGE, pseudoevent
+			CRISPEX_DISPRANGE_LS_RANGE, pseudoevent, /NO_DRAW
 		ENDIF
 		CRISPEX_DISPLAYS_DETSPECT_IM_SELECT, pseudoevent
 	ENDIF
 	IF (detspect_scale EQ 0) THEN BEGIN
 		CRISPEX_DISPRANGE_LS_SCALE_MAIN, pseudoevent
-		CRISPEX_DISPRANGE_LS_RANGE, pseudoevent
+		CRISPEX_DISPRANGE_LS_RANGE, pseudoevent, /NO_DRAW
 	ENDIF
 	CRISPEX_DRAW, pseudoevent
 	
@@ -12232,7 +12300,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	XMANAGER, 'CRISPEX', imwin, /NO_BLOCK
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(start mangaing)', /WIDGET, /OVER, /DONE
-	feedback_text = [feedback_text[0]+'done!',feedback_text[1:N_ELEMENTS(feedback_text)-2],'> Start managing... done!']
+	feedback_text = [feedback_text[0]+'done!',feedback_text[1:N_ELEMENTS(feedback_text)-2],$
+    '> Start managing... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	WAIT,0.1
 	IF (*(*info).prefs).autoplay THEN CRISPEX_PB_FORWARD, pseudoevent
