@@ -1762,7 +1762,8 @@ PRO CRISPEX_DISPLAYS_REF_TOGGLE, event, NO_DRAW=no_draw
 	WIDGET_CONTROL, (*(*info).ctrlscp).ref_scaling_but, SENSITIVE = (*(*info).winswitch).showref
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE = $
     (((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND ((*(*info).dataparams).refnlp GT 1))
-	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, SENSITIVE = ((*(*info).dataparams).refnlp GT 1)
+	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, $
+    SENSITIVE = (((*(*info).dataparams).refnlp GT 1) AND ABS((*(*info).ctrlsswitch).lp_ref_lock-1))
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).reftlb,(*(*info).winids).refwid,$
                          (*(*info).winids).refdrawid], labels=['reftlb','refwid','refdrawid']
@@ -3543,7 +3544,6 @@ PRO CRISPEX_DRAW_REFLS, event
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_REFLS'
 	order_corr = 0.
 	WSET, (*(*info).winids).reflswid
-	s = (WHERE((*(*info).stokesparams).select_sp EQ 1))[0]
 	refspec = ((*(*info).dataparams).refspec)
 	refms = (*(*info).dataparams).refms
 	ls_low_y = (*(*info).plotaxes).ls_low_y_ref
@@ -3651,8 +3651,8 @@ PRO CRISPEX_DRAW_REFLS, event
       sspidx = FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx + FIX((*(*info).dataparams).x)
       refssp = ( ( *(*(*info).data).refspdata)[sspidx] ) [*,(*(*info).dataparams).t]/refms 
 	  ENDIF ELSE $
-      refssp = (*(*(*info).data).refsspscan)[FIX((*(*info).dataparams).x),FIX((*(*info).dataparams).y),$
-        (st * (*(*info).dataparams).refnlp):((s+1) * (*(*info).dataparams).refnlp - 1)]/refms
+      refssp = (*(*(*info).data).refsspscan)[FIX((*(*info).dataparams).x),$
+        FIX((*(*info).dataparams).y),*]/refms
     ; Overplot detailed spectrum
 	  IF ((*(*info).dispswitch).ref_detspect_scale EQ 0) THEN $
       refssp *= ((*(*info).paramparams).scale_cubes)[1] / (10.^(order_corr))
@@ -4751,7 +4751,7 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
                             CUBE_COMPATIBILITY=hdr_out.imcube_compatibility, EXTEN_NO=0, /IMCUBE
 	hdr_out.multichannel = (hdr_out.ns GE 2)
   ; If single_cube value has been set from single FITS cube, use that
-  IF (hdr_out.single_cube NE 0) THEN single_cube = hdr_out.single_cube
+  IF ((hdr_out.single_cube NE 0) AND (N_ELEMENTS(SPCUBE) NE 1)) THEN single_cube = hdr_out.single_cube
   CRISPEX_IO_FAILSAFES_MAIN, hdr_out.imfilename, hdr_out.spfilename, single_cube, $
                              HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                              STARTUPTLB=startuptlb, $
@@ -4959,7 +4959,9 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
 		IF (hdr_out.refimtype EQ 4) THEN $
       referencefile = ASSOC(lunrefim,FLTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset)
 		hdr_out.showref = 1
-		IF (hdr_out.refnt EQ hdr_out.nlp) OR (hdr_out.nt EQ 1) THEN BEGIN
+		IF ((hdr_out.refnt EQ hdr_out.nlp) OR $
+        ((hdr_out.refnlp EQ hdr_out.nlp) AND (N_ELEMENTS(REFCUBE) NE 2)) OR $   ; WIP
+        (hdr_out.nt EQ 1)) THEN BEGIN
 		  IF (hdr_out.refimtype EQ 1) THEN $
         refscanfile = ASSOC(lunrefim,BYTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
                             hdr_out.refimoffset) ELSE $
@@ -9613,13 +9615,18 @@ PRO CRISPEX_SLIDER_LP_UPDATE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_UPDATE'
 	IF (*(*info).ctrlsswitch).lp_ref_lock THEN (*(*info).dataparams).lp_ref = (*(*info).dataparams).lp
-	IF (*(*info).ctrlsswitch).lp_ref_lock THEN WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, SET_VALUE = (*(*info).dataparams).lp_ref
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).lp, (*(*info).dataparams).lp_ref], labels=['lp','lp_ref']
+	IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, SET_VALUE = (*(*info).dataparams).lp_ref
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).lp, (*(*info).dataparams).lp_ref], $
+      labels=['lp','lp_ref']
 	CRISPEX_UPDATE_T, event
 	CRISPEX_UPDATE_LP, event
 	IF (*(*(*info).scaling).relative)[(*(*info).scaling).imrefscaling] THEN BEGIN
-		IF ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 2) THEN CRISPEX_SCALING_MAN_FIRST, event
-		IF ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 3) THEN CRISPEX_SCALING_MAN_CURR, event
+		IF ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 2) THEN $
+      CRISPEX_SCALING_MAN_FIRST, event
+		IF ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 3) THEN $
+      CRISPEX_SCALING_MAN_CURR, event
 	ENDIF 
 	CRISPEX_DRAW, event
 END
@@ -9721,11 +9728,22 @@ END
 PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw
 ; Gets the new spectral phi slit scan for update of the spectral phi slit slice after change in framenumber
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_SLICES'
-	IF ((*(*info).winswitch).showphis OR ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls)) THEN BEGIN
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_SLICES'
+	IF ((*(*info).winswitch).showphis OR $
+      ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls)) THEN BEGIN
 		WIDGET_CONTROL,/HOURGLASS
-		IF ((*(*info).dataparams).nt GT 1) THEN *(*(*info).data).sspscan = (*(*(*info).data).scan)[(*(*info).dataparams).t] ELSE *(*(*info).data).sspscan = (*(*(*info).data).scan)
-		*(*(*info).data).phiscan = (*(*(*info).data).sspscan)[*,*,((*(*info).dataparams).s * (*(*info).dataparams).nlp):(((*(*info).dataparams).s+1)*(*(*info).dataparams).nlp-1)] 
+		IF ((*(*info).dataparams).nt GT 1) THEN $
+      *(*(*info).data).sspscan = (*(*(*info).data).scan)[(*(*info).dataparams).t] $
+    ELSE $
+      *(*(*info).data).sspscan = (*(*(*info).data).scan)
+		*(*(*info).data).phiscan = (*(*(*info).data).sspscan)[*,*,$
+       ((*(*info).dataparams).s * (*(*info).dataparams).nlp):$
+      (((*(*info).dataparams).s+1)*(*(*info).dataparams).nlp-1)] 
+    IF ((*(*info).winswitch).showrefls AND ((*(*info).dataswitch).refspfile EQ 0)) THEN BEGIN
+  		IF ((*(*info).dataparams).refnt GT 1) THEN $
+        *(*(*info).data).refsspscan = (*(*(*info).data).refscan)[(*(*info).dataparams).t] 
+    ENDIF
 		CRISPEX_UPDATE_PHIS, event, NO_DRAW=no_draw
 		WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 0
 	ENDIF
@@ -9852,7 +9870,8 @@ PRO CRISPEX_UPDATE_T, event
 	ENDIF
   ; Determine reference image
 	IF ((*(*info).winswitch).showref OR (*(*info).winswitch).showimref) THEN BEGIN
-		IF (*(*info).dataswitch).refspfile THEN BEGIN
+;		IF (*(*info).dataswitch).refspfile THEN BEGIN
+		IF (((*(*info).dataparams).refnlp GT 1) AND ((*(*info).dataparams).refnt GT 1)) THEN BEGIN
       refidx = (*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref
 ;			IF ((*(*info).zooming).factor NE 1) THEN $
         *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[refidx])$
@@ -10340,7 +10359,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '594'
+	revision_number = '595'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -10531,10 +10550,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
             imns:0L, spns:0L, imstokes:'', spstokes:'', imdiagnostics:'', $
             xunit:'arcsec', yunit:'arcsec', tunit:'', lpunit:'', sunit:'', bunit:'counts', $
             xlabel:'x', ylabel:'y', tlabel:'Frame number', lplabel:'Spectral position', $
-            slabel:'', blabel:'I', $
+            slabel:'', blabel:'Intensity', $
             stokes_enabled:[0,0,0,0], scalestokes_max:0, ndiagnostics:1, nrefdiagnostics:1, $
             refxunit:'arcsec', refyunit:'arcsec', reflpunit:'', refbunit:'counts', $
-            refxlabel:'x', refylabel:'y', reftlabel:'', reflplabel:'', refblabel:'I', $
+            refxlabel:'x', refylabel:'y', reftlabel:'', reflplabel:'', refblabel:'Intensity', $
             xtitle:STRARR(2), ytitle:STRARR(2), refspxtitle:'', spxtitle:'', spytitle:'', $
             ipath:ipath, opath:opath, instance_label:instance_label, $
             lunim:0, lunsp:0, lunrefim:0, lunrefsp:0, lunmask:0, $
@@ -10709,7 +10728,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		lp_ref_last = 1
 		lp_ref_start = 0
 	ENDELSE
-  lp_ref_lock = (eqnlps AND (lp_ref_start EQ lp_start))
+  lp_ref_lock = eqnlps ;(eqnlps AND (lp_ref_start EQ lp_start))
+  IF (lp_ref_lock) THEN lp_ref_start = lp_start
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(initial spectral parameters)', /OPT, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial spectral parameters... done!']
@@ -10760,16 +10780,16 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	lp_h_capital	= ['S','H']
 	but_tooltip = ['Spectrum','Height distribution']
 
-	lsytitle	= 'Intensity'
-	reflsytitle	= 'Intensity'
+  ; Load (ref)lsytitles from FITS cubes or SPECTFILE
+	lsytitle	= hdr.ytitle[0]
+	reflsytitle	= hdr.ytitle[1]
+  ; Override by XTITLE and YTITLE keywords, if set
 	IF ((N_ELEMENTS(YTITLE) GE 1) AND (N_ELEMENTS(YTITLE) LE 2)) THEN BEGIN
 		IF (STRCOMPRESS(ytitle[0]) NE '') THEN lsytitle = ytitle[0]
 		IF (N_ELEMENTS(YTITLE) EQ 2) THEN BEGIN
 			IF (STRCOMPRESS(ytitle[1]) NE '') THEN reflsytitle = ytitle[1]
 		ENDIF
 	ENDIF
-	IF (lsytitle NE 'Intensity') THEN detspect_scale = 0
-	IF (reflsytitle NE 'Intensity') THEN ref_detspect_scale = 0
 
 	xdelta		= 20													; Extra xoffset for positioning of windows
 	ydelta		= 40													; Extra yoffset for positioning of windows
@@ -11337,9 +11357,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	IF (heightset NE refheightset) THEN reflab = STRLOWCASE(sp_h[refheightset])+' ' ELSE reflab = ''
 	lp_ref_but		= WIDGET_BUTTON(lp_ref_but_field, VALUE = 'Lock reference '+reflab+'to main '+$
                   STRLOWCASE(sp_h[heightset])+' position', EVENT_PRO = 'CRISPEX_SLIDER_LP_REF_LOCK', $
-					        SENSITIVE = (eqnlps AND (hdr.refnlp GT 1)))
-	WIDGET_CONTROL, lp_ref_but, SET_BUTTON = (eqnlps AND (hdr.refnlp GT 1) AND $
-                                           (lp_start EQ lp_ref_start))
+					        SENSITIVE = lp_ref_lock) ;(eqnlps AND (hdr.refnlp GT 1)))
+	WIDGET_CONTROL, lp_ref_but, SET_BUTTON = lp_ref_lock ;(eqnlps AND (hdr.refnlp GT 1) AND $
+;                                           (lp_start EQ lp_ref_start))
 	lp_ref_slid = WIDGET_SLIDER(spectral_tab, TITLE = 'Reference '+STRLOWCASE(sp_h[refheightset])+' position', MIN = lp_ref_first, MAX = lp_ref_last, VALUE = lp_ref_start, EVENT_PRO = 'CRISPEX_SLIDER_LP_REF', $
 					/DRAG, SENSITIVE = (refslid_sens AND ABS(eqnlps-1)))
 
