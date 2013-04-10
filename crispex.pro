@@ -4491,31 +4491,17 @@ PRO CRISPEX_IO_FAILSAFES_MAIN, imcube, spcube, input_single_cube, $
       io_failsafe_error = 2
 			hdr_out.onecube = 0
 		ENDIF
-		hdr_out.single_cube = 0
+		hdr_out.single_cube[0] = 0
 	ENDIF ELSE BEGIN  ; If no SPCUBE has been supplied, check other settings
     ; Check setting of SINGLE_CUBE keyword
-		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) GT 0) THEN BEGIN
-			IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set nlp and nt
-				hdr_out.nlp = LONG(INPUT_SINGLE_CUBE)
-				hdr_out.onecube = 1
-        hdr_out.single_cube = hdr_out.nlp
-				hdr_out.nt = hdr_in.imnt / hdr_in.nlp / hdr_in.ns
-			ENDIF ELSE BEGIN                              ; Else throw error message
-        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'SINGLE_CUBE must be provided with a single '+$
-          'integer.',/ERROR,/NO_ROUTINE
-			  IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
-        io_failsafe_error = 1
-				RETURN
-			ENDELSE
-;		ENDIF ELSE IF (imnt GT 500) THEN BEGIN  
-;			PRINT,'ERROR: Third dimension of IMCUBE is too large ('+STRTRIM(imnt,2)+'). In single argument mode, please be sure to provide either a '
-;			PRINT,'       single scan. A full timeseries is only allowed with a call to SINGLE_CUBE. Alternatively, switch to double argument mode '
-;			PRINT,'	      by providing SPCUBE.'
-;			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
-;			RETURN
+		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set nlp and nt
+			hdr_out.nlp = LONG(INPUT_SINGLE_CUBE)
+			hdr_out.onecube = 1
+      hdr_out.single_cube[0] = hdr_out.nlp
+			hdr_out.nt = hdr_in.imnt / hdr_in.nlp / hdr_in.ns
 		ENDIF ELSE BEGIN  ; If no SPCUBE or SINGLE_CUBE are set, we are dealing with a snapshot
 			hdr_out.nlp = hdr_in.imnt / hdr_in.ns
-			hdr_out.single_cube = 0
+			hdr_out.single_cube[0] = 0
 		ENDELSE
 	ENDELSE
 END
@@ -4551,32 +4537,52 @@ PRO CRISPEX_IO_FAILSAFES_MAIN_REF, HDR=hdr, STARTUPTLB=startuptlb, $
   ENDELSE
 END
 
-PRO CRISPEX_IO_FAILSAFES_REF, refcube, HDR=hdr, STARTUPTLB=startuptlb, $
+PRO CRISPEX_IO_FAILSAFES_REF, refcube, input_single_cube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+                              STARTUPTLB=startuptlb, $
                               IO_FAILSAFE_ERROR=io_failsafe_error
 ; Handles failsafes against wrongly supplied reference image and spectral cubes
+  hdr_out = hdr_in
   io_failsafe_error = 0
-  ; Failsafe against providing the same file as REFIMCUBE and REFSPCUBE
-	IF ((refcube[1] EQ refcube[0]) OR $         ; Check whether input cube names are the same, or
-    (hdr.refnlp EQ hdr.refspnx) AND $         ; the cubes have same first dimensions
-    (hdr.refnt EQ hdr.refspny) AND $          ; the cubes have same second dimenions
-    (hdr.refspnt EQ hdr.refimnt)) THEN BEGIN  ; the cubes have same third dimensions
-    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image and spectral cubes must be '+$
-      'different. Please check input (you seem to have provided the same file twice).', /ERROR, $
-      /NO_ROUTINE, /NEWLINE
-		IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
-    io_failsafe_error = 1
-		RETURN
-	ENDIF
-  ; Failsafe against providing incompatible REFIMCUBE and REFSPCUBE
-	IF ((hdr.refnx*hdr.refny NE hdr.refspnt) OR (hdr.refnt*hdr.refnlp NE hdr.refimnt)) THEN BEGIN							
-    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image and spectral cubes have '+$
-      'incompatible dimensions and seem to belong to different datasets. Please check whether '+$
-      'the input is correct (you provided REFCUBE[0]='+STRTRIM(refcube[0],2)+' and REFCUBE[1]='+$
-      STRTRIM(refcube[1],2)+').', /ERROR, /NO_ROUTINE, /NEWLINE
-	  IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
-    io_failsafe_error = 1
-		RETURN
-	ENDIF
+  IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN
+    ; Failsafe against providing the same file as REFIMCUBE and REFSPCUBE
+  	IF ((refcube[1] EQ refcube[0]) OR $         ; Check whether input cube names are the same, or
+      (hdr_out.refnlp EQ hdr_out.refspnx) AND $         ; the cubes have same first dimensions
+      (hdr_out.refnt EQ hdr_out.refspny) AND $          ; the cubes have same second dimenions
+      (hdr_out.refspnt EQ hdr_out.refimnt)) THEN BEGIN  ; the cubes have same third dimensions
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image and spectral cubes must be '+$
+        'different. Please check input (you seem to have provided the same file twice).', /ERROR, $
+        /NO_ROUTINE, /NEWLINE
+  		IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+      io_failsafe_error = 1
+  		RETURN
+  	ENDIF
+    ; Failsafe against providing incompatible REFIMCUBE and REFSPCUBE
+  	IF ((hdr_out.refnx*hdr_out.refny NE hdr_out.refspnt) OR $
+        (hdr_out.refnt*hdr_out.refnlp NE hdr_out.refimnt)) THEN BEGIN							
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image and spectral cubes have '+$
+        'incompatible dimensions and seem to belong to different datasets. Please check whether '+$
+        'the input is correct (you provided REFCUBE[0]='+STRTRIM(refcube[0],2)+' and REFCUBE[1]='+$
+        STRTRIM(refcube[1],2)+').', /ERROR, /NO_ROUTINE, /NEWLINE
+  	  IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+      io_failsafe_error = 1
+  		RETURN
+  	ENDIF
+    ; Check whether SINGLE_CUBE keyword has been set in combination with provided SPCUBE
+		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) GT 0) THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Calling CRISPEX with SINGLE_CUBE with a 2-element '+$
+        'array, while a reference SPCUBE is provided, is not allowed. SINGLE_CUBE keyword will '+$
+        'be ignored.', /WARNING, /NO_ROUTINE
+      io_failsafe_error = 2
+		ENDIF
+		hdr_out.single_cube[1] = 0
+	ENDIF ELSE BEGIN  ; If no REFSPCUBE has been supplied, check other settings
+    ; Check setting of SINGLE_CUBE keyword
+		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set refnlp 
+			hdr_out.refnlp = LONG(INPUT_SINGLE_CUBE)
+			hdr_out.onecube = 1
+      hdr_out.single_cube[1] = hdr_out.refnlp
+		ENDIF 
+  ENDELSE
 END
 
 PRO CRISPEX_IO_FAILSAFES_MASK, maskcube, HDR=hdr, STARTUPTLB=startuptlb, $
@@ -4742,8 +4748,8 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
                     STRLEN(hdr_out.spfilename))
     hdr_out.spcube_compatibility = ABS(STRMATCH(spext,'fits',/FOLD_CASE)-1)
     hdr_out.spfile = 1
-  ENDIF 
-  IF N_ELEMENTS(SPCUBE) EQ 1 THEN BEGIN
+;  ENDIF 
+;  IF N_ELEMENTS(SPCUBE) EQ 1 THEN BEGIN
     CRISPEX_IO_PARSE_HEADER, hdr_out.spfilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                             CUBE_COMPATIBILITY=hdr_out.spcube_compatibility, EXTEN_NO=0, /SPCUBE
 	ENDIF ELSE hdr_out.onecube = 1                       ; onecube switch if no SPCUBE has been provided
@@ -4751,8 +4757,11 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
                             CUBE_COMPATIBILITY=hdr_out.imcube_compatibility, EXTEN_NO=0, /IMCUBE
 	hdr_out.multichannel = (hdr_out.ns GE 2)
   ; If single_cube value has been set from single FITS cube, use that
-  IF ((hdr_out.single_cube NE 0) AND (N_ELEMENTS(SPCUBE) NE 1)) THEN single_cube = hdr_out.single_cube
-  CRISPEX_IO_FAILSAFES_MAIN, hdr_out.imfilename, hdr_out.spfilename, single_cube, $
+  IF ((hdr_out.single_cube[0] NE 0) AND (N_ELEMENTS(SPCUBE) NE 1)) THEN $
+    main_single_cube = hdr_out.single_cube[0] $
+  ELSE IF (N_ELEMENTS(SINGLE_CUBE) GE 1) THEN $
+    main_single_cube = single_cube[0]
+  CRISPEX_IO_FAILSAFES_MAIN, hdr_out.imfilename, hdr_out.spfilename, main_single_cube, $
                              HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                              STARTUPTLB=startuptlb, $
                              IO_FAILSAFE_ERROR=io_failsafe_main_error
@@ -4883,6 +4892,7 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
 END
 
 PRO CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+                              SINGLE_CUBE=single_cube, $
                               CUBE_COMPATIBILITY=cube_compatibility, $
                               IO_FAILSAFE_REF_ERROR=io_failsafe_ref_error, $
                               IO_FAILSAFE_MAIN_REF_ERROR=io_failsafe_main_ref_error
@@ -4920,10 +4930,15 @@ PRO CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     	hdr_out.refspcube_compatibility = ABS(STRMATCH(refspext,'fits',/FOLD_CASE)-1)
       CRISPEX_IO_PARSE_HEADER, hdr_out.refspfilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                              CUBE_COMPATIBILITY=hdr_out.refspcube_compatibility, EXTEN_NO=0, /REFSPCUBE
-      CRISPEX_IO_FAILSAFES_REF, refcube, HDR=hdr_out, STARTUPTLB=startuptlb, $
-                              IO_FAILSAFE_ERROR=io_failsafe_ref_error
-      IF (io_failsafe_ref_error EQ 1) THEN RETURN
     ENDIF 
+    ; If single_cube value has been set from single FITS cube, use that
+    IF ((hdr_out.single_cube[1] NE 0) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN $
+      ref_single_cube = hdr_out.single_cube[1] $
+    ELSE IF (N_ELEMENTS(SINGLE_CUBE) EQ 2) THEN $
+      ref_single_cube = single_cube[1]
+    CRISPEX_IO_FAILSAFES_REF, refcube, ref_single_cube, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
+                            STARTUPTLB=startuptlb, IO_FAILSAFE_ERROR=io_failsafe_ref_error
+    IF (io_failsafe_ref_error EQ 1) THEN RETURN
     CRISPEX_IO_FAILSAFES_MAIN_REF, HDR=hdr_out, STARTUPTLB=startuptlb, $
                                  IO_FAILSAFE_ERROR=io_failsafe_main_ref_error
     IF (io_failsafe_main_ref_error EQ 1) THEN RETURN
@@ -4959,9 +4974,7 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
 		IF (hdr_out.refimtype EQ 4) THEN $
       referencefile = ASSOC(lunrefim,FLTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset)
 		hdr_out.showref = 1
-		IF ((hdr_out.refnt EQ hdr_out.nlp) OR $
-        ((hdr_out.refnlp EQ hdr_out.nlp) AND (N_ELEMENTS(REFCUBE) NE 2)) OR $   ; WIP
-        (hdr_out.nt EQ 1)) THEN BEGIN
+    IF ((hdr_out.refnlp GT 1) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN BEGIN
 		  IF (hdr_out.refimtype EQ 1) THEN $
         refscanfile = ASSOC(lunrefim,BYTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
                             hdr_out.refimoffset) ELSE $
@@ -4971,6 +4984,7 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
 		  IF (hdr_out.refimtype EQ 4) THEN $
         refscanfile = ASSOC(lunrefim,FLTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
                             hdr_out.refimoffset)
+        stop
     ENDIF 
     hdr_out.lunrefim = lunrefim
     CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, REFIMCUBE=hdr_out.refimfilename
@@ -10359,7 +10373,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '595'
+	revision_number = '596'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -10558,7 +10572,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
             ipath:ipath, opath:opath, instance_label:instance_label, $
             lunim:0, lunsp:0, lunrefim:0, lunrefsp:0, lunmask:0, $
             imfilename:'', spfilename:'', refimfilename:'', refspfilename:'', maskfilename:'', $
-            spfile:0, onecube:0, single_cube:0, showref:0, refspfile:0, maskfile:0, $
+            spfile:0, onecube:0, single_cube:[0,0], showref:0, refspfile:0, maskfile:0, $
             imdata:PTR_NEW(0), scan:PTR_NEW(0), spdata:PTR_NEW(0), spectra:PTR_NEW(0), $
             refdata:PTR_NEW(0), refslice:PTR_NEW(0), refspdata:PTR_NEW(0), refscan:PTR_NEW(0), $
             refsspscan:PTR_NEW(0), maskdata:PTR_NEW(0), $
@@ -10571,6 +10585,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   IF (io_failsafe_main_error EQ 1) THEN RETURN
 
   CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr, HDR_OUT=hdr, $
+                            SINGLE_CUBE=single_cube, $
                             CUBE_COMPATIBILITY=refcube_compatibility, $
                             IO_FAILSAFE_REF_ERROR=io_failsafe_ref_error, $
                             IO_FAILSAFE_MAIN_REF_ERROR=io_failsafe_main_ref_error
@@ -10989,7 +11004,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	refspy1 	= refspy0 + refspheight; * spwinx/refspwiny
 	refyplspw	= refspy1 - refspy0												; y-extent of the plot
 	
-	IF ((hdr.spfile EQ 1) OR (hdr.single_cube GE 1)) THEN ntreb = yplspw * spwiny ELSE ntreb = 0						; actual nt rebinning factor
+	IF ((hdr.spfile EQ 1) OR (hdr.single_cube[0] GE 1)) THEN ntreb = yplspw * spwiny ELSE ntreb = 0						; actual nt rebinning factor
 	refntreb	= refyplspw * refspwiny
 	nlpreb		= xplspw * spwinx							 				; actual nlp rebinning factor
 	spxticklen 	= -1. * ticklen / spheight
@@ -11151,7 +11166,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	feedback_text = [feedback_text,'> Other parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	IF KEYWORD_SET(EXTS) THEN exts_set = 1 ELSE exts_set = 0
-	IF (hdr.single_cube GE 1) THEN BEGIN
+	IF (hdr.single_cube[0] GE 1) THEN BEGIN
 		IF (hdr.nt GT 1) THEN BEGIN
 			exts_set = 1						; Automatically set EXTS when providing a (single lineposition) 3D cube
       CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The exact timeslice (EXTS) keyword has been '+$
@@ -11595,7 +11610,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   IF (hdr.imtype EQ 2) THEN sspscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns)) ELSE $
   IF (hdr.imtype EQ 4) THEN sspscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns))
 	phislice= PTR_NEW(BYTARR(hdr.nlp,nphi))
-	IF ((hdr.spfile EQ 1) OR (hdr.single_cube GE 1)) THEN BEGIN
+	IF ((hdr.spfile EQ 1) OR (hdr.single_cube[0] GE 1)) THEN BEGIN
 		loopslab= PTR_NEW(FLTARR(hdr.nlp,hdr.nt,nphi))
 		loopslice = PTR_NEW(BYTARR(nphi,hdr.nt))
 		refloopslab= PTR_NEW(FLTARR(hdr.nlp,hdr.nt,nphi))
@@ -12163,7 +12178,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		WIDGET_CONTROL, sp_toggle_but, SET_BUTTON = 1
 		(*(*info).winswitch).showsp = 1
 	ENDIF ELSE BEGIN
-		IF (hdr.single_cube EQ 1) THEN BEGIN
+		IF (hdr.single_cube[0] EQ 1) THEN BEGIN
 			(*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_low
 			(*(*info).winswitch).showphis = 0
 			(*(*info).winswitch).showls = 0
@@ -12175,7 +12190,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 			WIDGET_CONTROL, upper_y_text, SENSITIVE = 0
 			WIDGET_CONTROL, phis_toggle_but, SENSITIVE = 0
 		ENDIF ELSE BEGIN
-			IF (hdr.single_cube GE 1) THEN WIDGET_CONTROL, approxmenu, SENSITIVE = 0
+			IF (hdr.single_cube[0] GE 1) THEN WIDGET_CONTROL, approxmenu, SENSITIVE = 0
 			WIDGET_CONTROL, phis_toggle_but, SET_BUTTON = 1
 			WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 0
 			(*(*info).winswitch).showphis = 1
@@ -12214,9 +12229,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		WIDGET_CONTROL, savemenu, SENSITIVE = exts_set
 		WIDGET_CONTROL, retrievemenu, SENSITIVE = exts_set
 	ENDELSE
-	IF (N_ELEMENTS(hdr.single_cube) EQ 1) THEN BEGIN
-		WIDGET_CONTROL, ls_toggle_but, SET_BUTTON = (hdr.single_cube NE 1) 
-		(*(*info).winswitch).showls = (hdr.single_cube NE 1) 
+	IF (N_ELEMENTS(hdr.single_cube[0]) EQ 1) THEN BEGIN
+		WIDGET_CONTROL, ls_toggle_but, SET_BUTTON = (hdr.single_cube[0] NE 1) 
+		(*(*info).winswitch).showls = (hdr.single_cube[0] NE 1) 
 	ENDIF ELSE BEGIN
 		WIDGET_CONTROL, ls_toggle_but, SET_BUTTON = 1
 		(*(*info).winswitch).showls = 1
