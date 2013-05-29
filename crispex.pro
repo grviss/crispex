@@ -172,7 +172,7 @@
 ; RESTRICTIONS:
 ;   Requires the following procedures and functions if reading FITS cubes:
 ;     Procedures: PARSEHEADER
-;     Functions: FITSPOINTER()
+;     Functions: FITSPOINTER(), READFITS()
 ;
 ; PROCEDURE:
 ;   In default setting, four windows are opened, one control panel and three subsidiary windows 
@@ -812,11 +812,30 @@ PRO CRISPEX_CURSOR_LOCK, event
 	(*(*info).curs).lockset = event.SELECT
 	IF (*(*info).curs).lockset THEN BEGIN
 		(*(*info).curs).xlock = (*(*info).dataparams).x	&	(*(*info).curs).ylock = (*(*info).dataparams).y
-		(*(*info).curs).sxlock = (*(*info).curs).sx	&	(*(*info).curs).sylock = (*(*info).curs).sy
+		(*(*info).curs).sxlock = (*(*info).curs).sx	    &	(*(*info).curs).sylock = (*(*info).curs).sy
 		CRISPEX_COORDSLIDERS_SET, 0, 0, event
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
 			CRISPEX_VERBOSE_GET, event, [(*(*info).curs).xlock,(*(*info).curs).ylock,(*(*info).curs).sxlock,(*(*info).curs).sylock], labels=['xlock','ylock','sxlock','sylock']
 	ENDIF ELSE CRISPEX_COORDSLIDERS_SET, 1, 1, event
+END
+
+PRO CRISPEX_CURSOR_TRANSFORM_COORDS, event, MAIN2SJI=main2sji
+; Handles transformation of x/y-coordinates in case of unequal spatial dimensions
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CURSOR_TRANSFORM_COORDS'
+  IF KEYWORD_SET(MAIN2SJI) THEN BEGIN
+    (*(*info).dataparams).xsji = ((*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,0]-$
+                                  (*(*info).dispparams).sjix0) + (*(*info).dataparams).x
+    (*(*info).dataparams).ysji = ((*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,1]-$
+                                  (*(*info).dispparams).sjiy0) + (*(*info).dataparams).y
+		sxsji = (*(*info).dataparams).xsji * (*(*info).winsizes).sjiwinx / $
+          ((*(*info).dataparams).sjinx+1)
+	  (*(*info).curs).sxsji = sxsji
+		sysji = (*(*info).dataparams).ysji * (*(*info).winsizes).sjiwiny / $
+          ((*(*info).dataparams).sjiny+1)
+	  (*(*info).curs).sysji = sysji
+  ENDIF
 END
 
 PRO CRISPEX_COORDSLIDERS_SET, xsensitive, ysensitive, event				
@@ -2348,6 +2367,43 @@ PRO CRISPEX_DISPLAYS_REFSP_TOGGLE, event, NO_DRAW=no_draw
       (*(*info).winids).refspdrawid], labels=['refsptlb','refspwid','refspdrawid']
 END
 
+PRO CRISPEX_DISPLAYS_SJI_TOGGLE, event, NO_DRAW=no_draw
+; Reference image window creation procedure
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_SJI_TOGGLE', /IGNORE_LAST
+	(*(*info).winswitch).showsji = event.SELECT
+	IF (*(*info).winswitch).showsji THEN BEGIN
+		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Slit-jaw image'
+		CRISPEX_WINDOW, (*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny, $
+      (*(*info).winids).root, title, sjitlb, sjiwid, (*(*info).winsizes).xdelta,$
+      (*(*info).winsizes).ydelta, DRAWID = sjidrawid, DRAWBASE = sjidrawbase
+		(*(*info).winids).sjitlb = sjitlb		&	(*(*info).winids).sjiwid = sjiwid	
+    (*(*info).winids).sjidrawid = sjidrawid
+		(*(*info).winids).sjidrawbase = sjidrawbase	&	(*(*info).winids).sjiwintitle = title
+		IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
+			CRISPEX_UPDATE_T, event
+			CRISPEX_DRAW_SJI, event
+		ENDIF
+;		WIDGET_CONTROL, dopdrawid, EVENT_PRO = 'CRISPEX_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, /TRACKING_EVENTS,/DRAW_BUTTON_EVENTS
+;		WIDGET_CONTROL, doptlb, SET_UVALUE = info
+;		XMANAGER, 'CRISPEX', doptlb, /NO_BLOCK
+	ENDIF ELSE BEGIN
+;		(*(*info).dispswitch).drawsji = 0
+;		IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
+;			CRISPEX_DRAW_SPECTRAL, event
+;			CRISPEX_DRAW_TIMESLICES, event
+;		ENDIF
+		WIDGET_CONTROL, (*(*info).winids).sjitlb, /DESTROY
+		(*(*info).winids).sjitlb = 0
+	ENDELSE
+;	WIDGET_CONTROL, (*(*info).ctrlscp).dop_scaling_but, SENSITIVE = ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop)
+;	IF (*(*info).overlayswitch).mask THEN CRISPEX_MASK_BUTTONS_SET, event
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).sjitlb,(*(*info).winids).sjiwid,$
+      (*(*info).winids).sjidrawid], labels=['sjitlb','sjiwid','sjidrawid']
+END
+
 PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
 ; Updates temporal spectrum display window plot axes range according to set parameters
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -2998,31 +3054,61 @@ PRO CRISPEX_DISPRANGE_LP_REF_RESET, event, NO_DRAW=no_draw
 	CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw
 END
 ;================================================================================= DISPLAY DRAW PROCEDURES
-PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, no_number=no_number, thick=thick, no_endpoints=no_endpoints, symsize=symsize, draw_mask=draw_mask
-; Handles overplotting of the cursor, slits and loop paths
+PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, no_number=no_number,$
+      thick=thick, no_endpoints=no_endpoints, symsize=symsize, draw_mask=draw_mask, SJI=sji
+  ; Handles overplotting of the cursor, slits and loop paths
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_CURSCROSS_PLOT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_CURSCROSS_PLOT'
 	(*(*info).phiparams).d_nphi_set = (*(*info).zooming).factor * (*(*info).phiparams).nphi_set
+  IF KEYWORD_SET(SJI) THEN BEGIN
+    sx_loc = (*(*info).curs).sxsji
+    sy_loc = (*(*info).curs).sysji
+  ENDIF ELSE BEGIN
+    sx_loc = (*(*info).curs).sx
+    sy_loc = (*(*info).curs).sy
+  ENDELSE
 	IF (*(*info).winswitch).showphis THEN BEGIN
 		IF ((*(*info).zooming).factor EQ 1) THEN $
-			PLOTS, ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywinx/(2.*(*(*info).dataparams).nx))*COS((*(*info).phiparams).angle*!DTOR) + (*(*info).curs).sx, $
-				([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywiny/(2.*(*(*info).dataparams).ny))*SIN((*(*info).phiparams).angle*!DTOR) + (*(*info).curs).sy, /DEVICE, COLOR = !P.COLOR $
-		ELSE PLOTS, ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywinx/(2.*(*(*info).dataparams).nx))*COS((*(*info).phiparams).angle*!DTOR) + (*(*info).curs).sx, $
-			([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywiny/(2.*(*(*info).dataparams).ny))*SIN((*(*info).phiparams).angle*!DTOR) + (*(*info).curs).sy, /DEVICE, COLOR = !P.COLOR
+			PLOTS, ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywinx/$
+              (2.*(*(*info).dataparams).nx))*COS((*(*info).phiparams).angle*!DTOR) + $
+              sx_loc, $
+				      ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywiny/$
+              (2.*(*(*info).dataparams).ny))*SIN((*(*info).phiparams).angle*!DTOR) + $
+              sy_loc, /DEVICE, COLOR = !P.COLOR $
+		ELSE $
+      PLOTS, ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywinx/$
+              (2.*(*(*info).dataparams).nx))*COS((*(*info).phiparams).angle*!DTOR) + $
+              sx_loc, $
+			        ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywiny/$
+              (2.*(*(*info).dataparams).ny))*SIN((*(*info).phiparams).angle*!DTOR) + $
+              sy_loc, /DEVICE, COLOR = !P.COLOR
 	ENDIF
 	IF (*(*info).overlayswitch).loopslit AND ((*(*info).loopparams).np GT 0) THEN BEGIN
 		CRISPEX_ZOOM_LOOP, event
-		IF ~KEYWORD_SET(NO_ENDPOINTS) THEN PLOTS, *(*(*info).overlayparams).sxp, *(*(*info).overlayparams).syp, /DEVICE, COLOR = !P.COLOR, PSYM = 1, THICK=thick, SYMSIZE=symsize
-		IF ((*(*info).overlayparams).loop_linestyle EQ 1) THEN PLOTS,*(*(*info).overlayparams).sxr,*(*(*info).overlayparams).syr, /DEVICE, COLOR = !P.COLOR, PSYM = 3, THICK=thick $
-		ELSE PLOTS,*(*(*info).overlayparams).sxr,*(*(*info).overlayparams).syr,/DEVICE, COLOR = !P.COLOR, LINESTYLE = (*(*info).overlayparams).loop_linestyle, THICK=thick
+		IF ~KEYWORD_SET(NO_ENDPOINTS) THEN $
+      PLOTS, *(*(*info).overlayparams).sxp, *(*(*info).overlayparams).syp, /DEVICE, $
+              COLOR=!P.COLOR, PSYM=1, THICK=thick, SYMSIZE=symsize
+		IF ((*(*info).overlayparams).loop_linestyle EQ 1) THEN $
+      PLOTS,*(*(*info).overlayparams).sxr,*(*(*info).overlayparams).syr, /DEVICE, $
+            COLOR=!P.COLOR, PSYM=3, THICK=thick $
+		ELSE $
+      PLOTS,*(*(*info).overlayparams).sxr,*(*(*info).overlayparams).syr,/DEVICE, $
+            COLOR=!P.COLOR, LINESTYLE=(*(*info).overlayparams).loop_linestyle, THICK=thick
 	ENDIF ELSE IF ((*(*info).meas).np GE 1) THEN BEGIN
 		CRISPEX_ZOOM_MEAS, event
 		IF ~KEYWORD_SET(NO_ENDPOINTS) THEN BEGIN
-			PLOTS, *(*(*info).meas).sxp,*(*(*info).meas).syp, /DEVICE, COLOR = !P.COLOR, PSYM = 1, THICK=thick, SYMSIZE=symsize
-			PLOTS, *(*(*info).meas).sxp,*(*(*info).meas).syp, /DEVICE, COLOR = !P.COLOR, LINESTYLE = 0, THICK=thick, SYMSIZE=symsize
+			PLOTS, *(*(*info).meas).sxp,*(*(*info).meas).syp, /DEVICE, COLOR=!P.COLOR, $
+        PSYM=1, THICK=thick, SYMSIZE=symsize
+			PLOTS, *(*(*info).meas).sxp,*(*(*info).meas).syp, /DEVICE, COLOR=!P.COLOR, $
+        LINESTYLE=0, THICK=thick, SYMSIZE=symsize
 		ENDIF
-	ENDIF ELSE IF ~KEYWORD_SET(NO_CURSOR) THEN PLOTS, (*(*info).curs).sx,(*(*info).curs).sy, /DEVICE, PSYM = 1, COLOR = curscolor, THICK=thick, SYMSIZE=symsize
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).curs).sx,(*(*info).curs).sy,(*(*info).winsizes).xywinx,(*(*info).winsizes).xywiny], labels=['sx','sy','xywinx','xywiny']
+	ENDIF ELSE IF ~KEYWORD_SET(NO_CURSOR) THEN $
+    PLOTS, sx_loc,sy_loc, /DEVICE, PSYM=1, COLOR=curscolor, $
+      THICK=thick, SYMSIZE=symsize
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).curs).sx,(*(*info).curs).sy,(*(*info).winsizes).xywinx,$
+                                  (*(*info).winsizes).xywiny], labels=['sx','sy','xywinx','xywiny']
 	CRISPEX_DRAW_LOOP_OVERLAYS, event, NO_NUMBER=no_number, THICK=thick, NO_ENDPOINTS=no_endpoints, SYMSIZE=symsize
 	IF draw_mask THEN CRISPEX_DRAW_MASK_OVERLAYS, event
 END
@@ -3307,6 +3393,7 @@ PRO CRISPEX_DRAW_IMREF, event
 	IF (*(*info).winswitch).showref THEN CRISPEX_DRAW_REF, event
 	IF (*(*info).winswitch).showimref THEN CRISPEX_DRAW_IMREF_BLINK, event
 	IF (*(*info).winswitch).showdop THEN CRISPEX_DRAW_DOPPLER, event
+  IF (*(*info).winswitch).showsji THEN CRISPEX_DRAW_SJI, event
 END
 
 PRO CRISPEX_DRAW_SPECTRAL, event
@@ -3337,28 +3424,46 @@ PRO CRISPEX_DRAW_OTHER, event
 	IF (*(*info).winswitch).showint THEN CRISPEX_DRAW_INT, event
 END
 
-PRO CRISPEX_DRAW_SUBCOLOR, event, imref, subcolor, minimum, maximum, xyrange=xyrange
+PRO CRISPEX_DRAW_SUBCOLOR, event, imref, subcolor, minimum, maximum, XYRANGE=xyrange,$
+      MAIN2SJI=main2sji
 ; Determines the color beneath the cursor to get the cursor color
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SUBCOLOR'
 	IF (N_ELEMENTS(XYRANGE) EQ 0) THEN BEGIN
-		x_upp = FIX((*(*info).dataparams).x) + 5 < FIX((*(*info).dispparams).x_last)
-		x_low = FIX((*(*info).dataparams).x) - 5 > FIX((*(*info).dispparams).x_first)
-		y_upp = FIX((*(*info).dataparams).y) + 5 < FIX((*(*info).dispparams).y_last)
-		y_low = FIX((*(*info).dataparams).y) - 5 > FIX((*(*info).dispparams).y_first)
+    IF KEYWORD_SET(MAIN2SJI) THEN BEGIN
+      CRISPEX_CURSOR_TRANSFORM_COORDS, event, /MAIN2SJI
+  		x_upp = LONG((*(*info).dataparams).xsji) + 5 < LONG((*(*info).dispparams).xsji_last)
+  		x_low = LONG((*(*info).dataparams).xsji) - 5 > LONG((*(*info).dispparams).xsji_first)
+  		y_upp = LONG((*(*info).dataparams).ysji) + 5 < LONG((*(*info).dispparams).ysji_last)
+  		y_low = LONG((*(*info).dataparams).ysji) - 5 > LONG((*(*info).dispparams).ysji_first)
+    ENDIF
+		x_upp = LONG((*(*info).dataparams).x) + 5 < LONG((*(*info).dispparams).x_last)
+		x_low = LONG((*(*info).dataparams).x) - 5 > LONG((*(*info).dispparams).x_first)
+		y_upp = LONG((*(*info).dataparams).y) + 5 < LONG((*(*info).dispparams).y_last)
+		y_low = LONG((*(*info).dataparams).y) - 5 > LONG((*(*info).dispparams).y_first)
 	ENDIF ELSE BEGIN
 		x_low = xyrange[0]	&	x_upp = xyrange[1]
 		y_low = xyrange[2]	&	y_upp = xyrange[3]
 	ENDELSE
 	IF (imref EQ 0) THEN $
-		selected_data = (*(*(*info).data).imagedata)[(*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + (*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp] $
+		selected_data = (*(*(*info).data).imagedata)[$
+      (*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
+      (*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp] $
 	ELSE IF (imref EQ 1) THEN BEGIN
-		IF ((*(*info).dataparams).refnt GT 1) THEN selected_data = (*(*(*info).data).refdata)[(*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref] ELSE $
+		IF ((*(*info).dataparams).refnt GT 1) THEN $
+      selected_data = (*(*(*info).data).refdata)[(*(*info).dataparams).t *  $
+        (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref] $
+    ELSE $
 			selected_data = (*(*(*info).data).refdata)[(*(*info).dataparams).lp_ref]
-	ENDIF ELSE IF (imref EQ 2) THEN	selected_data = *(*(*info).data).dopslice
+	ENDIF ELSE IF (imref EQ 2) THEN	$
+    selected_data = *(*(*info).data).dopslice $
+  ELSE IF (imref EQ 3) THEN $
+    selected_data = *(*(*info).data).sjislice
 	scaled_data = BYTSCL(selected_data[x_low:x_upp, y_low:y_upp], MIN = minimum, MAX = maximum)
 	subcolor = MEAN(scaled_data)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [x_low,x_upp,y_low,y_upp,subcolor], labels=['x_low','x_upp','y_low','y_upp','subcolor']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [x_low,x_upp,y_low,y_upp,subcolor], $
+      labels=['x_low','x_upp','y_low','y_upp','subcolor']
 END
 
 PRO CRISPEX_DRAW_XY, event, no_cursor=no_cursor, no_number=no_number, thick=thick, no_endpoints=no_endpoints, symsize=symsize, asecbar=asecbar
@@ -3741,6 +3846,24 @@ PRO CRISPEX_DRAW_REFSP, event
                     (*(*info).dataparams).reflps[(*(*info).intparams).refdiag_start[lp_ref_diag]]) / $
                     lp_ref_disprange * refxplspw + refspx0 ), $
 		[(*(*info).plotpos).refspy0, (*(*info).plotpos).refspy1], /NORMAL, COLOR = 100
+END
+
+PRO CRISPEX_DRAW_SJI, event
+; (Re)draw reference image procedure
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SJI'
+	WSET, (*(*info).winids).sjiwid
+	sjimin = MIN( *(*(*info).data).sjislice, MAX=sjimax) 
+  TV, CONGRID(*(*(*info).data).sjislice,(*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny)
+  ; Determine cursor colour and overplot cursors and masks
+	CRISPEX_DRAW_SUBCOLOR, event, 3, subcolor_sji, sjimin, sjimax, /MAIN2SJI
+	IF (subcolor_sji GE 122) THEN curscolor_sji = 0 ELSE curscolor_sji = 255
+	CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor_sji, $
+    DRAW_MASK=((*(*info).overlayswitch).mask AND ((*(*info).overlayswitch).maskim)[1]), /SJI
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).sjiwid,curscolor_sji], $
+                          labels=['Window ID for draw','Slit-jaw image curscolor']
 END
 
 PRO CRISPEX_DRAW_INT, event
@@ -4585,6 +4708,25 @@ PRO CRISPEX_IO_FAILSAFES_REF, refcube, input_single_cube, HDR_IN=hdr_in, HDR_OUT
   ENDELSE
 END
 
+PRO CRISPEX_IO_FAILSAFES_MAIN_SJI, sjicube, HDR=hdr, STARTUPTLB=startuptlb, $
+                              IO_FAILSAFE_ERROR=io_failsafe_error
+; Handles failsafes against wrongly supplied slit-jaw image cube
+  IF ((hdr.sjinx GE hdr.nx) AND (hdr.sjiny GE hdr.ny)) THEN $ ; Require ge xy-dimensions than main
+    io_failsafe_error = 0 $
+	ELSE BEGIN
+	  IF ((hdr.sjinx LT hdr.nx) OR (hdr.sjiny LT hdr.ny)) THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Dimensions of the slit-jaw image cube (['+$
+        STRTRIM(hdr.sjinx,2)+','+STRTRIM(hdr.sjiny,2)+','+STRTRIM(hdr.sjint,2)+']) are not '+$
+        'compatible with those of the main image cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+$
+        ','+STRTRIM(hdr.nt,2)+'])! Number of pixels in the x- and y-dimension must greater than '+$
+        'or equal to those of the main image cube.', /ERROR, /NO_ROUTINE, /NEWLINE
+	  ENDIF 
+    IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+    io_failsafe_error = 1
+		RETURN
+  ENDELSE
+END
+
 PRO CRISPEX_IO_FAILSAFES_MASK, maskcube, HDR=hdr, STARTUPTLB=startuptlb, $
                               IO_FAILSAFE_ERROR=io_failsafe_error
 ; Handles failsafes against wrongly supplied mask cube
@@ -4681,7 +4823,7 @@ PRO CRISPEX_IO_MULTICHANNEL, CUBE_COMPATIBILITY=cube_compatibility, CHANNELS_LAB
 END
 
 PRO CRISPEX_IO_FEEDBACK, verbosity, hdr, IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, $
-                         REFSPCUBE=refspcube, MASKCUBE=maskcube
+                         REFSPCUBE=refspcube, MASKCUBE=maskcube, SJICUBE=sjicube
 	multichannel = (hdr.ns GE 2)
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN
     IF (N_ELEMENTS(IMCUBE) EQ 1) THEN BEGIN
@@ -4727,6 +4869,12 @@ PRO CRISPEX_IO_FEEDBACK, verbosity, hdr, IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE
           '. Dimensions: (nx,ny,nt) = ('+STRTRIM(hdr.masknx,2)+','+STRTRIM(hdr.maskny,2)+','+$
           STRTRIM(hdr.masknt,2)+').' $
       ELSE CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'No mask cube supplied.'
+    ENDIF ELSE IF (N_ELEMENTS(SJICUBE) EQ 1) THEN BEGIN
+      IF ((SIZE(SJICUBE,/TYPE) NE 0) AND (STRCOMPRESS(SJICUBE) NE '')) THEN $
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Read slit-jaw image cube: '+sjicube+$
+          '. Dimensions: (nx,ny,nt) = ('+STRTRIM(hdr.sjinx,2)+','+STRTRIM(hdr.sjiny,2)+','+$
+          STRTRIM(hdr.sjint,2)+').' $
+      ELSE CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'No slit-jaw image cube supplied.'
     ENDIF
   ENDIF
 END
@@ -4859,17 +5007,21 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
   ; Read in main image cube 
 	OPENR, lunim, hdr_out.imfilename, /get_lun, $
          SWAP_ENDIAN = ((hdr_out.imtype GT 1) AND (hdr_out.endian NE hdr_out.imendian))									
-	IF (hdr_out.imtype EQ 1) THEN BEGIN												
-		imagefile = ASSOC(lunim,BYTARR(hdr_out.nx,hdr_out.ny),hdr_out.imoffset)									
-    ; Re-read in of the image cube for slices
-		scanfile  = ASSOC(lunim,BYTARR(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns),hdr_out.imoffset)			
-	ENDIF ELSE IF (hdr_out.imtype EQ 2) THEN BEGIN
-		imagefile = ASSOC(lunim,INTARR(hdr_out.nx,hdr_out.ny),hdr_out.imoffset)
-		scanfile  = ASSOC(lunim,INTARR(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns),hdr_out.imoffset)							
-	ENDIF ELSE IF (hdr_out.imtype EQ 4) THEN BEGIN
-		imagefile = ASSOC(lunim,FLTARR(hdr_out.nx,hdr_out.ny),hdr_out.imoffset)
-		scanfile  = ASSOC(lunim,FLTARR(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns),hdr_out.imoffset)	
-	ENDIF
+	imagefile = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny, TYPE=hdr_out.imtype),hdr_out.imoffset)
+  ; Re-read in of the image cube for slices
+	scanfile  = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns, $
+                      TYPE=hdr_out.imtype),hdr_out.imoffset)			
+;	IF (hdr_out.imtype EQ 1) THEN BEGIN												
+;		imagefile = ASSOC(lunim,BYTARR(hdr_out.nx,hdr_out.ny),hdr_out.imoffset)									
+;    ; Re-read in of the image cube for slices
+;		scanfile  = ASSOC(lunim,BYTARR(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns),hdr_out.imoffset)			
+;	ENDIF ELSE IF (hdr_out.imtype EQ 2) THEN BEGIN
+;		imagefile = ASSOC(lunim,INTARR(hdr_out.nx,hdr_out.ny),hdr_out.imoffset)
+;		scanfile  = ASSOC(lunim,INTARR(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns),hdr_out.imoffset)							
+;	ENDIF ELSE IF (hdr_out.imtype EQ 4) THEN BEGIN
+;		imagefile = ASSOC(lunim,FLTARR(hdr_out.nx,hdr_out.ny),hdr_out.imoffset)
+;		scanfile  = ASSOC(lunim,FLTARR(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns),hdr_out.imoffset)	
+;	ENDIF
 	hdr_out.imdata	= PTR_NEW(imagefile, /NO_COPY)
 	hdr_out.scan	= PTR_NEW(scanfile, /NO_COPY)
   hdr_out.lunim = lunim
@@ -4879,12 +5031,13 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
   IF hdr_out.spfile THEN BEGIN
     OPENR, lunsp, hdr_out.spfilename, /get_lun, $
            SWAP_ENDIAN = ((hdr_out.sptype GT 1) AND (hdr_out.endian NE hdr_out.spendian))
-    IF (hdr_out.sptype EQ 1) THEN $
-      spectra = ASSOC(lunsp,BYTARR(hdr_out.nlp,hdr_out.nt),hdr_out.spoffset) $
-    ELSE IF (hdr_out.sptype EQ 2) THEN $
-      spectra = ASSOC(lunsp,INTARR(hdr_out.nlp,hdr_out.nt),hdr_out.spoffset) $
-    ELSE IF (hdr_out.sptype EQ 4) THEN $
-      spectra = ASSOC(lunsp,FLTARR(hdr_out.nlp,hdr_out.nt),hdr_out.spoffset)
+    spectra = ASSOC(lunsp,MAKE_ARRAY(hdr_out.nlp,hdr_out.nt, TYPE=hdr_out.sptype),hdr_out.spoffset)
+;    IF (hdr_out.sptype EQ 1) THEN $
+;      spectra = ASSOC(lunsp,BYTARR(hdr_out.nlp,hdr_out.nt),hdr_out.spoffset) $
+;    ELSE IF (hdr_out.sptype EQ 2) THEN $
+;      spectra = ASSOC(lunsp,INTARR(hdr_out.nlp,hdr_out.nt),hdr_out.spoffset) $
+;    ELSE IF (hdr_out.sptype EQ 4) THEN $
+;      spectra = ASSOC(lunsp,FLTARR(hdr_out.nlp,hdr_out.nt),hdr_out.spoffset)
     hdr_out.lunsp = lunsp
 	  hdr_out.spdata = PTR_NEW(spectra, /NO_COPY) 
   ENDIF
@@ -4967,24 +5120,27 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
 	IF ((N_ELEMENTS(REFCUBE) GE 1) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN	; REFIMCUBE as filename
 		OPENR, lunrefim, refcube[0], /get_lun, $
            SWAP_ENDIAN = ((hdr_out.refimtype GT 1) AND (hdr_out.endian NE hdr_out.refimendian))
-		IF (hdr_out.refimtype EQ 1) THEN $
-      referencefile = ASSOC(lunrefim,BYTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset) ELSE $
-		IF (hdr_out.refimtype EQ 2) THEN $
-      referencefile = ASSOC(lunrefim,INTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset) ELSE $
-		IF (hdr_out.refimtype EQ 4) THEN $
-      referencefile = ASSOC(lunrefim,FLTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset)
+    referencefile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny, TYPE=hdr_out.refimtype),$
+                      hdr_out.refimoffset)
+;		IF (hdr_out.refimtype EQ 1) THEN $
+;      referencefile = ASSOC(lunrefim,BYTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset) ELSE $
+;		IF (hdr_out.refimtype EQ 2) THEN $
+;      referencefile = ASSOC(lunrefim,INTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset) ELSE $
+;		IF (hdr_out.refimtype EQ 4) THEN $
+;      referencefile = ASSOC(lunrefim,FLTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset)
 		hdr_out.showref = 1
     IF ((hdr_out.refnlp GT 1) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN BEGIN
-		  IF (hdr_out.refimtype EQ 1) THEN $
-        refscanfile = ASSOC(lunrefim,BYTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
-                            hdr_out.refimoffset) ELSE $
-		  IF (hdr_out.refimtype EQ 2) THEN $
-        refscanfile = ASSOC(lunrefim,INTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
-                            hdr_out.refimoffset) ELSE $
-		  IF (hdr_out.refimtype EQ 4) THEN $
-        refscanfile = ASSOC(lunrefim,FLTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
-                            hdr_out.refimoffset)
-        stop
+      refscanfile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny,$
+                      hdr_out.refnlp*hdr_out.refns, TYPE=hdr_out.refimtype),hdr_out.refimoffset)
+;		  IF (hdr_out.refimtype EQ 1) THEN $
+;        refscanfile = ASSOC(lunrefim,BYTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
+;                            hdr_out.refimoffset) ELSE $
+;		  IF (hdr_out.refimtype EQ 2) THEN $
+;        refscanfile = ASSOC(lunrefim,INTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
+;                            hdr_out.refimoffset) ELSE $
+;		  IF (hdr_out.refimtype EQ 4) THEN $
+;        refscanfile = ASSOC(lunrefim,FLTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
+;                            hdr_out.refimoffset)
     ENDIF 
     hdr_out.lunrefim = lunrefim
     CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, REFIMCUBE=hdr_out.refimfilename
@@ -4992,12 +5148,14 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
     IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN                                ; REFSPCUBE as filename
 			OPENR, lunrefsp, refcube[1], /get_lun, $
              SWAP_ENDIAN = ((hdr_out.refsptype GT 1) AND (hdr_out.endian NE hdr_out.refspendian))						
-			IF (hdr_out.refsptype EQ 1) THEN $
-        referencespectra = ASSOC(lunrefsp,BYTARR(hdr_out.refnlp,hdr_out.refnt),hdr_out.refspoffset) ELSE $	
-			IF (hdr_out.refsptype EQ 2) THEN $
-        referencespectra = ASSOC(lunrefsp,INTARR(hdr_out.refnlp,hdr_out.refnt),hdr_out.refspoffset) ELSE $
-			IF (hdr_out.refsptype EQ 4) THEN $
-        referencespectra = ASSOC(lunrefsp,FLTARR(hdr_out.refnlp,hdr_out.refnt),hdr_out.refspoffset)
+      referencespectra = ASSOC(lunrefsp,MAKE_ARRAY(hdr_out.refnlp,hdr_out.refnt, $
+                            TYPE=hdr_out.refsptype),hdr_out.refspoffset)
+;			IF (hdr_out.refsptype EQ 1) THEN $
+;        referencespectra = ASSOC(lunrefsp,BYTARR(hdr_out.refnlp,hdr_out.refnt),hdr_out.refspoffset) ELSE $	
+;			IF (hdr_out.refsptype EQ 2) THEN $
+;        referencespectra = ASSOC(lunrefsp,INTARR(hdr_out.refnlp,hdr_out.refnt),hdr_out.refspoffset) ELSE $
+;			IF (hdr_out.refsptype EQ 4) THEN $
+;        referencespectra = ASSOC(lunrefsp,FLTARR(hdr_out.refnlp,hdr_out.refnt),hdr_out.refspoffset)
 			hdr_out.refspfile = 1	
       hdr_out.lunrefsp = lunrefsp
       CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, REFSPCUBE=hdr_out.refspfilename
@@ -5032,15 +5190,68 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
 		hdr_out.refslice= PTR_NEW(BYTARR(hdr_out.nx,hdr_out.ny))
 		IF ((hdr_out.refnlp GT 1) AND (hdr_out.refspfile EQ 0)) THEN BEGIN
 			hdr_out.refscan = PTR_NEW(refscanfile, /NO_COPY)
-			IF (hdr_out.refimtype EQ 1) THEN $
-        hdr_out.refsspscan = PTR_NEW(BYTARR(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns)) ELSE $
-      IF (hdr_out.refimtype EQ 2) THEN $
-        hdr_out.refsspscan = PTR_NEW(INTARR(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns)) ELSE $
-			IF (hdr_out.refimtype EQ 4) THEN $
-        hdr_out.refsspscan = PTR_NEW(FLTARR(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns))
+      hdr_out.refsspscan = PTR_NEW(MAKE_ARRAY(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns, $
+                            TYPE=hdr_out.refimtype))
+;			IF (hdr_out.refimtype EQ 1) THEN $
+;        hdr_out.refsspscan = PTR_NEW(BYTARR(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns)) ELSE $
+;      IF (hdr_out.refimtype EQ 2) THEN $
+;        hdr_out.refsspscan = PTR_NEW(INTARR(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns)) ELSE $
+;			IF (hdr_out.refimtype EQ 4) THEN $
+;        hdr_out.refsspscan = PTR_NEW(FLTARR(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns))
 		ENDIF 
 	  IF (hdr_out.refspfile EQ 1) THEN hdr_out.refspdata = PTR_NEW(referencespectra, /NO_COPY) 
 	ENDIF 
+END
+
+PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+                              STARTUPTLB=startuptlb, $
+                              IO_FAILSAFE_SJI_ERROR=io_failsafe_sji_error
+  io_failsafe_sji_error = 0
+  io_failsafe_main_ref_error = 0
+  hdr_out = hdr_in
+	IF ((N_ELEMENTS(SJICUBE) GE 1) AND (SIZE(SJICUBE,/TYPE) EQ 7)) THEN BEGIN					
+    hdr_out.sjifilename = sjicube[0]
+  	sjiext = STRMID(hdr_out.sjifilename,STRPOS(hdr_out.sjifilename,'.',/REVERSE_SEARCH)+1,$
+                      STRLEN(hdr_out.sjifilename))
+  	sjicube_compatibility = ABS(STRMATCH(sjiext,'fits',/FOLD_CASE)-1)
+    IF sjicube_compatibility THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The slit-jaw image cube must be in FITS format.', $
+        /ERROR, /NO_ROUTINE, /NEWLINE
+  		IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+      io_failsafe_sji_error = 1
+    ENDIF ELSE BEGIN
+      ; Parse the SJICUBE header
+      CRISPEX_IO_PARSE_HEADER, hdr_out.sjifilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
+                             CUBE_COMPATIBILITY=sjicube_compatibility, EXTEN_NO=0, /SJICUBE
+      ; Check whether dimensions are compatible with main cube
+      CRISPEX_IO_FAILSAFES_MAIN_SJI, HDR=hdr_out, STARTUPTLB=startuptlb, $
+                                   IO_FAILSAFE_ERROR=io_failsafe_sji_error
+    ENDELSE
+    IF (io_failsafe_sji_error EQ 1) THEN RETURN
+    IF (hdr_out.sjint GT 1) THEN BEGIN
+      tsel_sji = LONARR(hdr_out.nt)
+      FOR tt=0,hdr_out.nt-1 DO BEGIN
+        tdiff = ABS(hdr_out.tarr_sji - hdr_out.tarr_main[tt])
+        tsel_sji[tt] = WHERE(tdiff EQ MIN(tdiff))
+      ENDFOR
+      hdr_out = CREATE_STRUCT(hdr_out, 'tsel_sji', tsel_sji)
+    ENDIF ELSE $
+      hdr_out = CREATE_STRUCT(hdr_out, 'tsel_sji', 0)
+    CRISPEX_IO_OPEN_SJICUBE_READ, HDR_IN=hdr_out, HDR_OUT=hdr_out
+  ENDIF
+END
+
+PRO CRISPEX_IO_OPEN_SJICUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
+  hdr_out = hdr_in
+		OPENR, lunsji, hdr_out.sjifilename, /get_lun, $
+           SWAP_ENDIAN = ((hdr_out.sjitype GT 1) AND (hdr_out.endian NE hdr_out.sjiendian))
+    sji = ASSOC(lunsji,MAKE_ARRAY(hdr_out.sjinx,hdr_out.sjiny, TYPE=hdr_out.sjitype),$
+             hdr_out.sjioffset)
+		hdr_out.sjifile = 1	
+	  hdr_out.sjidata = PTR_NEW(sji, /NO_COPY)
+    hdr_out.lunsji = lunsji
+	  hdr_out.sjislice	= PTR_NEW(BYTARR(hdr_out.sjinx,hdr_out.sjiny))
+    CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, SJICUBE=hdr_out.sjifilename
 END
 
 PRO CRISPEX_IO_OPEN_MASKCUBE, MASKCUBE=maskcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
@@ -5065,12 +5276,14 @@ PRO CRISPEX_IO_OPEN_MASKCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
   hdr_out = hdr_in
 		OPENR, lunmask, hdr_out.maskfilename, /get_lun, $
            SWAP_ENDIAN = ((hdr_out.masktype GT 1) AND (hdr_out.endian NE hdr_out.maskendian))
-		IF (hdr_out.masktype EQ 1) THEN $
-      mask = ASSOC(lunmask,BYTARR(hdr_out.masknx,hdr_out.maskny),hdr_out.maskoffset) ELSE $
-    IF (hdr_out.masktype EQ 2) THEN $
-      mask = ASSOC(lunmask,INTARR(hdr_out.masknx,hdr_out.maskny),hdr_out.maskoffset) ELSE $
-		IF (hdr_out.masktype EQ 4) THEN $
-      mask = ASSOC(lunmask,FLTARR(hdr_out.masknx,hdr_out.maskny),hdr_out.maskoffset)
+    mask = ASSOC(lunmask,MAKE_ARRAY(hdr_out.masknx,hdr_out.maskny, TYPE=hdr_out.masktype),$
+             hdr_out.maskoffset)
+;		IF (hdr_out.masktype EQ 1) THEN $
+;      mask = ASSOC(lunmask,BYTARR(hdr_out.masknx,hdr_out.maskny),hdr_out.maskoffset) ELSE $
+;    IF (hdr_out.masktype EQ 2) THEN $
+;      mask = ASSOC(lunmask,INTARR(hdr_out.masknx,hdr_out.maskny),hdr_out.maskoffset) ELSE $
+;		IF (hdr_out.masktype EQ 4) THEN $
+;      mask = ASSOC(lunmask,FLTARR(hdr_out.masknx,hdr_out.maskny),hdr_out.maskoffset)
 		hdr_out.maskfile = 1	
 	  hdr_out.maskdata = PTR_NEW(mask, /NO_COPY)
     hdr_out.lunmask = lunmask
@@ -5182,7 +5395,7 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
       hdr_out.refspxtitle = (['Spectral position','Wavelength'])[hdr_out.v_dop_set[1]] $
     ELSE $
       hdr_out.refspxtitle = hdr_out.xtitle[1]
-  ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'reflc', 0, 'v_dop_ref', 0)
+  ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'reflc', 0L, 'v_dop_ref', 0)
   IF hdr_out.imcube_compatibility THEN $
     hdr_out.spxtitle = (['Spectral position','Wavelength'])[hdr_out.v_dop_set[0]] $
   ELSE $
@@ -5456,6 +5669,7 @@ PRO CRISPEX_IO_PARSE_WARPSLICE, lps, nlp, nt, dlambda, dlambda_set, verbosity, N
 		  yi = REPLICATE(1,nlp) # FINDGEN(nt)
 		  yo = yi
 		ENDIF 
+;    stop
     IF verbosity[1] THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, warp_text[warpspslice]+$
                           ' applied to '+feedback_text[KEYWORD_SET(REFERENCE)]+$
                           ' spectral slice.', /NO_ROUTINE
@@ -6487,7 +6701,8 @@ END
 ;================================================================================= READ HEADER PROCEDURE
 PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
                          IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, REFSPCUBE=refspcube, $
-                         MASKCUBE=maskcube, CUBE_COMPATIBILITY=cube_compatibility, EXTEN_NO=exten_no
+                         SJICUBE=sjicube, MASKCUBE=maskcube, CUBE_COMPATIBILITY=cube_compatibility,$
+                         EXTEN_NO=exten_no
 ; Handles read-in of file header, running different parsing depending on CUBE_COMPATIBILITY setting
   ; Start filling data header structure with header info from inputfile
   IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN
@@ -6535,6 +6750,22 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         hdr_out.ndiagnostics = 1
         diagnostics = hdr_out.blabel
       ENDELSE
+      ; Get time array (assuming each raster is co-temporal)
+      IF (hdr_out.nt GT 1) THEN BEGIN
+        tarr = READFITS(filename, hdr_tmp, EXTEN_NO=2, /SILENT)
+        tval = SXPAR(header, 'CRVAL4')
+        wheretval = (WHERE(tarr EQ tval))[0]
+        IF (wheretval EQ -1) THEN $
+          tini_col = 0 $
+        ELSE $
+          tini_col = (ARRAY_INDICES(tarr,WHERE(tarr EQ tval)))[0]
+        tarr_main = tarr[tini_col,*]
+      ENDIF
+      ; Get slit coordinates on SJI image if raster
+      IF (STRING(SXPAR(header,'SJIFIL*')) NE '0') THEN BEGIN
+        raster_coords = READFITS(filename, hdr_tmp, EXTEN_NO=3, /SILENT)
+        xyrastersji = REFORM(ABS(raster_coords[*,0,*]))
+      ENDIF ELSE xyrastersji = 0
       hdr_out = CREATE_STRUCT(hdr_out, 'diag_start', wstart, 'diag_width', wwidth)
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.imtype = datatype         &  hdr_out.imendian = endian
@@ -6543,13 +6774,16 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.imns = ns                 &  hdr_out.ns = ns
       hdr_out.imstokes = stokes         &  hdr_out.imnt = nt
       ndiagnostics = N_ELEMENTS(diagnostics)
+      tarr_main = hdr_out.nt * hdr_out.dt
       IF (ndiagnostics GT 0) THEN BEGIN
         diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,strlen(diagnostics)-2),',',$
                                 /EXTRACT),2)
         hdr_out.ndiagnostics = ndiagnostics
       ENDIF ELSE diagnostics = 'CRISP'
+      xyrastersji = 0
     ENDELSE
-    hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics)
+    hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics, 'tarr_main', tarr_main, $
+      'xyrastersji', xyrastersji)
   ENDIF ELSE IF KEYWORD_SET(SPCUBE) THEN BEGIN                  ; Fill hdr parameters for SPCUBE
     hdr_out.spoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -6575,7 +6809,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       reflcval = SXPAR(header,'CRVAL3')
       reflc = (WHERE(key.lam EQ reflcval))[0]
       IF (reflc NE -1) THEN $
-        hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', reflc) $
+        hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', LONG(reflc)) $
       ELSE $
         hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam)
       ; Handle spectral windows, if present
@@ -6625,6 +6859,16 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.refspnx = nx              &  hdr_out.refspny = ny
       hdr_out.refspnt = nt
     ENDELSE
+  ENDIF ELSE IF KEYWORD_SET(SJICUBE) THEN BEGIN                ; Fill hdr parameters for SJICUBE
+      hdr_out.sjioffset = offset
+      hdr_out.sjitype = key.datatype    &  hdr_out.sjint = SXPAR(header,'NAXIS3')
+      hdr_out.sjinx = key.nx            &  hdr_out.sjiny = key.ny
+      hdr_out.sjidx = key.dx            &  hdr_out.sjidy = key.dy
+      hdr_out.sjix0 = SXPAR(header,'ROWSTAR')
+      hdr_out.sjiy0 = SXPAR(header,'COLSTAR')
+      offsetarray = READFITS(filename, EXTEN_NO=1, /SILENT)
+      hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', REFORM(offsetarray[*,0]), $
+        'sjixoff', REFORM(offsetarray[*,1]), 'sjiyoff', REFORM(offsetarray[*,2]))
   ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                ; Fill hdr parameters for MASKCUBE
     hdr_out.maskoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -9948,6 +10192,14 @@ PRO CRISPEX_UPDATE_T, event
 ;        *(*(*info).data).maskslice = (*(*(*info).data).maskdata)[0]
 		ENDELSE
 	ENDIF
+  ; Determine sji image
+	IF (*(*info).dataswitch).sjifile THEN BEGIN
+		IF ((*(*info).dataparams).sjint GT 1) THEN $
+        *(*(*info).data).sjislice = ((*(*(*info).data).sjidata)[$
+          (*(*info).dispparams).tsel_sji[(*(*info).dataparams).t]]) $
+    ELSE $
+        *(*(*info).data).sjislice = ((*(*(*info).data).sjidata)[0])
+	ENDIF
 END
 
 PRO CRISPEX_UPDATE_SX, event
@@ -9962,6 +10214,8 @@ PRO CRISPEX_UPDATE_SX, event
           ((*(*info).dataparams).d_nx+1)
 		sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
           ((*(*info).dataparams).d_nx+1)
+		sxsji = (*(*info).dataparams).xsji * (*(*info).winsizes).sjiwinx / $
+          ((*(*info).dataparams).sjinx+1)
 ;	ENDIF ELSE BEGIN
 ;		sx = (*(*info).dataparams).x * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
 ;		sxp = *(*(*info).loopparams).xp * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
@@ -9969,6 +10223,7 @@ PRO CRISPEX_UPDATE_SX, event
 ;	ENDELSE
 	(*(*info).curs).sxlock = sx 
 	(*(*info).curs).sx = (*(*info).curs).sxlock
+	(*(*info).curs).sxsji = sxsji
 	*(*(*info).overlayparams).sxp = sxp 
 	*(*(*info).overlayparams).sxr = sxr 
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
@@ -9988,6 +10243,8 @@ PRO CRISPEX_UPDATE_SY, event
           ((*(*info).dataparams).d_ny+1)
 		syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
           ((*(*info).dataparams).d_ny+1)
+		sysji = (*(*info).dataparams).ysji * (*(*info).winsizes).sjiwiny / $
+          ((*(*info).dataparams).sjiny+1)
 ;	ENDIF ELSE BEGIN
 ;		sy = (*(*info).dataparams).y * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
 ;		syp = *(*(*info).loopparams).yp * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
@@ -9995,6 +10252,7 @@ PRO CRISPEX_UPDATE_SY, event
 ;	ENDELSE
 	(*(*info).curs).sylock = sy 
 	(*(*info).curs).sy = (*(*info).curs).sylock
+	(*(*info).curs).sysji = sysji
 	*(*(*info).overlayparams).syp = syp 
 	*(*(*info).overlayparams).syr = syr 
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
@@ -10343,6 +10601,7 @@ END
 ;===================================================================================================
 PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spectral cube
               REFCUBE=refcube, $              ; filename(s) of reference image (& spectral) cube(s)
+              SJICUBE=sjicube, $              ; filename of slit-jaw image cube
               MASKCUBE=maskcube, $            ; filename of mask cube
               SPECTFILE=spectfile, $          ; filename(s) of spectral save file(s)
               LINE_CENTER=line_center, $		  ; line centre and/or wavelength information
@@ -10373,7 +10632,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '596'
+	revision_number = '597'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -10549,18 +10808,20 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   ; extension, where FITS cubes are assumed to have a *.fits extension (case insensitive).
   IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Reading input files... '
   IF ((BYTE(1L,0,1))[0] EQ 1) THEN endian = 'l' ELSE endian = 'b' ; Check endianness of machine
+  IF (N_ELEMENTS(DT) NE 1) THEN dt = 1.
   
   ; Handle input file headers by parsing them into the hdr structure; first initialise hdr
   hdr = {$
-            imtype:0, sptype:0, refimtype:0, refsptype:0, masktype:0, $
-            imoffset:0L, spoffset:0L, refimoffset:0L, refspoffset:0L, maskoffset:0L, $
-            imendian:'b', spendian:'b', refimendian:'b', refspendian:'b', maskendian:'b', $
+            imtype:0, sptype:0, refimtype:0, refsptype:0, sjitype:0, masktype:0, $
+            imoffset:0L, spoffset:0L, refimoffset:0L, refspoffset:0L, sjioffset:0L, maskoffset:0L, $
+            imendian:'b', spendian:'b', refimendian:'b', refspendian:'b', sjiendian:'b', $
+            maskendian:'b',endian:endian, $
             imcube_compatibility:0, spcube_compatibility:0, refimcube_compatibility:0, $
             refspcube_compatibility:0, maskcube_compatibility:0, multichannel:0, $
-            endian:endian, $
             nx:0L, ny:0L, nlp:1L, nt:1L, ns:1L, imnt:0L, spnt:0L, refspnx:0L, refspny:0L, $
             refnx:0L, refny:0L, refnlp:0L, refnt:0L, refns:0L, refimnt:0L, refspnt:0L, $
-            masknx:0L, maskny:0L, masknt:0L, dx:0., dy:0., dt:1., dx_fixed:0, $
+            sjinx:0L, sjiny:0L, sjint:1L, sjidx:0., sjidy:0., sjix0:0L, sjiy0:0L, $
+            masknx:0L, maskny:0L, masknt:0L, dx:0., dy:0., dt:dt, dx_fixed:0, $
             imns:0L, spns:0L, imstokes:'', spstokes:'', imdiagnostics:'', $
             xunit:'arcsec', yunit:'arcsec', tunit:'', lpunit:'', sunit:'', bunit:'counts', $
             xlabel:'x', ylabel:'y', tlabel:'Frame number', lplabel:'Spectral position', $
@@ -10570,12 +10831,13 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
             refxlabel:'x', refylabel:'y', reftlabel:'', reflplabel:'', refblabel:'Intensity', $
             xtitle:STRARR(2), ytitle:STRARR(2), refspxtitle:'', spxtitle:'', spytitle:'', $
             ipath:ipath, opath:opath, instance_label:instance_label, $
-            lunim:0, lunsp:0, lunrefim:0, lunrefsp:0, lunmask:0, $
-            imfilename:'', spfilename:'', refimfilename:'', refspfilename:'', maskfilename:'', $
-            spfile:0, onecube:0, single_cube:[0,0], showref:0, refspfile:0, maskfile:0, $
+            lunim:0, lunsp:0, lunrefim:0, lunrefsp:0, lunsji:0, lunmask:0, $
+            imfilename:'', spfilename:'', refimfilename:'', refspfilename:'', sjifilename:'', $
+            maskfilename:'', $
+            spfile:0, onecube:0, single_cube:[0,0], showref:0, refspfile:0, sjifile:0, maskfile:0, $
             imdata:PTR_NEW(0), scan:PTR_NEW(0), spdata:PTR_NEW(0), spectra:PTR_NEW(0), $
             refdata:PTR_NEW(0), refslice:PTR_NEW(0), refspdata:PTR_NEW(0), refscan:PTR_NEW(0), $
-            refsspscan:PTR_NEW(0), maskdata:PTR_NEW(0), $
+            refsspscan:PTR_NEW(0), sjidata:PTR_NEW(0), sjislice:PTR_NEW(0), maskdata:PTR_NEW(0), $
             verbosity:verbosity $
             }
 
@@ -10593,6 +10855,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   IF (N_ELEMENTS(REFCUBE) LT 1) THEN $
     hdr = CREATE_STRUCT(hdr, 'refdiagnostics', '', 'refdiag_start', 0, 'refdiag_width', 1)
 
+  CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr, HDR_OUT=hdr, $  
+                            STARTUPTLB=startuptlb, $
+                            IO_FAILSAFE_SJI_ERROR=io_failsafe_sji_error
+  IF (io_failsafe_sji_error EQ 1) THEN RETURN
+  IF (N_ELEMENTS(sjicube) NE 1) THEN hdr = CREATE_STRUCT(hdr, 'tarr_sji', 0, 'tsel_sji', 0)
+  
   CRISPEX_IO_OPEN_MASKCUBE, MASKCUBE=maskcube, HDR_IN=hdr, HDR_OUT=hdr, STARTUPTLB=startuptlb, $
                             IO_FAILSAFE_MASK_ERROR=io_failsafe_mask_error
   IF (io_failsafe_mask_error EQ 1) THEN RETURN
@@ -10684,17 +10952,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                                         '(initial playback parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Initial playback parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	t_first		= 0													; Set number of first frame		
+	t_first		= 0L													; Set number of first frame		
 	IF (hdr.nt EQ 1) THEN BEGIN
-		t_last = 2
-		t_last_tmp = 0
+		t_last = 2L
+		t_last_tmp = 0L
 		t_slid_sens = 0
 	ENDIF ELSE BEGIN
 		t_last = hdr.nt-1													; Set number of last frame
 		t_last_tmp = t_last
 		t_slid_sens = 1
 	ENDELSE
-	t_step		= 1													; Set initial timestep
+	t_step		= 1L													; Set initial timestep
 	t_speed 	= 10													; Set initial animation speed
 	direction 	= 1													; Set initial animation direction
 	;nt		= FLOAT(hdr.nt)												; Convert the number of timesteps to float
@@ -10728,20 +10996,20 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                                         '(initial spectral parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Initial spectral parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	lp_first 	= 0													; Set number of first lineposition
-	lp_last		= hdr.nlp-1													; Set number of last lineposition
+	lp_first 	= 0L													; Set number of first lineposition
+	lp_last		= hdr.nlp-1L													; Set number of last lineposition
 	sp		= hdr.nt * hdr.nlp												; Set spectral dimension
 	lp_start 	= hdr.lc
 	lp_ref_first = lp_first
 	IF showrefls THEN BEGIN
-		lp_ref_last = hdr.refnlp - 1
+		lp_ref_last = hdr.refnlp - 1L
 		lp_ref_start = hdr.reflc
 	ENDIF ELSE IF (hdr.refnlp GT 1) THEN BEGIN
 		lp_ref_last = lp_last
 		lp_ref_start = hdr.lc
 	ENDIF ELSE BEGIN
-		lp_ref_last = 1
-		lp_ref_start = 0
+		lp_ref_last = 1L
+		lp_ref_start = 0L
 	ENDELSE
   lp_ref_lock = eqnlps ;(eqnlps AND (lp_ref_start EQ lp_start))
   IF (lp_ref_lock) THEN lp_ref_start = lp_start
@@ -10810,8 +11078,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ydelta		= 40													; Extra yoffset for positioning of windows
   minsize   = 200.
 
-  ratio      = FLOAT(hdr.nx) / FLOAT(hdr.ny)                  ; Determine image aspect ratio
-  pixelratio = FLOAT(hdr.dx) / FLOAT(hdr.dy)                  ; Determine pixel aspect ratio
+  ratio      = FLOAT(ABS(hdr.nx)) / FLOAT(ABS(hdr.ny))                  ; Determine image aspect ratio
+  pixelratio = FLOAT(ABS(hdr.dx)) / FLOAT(ABS(hdr.dy))                  ; Determine pixel aspect ratio
   imwinx_default = hdr.nx
   imwiny_default = hdr.ny
   ; Handle pixel aspect ratio
@@ -10884,6 +11152,29 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     ENDIF
   ENDIF 
   IF (pixelratio GT 1) THEN imwinx *= pixelratio ELSE IF (pixelratio LT 1) THEN imwiny *= pixelratio
+
+  ; If SJI cube supplied, determine sizes
+  IF hdr.sjifile THEN BEGIN
+    sjiratio      = FLOAT(ABS(hdr.sjinx)) / FLOAT(ABS(hdr.sjiny))         ; Determine image aspect ratio
+    sjipixelratio = FLOAT(ABS(hdr.sjidx)) / FLOAT(ABS(hdr.sjidy))         ; Determine pixel aspect ratio
+    sjiwinx_default = hdr.sjinx
+    sjiwiny_default = hdr.sjiny
+    ; Handle pixel aspect ratio
+;    IF (sjipixelratio GT 1) THEN sjiwinx_default *= sjipixelratio ELSE $
+;      IF (sjipixelratio LT 1) THEN sjiwiny_default *= sjipixelratio
+;    print,hdr.sjidx,hdr.sjidy,hdr.dx,hdr.dy
+      sjiwinx = sjiwinx_default/imwinx_default*imwinx
+      sjiwiny = sjiwiny_default/imwiny_default*imwiny
+      IF (sjiwinx GT 0.75*x_scr_size) THEN BEGIN
+        sjiwinx = 0.75*x_scr_size
+        sjiwiny = sjiwinx / sjiratio
+        imwinx = imwinx_default/sjiwinx_default*sjiwinx
+        imwiny = imwiny_default/sjiwiny_default*sjiwiny
+      ENDIF
+  ENDIF ELSE BEGIN
+    sjiwinx = 0
+    sjiwiny = 0
+  ENDELSE
 
 	windowx		= 0.2 * x_scr_size											; Set maximum x-extent of spectral win
 	IF (hdr.nt GE 50) THEN windowy = imwiny ELSE windowy = imwiny/2. > (y_scr_size/2.)
@@ -11037,9 +11328,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                                         '(initial spatial parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Initial spatial parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	x_first		= 0													; Set number of first x-coordinate
+	x_first		= 0L													; Set number of first x-coordinate
 	x_last		= hdr.nx-1													; Set number of last x-coordinate
-	y_first		= 0													; Set number of first y-coordinate
+	y_first		= 0L												; Set number of first y-coordinate
 	y_last		= hdr.ny-1													; Set number of last y-coordinate
 	x_start		= FLOAT(FLOOR(hdr.nx/2))												; Determine the middle x-coordinate
 	sx_start	= x_start * imwinx / FLOAT(hdr.nx)										; Convert that to device
@@ -11603,12 +11894,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;	IF (spfile EQ 1) THEN spdata = PTR_NEW(hdr.spectra, /NO_COPY) ELSE spdata = 0
 ;	IF (hdr.refspfile EQ 1) THEN refspdata = PTR_NEW(referencespectra, /NO_COPY) ELSE refspdata = 0
 ;	scan	= PTR_NEW(hdr.scanfile, /NO_COPY)
-	IF (hdr.imtype EQ 1) THEN phiscan = PTR_NEW(BYTARR(hdr.nx,hdr.ny,hdr.nlp)) ELSE $
-  IF (hdr.imtype EQ 2) THEN phiscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.nlp)) ELSE $
-  IF (hdr.imtype EQ 4) THEN phiscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.nlp))
-	IF (hdr.imtype EQ 1) THEN sspscan = PTR_NEW(BYTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns)) ELSE $
-  IF (hdr.imtype EQ 2) THEN sspscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns)) ELSE $
-  IF (hdr.imtype EQ 4) THEN sspscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns))
+  phiscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp, TYPE=hdr.imtype))
+;	IF (hdr.imtype EQ 1) THEN phiscan = PTR_NEW(BYTARR(hdr.nx,hdr.ny,hdr.nlp)) ELSE $
+;  IF (hdr.imtype EQ 2) THEN phiscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.nlp)) ELSE $
+;  IF (hdr.imtype EQ 4) THEN phiscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.nlp))
+  sspscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp*hdr.ns, TYPE=hdr.imtype))
+;	IF (hdr.imtype EQ 1) THEN sspscan = PTR_NEW(BYTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns)) ELSE $
+;  IF (hdr.imtype EQ 2) THEN sspscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns)) ELSE $
+;  IF (hdr.imtype EQ 4) THEN sspscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns))
 	phislice= PTR_NEW(BYTARR(hdr.nlp,nphi))
 	IF ((hdr.spfile EQ 1) OR (hdr.single_cube[0] GE 1)) THEN BEGIN
 		loopslab= PTR_NEW(FLTARR(hdr.nlp,hdr.nt,nphi))
@@ -11661,8 +11954,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;	ENDIF ELSE BEGIN
 ;		refdata = 0	&	refslice = 0	&	refcube = ''	
 ;	ENDELSE
-
-	imwintitle = 'CRISPEX'+instance_label+': Main image'
+	
+  imwintitle = 'CRISPEX'+instance_label+': Main image'
 	CRISPEX_WINDOW, imwinx, imwiny, control_panel, imwintitle, imwin, xywid, DRAWID = xydrawid, $
 		DRAWBASE = drawbase, 0, 0, /SCROLL, XSCROLL=xpos_slider, YSCROLL=ypos_slider;XSCROLL=imwinx, YSCROLL=imwiny
     ;, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_XYREF_RESIZE'
@@ -11787,24 +12080,29 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;--------------------------------------------------------------------------------- CURSOR 
 	curs = { $
 		sx:sx_start, sy:sy_start, sxlock:sx_start, sylock:sx_start, $		
+    sxsji:sx_start, sysji:sy_start, $
 		xlock:x_start, ylock:y_start, lockset:0 $				
 	}
 ;--------------------------------------------------------------------------------- DATA 
 	data = { $
-		imagedata:hdr.imdata, xyslice:xyslice, refdata:hdr.refdata, refslice:hdr.refslice, maskdata:hdr.maskdata, maskslice:maskslice, $
-		dopslice:dopslice, spdata:hdr.spdata, sspscan:sspscan, refspdata:hdr.refspdata, $
+    imagedata:hdr.imdata, xyslice:xyslice, refdata:hdr.refdata, refslice:hdr.refslice, $
+    maskdata:hdr.maskdata, maskslice:maskslice, dopslice:dopslice, spdata:hdr.spdata, $
+    sspscan:sspscan, refspdata:hdr.refspdata, $
     refscan:hdr.refscan, refsspscan:hdr.refsspscan, $						
 		emptydopslice:emptydopslice, scan:hdr.scan, phiscan:phiscan, phislice:phislice, $				
-		indexmap:indexmap, indices:indices, ratio:ratio, $;padded_bg:padded_bg, $	
+    sjidata:hdr.sjidata, sjislice:hdr.sjislice, $
+		indexmap:indexmap, indices:indices, ratio:ratio, $
 		lunsp:hdr.lunsp, lunim:hdr.lunim, lunrefim:hdr.lunrefim, lunrefsp:hdr.lunrefsp, lunmask:hdr.lunmask $
 	}
 ;--------------------------------------------------------------------------------- DATA PARAMETERS
 	dataparams = { $
 		imfilename:hdr.imfilename, spfilename:hdr.spfilename, refimfilename:hdr.refimfilename, $
     refspfilename:hdr.refspfilename, maskfilename:hdr.maskfilename, $	
-		x:x_start, y:y_start, d_nx:hdr.nx, d_ny:hdr.ny, nx:hdr.nx, ny:hdr.ny, $								
+		x:x_start, y:y_start, d_nx:hdr.nx, d_ny:hdr.ny, nx:hdr.nx, ny:hdr.ny, $							
+    sjinx:hdr.sjinx, sjiny:hdr.sjiny, sjidx:hdr.sjidx, sjidy:hdr.sjidy, sjint:hdr.sjint,$
+    xsji:x_start, ysji:y_start, tarr_sji:hdr.tarr_sji, tarr_main:hdr.tarr_main, $
 		lc:hdr.lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp, refnlp:hdr.refnlp,$	
-    ns:hdr.ns, s:0, $					
+    ns:hdr.ns, s:0L, $					
 		lps:hdr.lps, ms:hdr.ms, spec:hdr.mainspec, $
 		reflps:hdr.reflps, refms:hdr.refms, refspec:hdr.refspec, $
 		t:t_start, nt:hdr.nt, refnt:hdr.refnt,masknt:hdr.masknt, $		
@@ -11815,7 +12113,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;--------------------------------------------------------------------------------- DATA SWITCH
 	dataswitch = { $
 		onecube:hdr.onecube, reffile:hdr.showref, refspfile:hdr.refspfile, spfile:hdr.spfile, $
-    maskfile:hdr.maskfile $							
+    maskfile:hdr.maskfile, sjifile:hdr.sjifile  $							
 	}
 ;--------------------------------------------------------------------------------- DET PARAMS
 	detparams = { $
@@ -11840,6 +12138,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		xi:hdr.xi, yi:hdr.yi, xo:hdr.xo, yo:hdr.yo, xi_ref:hdr.xi_ref, yi_ref:hdr.yi_ref, $
     xo_ref:hdr.xo_ref, yo_ref:hdr.yo_ref, phisxtri:PTR_NEW(0), phisytri:PTR_NEW(0), $
     phisxi:PTR_NEW(0), phisyi:PTR_NEW(0), phisxo:PTR_NEW(0), phisyo:PTR_NEW(0), $
+    tsel_sji:hdr.tsel_sji, xyrastersji:hdr.xyrastersji, sjix0:hdr.sjix0, sjiy0:hdr.sjiy0, $
+    xsji_first:0L, xsji_last:(hdr.sjinx-1), ysji_first:0L, ysji_last:(hdr.sjiny-1),  $
 		interpspslice:interpspslice, phislice_update:phislice_update, slices_imscale:slices_imscale $				
 	}
 ;--------------------------------------------------------------------------------- DATA DISPLAY SWITCHES
@@ -12074,12 +12374,13 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		restlooptlb:PTR_NEW(0), restloopwid:PTR_NEW(0), restloopdrawid:PTR_NEW(0), $					
 		retrdettlb:0, retrdetwid:0, retrdetdrawid:0, $					
 		intwid:0, inttlb:0, intdrawid:0, intmenutlb:0, $
+    sjiwid:0, sjitlb:0, sjidrawid:0, sjidrawbase:0, $
 		savetlb:0, detsavetlb:0, restoretlb:0, preftlb:0, $							
 		estimatetlb:0, savewintlb:0, saveoptwintlb:0, restsestlb:0, paramtlb:0, $					
 		feedbacktlb:0, abouttlb:0, errtlb:0, warntlb:0, restsesfeedbtlb:0, $
 		imwintitle:imwintitle, spwintitle:'',lswintitle:'',refwintitle:'',refspwintitle:'',reflswintitle:'', $
 		imrefwintitle:'',dopwintitle:'',phiswintitle:'',restloopwintitle:PTR_NEW(''),retrdetwintitle:'',$
-		loopwintitle:'',refloopwintitle:'',intwintitle:'' $
+		loopwintitle:'',refloopwintitle:'',intwintitle:'', sjiwintitle:'' $
 	}
 ;--------------------------------------------------------------------------------- WINDOW (RE)SIZES 
 	winsizes = { $
@@ -12090,6 +12391,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		phisxres:phiswinx, phisyres:phiswiny, refloopxres:spwinx, refloopyres:spwiny, $				
 		loopxres:spwinx, loopyres:spwiny, restloopxres:spwinx, restloopyres:spwiny, $			
 		retrdetxres:spwinx, retrdetyres:spwiny, intxres:lswinx, intyres:intwiny, $							
+    sjiwinx:sjiwinx, sjiwiny:sjiwiny, $
 		xdelta:xdelta, ydelta:ydelta, spxoffset:spxoffset, lsxoffset:lsxoffset, $
     refxoffset:refxoffset, refyoffset:refyoffset, aboutxoffset:startup_xpos, $
     aboutyoffset:startup_ypos $
@@ -12098,7 +12400,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	winswitch = { $
 		showls:0, showsp:0, showrefsp:hdr.refspfile, showrefls:showrefls, showimref:0, $
 		estimate_win:0, showphis:0, showref:hdr.showref, showparam:0, showint:0, $
-		showloop:0, showrefloop:0, showrestloop:0, showretrdet:0, showdop:0, dispwids:0 $
+		showloop:0, showrefloop:0, showrestloop:0, showretrdet:0, showdop:0, dispwids:0, $
+    showsji:hdr.sjifile $
 	}
 ;--------------------------------------------------------------------------------- ZOOMING 
 	zooming = { $
@@ -12282,6 +12585,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		CRISPEX_DISPLAYS_PHIS_TOGGLE, pseudoevent, /NO_DRAW
 		IF startupwin THEN WSHOW, startupwid
 	ENDIF
+  IF (*(*info).winswitch).showsji THEN BEGIN
+    (*(*info).winswitch).showsji = 0
+		CRISPEX_DISPLAYS_SJI_TOGGLE, pseudoevent, /NO_DRAW
+		IF startupwin THEN WSHOW, startupwid
+  ENDIF
 
 	CRISPEX_FIND_CLSAV, pseudoevent
 	IF ((*(*info).retrparams).clfilecount NE 0) THEN BEGIN
