@@ -171,7 +171,6 @@
 ;
 ; RESTRICTIONS:
 ;   Requires the following procedures and functions if reading FITS cubes:
-;     Procedures: PARSEHEADER
 ;     Functions: FITSPOINTER(), READFITS()
 ;
 ; PROCEDURE:
@@ -2225,11 +2224,24 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
     ytitle = (*(*info).plottitles).spytitle
     xtickname = ''  & ytickname = ''
   ENDELSE
+  t_low_y = (*(*info).dataparams).tarr_ref[(*(*info).dispparams).t_low]
+  t_upp_y = (*(*info).dataparams).tarr_ref[(*(*info).dispparams).t_upp]
+  correct_axes = (FLOOR(ALOG10(ABS(t_upp_y))) GE 3)
+  IF ((t_low_y NE 0.) AND ~KEYWORD_SET(correct_axes)) THEN $
+    correct_axes = (FLOOR(ALOG10(ABS(t_low_y))) LE -2) 
+  IF correct_axes THEN BEGIN
+ 	  order_corr = FLOOR(ALOG10(ABS(t_upp_y)))
+ 	  IF ~KEYWORD_SET(NO_AXES) THEN ytitle += ' (x10!U'+STRTRIM(order_corr,2)+'!N)'
+    t_low_y /= (10.^(order_corr))
+    t_upp_y /= (10.^(order_corr))
+  ENDIF 
   IF (*(*info).plotswitch).v_dop_set_ref THEN topxtitle = 'Doppler velocity [km/s]'
   ; Plot basic axes box
-  PLOT, (*(*info).dataparams).reflps, FINDGEN((*(*info).dispparams).t_range*(*(*info).plotaxes).dt),$
-    YR = [(*(*info).dispparams).t_low * (*(*info).plotaxes).dt,$
-          (*(*info).dispparams).t_upp * (*(*info).plotaxes).dt], /YS, $
+;  PLOT, (*(*info).dataparams).reflps, FINDGEN((*(*info).dispparams).t_range*(*(*info).plotaxes).dt),$
+;    YR = [(*(*info).dispparams).t_low * (*(*info).plotaxes).dt,$
+;          (*(*info).dispparams).t_upp * (*(*info).plotaxes).dt], /YS, $
+  PLOT, (*(*info).dataparams).lps, (*(*info).dataparams).tarr_ref, $
+    YR = [t_low_y,t_upp_y], /YS, $
     XR = [(*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low], $
           (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_upp]], $
     XSTYLE = (*(*info).plotswitch).v_dop_set_ref * 8 + 1, $
@@ -2274,9 +2286,11 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
       refspx1 = diag_range[d] + refspx0
       xtickinterval = 0.5
       xminor = 5
-  		PLOT, (*(*info).dataparams).reflps, FINDGEN((*(*info).dispparams).t_range*(*(*info).plotaxes).dt),$
-        /NODATA, YR = [(*(*info).dispparams).t_low,(*(*info).dispparams).t_upp] * (*(*info).plotaxes).dt,$
-  			/YS, XRANGE=xrange, XSTYLE = (*(*info).plotswitch).v_dop_set_ref * 8 + 1, $
+      PLOT, (*(*info).dataparams).lps, (*(*info).dataparams).tarr_ref, $
+        /NODATA, YR = [t_low_y,t_upp_y], /YS, $
+;  		PLOT, (*(*info).dataparams).reflps, FINDGEN((*(*info).dispparams).t_range*(*(*info).plotaxes).dt),$
+;        /NODATA, YR = [(*(*info).dispparams).t_low,(*(*info).dispparams).t_upp] * (*(*info).plotaxes).dt,$
+  			XRANGE=xrange, XSTYLE = (*(*info).plotswitch).v_dop_set_ref * 8 + 1, $
         POS = [refspx0,(*(*info).plotpos).refspy0,refspx1,(*(*info).plotpos).refspy1], $
         YTICKLEN=(*(*info).plotaxes).refspyticklen, XTICKLEN=(*(*info).plotaxes).refspxticklen, $
         YTICKNAME=REPLICATE(' ',60), XTICKNAME=xtickname, $
@@ -2434,12 +2448,27 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
     ytitle = (*(*info).plottitles).spytitle
     xtickname = ''  & ytickname = ''
   ENDELSE
+  t_low_y = (*(*info).dataparams).tarr_main[(*(*info).dispparams).t_low]
+  t_upp_y = (*(*info).dataparams).tarr_main[(*(*info).dispparams).t_upp]
+  correct_axes = (FLOOR(ALOG10(ABS(t_upp_y))) GE 3)
+  IF ((t_low_y NE 0.) AND ~KEYWORD_SET(correct_axes)) THEN $
+    correct_axes = (FLOOR(ALOG10(ABS(t_low_y))) LE -2) 
+  IF correct_axes THEN BEGIN
+ 	  order_corr = FLOOR(ALOG10(ABS(t_upp_y)))
+ 	  IF ~KEYWORD_SET(NO_AXES) THEN ytitle += ' (x10!U'+STRTRIM(order_corr,2)+'!N)'
+    t_low_y /= (10.^(order_corr))
+    t_upp_y /= (10.^(order_corr))
+  ENDIF 
   topxtitle = title
   IF (*(*info).plotswitch).v_dop_set THEN topxtitle += 'Doppler velocity [km/s]'
   ; Plot basic axes box
-  PLOT, (*(*info).dataparams).lps, FINDGEN((*(*info).dispparams).t_range*(*(*info).plotaxes).dt), $
-    YR = [(*(*info).dispparams).t_low * (*(*info).plotaxes).dt,$
-          (*(*info).dispparams).t_upp * (*(*info).plotaxes).dt], /YS, $
+  PLOT, (*(*info).dataparams).lps, (*(*info).dataparams).tarr_main, $
+    ;FINDGEN((*(*info).dispparams).t_range*(*(*info).plotaxes).dt), $
+;    YR = [(*(*info).dispparams).t_low * (*(*info).plotaxes).dt,$
+;          (*(*info).dispparams).t_upp * (*(*info).plotaxes).dt], /YS, $
+;    YR = [(*(*info).dataparams).tarr_main[(*(*info).dispparams).t_low],$
+;          (*(*info).dataparams).tarr_main[(*(*info).dispparams).t_upp]],/YS, $
+    YR = [t_low_y,t_upp_y], /YS, $
     XR = [(*(*info).dataparams).lps[(*(*info).dispparams).lp_low], $
           (*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]], $
     XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
@@ -2484,8 +2513,10 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
       spx1 = diag_range[d] + spx0
       xtickinterval = 0.5
       xminor = 5
-  		PLOT, (*(*info).dataparams).lps, FINDGEN((*(*info).dispparams).t_range*(*(*info).plotaxes).dt),$
-        /NODATA, YR = [(*(*info).dispparams).t_low,(*(*info).dispparams).t_upp] * (*(*info).plotaxes).dt,$
+  		PLOT, (*(*info).dataparams).lps, (*(*info).dataparams).tarr_main, $
+        ;FINDGEN((*(*info).dispparams).t_range*(*(*info).plotaxes).dt),$
+        /NODATA, YR=[t_low_y,t_upp_y], $
+;      YR = [(*(*info).dispparams).t_low,(*(*info).dispparams).t_upp] * (*(*info).plotaxes).dt,$
   			/YS, XRANGE=xrange, XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
         POS = [spx0,(*(*info).plotpos).spy0,spx1,(*(*info).plotpos).spy1], $
         YTICKLEN=(*(*info).plotaxes).spyticklen, XTICKLEN=(*(*info).plotaxes).spxticklen, $
@@ -3326,14 +3357,32 @@ END
 PRO CRISPEX_DRAW, event
 ; Handles the actual drawing of the data into the respective open display windows
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW'
 	IF (*(*info).winswitch).showparam THEN BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlsparam).x_coord_val, SET_VALUE = STRTRIM(FIX((*(*info).dataparams).x),2)
-		WIDGET_CONTROL, (*(*info).ctrlsparam).y_coord_val, SET_VALUE = STRTRIM(FIX((*(*info).dataparams).y),2)
-		WIDGET_CONTROL, (*(*info).ctrlsparam).t_coord_val, SET_VALUE = STRTRIM((*(*info).dataparams).t,2)
-		WIDGET_CONTROL, (*(*info).ctrlsparam).lp_coord_val, SET_VALUE = STRTRIM(LONG((*(*info).dataparams).lp),2)
-		WIDGET_CONTROL, (*(*info).ctrlsparam).zoom_val, SET_VALUE = STRTRIM(LONG((*(*info).zooming).factor),2)
-		IF (*(*info).paramswitch).dt_set THEN WIDGET_CONTROL, (*(*info).ctrlsparam).act_t_val, SET_VALUE = STRTRIM(STRING((*(*info).dataparams).t * (*(*info).plotaxes).dt, FORMAT='(3(F9.2,x))'),2) 
+		WIDGET_CONTROL, (*(*info).ctrlsparam).x_coord_val, $
+      SET_VALUE = STRTRIM(FIX((*(*info).dataparams).x),2)
+		WIDGET_CONTROL, (*(*info).ctrlsparam).y_coord_val, $
+      SET_VALUE = STRTRIM(FIX((*(*info).dataparams).y),2)
+		WIDGET_CONTROL, (*(*info).ctrlsparam).t_coord_val, $
+      SET_VALUE = STRTRIM((*(*info).dataparams).t,2)
+		WIDGET_CONTROL, (*(*info).ctrlsparam).lp_coord_val, $
+      SET_VALUE = STRTRIM(LONG((*(*info).dataparams).lp),2)
+		WIDGET_CONTROL, (*(*info).ctrlsparam).zoom_val, $
+      SET_VALUE = STRTRIM(LONG((*(*info).zooming).factor),2)
+		IF (*(*info).paramswitch).dt_set THEN BEGIN
+;      WIDGET_CONTROL, (*(*info).ctrlsparam).act_t_val, SET_VALUE = STRTRIM(STRING((*(*info).dataparams).t * (*(*info).plotaxes).dt, FORMAT='(3(F9.2,x))'),2) 
+      t_disp_val = (*(*info).dataparams).tarr_main[(*(*info).dataparams).t]
+      t_val_format = '(3(F9.2,x))'
+      IF (t_disp_val NE 0.) THEN BEGIN
+        IF ((FLOOR(ALOG10(ABS(t_disp_val))) LE -2) OR $
+            (FLOOR(ALOG10(ABS(t_disp_val))) GE 3)) THEN $
+          t_val_format = '(3(E10.4,x))'
+      ENDIF
+      WIDGET_CONTROL, (*(*info).ctrlsparam).act_t_val, $
+        SET_VALUE = STRING((*(*info).dataparams).tarr_main[(*(*info).dataparams).t],$
+        FORMAT=t_val_format)
+    ENDIF
 		IF (*(*info).plotswitch).v_dop_set THEN BEGIN
 			WIDGET_CONTROL, (*(*info).ctrlsparam).act_lp_val, SET_VALUE = STRTRIM(STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp], FORMAT = '(3(F9.1,x))'),2)
 			WIDGET_CONTROL, (*(*info).ctrlsparam).v_dop_val, SET_VALUE = STRTRIM(STRING((*(*info).plotaxes).v_dop[(*(*info).dataparams).lp],FORMAT = '(3(F9.2,x))'),2)
@@ -4886,6 +4935,10 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
   ipath = hdr_out.ipath
   instance_label = hdr_out.instance_label
   hdr_out.imfilename = imcube
+;  IF ((hdr_out.single_cube[0] NE 0) AND (N_ELEMENTS(SPCUBE) NE 1)) THEN $
+;    main_single_cube = hdr_out.single_cube[0] $
+;  ELSE IF (N_ELEMENTS(SINGLE_CUBE) GE 1) THEN $
+;    main_single_cube = single_cube[0]
   ; Determine cube compatibility mode for inputfiles (0: running FITS cubes, 1: running old cubes)
 	imext = STRMID(hdr_out.imfilename,STRPOS(hdr_out.imfilename,'.',/REVERSE_SEARCH)+1,$
                   STRLEN(hdr_out.imfilename))  ; Process extension
@@ -5011,17 +5064,6 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
   ; Re-read in of the image cube for slices
 	scanfile  = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns, $
                       TYPE=hdr_out.imtype),hdr_out.imoffset)			
-;	IF (hdr_out.imtype EQ 1) THEN BEGIN												
-;		imagefile = ASSOC(lunim,BYTARR(hdr_out.nx,hdr_out.ny),hdr_out.imoffset)									
-;    ; Re-read in of the image cube for slices
-;		scanfile  = ASSOC(lunim,BYTARR(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns),hdr_out.imoffset)			
-;	ENDIF ELSE IF (hdr_out.imtype EQ 2) THEN BEGIN
-;		imagefile = ASSOC(lunim,INTARR(hdr_out.nx,hdr_out.ny),hdr_out.imoffset)
-;		scanfile  = ASSOC(lunim,INTARR(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns),hdr_out.imoffset)							
-;	ENDIF ELSE IF (hdr_out.imtype EQ 4) THEN BEGIN
-;		imagefile = ASSOC(lunim,FLTARR(hdr_out.nx,hdr_out.ny),hdr_out.imoffset)
-;		scanfile  = ASSOC(lunim,FLTARR(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns),hdr_out.imoffset)	
-;	ENDIF
 	hdr_out.imdata	= PTR_NEW(imagefile, /NO_COPY)
 	hdr_out.scan	= PTR_NEW(scanfile, /NO_COPY)
   hdr_out.lunim = lunim
@@ -5032,12 +5074,6 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
     OPENR, lunsp, hdr_out.spfilename, /get_lun, $
            SWAP_ENDIAN = ((hdr_out.sptype GT 1) AND (hdr_out.endian NE hdr_out.spendian))
     spectra = ASSOC(lunsp,MAKE_ARRAY(hdr_out.nlp,hdr_out.nt, TYPE=hdr_out.sptype),hdr_out.spoffset)
-;    IF (hdr_out.sptype EQ 1) THEN $
-;      spectra = ASSOC(lunsp,BYTARR(hdr_out.nlp,hdr_out.nt),hdr_out.spoffset) $
-;    ELSE IF (hdr_out.sptype EQ 2) THEN $
-;      spectra = ASSOC(lunsp,INTARR(hdr_out.nlp,hdr_out.nt),hdr_out.spoffset) $
-;    ELSE IF (hdr_out.sptype EQ 4) THEN $
-;      spectra = ASSOC(lunsp,FLTARR(hdr_out.nlp,hdr_out.nt),hdr_out.spoffset)
     hdr_out.lunsp = lunsp
 	  hdr_out.spdata = PTR_NEW(spectra, /NO_COPY) 
   ENDIF
@@ -5122,25 +5158,10 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
            SWAP_ENDIAN = ((hdr_out.refimtype GT 1) AND (hdr_out.endian NE hdr_out.refimendian))
     referencefile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny, TYPE=hdr_out.refimtype),$
                       hdr_out.refimoffset)
-;		IF (hdr_out.refimtype EQ 1) THEN $
-;      referencefile = ASSOC(lunrefim,BYTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset) ELSE $
-;		IF (hdr_out.refimtype EQ 2) THEN $
-;      referencefile = ASSOC(lunrefim,INTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset) ELSE $
-;		IF (hdr_out.refimtype EQ 4) THEN $
-;      referencefile = ASSOC(lunrefim,FLTARR(hdr_out.refnx,hdr_out.refny),hdr_out.refimoffset)
 		hdr_out.showref = 1
     IF ((hdr_out.refnlp GT 1) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN BEGIN
       refscanfile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny,$
                       hdr_out.refnlp*hdr_out.refns, TYPE=hdr_out.refimtype),hdr_out.refimoffset)
-;		  IF (hdr_out.refimtype EQ 1) THEN $
-;        refscanfile = ASSOC(lunrefim,BYTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
-;                            hdr_out.refimoffset) ELSE $
-;		  IF (hdr_out.refimtype EQ 2) THEN $
-;        refscanfile = ASSOC(lunrefim,INTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
-;                            hdr_out.refimoffset) ELSE $
-;		  IF (hdr_out.refimtype EQ 4) THEN $
-;        refscanfile = ASSOC(lunrefim,FLTARR(hdr_out.refnx,hdr_out.refny,hdr_out.refnlp*hdr_out.refns),$
-;                            hdr_out.refimoffset)
     ENDIF 
     hdr_out.lunrefim = lunrefim
     CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, REFIMCUBE=hdr_out.refimfilename
@@ -5150,12 +5171,6 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
              SWAP_ENDIAN = ((hdr_out.refsptype GT 1) AND (hdr_out.endian NE hdr_out.refspendian))						
       referencespectra = ASSOC(lunrefsp,MAKE_ARRAY(hdr_out.refnlp,hdr_out.refnt, $
                             TYPE=hdr_out.refsptype),hdr_out.refspoffset)
-;			IF (hdr_out.refsptype EQ 1) THEN $
-;        referencespectra = ASSOC(lunrefsp,BYTARR(hdr_out.refnlp,hdr_out.refnt),hdr_out.refspoffset) ELSE $	
-;			IF (hdr_out.refsptype EQ 2) THEN $
-;        referencespectra = ASSOC(lunrefsp,INTARR(hdr_out.refnlp,hdr_out.refnt),hdr_out.refspoffset) ELSE $
-;			IF (hdr_out.refsptype EQ 4) THEN $
-;        referencespectra = ASSOC(lunrefsp,FLTARR(hdr_out.refnlp,hdr_out.refnt),hdr_out.refspoffset)
 			hdr_out.refspfile = 1	
       hdr_out.lunrefsp = lunrefsp
       CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, REFSPCUBE=hdr_out.refspfilename
@@ -5192,12 +5207,6 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
 			hdr_out.refscan = PTR_NEW(refscanfile, /NO_COPY)
       hdr_out.refsspscan = PTR_NEW(MAKE_ARRAY(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns, $
                             TYPE=hdr_out.refimtype))
-;			IF (hdr_out.refimtype EQ 1) THEN $
-;        hdr_out.refsspscan = PTR_NEW(BYTARR(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns)) ELSE $
-;      IF (hdr_out.refimtype EQ 2) THEN $
-;        hdr_out.refsspscan = PTR_NEW(INTARR(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns)) ELSE $
-;			IF (hdr_out.refimtype EQ 4) THEN $
-;        hdr_out.refsspscan = PTR_NEW(FLTARR(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns))
 		ENDIF 
 	  IF (hdr_out.refspfile EQ 1) THEN hdr_out.refspdata = PTR_NEW(referencespectra, /NO_COPY) 
 	ENDIF 
@@ -5278,12 +5287,6 @@ PRO CRISPEX_IO_OPEN_MASKCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
            SWAP_ENDIAN = ((hdr_out.masktype GT 1) AND (hdr_out.endian NE hdr_out.maskendian))
     mask = ASSOC(lunmask,MAKE_ARRAY(hdr_out.masknx,hdr_out.maskny, TYPE=hdr_out.masktype),$
              hdr_out.maskoffset)
-;		IF (hdr_out.masktype EQ 1) THEN $
-;      mask = ASSOC(lunmask,BYTARR(hdr_out.masknx,hdr_out.maskny),hdr_out.maskoffset) ELSE $
-;    IF (hdr_out.masktype EQ 2) THEN $
-;      mask = ASSOC(lunmask,INTARR(hdr_out.masknx,hdr_out.maskny),hdr_out.maskoffset) ELSE $
-;		IF (hdr_out.masktype EQ 4) THEN $
-;      mask = ASSOC(lunmask,FLTARR(hdr_out.masknx,hdr_out.maskny),hdr_out.maskoffset)
 		hdr_out.maskfile = 1	
 	  hdr_out.maskdata = PTR_NEW(mask, /NO_COPY)
     hdr_out.lunmask = lunmask
@@ -5395,7 +5398,8 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
       hdr_out.refspxtitle = (['Spectral position','Wavelength'])[hdr_out.v_dop_set[1]] $
     ELSE $
       hdr_out.refspxtitle = hdr_out.xtitle[1]
-  ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'reflc', 0L, 'v_dop_ref', 0)
+;  ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'reflc', 0L, 'v_dop_ref', 0)
+  ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'v_dop_ref', 0)
   IF hdr_out.imcube_compatibility THEN $
     hdr_out.spxtitle = (['Spectral position','Wavelength'])[hdr_out.v_dop_set[0]] $
   ELSE $
@@ -5488,7 +5492,7 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
         lc[d] = ( WHERE( spec_select EQ MIN(spec_select) ) )[0] $
       ELSE BEGIN
         IF (d EQ 0) THEN lc[d] = hdr_out.lc ELSE lc[d] = hdr_out.reflc
-        print,lc[d]
+;        print,lc[d]
       ENDELSE
     ENDELSE
     IF (lcase GE 2) THEN BEGIN
@@ -6706,8 +6710,10 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
 ; Handles read-in of file header, running different parsing depending on CUBE_COMPATIBILITY setting
   ; Start filling data header structure with header info from inputfile
   IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN
-    offset = FITSPOINTER(filename, EXTEN_NO=exten_no, header)   ; Get header offset to data
-    PARSEHEADER, header, key, filename                          ; Parse FITS header into key struct
+    offset = FITSPOINTER(filename, EXTEN_NO=exten_no, header, /SILENT)   ; Get header offset to data
+    CRISPEX_READ_FITSHEADER, header, key, filename, $                    ; Parse FITS header into key struct
+      IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, REFSPCUBE=refspcube, $
+      SJICUBE=sjicube
   ENDIF ELSE BEGIN
     offset = 512                                                ; Set header offset to data
     CRISPEX_READ_HEADER, filename, datatype=datatype, $         ; Parse old header into variables
@@ -6729,44 +6735,54 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.tlabel = key.tlab         &  hdr_out.tunit = key.tunit
       hdr_out.lplabel = key.lplab       &  hdr_out.lpunit = key.lpunit
       hdr_out.dt = key.dt               &  hdr_out.single_cube = key.nlp
-      lcval = SXPAR(header,'CRVAL3')
-      lc = (WHERE(key.lam EQ lcval))[0]
-      IF (lc NE -1 ) THEN $
-        hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam, 'lc', lc) $
-      ELSE $
-        hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam)
+      lc = key.lc
+;      lcval = SXPAR(header,'CRVAL3')
+;      lc = (WHERE(key.lam EQ lcval))[0]
+;      IF (lc NE -1 ) THEN $
+;        hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam, 'lc', lc) $
+;      ELSE $
+      hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam, 'lc', lc)
       ; Handle spectral windows, if present
-      hdr_out.ndiagnostics = SXPAR(header,'NWIN')
-      IF (hdr_out.ndiagnostics GT 0) THEN BEGIN
-        wstart = SXPAR(header,'WSTART*')
-        wwidth = SXPAR(header,'WWIDTH*')
-        wdesc = SXPAR(header,'WDESC*')
-        wstart = wstart[WHERE(wdesc NE '')]
-        wwidth = wwidth[WHERE(wdesc NE '')]
-        diagnostics = wdesc[WHERE(wdesc NE '')]
-      ENDIF ELSE BEGIN
-        wstart = 0
-        wwidth = hdr_out.nlp
-        hdr_out.ndiagnostics = 1
-        diagnostics = hdr_out.blabel
-      ENDELSE
-      ; Get time array (assuming each raster is co-temporal)
-      IF (hdr_out.nt GT 1) THEN BEGIN
-        tarr = READFITS(filename, hdr_tmp, EXTEN_NO=2, /SILENT)
-        tval = SXPAR(header, 'CRVAL4')
-        wheretval = (WHERE(tarr EQ tval))[0]
-        IF (wheretval EQ -1) THEN $
-          tini_col = 0 $
-        ELSE $
-          tini_col = (ARRAY_INDICES(tarr,WHERE(tarr EQ tval)))[0]
-        tarr_main = tarr[tini_col,*]
-      ENDIF
-      ; Get slit coordinates on SJI image if raster
-      IF (STRING(SXPAR(header,'SJIFIL*')) NE '0') THEN BEGIN
-        raster_coords = READFITS(filename, hdr_tmp, EXTEN_NO=3, /SILENT)
-        xyrastersji = REFORM(ABS(raster_coords[*,0,*]))
-      ENDIF ELSE xyrastersji = 0
-      hdr_out = CREATE_STRUCT(hdr_out, 'diag_start', wstart, 'diag_width', wwidth)
+      hdr_out.ndiagnostics = key.ndiagnostics
+      diagnostics = key.diagnostics
+      wstart = key.wstart
+      wwidth = key.wwidth
+;      hdr_out.ndiagnostics = SXPAR(header,'NWIN')
+;      IF (hdr_out.ndiagnostics GT 0) THEN BEGIN
+;        wstart = SXPAR(header,'WSTART*')
+;        wwidth = SXPAR(header,'WWIDTH*')
+;        wdesc = SXPAR(header,'WDESC*')
+;        wstart = wstart[WHERE(wdesc NE '')]
+;        wwidth = wwidth[WHERE(wdesc NE '')]
+;        diagnostics = wdesc[WHERE(wdesc NE '')]
+;      ENDIF ELSE BEGIN
+;        wstart = 0
+;        wwidth = hdr_out.nlp
+;        hdr_out.ndiagnostics = 1
+;        diagnostics = hdr_out.blabel
+;      ENDELSE
+;      ; Get time array (assuming each raster is co-temporal)
+;      IF (hdr_out.nt GT 1) THEN BEGIN
+;        tarr = READFITS(filename, hdr_tmp, EXTEN_NO=2, /SILENT)
+;        tval = SXPAR(header, 'CRVAL4')
+;        wheretval = (WHERE(tarr EQ tval))[0]
+;        IF (wheretval EQ -1) THEN $
+;          tini_col = 0 $
+;        ELSE $
+;          tini_col = (ARRAY_INDICES(tarr,WHERE(tarr EQ tval)))[0]
+;        IF (SIZE(tarr,/N_DIMENSIONS) EQ 2) THEN $
+;          tarr_main = tarr[tini_col,*] $
+;        ELSE $
+;          tarr_main = tarr
+;      ENDIF
+      tarr_main = key.tarr_sel
+;      ; Get slit coordinates on SJI image if raster
+;      IF (SIZE(SXPAR(header,'SJIFIL*'),/TYPE) NE 7) THEN BEGIN
+;        raster_coords = READFITS(filename, hdr_tmp, EXTEN_NO=3, /SILENT)
+;        xyrastersji = REFORM(ABS(raster_coords[*,0,*]))
+;      ENDIF ELSE xyrastersji = 0
+      xyrastersji = key.xyrastersji
+;      hdr_out = CREATE_STRUCT(hdr_out, 'diag_start', key.wstart, 'diag_width', key.wwidth)
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.imtype = datatype         &  hdr_out.imendian = endian
       hdr_out.nx = nx                   &  hdr_out.dx = 0.0592
@@ -6774,16 +6790,23 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.imns = ns                 &  hdr_out.ns = ns
       hdr_out.imstokes = stokes         &  hdr_out.imnt = nt
       ndiagnostics = N_ELEMENTS(diagnostics)
-      tarr_main = hdr_out.nt * hdr_out.dt
+      tarr_main = FINDGEN(hdr_out.nt) * hdr_out.dt
       IF (ndiagnostics GT 0) THEN BEGIN
         diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,strlen(diagnostics)-2),',',$
                                 /EXTRACT),2)
         hdr_out.ndiagnostics = ndiagnostics
-      ENDIF ELSE diagnostics = 'CRISP'
+        wstart = INDGEN(ndiagnostics)
+        wwidth = REPLICATE(1,ndiagnostics)
+      ENDIF ELSE BEGIN
+        wstart = 0
+        wwidth = hdr_out.nlp
+        hdr_out.ndiagnostics = 1
+        diagnostics = 'CRISP'
+      ENDELSE
       xyrastersji = 0
     ENDELSE
-    hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics, 'tarr_main', tarr_main, $
-      'xyrastersji', xyrastersji)
+    hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics, 'diag_start', wstart, $
+      'diag_width', wwidth, 'tarr_main', tarr_main, 'xyrastersji', xyrastersji)
   ENDIF ELSE IF KEYWORD_SET(SPCUBE) THEN BEGIN                  ; Fill hdr parameters for SPCUBE
     hdr_out.spoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -6806,27 +6829,33 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.refxlabel = key.xlab      &  hdr_out.refxunit = key.xunit
       hdr_out.refylabel = key.ylab      &  hdr_out.refyunit = key.yunit
       hdr_out.reflplabel = key.lplab    &  hdr_out.reflpunit = key.lpunit
-      reflcval = SXPAR(header,'CRVAL3')
-      reflc = (WHERE(key.lam EQ reflcval))[0]
-      IF (reflc NE -1) THEN $
-        hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', LONG(reflc)) $
-      ELSE $
-        hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam)
+      reflc = key.lc
+;      reflcval = SXPAR(header,'CRVAL3')
+;      reflc = (WHERE(key.lam EQ reflcval))[0]
+;      IF (reflc NE -1) THEN $
+;        hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', LONG(reflc)) $
+;      ELSE $
+      hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', reflc)
       ; Handle spectral windows, if present
-      hdr_out.nrefdiagnostics = SXPAR(header,'NWIN')
-      IF (hdr_out.nrefdiagnostics GT 0) THEN BEGIN
-        wstart = SXPAR(header,'WSTART*')
-        wwidth = SXPAR(header,'WWIDTH*')
-        wdesc = SXPAR(header,'WDESC*')
-        wstart = wstart[WHERE(wdesc NE '')]
-        wwidth = wwidth[WHERE(wdesc NE '')]
-        diagnostics = wdesc[WHERE(wdesc NE '')]
-      ENDIF ELSE BEGIN
-        wstart = 0
-        wwidth = hdr_out.refnlp
-        hdr_out.nrefdiagnostics = 1
-        diagnostics = hdr_out.refblabel
-      ENDELSE
+      hdr_out.nrefdiagnostics = key.ndiagnostics
+      diagnostics = key.diagnostics
+      wstart = key.wstart
+      wwidth = key.wwidth
+;      hdr_out.nrefdiagnostics = SXPAR(header,'NWIN')
+;      IF (hdr_out.nrefdiagnostics GT 0) THEN BEGIN
+;        wstart = SXPAR(header,'WSTART*')
+;        wwidth = SXPAR(header,'WWIDTH*')
+;        wdesc = SXPAR(header,'WDESC*')
+;        wstart = wstart[WHERE(wdesc NE '')]
+;        wwidth = wwidth[WHERE(wdesc NE '')]
+;        diagnostics = wdesc[WHERE(wdesc NE '')]
+;      ENDIF ELSE BEGIN
+;        wstart = 0
+;        wwidth = hdr_out.refnlp
+;        hdr_out.nrefdiagnostics = 1
+;        diagnostics = hdr_out.refblabel
+;      ENDELSE
+      tarr_ref = key.tarr_sel
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.refimtype = datatype      &  hdr_out.refimendian = endian
       hdr_out.refnx = nx                &  hdr_out.refny = ny
@@ -6834,6 +6863,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       IF (FLOOR(hdr_out.refimnt/FLOAT(hdr_out.nt)) EQ hdr_out.refimnt/FLOAT(hdr_out.nt)) THEN $
         hdr_out.refnt = hdr_out.nt ELSE hdr_out.refnt = 1L
       hdr_out.refnlp = LONG(hdr_out.refimnt/FLOAT(hdr_out.refnt))
+      tarr_ref = FINDGEN(hdr_out.refnt) * hdr_out.dt
       ndiagnostics = N_ELEMENTS(diagnostics)
       IF (ndiagnostics GT 0) THEN BEGIN
         diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,strlen(diagnostics)-2),',',$
@@ -6848,7 +6878,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         diagnostics = 'CRISP'
       ENDELSE
     ENDELSE
-    hdr_out = CREATE_STRUCT(hdr_out, 'refdiagnostics', diagnostics, 'refdiag_start', wstart, 'refdiag_width', wwidth)
+    hdr_out = CREATE_STRUCT(hdr_out, 'refdiagnostics', diagnostics, 'refdiag_start', wstart, $
+      'refdiag_width', wwidth, 'tarr_ref', tarr_ref)
   ENDIF ELSE IF KEYWORD_SET(REFSPCUBE) THEN BEGIN               ; Fill hdr parameters for REFSPCUBE
     hdr_out.refspoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -6861,14 +6892,14 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     ENDELSE
   ENDIF ELSE IF KEYWORD_SET(SJICUBE) THEN BEGIN                ; Fill hdr parameters for SJICUBE
       hdr_out.sjioffset = offset
-      hdr_out.sjitype = key.datatype    &  hdr_out.sjint = SXPAR(header,'NAXIS3')
+      hdr_out.sjitype = key.datatype    &  hdr_out.sjint = key.nt
       hdr_out.sjinx = key.nx            &  hdr_out.sjiny = key.ny
       hdr_out.sjidx = key.dx            &  hdr_out.sjidy = key.dy
-      hdr_out.sjix0 = SXPAR(header,'ROWSTAR')
-      hdr_out.sjiy0 = SXPAR(header,'COLSTAR')
-      offsetarray = READFITS(filename, EXTEN_NO=1, /SILENT)
-      hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', REFORM(offsetarray[*,0]), $
-        'sjixoff', REFORM(offsetarray[*,1]), 'sjiyoff', REFORM(offsetarray[*,2]))
+      hdr_out.sjix0 = key.sjix0 
+      hdr_out.sjiy0 = key.sjiy0
+;      offsetarray = READFITS(filename, EXTEN_NO=1, /SILENT)
+      hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
+        'sjixoff', key.sjixoff, 'sjiyoff', key.sjiyoff)
   ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                ; Fill hdr parameters for MASKCUBE
     hdr_out.maskoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -6882,31 +6913,147 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
   ENDIF
 END
 
-
-;PRO CRISPEX_READ_FITSHEADER, filename, datatype=datatype, nx=nx, ny=ny, nlp=nlp, nt=nt, ns=ns, $
-;                             imnt=imnt, spnt=spnt, lps=lps, offset=offset, lptitle=lptitle, $
-;                             inttitle=inttitle, ttitle=ttitle, dt=dt, bunit=bunit, lpunit=lpunit, $
-;                             dx=dx, dy=dy, xunit=xunit, yunit=yunit, exten_no=exten_no
-;; Handles read in of the header of the fits input file
-;		offset = fitspointer(filename,exten_no=KEYWORD_SET(exten_no),hdr)
-;		parseheader,hdr,key
-;		datatype = key.datatype
-;    ; Spatial: dimensions 1 and 2
-;    nx = key.nx  &  dx = key.dx  &  xunit = key.xunit
-;    ny = key.ny  &  dy = key.dy  &  yunit = key.yunit
-;		nlp = key.nlp
-;		nt = key.nt
-;    dt = key.dt
-;    ns = key.ns
-;    imnt = key.nlp * key.nt
-;		spnt = key.nx*key.ny
-;    lps = key.lam
-;    bunit = key.bunit
-;    lpunit = key.lpunit
-;    lptitle=key.lplab+' ['+lpunit+']'
-;    inttitle=key.btype+' ['+bunit+']'
-;    ttitle = key.tlab+' ['+key.tunit+']'
-;END
+PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
+  IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refcube, REFSPCUBE=refspcube, SJICUBE=sjicube
+; Handle parsing of FITS file header
+; Based on earlier PARSEHEADER.PRO, modification history:
+;   v1.1 21-Sep-2012 Viggo Hansteen - first version
+;   v1.2 26-Jan-2013 Mats Carlsson - works for both Bifrost and Iris cubes
+;   v1.3 13-Feb-2013 Mats Carlsson 
+; Incorporated functionality into CRISPEX on 29-May-2013 and extended subsequently
+  naxis = SXPAR(header,'NAXIS*')
+  CASE (strsplit(SXPAR(header,'CTYPE2'),' ',/extract))[0] OF
+    'y': sortorder = INDGEN(4)       ; CRISPEX imcube
+    'time': sortorder = [2,3,0,1]    ; CRISPEX refcube
+    'SolarY': sortorder = INDGEN(3)  ; Bifrost simcube
+    ELSE: BEGIN
+      MESSAGE,'Valid object not found! Correct fits file?',/cont
+      key = {nx:-1}
+      RETURN
+    ENDELSE
+  ENDCASE
+  nx = naxis[sortorder[0]]
+  ny = naxis[sortorder[1]]
+  nlp = naxis[sortorder[2]]
+  IF (N_ELEMENTS(naxis) EQ 4) THEN $
+    nt = naxis[sortorder[3]] $
+  ELSE $
+    nt = 1
+  ns = 1 ; number of Stokes posisitons
+  cslab = [' ']
+  ; Convert FITS datatype to IDL datatype
+  CASE SXPAR(header,'BITPIX') OF
+          8:      datatype = 1
+         16:      datatype = 2  
+         32:      datatype = 3  
+        -32:      datatype = 4 
+        -64:      datatype = 5 
+          8:      datatype = 7
+         16:      datatype = 12
+         32:      datatype = 13
+         64:      datatype = 14
+          ELSE:   BEGIN
+            MESSAGE,'ERROR: Illegal Image Datatype',/CONT
+            datatype = -1
+          ENDELSE
+       endcase
+  ; Read in header keywords      
+  cdelt = SXPAR(header,'CDELT*')
+  crpix = SXPAR(header,'CRPIX*')
+  crval = SXPAR(header,'CRVAL*')
+  ctype = SXPAR(header,'CTYPE*')
+  cunit = SXPAR(header,'CUNIT*')
+  btype = STRTRIM(SXPAR(header,'BTYPE'),2)
+  bunit = STRTRIM(SXPAR(header,'BUNIT'))
+  ; Assign values to variables
+  dx = cdelt[sortorder[0]]
+  dy = cdelt[sortorder[1]]
+  IF (nt GT 1) THEN BEGIN
+    dt = cdelt[sortorder[3]]
+    tlab = STRTRIM(ctype[sortorder[3]],2)
+    tunit = STRTRIM(cunit[sortorder[3]],2)
+  ENDIF ELSE BEGIN
+    dt = 0
+    tlab = 't'
+    tunit = '[s]'
+  ENDELSE
+  IF ~KEYWORD_SET(SJICUBE) THEN BEGIN
+    ; Get time array (assuming each raster is co-temporal)
+    IF (nt GT 1) THEN BEGIN
+      tarr = READFITS(filename, hdr_tmp, EXTEN_NO=2, /SILENT)
+      tval = SXPAR(header, 'CRVAL4')
+      wheretval = (WHERE(tarr EQ tval))[0]
+      IF (wheretval EQ -1) THEN $
+        tini_col = 0 $
+      ELSE $
+        tini_col = (ARRAY_INDICES(tarr,WHERE(tarr EQ tval)))[0]
+      IF (SIZE(tarr,/N_DIMENSIONS) EQ 2) THEN $
+        tarr_sel = REFORM(tarr[tini_col,*]) $
+      ELSE $
+        tarr_sel = tarr
+    ENDIF
+    sjixoff = 0
+    sjiyoff = 0
+    sjix0 = 0
+    sjiy0 = 0
+  ENDIF ELSE BEGIN
+    offsetarray = READFITS(filename, EXTEN_NO=1, /SILENT)
+    tarr_sel = REFORM(offsetarray[*,0])
+    sjixoff = REFORM(offsetarray[*,1])
+    sjiyoff = REFORM(offsetarray[*,2])
+    sjix0 = SXPAR(header, 'ROWSTAR')
+    sjiy0 = SXPAR(header, 'COLSTAR')
+    nt = naxis[sortorder[2]]
+  ENDELSE
+  ; Determine plot labels
+  xlab = STRTRIM(ctype[sortorder[0]],2)
+  ylab = STRTRIM(ctype[sortorder[1]],2)
+  lplab = STRTRIM(ctype[sortorder[2]],2)
+  xunit = STRTRIM(cunit[sortorder[0]],2)
+  yunit = STRTRIM(cunit[sortorder[1]],2)
+  lpunit = STRTRIM(cunit[sortorder[2]],2)
+  ; Determine spectral parameters
+  IF (N_PARAMS() EQ 3) THEN BEGIN
+    lam = READFITS(filename,EXTEN_NO=1,/SILENT)
+  ENDIF ELSE BEGIN
+    lam = (FINDGEN(nlp)+1-crpix[sortorder[2]])*cdelt[sortorder[2]]+crval[sortorder[2]]
+  ENDELSE
+  lcval = crval[sortorder[2]]
+  lc = (WHERE(lam EQ lcval))[0]
+  IF (lc EQ -1) THEN lc = 0
+  ; Determine number of diagnostics
+  ndiagnostics = SXPAR(header,'NWIN')
+  IF (ndiagnostics GT 0) THEN BEGIN
+    wstart = SXPAR(header,'WSTART*')
+    wwidth = SXPAR(header,'WWIDTH*')
+    wdesc = SXPAR(header,'WDESC*')
+    wstart = wstart[WHERE(wdesc NE '')]
+    wwidth = wwidth[WHERE(wdesc NE '')]
+    diagnostics = wdesc[WHERE(wdesc NE '')]
+  ENDIF ELSE BEGIN
+    wstart = 0
+    wwidth = nlp
+    ndiagnostics = 1
+    diagnostics = btype
+  ENDELSE
+  ; Get slit coordinates on SJI image if raster
+  IF ((SIZE(SXPAR(header,'SJIFIL*'),/TYPE) EQ 7) AND $
+    (~KEYWORD_SET(SPCUBE) AND ~KEYWORD_SET(REFSPCUBE))) THEN BEGIN
+    raster_coords = READFITS(filename, hdr_tmp, EXTEN_NO=3, /SILENT)
+    xyrastersji = REFORM(ABS(raster_coords[*,0,*]))
+  ENDIF ELSE xyrastersji = 0
+  ;
+  key = {nx:nx,ny:ny,nlp:nlp,nt:nt,ns:ns,cslab:cslab, $
+       datatype:datatype,dx:dx,dy:dy,dt:dt,lam:lam,lc:lc, $
+       tarr_sel:tarr_sel, xyrastersji:xyrastersji, $
+       sjixoff:sjixoff, sjiyoff:sjiyoff, sjix0:sjix0, sjiy0:sjiy0, $
+       xlab:xlab,ylab:ylab,lplab:lplab,tlab:tlab, $
+       btype:btype,bunit:bunit, $ 
+       xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,$
+       wstart:wstart, wwidth:wwidth, diagnostics:diagnostics, $
+       ndiagnostics:ndiagnostics $
+       }
+END
 
 PRO CRISPEX_READ_HEADER, filename, header=header, datatype=datatype, dims=dims, nx=nx, ny=ny, $
                          nt=nt, endian=endian, stokes=stokes, ns=ns, diagnostics=diagnostics
@@ -10632,7 +10779,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '597'
+	revision_number = '598'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -10853,7 +11000,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                             IO_FAILSAFE_MAIN_REF_ERROR=io_failsafe_main_ref_error
   IF ((io_failsafe_ref_error EQ 1) OR (io_failsafe_main_ref_error EQ 1)) THEN RETURN
   IF (N_ELEMENTS(REFCUBE) LT 1) THEN $
-    hdr = CREATE_STRUCT(hdr, 'refdiagnostics', '', 'refdiag_start', 0, 'refdiag_width', 1)
+    hdr = CREATE_STRUCT(hdr, 'refdiagnostics', '', 'refdiag_start', 0, 'refdiag_width', 1, $
+            'tarr_ref', 0)
 
   CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr, HDR_OUT=hdr, $  
                             STARTUPTLB=startuptlb, $
@@ -10971,7 +11119,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	IF (N_ELEMENTS(hdr.dt) EQ 1) THEN BEGIN
 		IF (hdr.spfile OR hdr.onecube) THEN BEGIN
 			dt_set = 1
-			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = 'Time (s)'
+			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = hdr.spytitle ;'Time (s)'
 		ENDIF ELSE BEGIN
       CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Calling CRISPEX with DT has no influence when '+$
         'no SPCUBE is supplied. Setting seconds per timestep to default value.', /WARNING, $
@@ -11895,13 +12043,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;	IF (hdr.refspfile EQ 1) THEN refspdata = PTR_NEW(referencespectra, /NO_COPY) ELSE refspdata = 0
 ;	scan	= PTR_NEW(hdr.scanfile, /NO_COPY)
   phiscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp, TYPE=hdr.imtype))
-;	IF (hdr.imtype EQ 1) THEN phiscan = PTR_NEW(BYTARR(hdr.nx,hdr.ny,hdr.nlp)) ELSE $
-;  IF (hdr.imtype EQ 2) THEN phiscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.nlp)) ELSE $
-;  IF (hdr.imtype EQ 4) THEN phiscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.nlp))
   sspscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp*hdr.ns, TYPE=hdr.imtype))
-;	IF (hdr.imtype EQ 1) THEN sspscan = PTR_NEW(BYTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns)) ELSE $
-;  IF (hdr.imtype EQ 2) THEN sspscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns)) ELSE $
-;  IF (hdr.imtype EQ 4) THEN sspscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns))
 	phislice= PTR_NEW(BYTARR(hdr.nlp,nphi))
 	IF ((hdr.spfile EQ 1) OR (hdr.single_cube[0] GE 1)) THEN BEGIN
 		loopslab= PTR_NEW(FLTARR(hdr.nlp,hdr.nt,nphi))
@@ -12100,7 +12242,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     refspfilename:hdr.refspfilename, maskfilename:hdr.maskfilename, $	
 		x:x_start, y:y_start, d_nx:hdr.nx, d_ny:hdr.ny, nx:hdr.nx, ny:hdr.ny, $							
     sjinx:hdr.sjinx, sjiny:hdr.sjiny, sjidx:hdr.sjidx, sjidy:hdr.sjidy, sjint:hdr.sjint,$
-    xsji:x_start, ysji:y_start, tarr_sji:hdr.tarr_sji, tarr_main:hdr.tarr_main, $
+    xsji:x_start, ysji:y_start, tarr_sji:hdr.tarr_sji, tarr_main:hdr.tarr_main, tarr_ref:hdr.tarr_ref, $
 		lc:hdr.lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp, refnlp:hdr.refnlp,$	
     ns:hdr.ns, s:0L, $					
 		lps:hdr.lps, ms:hdr.ms, spec:hdr.mainspec, $
