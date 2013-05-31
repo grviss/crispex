@@ -852,6 +852,7 @@ PRO CRISPEX_DISPLAYS_ALL_TO_FRONT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_ALL_TO_FRONT', /IGNORE_LAST
 	; Data windows
+	IF ((*(*info).winids).sjitlb NE 0) THEN WSHOW, (*(*info).winids).sjiwid
 	WSHOW, (*(*info).winids).imwid
 	IF ((*(*info).winids).sptlb NE 0) THEN WSHOW, (*(*info).winids).spwid
 	IF ((*(*info).winids).lstlb NE 0) THEN WSHOW, (*(*info).winids).lswid
@@ -859,7 +860,8 @@ PRO CRISPEX_DISPLAYS_ALL_TO_FRONT, event
 	IF ((*(*info).winids).reftlb NE 0) THEN WSHOW, (*(*info).winids).refwid
 	IF ((*(*info).winids).doptlb NE 0) THEN WSHOW, (*(*info).winids).dopwid
 	IF ((*(*info).winids).imreftlb NE 0) THEN WSHOW, (*(*info).winids).imrefwid
-	IF (TOTAL(*(*(*info).winids).restlooptlb) NE 0) THEN FOR i=0,N_ELEMENTS(*(*(*info).winids).restlooptlb)-1 DO WSHOW, (*(*(*info).winids).restloopwid)[i]
+	IF (TOTAL(*(*(*info).winids).restlooptlb) NE 0) THEN $
+    FOR i=0,N_ELEMENTS(*(*(*info).winids).restlooptlb)-1 DO WSHOW, (*(*(*info).winids).restloopwid)[i]
 	IF ((*(*info).winids).retrdettlb NE 0) THEN WSHOW, (*(*info).winids).retrdetwid
 	IF ((*(*info).winids).looptlb NE 0) THEN WSHOW, (*(*info).winids).loopwid
 	IF ((*(*info).winids).refsptlb NE 0) THEN WSHOW, (*(*info).winids).refspwid
@@ -881,6 +883,8 @@ PRO CRISPEX_DISPLAYS_ALL_TO_FRONT, event
 	IF ((*(*info).winids).restsesfeedbtlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
 	IF ((*(*info).winids).abouttlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).abouttlb, /SHOW
 	IF ((*(*info).winids).errtlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).errtlb, /SHOW
+  ; Control panel
+  WIDGET_CONTROL, (*(*info).winids).root, /SHOW
 END
 
 PRO CRISPEX_DISPWIDS, event
@@ -4664,18 +4668,18 @@ PRO CRISPEX_IO_FAILSAFES_MAIN, imcube, spcube, input_single_cube, $
 			hdr_out.onecube = 0
 		ENDIF
 		hdr_out.single_cube[0] = 0
-	ENDIF ELSE BEGIN  ; If no SPCUBE has been supplied, check other settings
-    ; Check setting of SINGLE_CUBE keyword
-		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set nlp and nt
-			hdr_out.nlp = LONG(INPUT_SINGLE_CUBE)
-			hdr_out.onecube = 1
-      hdr_out.single_cube[0] = hdr_out.nlp
-			hdr_out.nt = hdr_in.imnt / hdr_in.nlp / hdr_in.ns
-		ENDIF ELSE BEGIN  ; If no SPCUBE or SINGLE_CUBE are set, we are dealing with a snapshot
-			hdr_out.nlp = hdr_in.imnt / hdr_in.ns
-			hdr_out.single_cube[0] = 0
-		ENDELSE
-	ENDELSE
+	ENDIF ;ELSE BEGIN  ; If no SPCUBE has been supplied, check other settings
+;    ; Check setting of SINGLE_CUBE keyword
+;		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set nlp and nt
+;			hdr_out.nlp = LONG(INPUT_SINGLE_CUBE)
+;			hdr_out.onecube = 1
+;      hdr_out.single_cube[0] = hdr_out.nlp
+;			hdr_out.nt = hdr_in.imnt / hdr_in.nlp / hdr_in.ns
+;		ENDIF ELSE BEGIN  ; If no SPCUBE or SINGLE_CUBE are set, we are dealing with a snapshot
+;			hdr_out.nlp = hdr_in.imnt / hdr_in.ns
+;			hdr_out.single_cube[0] = 0
+;		ENDELSE
+;	ENDELSE
 END
 
 PRO CRISPEX_IO_FAILSAFES_MAIN_REF, HDR=hdr, STARTUPTLB=startuptlb, $
@@ -4747,14 +4751,14 @@ PRO CRISPEX_IO_FAILSAFES_REF, refcube, input_single_cube, HDR_IN=hdr_in, HDR_OUT
       io_failsafe_error = 2
 		ENDIF
 		hdr_out.single_cube[1] = 0
-	ENDIF ELSE BEGIN  ; If no REFSPCUBE has been supplied, check other settings
-    ; Check setting of SINGLE_CUBE keyword
-		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set refnlp 
-			hdr_out.refnlp = LONG(INPUT_SINGLE_CUBE)
-			hdr_out.onecube = 1
-      hdr_out.single_cube[1] = hdr_out.refnlp
-		ENDIF 
-  ENDELSE
+	ENDIF ;ELSE BEGIN  ; If no REFSPCUBE has been supplied, check other settings
+;    ; Check setting of SINGLE_CUBE keyword
+;		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set refnlp 
+;			hdr_out.refnlp = LONG(INPUT_SINGLE_CUBE)
+;			hdr_out.onecube = 1
+;      hdr_out.single_cube[1] = hdr_out.refnlp
+;		ENDIF 
+;  ENDELSE
 END
 
 PRO CRISPEX_IO_FAILSAFES_MAIN_SJI, sjicube, HDR=hdr, STARTUPTLB=startuptlb, $
@@ -4935,10 +4939,6 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
   ipath = hdr_out.ipath
   instance_label = hdr_out.instance_label
   hdr_out.imfilename = imcube
-;  IF ((hdr_out.single_cube[0] NE 0) AND (N_ELEMENTS(SPCUBE) NE 1)) THEN $
-;    main_single_cube = hdr_out.single_cube[0] $
-;  ELSE IF (N_ELEMENTS(SINGLE_CUBE) GE 1) THEN $
-;    main_single_cube = single_cube[0]
   ; Determine cube compatibility mode for inputfiles (0: running FITS cubes, 1: running old cubes)
 	imext = STRMID(hdr_out.imfilename,STRPOS(hdr_out.imfilename,'.',/REVERSE_SEARCH)+1,$
                   STRLEN(hdr_out.imfilename))  ; Process extension
@@ -4954,14 +4954,20 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
     CRISPEX_IO_PARSE_HEADER, hdr_out.spfilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                             CUBE_COMPATIBILITY=hdr_out.spcube_compatibility, EXTEN_NO=0, /SPCUBE
 	ENDIF ELSE hdr_out.onecube = 1                       ; onecube switch if no SPCUBE has been provided
-  CRISPEX_IO_PARSE_HEADER, hdr_out.imfilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
-                            CUBE_COMPATIBILITY=hdr_out.imcube_compatibility, EXTEN_NO=0, /IMCUBE
-	hdr_out.multichannel = (hdr_out.ns GE 2)
   ; If single_cube value has been set from single FITS cube, use that
-  IF ((hdr_out.single_cube[0] NE 0) AND (N_ELEMENTS(SPCUBE) NE 1)) THEN $
+  IF ((hdr_out.imcube_compatibility EQ 0) AND (N_ELEMENTS(SPCUBE) NE 1)) THEN $
     main_single_cube = hdr_out.single_cube[0] $
   ELSE IF (N_ELEMENTS(SINGLE_CUBE) GE 1) THEN $
     main_single_cube = single_cube[0]
+  CRISPEX_IO_PARSE_HEADER, hdr_out.imfilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
+                            CUBE_COMPATIBILITY=hdr_out.imcube_compatibility, EXTEN_NO=0, /IMCUBE, $
+                            SINGLE_CUBE=main_single_cube
+	hdr_out.multichannel = (hdr_out.ns GE 2)
+;  ; If single_cube value has been set from single FITS cube, use that
+;  IF ((hdr_out.single_cube[0] NE 0) AND (N_ELEMENTS(SPCUBE) NE 1)) THEN $
+;    main_single_cube = hdr_out.single_cube[0] $
+;  ELSE IF (N_ELEMENTS(SINGLE_CUBE) GE 1) THEN $
+;    main_single_cube = single_cube[0]
   CRISPEX_IO_FAILSAFES_MAIN, hdr_out.imfilename, hdr_out.spfilename, main_single_cube, $
                              HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                              STARTUPTLB=startuptlb, $
@@ -5109,6 +5115,11 @@ PRO CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
   	refimext = STRMID(hdr_out.refimfilename,STRPOS(hdr_out.refimfilename,'.',/REVERSE_SEARCH)+1,$
                       STRLEN(hdr_out.refimfilename))
   	hdr_out.refimcube_compatibility = ABS(STRMATCH(refimext,'fits',/FOLD_CASE)-1)
+    ; If single_cube value has been set from single FITS cube, use that
+    IF ((hdr_out.refimcube_compatibility EQ 0) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN $
+      ref_single_cube = hdr_out.single_cube[1] $
+    ELSE IF (N_ELEMENTS(SINGLE_CUBE) EQ 2) THEN $
+      ref_single_cube = single_cube[1]
   ; Handle reference image cube first, only after that check for reference spectral cube
     CRISPEX_IO_PARSE_HEADER, hdr_out.refimfilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                            CUBE_COMPATIBILITY=hdr_out.refimcube_compatibility, EXTEN_NO=0, /REFIMCUBE
@@ -5120,11 +5131,11 @@ PRO CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       CRISPEX_IO_PARSE_HEADER, hdr_out.refspfilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                              CUBE_COMPATIBILITY=hdr_out.refspcube_compatibility, EXTEN_NO=0, /REFSPCUBE
     ENDIF 
-    ; If single_cube value has been set from single FITS cube, use that
-    IF ((hdr_out.single_cube[1] NE 0) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN $
-      ref_single_cube = hdr_out.single_cube[1] $
-    ELSE IF (N_ELEMENTS(SINGLE_CUBE) EQ 2) THEN $
-      ref_single_cube = single_cube[1]
+;    ; If single_cube value has been set from single FITS cube, use that
+;    IF ((hdr_out.single_cube[1] NE 0) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN $
+;      ref_single_cube = hdr_out.single_cube[1] $
+;    ELSE IF (N_ELEMENTS(SINGLE_CUBE) EQ 2) THEN $
+;      ref_single_cube = single_cube[1]
     CRISPEX_IO_FAILSAFES_REF, refcube, ref_single_cube, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                             STARTUPTLB=startuptlb, IO_FAILSAFE_ERROR=io_failsafe_ref_error
     IF (io_failsafe_ref_error EQ 1) THEN RETURN
@@ -5523,6 +5534,30 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
       hdr_out = CREATE_STRUCT(hdr_out, tag, v_dop, tag2, lc_sel)
     ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, tag, v_dop)
   ENDFOR
+END
+
+PRO CRISPEX_IO_PARSE_SINGLE_CUBE, input_single_cube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+  MAIN=main, REFERENCE=reference
+  hdr_out = hdr_in
+  ; Check setting of SINGLE_CUBE keyword
+  IF KEYWORD_SET(MAIN) THEN BEGIN
+  	IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set nlp and nt
+  		hdr_out.nlp = LONG(INPUT_SINGLE_CUBE)
+  		hdr_out.onecube = 1
+      hdr_out.single_cube[0] = hdr_out.nlp
+  		hdr_out.nt = hdr_in.imnt / hdr_in.nlp / hdr_in.ns
+  	ENDIF ELSE IF (hdr_out.spfile EQ 0) THEN BEGIN  
+      ; If no SPCUBE or SINGLE_CUBE are set, we are dealing with a snapshot
+  		hdr_out.nlp = hdr_in.imnt / hdr_in.ns
+  		hdr_out.single_cube[0] = 0
+    ENDIF
+  ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
+		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) EQ 1) THEN BEGIN  ; If SINGLE_CUBE properly set, set refnlp 
+			hdr_out.refnlp = LONG(INPUT_SINGLE_CUBE)
+			hdr_out.onecube = 1
+      hdr_out.single_cube[1] = hdr_out.refnlp
+		ENDIF 
+  ENDIF
 END
 
 PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
@@ -6706,7 +6741,7 @@ END
 PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
                          IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, REFSPCUBE=refspcube, $
                          SJICUBE=sjicube, MASKCUBE=maskcube, CUBE_COMPATIBILITY=cube_compatibility,$
-                         EXTEN_NO=exten_no
+                         EXTEN_NO=exten_no, SINGLE_CUBE=single_cube
 ; Handles read-in of file header, running different parsing depending on CUBE_COMPATIBILITY setting
   ; Start filling data header structure with header info from inputfile
   IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN
@@ -6736,53 +6771,14 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.lplabel = key.lplab       &  hdr_out.lpunit = key.lpunit
       hdr_out.dt = key.dt               &  hdr_out.single_cube = key.nlp
       lc = key.lc
-;      lcval = SXPAR(header,'CRVAL3')
-;      lc = (WHERE(key.lam EQ lcval))[0]
-;      IF (lc NE -1 ) THEN $
-;        hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam, 'lc', lc) $
-;      ELSE $
       hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam, 'lc', lc)
       ; Handle spectral windows, if present
       hdr_out.ndiagnostics = key.ndiagnostics
       diagnostics = key.diagnostics
       wstart = key.wstart
       wwidth = key.wwidth
-;      hdr_out.ndiagnostics = SXPAR(header,'NWIN')
-;      IF (hdr_out.ndiagnostics GT 0) THEN BEGIN
-;        wstart = SXPAR(header,'WSTART*')
-;        wwidth = SXPAR(header,'WWIDTH*')
-;        wdesc = SXPAR(header,'WDESC*')
-;        wstart = wstart[WHERE(wdesc NE '')]
-;        wwidth = wwidth[WHERE(wdesc NE '')]
-;        diagnostics = wdesc[WHERE(wdesc NE '')]
-;      ENDIF ELSE BEGIN
-;        wstart = 0
-;        wwidth = hdr_out.nlp
-;        hdr_out.ndiagnostics = 1
-;        diagnostics = hdr_out.blabel
-;      ENDELSE
-;      ; Get time array (assuming each raster is co-temporal)
-;      IF (hdr_out.nt GT 1) THEN BEGIN
-;        tarr = READFITS(filename, hdr_tmp, EXTEN_NO=2, /SILENT)
-;        tval = SXPAR(header, 'CRVAL4')
-;        wheretval = (WHERE(tarr EQ tval))[0]
-;        IF (wheretval EQ -1) THEN $
-;          tini_col = 0 $
-;        ELSE $
-;          tini_col = (ARRAY_INDICES(tarr,WHERE(tarr EQ tval)))[0]
-;        IF (SIZE(tarr,/N_DIMENSIONS) EQ 2) THEN $
-;          tarr_main = tarr[tini_col,*] $
-;        ELSE $
-;          tarr_main = tarr
-;      ENDIF
       tarr_main = key.tarr_sel
-;      ; Get slit coordinates on SJI image if raster
-;      IF (SIZE(SXPAR(header,'SJIFIL*'),/TYPE) NE 7) THEN BEGIN
-;        raster_coords = READFITS(filename, hdr_tmp, EXTEN_NO=3, /SILENT)
-;        xyrastersji = REFORM(ABS(raster_coords[*,0,*]))
-;      ENDIF ELSE xyrastersji = 0
       xyrastersji = key.xyrastersji
-;      hdr_out = CREATE_STRUCT(hdr_out, 'diag_start', key.wstart, 'diag_width', key.wwidth)
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.imtype = datatype         &  hdr_out.imendian = endian
       hdr_out.nx = nx                   &  hdr_out.dx = 0.0592
@@ -6790,6 +6786,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.imns = ns                 &  hdr_out.ns = ns
       hdr_out.imstokes = stokes         &  hdr_out.imnt = nt
       ndiagnostics = N_ELEMENTS(diagnostics)
+      CRISPEX_IO_PARSE_SINGLE_CUBE, single_cube, HDR_IN=hdr_out, HDR_OUT=hdr_out,/MAIN
       tarr_main = FINDGEN(hdr_out.nt) * hdr_out.dt
       IF (ndiagnostics GT 0) THEN BEGIN
         diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,strlen(diagnostics)-2),',',$
@@ -6830,31 +6827,12 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.refylabel = key.ylab      &  hdr_out.refyunit = key.yunit
       hdr_out.reflplabel = key.lplab    &  hdr_out.reflpunit = key.lpunit
       reflc = key.lc
-;      reflcval = SXPAR(header,'CRVAL3')
-;      reflc = (WHERE(key.lam EQ reflcval))[0]
-;      IF (reflc NE -1) THEN $
-;        hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', LONG(reflc)) $
-;      ELSE $
       hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', reflc)
       ; Handle spectral windows, if present
       hdr_out.nrefdiagnostics = key.ndiagnostics
       diagnostics = key.diagnostics
       wstart = key.wstart
       wwidth = key.wwidth
-;      hdr_out.nrefdiagnostics = SXPAR(header,'NWIN')
-;      IF (hdr_out.nrefdiagnostics GT 0) THEN BEGIN
-;        wstart = SXPAR(header,'WSTART*')
-;        wwidth = SXPAR(header,'WWIDTH*')
-;        wdesc = SXPAR(header,'WDESC*')
-;        wstart = wstart[WHERE(wdesc NE '')]
-;        wwidth = wwidth[WHERE(wdesc NE '')]
-;        diagnostics = wdesc[WHERE(wdesc NE '')]
-;      ENDIF ELSE BEGIN
-;        wstart = 0
-;        wwidth = hdr_out.refnlp
-;        hdr_out.nrefdiagnostics = 1
-;        diagnostics = hdr_out.refblabel
-;      ENDELSE
       tarr_ref = key.tarr_sel
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.refimtype = datatype      &  hdr_out.refimendian = endian
@@ -6863,6 +6841,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       IF (FLOOR(hdr_out.refimnt/FLOAT(hdr_out.nt)) EQ hdr_out.refimnt/FLOAT(hdr_out.nt)) THEN $
         hdr_out.refnt = hdr_out.nt ELSE hdr_out.refnt = 1L
       hdr_out.refnlp = LONG(hdr_out.refimnt/FLOAT(hdr_out.refnt))
+      CRISPEX_IO_PARSE_SINGLE_CUBE, single_cube, HDR_IN=hdr_out, HDR_OUT=hdr_out,/REFERENCE
       tarr_ref = FINDGEN(hdr_out.refnt) * hdr_out.dt
       ndiagnostics = N_ELEMENTS(diagnostics)
       IF (ndiagnostics GT 0) THEN BEGIN
@@ -6897,7 +6876,6 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.sjidx = key.dx            &  hdr_out.sjidy = key.dy
       hdr_out.sjix0 = key.sjix0 
       hdr_out.sjiy0 = key.sjiy0
-;      offsetarray = READFITS(filename, EXTEN_NO=1, /SILENT)
       hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
         'sjixoff', key.sjixoff, 'sjiyoff', key.sjiyoff)
   ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                ; Fill hdr parameters for MASKCUBE
@@ -10779,7 +10757,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '598'
+	revision_number = '599'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
