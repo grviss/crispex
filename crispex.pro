@@ -975,7 +975,10 @@ PRO CRISPEX_DISPLAYS_DOPPLER_TOGGLE, event, NO_DRAW=no_draw
 		WIDGET_CONTROL, (*(*info).winids).doptlb, /DESTROY
 		(*(*info).winids).doptlb = 0
 	ENDELSE
-	WIDGET_CONTROL, (*(*info).ctrlscp).dop_scaling_but, SENSITIVE = ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop)
+  IF ((*(*info).scaling).imrefscaling EQ 2) THEN BEGIN
+    CRISPEX_SCALING_SET_BUTTONS, event
+    CRISPEX_SCALING_SET_SLIDERS, event
+  ENDIF
 	IF (*(*info).overlayswitch).mask THEN CRISPEX_MASK_BUTTONS_SET, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).doptlb,(*(*info).winids).dopwid,(*(*info).winids).dopdrawid], labels=['doptlb','dopwid','dopdrawid']
 END
@@ -1775,13 +1778,13 @@ PRO CRISPEX_DISPLAYS_REF_TOGGLE, event, NO_DRAW=no_draw
 		WIDGET_CONTROL, reftlb, SET_UVALUE = info
 		XMANAGER, 'CRISPEX', reftlb, /NO_BLOCK
 	ENDIF ELSE BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlscp).ref_scaling_but, SET_BUTTON=0
-		WIDGET_CONTROL, (*(*info).ctrlscp).xy_scaling_but, /SET_BUTTON
-		(*(*info).scaling).imrefscaling = 0
 		WIDGET_CONTROL, (*(*info).winids).reftlb, /DESTROY
 		(*(*info).winids).reftlb = 0
 	ENDELSE
-	WIDGET_CONTROL, (*(*info).ctrlscp).ref_scaling_but, SENSITIVE = (*(*info).winswitch).showref
+  IF ((*(*info).scaling).imrefscaling EQ 1) THEN BEGIN
+    CRISPEX_SCALING_SET_BUTTONS, event
+    CRISPEX_SCALING_SET_SLIDERS, event
+  ENDIF
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE = $
     (((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND ((*(*info).dataparams).refnlp GT 1))
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, $
@@ -2394,8 +2397,8 @@ PRO CRISPEX_DISPLAYS_SJI_TOGGLE, event, NO_DRAW=no_draw
 	IF (*(*info).winswitch).showsji THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Slit-jaw image'
 		CRISPEX_WINDOW, (*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny, $
-      (*(*info).winids).root, title, sjitlb, sjiwid, (*(*info).winsizes).xdelta,$
-      (*(*info).winsizes).ydelta, DRAWID = sjidrawid, DRAWBASE = sjidrawbase
+      (*(*info).winids).root, title, sjitlb, sjiwid, (*(*info).winsizes).spxoffset, 0, $
+      DRAWID = sjidrawid, DRAWBASE = sjidrawbase
 		(*(*info).winids).sjitlb = sjitlb		&	(*(*info).winids).sjiwid = sjiwid	
     (*(*info).winids).sjidrawid = sjidrawid
 		(*(*info).winids).sjidrawbase = sjidrawbase	&	(*(*info).winids).sjiwintitle = title
@@ -2415,7 +2418,6 @@ PRO CRISPEX_DISPLAYS_SJI_TOGGLE, event, NO_DRAW=no_draw
 		WIDGET_CONTROL, (*(*info).winids).sjitlb, /DESTROY
 		(*(*info).winids).sjitlb = 0
 	ENDELSE
-;	WIDGET_CONTROL, (*(*info).ctrlscp).dop_scaling_but, SENSITIVE = ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop)
 ;	IF (*(*info).overlayswitch).mask THEN CRISPEX_MASK_BUTTONS_SET, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).sjitlb,(*(*info).winids).sjiwid,$
@@ -3519,13 +3521,83 @@ PRO CRISPEX_DRAW_SUBCOLOR, event, imref, subcolor, minimum, maximum, XYRANGE=xyr
       labels=['x_low','x_upp','y_low','y_upp','subcolor']
 END
 
+PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
+  MAIN=main, DOPPLER=doppler, REFERENCE=reference, SJI=sji
+; Determines the minimum and maximum value for the image scaling
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SCALING'
+  ; sel = 0 -> main
+  ; sel = 1 -> reference
+  ; sel = 2 -> doppler
+  ; sel = 3 -> sji
+  IF KEYWORD_SET(MAIN) THEN BEGIN
+    sel = 0
+    selected_data = *(*(*info).data).xyslice
+		IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
+			IF ((*(*info).scaling).scalestokes_max AND ((*(*info).dataparams).s GE 1)) THEN BEGIN
+				minimum = MIN(((*(*info).scaling).imagemin)[*,(*(*info).dataparams).s])
+				maximum = MAX(((*(*info).scaling).imagemax)[*,(*(*info).dataparams).s])
+			ENDIF ELSE BEGIN
+				minimum = ((*(*info).scaling).imagemin)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
+				maximum = ((*(*info).scaling).imagemax)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
+			ENDELSE
+    ENDIF 
+  ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
+    sel = 1
+    selected_data = *(*(*info).data).refslice
+  	IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
+  		IF ((*(*info).dataparams).refnlp EQ 1) THEN BEGIN
+  			minimum = (*(*info).scaling).refmin 
+  			maximum = (*(*info).scaling).refmax
+  		ENDIF ELSE BEGIN
+  			minimum = ((*(*info).scaling).refmin)[(*(*info).dataparams).lp_ref]
+  			maximum = ((*(*info).scaling).refmax)[(*(*info).dataparams).lp_ref]
+  		ENDELSE
+    ENDIF 
+  ENDIF ELSE IF KEYWORD_SET(DOPPLER) THEN BEGIN
+    sel = 2
+    selected_data = *(*(*info).data).dopslice
+		IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
+			IF ((*(*info).scaling).scalestokes_max AND ((*(*info).dataparams).s GE 1)) THEN BEGIN
+				minimum = MIN(((*(*info).scaling).dopplermin)[*,(*(*info).dataparams).s])
+				maximum = MAX(((*(*info).scaling).dopplermax)[*,(*(*info).dataparams).s])
+			ENDIF ELSE BEGIN
+				minimum = ((*(*info).scaling).dopplermin)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
+				maximum = ((*(*info).scaling).dopplermax)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
+			ENDELSE
+    ENDIF 
+  ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
+    sel = 3
+    selected_data = *(*(*info).data).sjislice
+  ENDIF
+	IF ((*(*(*info).scaling).imagescale)[sel] EQ 1) THEN $
+    minimum = MIN(selected_data, MAX=maximum) $
+  ELSE IF ((*(*(*info).scaling).imagescale)[sel] GE 2) THEN BEGIN
+		IF (*(*(*info).scaling).relative)[sel] THEN BEGIN
+			minimum = (*(*(*info).scaling).scale_range)[sel] / 100. * $
+        (*(*(*info).scaling).rel_scale_min_val)[sel] + (*(*(*info).scaling).scale_minimum)[sel]
+			maximum = (*(*(*info).scaling).scale_range)[sel] / 100. * $
+        (*(*(*info).scaling).rel_scale_max_val)[sel] + (*(*(*info).scaling).scale_minimum)[sel]
+		ENDIF ELSE BEGIN
+			minimum = (*(*(*info).scaling).scale_range)[sel] / 255. * $
+        (*(*(*info).scaling).scale_min_val)[sel] + (*(*(*info).scaling).scale_minimum)[sel]
+			maximum = (*(*(*info).scaling).scale_range)[sel] / 255. * $
+        (*(*(*info).scaling).scale_max_val)[sel] + (*(*(*info).scaling).scale_minimum)[sel]
+		ENDELSE
+	ENDIF 
+	finalimage = BYTSCL(selected_data, MIN = minimum, MAX = maximum) 
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [minimum,maximum], labels=['minimum','maximum']
+END
+
 PRO CRISPEX_DRAW_XY, event, no_cursor=no_cursor, no_number=no_number, thick=thick, no_endpoints=no_endpoints, symsize=symsize, asecbar=asecbar
 ; (Re)draw main image procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_XY'
 	WSET, (*(*info).winids).imwid
-	CRISPEX_DRAW_XYSLICE_SCALING, event, imdisp, minimum, maximum
-	IF ((*(*info).zooming).factor EQ 1) THEN TV, CONGRID(imdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ELSE TV, imdisp 
+	CRISPEX_DRAW_SCALING, event, imdisp, minimum, maximum, /MAIN
+  TV, CONGRID(imdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
 	CRISPEX_DRAW_SUBCOLOR, event, 0, subcolor, minimum, maximum
 	IF (subcolor GE 122) THEN curscolor = 0 ELSE curscolor = 255
 	CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, NO_CURSOR=no_cursor, NO_NUMBER=no_number, THICK=thick, NO_ENDPOINTS=no_endpoints, SYMSIZE=symsize, $
@@ -3541,90 +3613,45 @@ PRO CRISPEX_DRAW_XY, event, no_cursor=no_cursor, no_number=no_number, thick=thic
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).imwid,curscolor], labels=['Window ID for draw','Main curscolor']
 END
 
-PRO CRISPEX_DRAW_XYSLICE_SCALING, event, finalimage, minimum, maximum
-; Determines the minimum and maximum value for the main image scaling
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_XYSLICE_SCALING'
-		IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN BEGIN
-			IF ((*(*info).scaling).scalestokes_max AND ((*(*info).dataparams).s GE 1)) THEN BEGIN
-				minimum = MIN(((*(*info).scaling).imagemin)[*,(*(*info).dataparams).s])
-				maximum = MAX(((*(*info).scaling).imagemax)[*,(*(*info).dataparams).s])
-			ENDIF ELSE BEGIN
-				minimum = ((*(*info).scaling).imagemin)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
-				maximum = ((*(*info).scaling).imagemax)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
-			ENDELSE
-		ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[0] EQ 1) THEN BEGIN
-			minimum = MIN( *(*(*info).data).xyslice, MAX=maximum)
-		ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[0] EQ 2) OR ((*(*(*info).scaling).imagescale)[0] EQ 3) THEN BEGIN
-			IF (*(*(*info).scaling).relative)[0] THEN BEGIN
-				minimum = (*(*(*info).scaling).scale_range)[0] / 100. * (*(*(*info).scaling).rel_scale_min_val)[0] + (*(*(*info).scaling).scale_minimum)[0]
-				maximum = (*(*(*info).scaling).scale_range)[0] / 100. * (*(*(*info).scaling).rel_scale_max_val)[0] + (*(*(*info).scaling).scale_minimum)[0]
-			ENDIF ELSE BEGIN
-				minimum = (*(*(*info).scaling).scale_range)[0] / 255. * (*(*(*info).scaling).scale_min_val)[0] + (*(*(*info).scaling).scale_minimum)[0]
-				maximum = (*(*(*info).scaling).scale_range)[0] / 255. * (*(*(*info).scaling).scale_max_val)[0] + (*(*(*info).scaling).scale_minimum)[0]
-			ENDELSE
-		ENDIF 
-		finalimage = BYTSCL(*(*(*info).data).xyslice, MIN = minimum, MAX = maximum) 
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [minimum,maximum], labels=['minimum','maximum']
-END
-
 PRO CRISPEX_DRAW_DOPPLER, event
 ; (Re)draw Doppler-image procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_DOPPLER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_DOPPLER'
 	WSET, (*(*info).winids).dopwid
 	IF (*(*info).dispswitch).drawdop THEN BEGIN
-		CRISPEX_DRAW_DOPSLICE_SCALING, event, dopdisp, dopminimum, dopmaximum
-		IF ((*(*info).zooming).factor EQ 1) THEN TV, CONGRID(dopdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ELSE TV, dopdisp
+		CRISPEX_DRAW_SCALING, event, dopdisp, dopminimum, dopmaximum, /DOPPLER
+    TV, CONGRID(dopdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
 		CRISPEX_DRAW_SUBCOLOR, event, 2, dopsubcolor, dopminimum, dopmaximum
-		IF (dopsubcolor GE 122) THEN dopcurscolor = 0 ELSE dopcurscolor = 255
-		CRISPEX_DRAW_CURSCROSS_PLOT, event, dopcurscolor, DRAW_MASK=((*(*info).overlayswitch).mask AND ((*(*info).overlayswitch).maskim)[2])
+		IF (dopsubcolor GE 122) THEN $
+      dopcurscolor = 0 $
+    ELSE $
+      dopcurscolor = 255
+		CRISPEX_DRAW_CURSCROSS_PLOT, event, dopcurscolor, $
+      DRAW_MASK=((*(*info).overlayswitch).mask AND ((*(*info).overlayswitch).maskim)[2])
 	ENDIF ELSE BEGIN
-		(*(*info).scaling).imrefscaling = 0
-		CRISPEX_SCALING_SET_BUTTONS, event
-		CRISPEX_SCALING_SET_SLIDERS, event
-		WIDGET_CONTROL, (*(*info).ctrlscp).xy_scaling_but, /SET_BUTTON
-		WIDGET_CONTROL, (*(*info).ctrlscp).dop_scaling_but, SET_BUTTON = 0
 		TV, CONGRID(*(*(*info).data).emptydopslice,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
 		IF ((*(*info).dataparams).lp GT (*(*info).dataparams).lp_dop) THEN BEGIN
 			lp_blue = (*(*info).dataparams).lp_dop		&	lp_red = (*(*info).dataparams).lp
 		ENDIF ELSE BEGIN
 			lp_blue = (*(*info).dataparams).lp		&	lp_red = (*(*info).dataparams).lp_dop
 		ENDELSE
-		IF (lp_red EQ lp_blue) THEN extramessage = 'Same spectral position' ELSE extramessage = 'Spectral position outside set spectral range'
-		XYOUTS,(*(*info).winsizes).xywinx/2.,(*(*info).winsizes).xywiny/2.,'Could not create Doppler image for selected spectral positions.!C'+extramessage+': (lp_blue,lp_red)=('+$
+		IF (lp_red EQ lp_blue) THEN $
+      extramessage = 'Same spectral position' $
+    ELSE $
+      extramessage = 'Spectral position outside set spectral range'
+		XYOUTS,(*(*info).winsizes).xywinx/2.,(*(*info).winsizes).xywiny/2.,$
+      'Could not create Doppler image for selected spectral positions.!C'+extramessage+': (lp_blue,lp_red)=('+$
 			STRTRIM(lp_blue,2)+','+STRTRIM(lp_red,2)+')', CHARSIZE = 1.2, COLOR = 255, ALIGNMENT = 0.5, /DEVICE
 		dopcurscolor = 255
 	ENDELSE
-	WIDGET_CONTROL, (*(*info).ctrlscp).dop_scaling_but, SENSITIVE = (*(*info).dispswitch).drawdop
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).dopwid,(*(*info).dispswitch).drawdop,dopcurscolor], $
+  IF ((*(*info).scaling).imrefscaling EQ 2) THEN BEGIN
+    CRISPEX_SCALING_SET_BUTTONS, event
+    CRISPEX_SCALING_SET_SLIDERS, event
+  ENDIF
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).dopwid,(*(*info).dispswitch).drawdop,dopcurscolor], $
 		labels=['Window ID for draw','Drawing Doppler image','Doppler curscolor']
-END
-
-PRO CRISPEX_DRAW_DOPSLICE_SCALING, event, finalimage, minimum, maximum
-; Determines the minimum and maximum value for the Doppler-image scaling
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_DOPSLICE_SCALING'
-		IF ((*(*(*info).scaling).imagescale)[2] EQ 0) THEN BEGIN
-			IF ((*(*info).scaling).scalestokes_max AND ((*(*info).dataparams).s GE 1)) THEN BEGIN
-				minimum = MIN(((*(*info).scaling).dopplermin)[*,(*(*info).dataparams).s])
-				maximum = MAX(((*(*info).scaling).dopplermax)[*,(*(*info).dataparams).s])
-			ENDIF ELSE BEGIN
-				minimum = ((*(*info).scaling).dopplermin)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
-				maximum = ((*(*info).scaling).dopplermax)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
-			ENDELSE
-		ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[2] EQ 1) THEN minimum = MIN( *(*(*info).data).dopslice, MAX=maximum) ELSE $
-			IF ((*(*(*info).scaling).imagescale)[2] EQ 2) OR ((*(*(*info).scaling).imagescale)[2] EQ 3) THEN BEGIN
-			IF (*(*(*info).scaling).relative)[2] THEN BEGIN
-				minimum = (*(*(*info).scaling).scale_range)[2] / 100. * (*(*(*info).scaling).rel_scale_min_val)[2] + (*(*(*info).scaling).scale_minimum)[2]
-				maximum = (*(*(*info).scaling).scale_range)[2] / 100. * (*(*(*info).scaling).rel_scale_max_val)[2] + (*(*(*info).scaling).scale_minimum)[2]
-			ENDIF ELSE BEGIN
-				minimum = (*(*(*info).scaling).scale_range)[2] / 255. * (*(*(*info).scaling).scale_min_val)[2] + (*(*(*info).scaling).scale_minimum)[2]
-				maximum = (*(*(*info).scaling).scale_range)[2] / 255. * (*(*(*info).scaling).scale_max_val)[2] + (*(*(*info).scaling).scale_minimum)[2]
-			ENDELSE
-		ENDIF 
-		finalimage = BYTSCL(*(*(*info).data).dopslice, MIN = minimum, MAX = maximum) 
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [minimum,maximum], labels=['minimum','maximum']
 END
 
 PRO CRISPEX_DRAW_REF, event
@@ -3632,38 +3659,12 @@ PRO CRISPEX_DRAW_REF, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_REF'
 	WSET, (*(*info).winids).refwid
-	CRISPEX_DRAW_REFSLICE_SCALING, event, refdisp, refmin, refmax
-	IF ((*(*info).zooming).factor EQ 1) THEN TV, CONGRID(refdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ELSE TV, refdisp 
+	CRISPEX_DRAW_SCALING, event, refdisp, refmin, refmax, /REFERENCE
+  TV, CONGRID(refdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) 
 	CRISPEX_DRAW_SUBCOLOR, event, 1, subcolor_ref, refmin, refmax
 	IF (subcolor_ref GE 122) THEN curscolor_ref = 0 ELSE curscolor_ref = 255
 	CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor_ref, DRAW_MASK=((*(*info).overlayswitch).mask AND ((*(*info).overlayswitch).maskim)[1])
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).refwid,curscolor_ref], labels=['Window ID for draw','Reference curscolor']
-END
-
-PRO CRISPEX_DRAW_REFSLICE_SCALING, event, refdisp, refmin, refmax
-; Determines the minimum and maximum value for the reference image scaling
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_REFSLICE_SCALING'
-	IF ((*(*(*info).scaling).imagescale)[1] EQ 0) THEN BEGIN
-		IF ((*(*info).dataparams).refnlp EQ 1) THEN BEGIN
-			refmin = (*(*info).scaling).refmin 
-			refmax = (*(*info).scaling).refmax
-		ENDIF ELSE BEGIN
-			refmin = ((*(*info).scaling).refmin)[(*(*info).dataparams).lp_ref]
-			refmax = ((*(*info).scaling).refmax)[(*(*info).dataparams).lp_ref]
-		ENDELSE
-	ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[1] EQ 1) THEN refmin = MIN( *(*(*info).data).refslice, MAX=refmax) ELSE $
-		IF ((*(*(*info).scaling).imagescale)[1] EQ 2) OR ((*(*(*info).scaling).imagescale)[1] EQ 3) THEN BEGIN
-		IF (*(*(*info).scaling).relative)[1] THEN BEGIN
-			refmin = (*(*(*info).scaling).scale_range)[1] / 100. * (*(*(*info).scaling).rel_scale_min_val)[1] + (*(*(*info).scaling).scale_minimum)[1]
-			refmax = (*(*(*info).scaling).scale_range)[1] / 100. * (*(*(*info).scaling).rel_scale_max_val)[1] + (*(*(*info).scaling).scale_minimum)[1]
-		ENDIF ELSE BEGIN
-			refmin = (*(*(*info).scaling).scale_range)[1] / 255. * (*(*(*info).scaling).scale_min_val)[1] + (*(*(*info).scaling).scale_minimum)[1]
-			refmax = (*(*(*info).scaling).scale_range)[1] / 255. * (*(*(*info).scaling).scale_max_val)[1] + (*(*(*info).scaling).scale_minimum)[1]
-		ENDELSE
-	ENDIF 
-	refdisp = BYTSCL(*(*(*info).data).refslice, MIN = refmin, MAX = refmax)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [refmin,refmax], labels=['minimum','maximum']
 END
 
 PRO CRISPEX_DRAW_IMREF_BLINK, event
@@ -3675,8 +3676,8 @@ PRO CRISPEX_DRAW_IMREF_BLINK, event
 	IF (SIZE((*(*info).plotaxes).dt,/TYPE) NE 2) THEN time = STRING((*(*info).dataparams).t*(*(*info).plotaxes).dt,FORMAT='(F'+STRTRIM(FLOOR(ALOG10(((*(*info).dataparams).t+1)*(*(*info).plotaxes).dt))+4,2)+'.2)')+' s' ELSE $
 		time = STRTRIM((*(*info).dataparams).t,2)
 	IF (*(*info).winids).imrefdisp THEN BEGIN
-		CRISPEX_DRAW_REFSLICE_SCALING, event, refdisp, refmin, refmax
-		IF ((*(*info).zooming).factor EQ 1) THEN TV, CONGRID(refdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ELSE TV, refdisp
+		CRISPEX_DRAW_SCALING, event, refdisp, refmin, refmax, /REFERENCE
+    TV, CONGRID(refdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) 
 		CRISPEX_DRAW_SUBCOLOR, event, 1, subcolor_ref, refmin, refmax
 		IF (subcolor_ref GE 122) THEN curscolor_ref = 0 ELSE curscolor_ref = 255
 		CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor_ref, DRAW_MASK=((*(*info).overlayswitch).mask AND ((*(*info).overlayswitch).maskim)[1])
@@ -3684,8 +3685,8 @@ PRO CRISPEX_DRAW_IMREF_BLINK, event
 		IF (color_reftxt GE 122) THEN reftxtcol = 0 ELSE reftxtcol = 255
 		XYOUTS, 10, 10, 'Reference image, t='+time, /DEVICE, COLOR=reftxtcol
 	ENDIF ELSE BEGIN
-		CRISPEX_DRAW_XYSLICE_SCALING, event, imdisp, minimum, maximum
-		IF ((*(*info).zooming).factor EQ 1) THEN TV, CONGRID(imdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ELSE TV, imdisp 
+		CRISPEX_DRAW_SCALING, event, imdisp, minimum, maximum, /MAIN
+    TV, CONGRID(imdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) 
 		CRISPEX_DRAW_SUBCOLOR, event, 0, subcolor, minimum, maximum
 		IF (subcolor GE 122) THEN curscolor = 0 ELSE curscolor = 255
 		CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, DRAW_MASK=((*(*info).overlayswitch).mask AND ((*(*info).overlayswitch).maskim)[0])
@@ -3845,7 +3846,7 @@ PRO CRISPEX_DRAW_REFSP, event
                 (*(*info).dispparams).lp_ref_low:(*(*info).dispparams).lp_ref_upp,$
 		            (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
 	IF (*(*info).dispparams).slices_imscale THEN $                ; Determine scaling and scale slice
-    CRISPEX_DRAW_REFSLICE_SCALING,event,refdisp,refmin,refmax $
+    CRISPEX_DRAW_SCALING,event,refdisp,refmin,refmax, /REFERENCE $
   ELSE $
     refmin = MIN(refspslice,MAX=refmax)
 	IF (*(*info).dispswitch).warprefspslice THEN $                ; Warp slice if non-equidistant lp
@@ -3907,8 +3908,9 @@ PRO CRISPEX_DRAW_SJI, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SJI'
 	WSET, (*(*info).winids).sjiwid
-	sjimin = MIN( *(*(*info).data).sjislice, MAX=sjimax) 
-  TV, CONGRID(*(*(*info).data).sjislice,(*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny)
+;	sjimin = MIN( *(*(*info).data).sjislice, MAX=sjimax) 
+	CRISPEX_DRAW_SCALING, event, sjidisp, minimum, maximum, /SJI
+  TV, CONGRID(sjidisp,(*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny)
   ; Determine cursor colour and overplot cursors and masks
 	CRISPEX_DRAW_SUBCOLOR, event, 3, subcolor_sji, sjimin, sjimax, /MAIN2SJI
 	IF (subcolor_sji GE 122) THEN curscolor_sji = 0 ELSE curscolor_sji = 255
@@ -4158,7 +4160,7 @@ PRO CRISPEX_DRAW_SP, event
 		        (*(*info).dataparams).s ])[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp,$
             (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
 	IF (*(*info).dispparams).slices_imscale THEN $                ; Determine scaling and scale slice 
-    CRISPEX_DRAW_XYSLICE_SCALING,event,imdisp,minimum,maximum $
+    CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN $
   ELSE $
     minimum = MIN(spslice,MAX=maximum)
 	IF (*(*info).dispswitch).warpspslice THEN $                   ; Warp slice if non-equidistant lp
@@ -4274,7 +4276,7 @@ PRO CRISPEX_DRAW_PHIS, event
   ; If 2D, then display
   IF ((SIZE(phislice))[0] EQ 2) THEN BEGIN
   	IF (*(*info).dispparams).slices_imscale THEN $
-      CRISPEX_DRAW_XYSLICE_SCALING,event,imdisp,minimum,maximum $
+      CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN $
     ELSE $
       minimum = MIN(phislice,MAX=maximum)
     ; Warp slice if non-equidistant lp
@@ -4323,7 +4325,10 @@ PRO CRISPEX_DRAW_LOOPSLAB, event
 	WSET, (*(*info).winids).loopwid
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).loopwid], labels=['Window ID for draw']
 	dispslice = (*(*(*info).loopsdata).loopslice)[*,(*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
-	IF (*(*info).dispparams).slices_imscale THEN CRISPEX_DRAW_XYSLICE_SCALING,event,imdisp,minimum,maximum ELSE minimum = MIN(dispslice,MAX=maximum)
+	IF (*(*info).dispparams).slices_imscale THEN $
+    CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum,/MAIN $
+  ELSE $
+    minimum = MIN(dispslice,MAX=maximum)
 	TV, CONGRID( BYTSCL(dispslice, MIN=minimum, MAX=maximum), (*(*info).dispparams).loopnlxreb, (*(*info).dispparams).loopntreb, /INTERP), $
 		(*(*info).plotpos).loopx0, (*(*info).plotpos).loopy0,/NORM
 	PLOTS, [(*(*info).plotpos).loopx0, (*(*info).plotpos).loopx1], [1,1] * ( ((*(*info).dataparams).t-(*(*info).dispparams).t_low) / FLOAT((*(*info).dispparams).t_range-1) * (*(*info).plotpos).loopyplspw + $
@@ -4342,7 +4347,10 @@ PRO CRISPEX_DRAW_REFLOOPSLAB, event
 	WSET, (*(*info).winids).refloopwid
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).refloopwid], labels=['Window ID for draw']
 	dispslice = (*(*(*info).loopsdata).refloopslice)[*,(*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
-	IF (*(*info).dispparams).slices_imscale THEN CRISPEX_DRAW_REFSLICE_SCALING,event,refdisp,minimum,maximum ELSE minimum = MIN(dispslice,MAX=maximum)
+	IF (*(*info).dispparams).slices_imscale THEN $
+    CRISPEX_DRAW_SCALING,event,refdisp,minimum,maximum,/REFERENCE $
+  ELSE $
+    minimum = MIN(dispslice,MAX=maximum)
 	TV, CONGRID( BYTSCL(dispslice, MIN=minimum, MAX=maximum), (*(*info).dispparams).refloopnlxreb, (*(*info).dispparams).refloopntreb, /INTERP), $
 		(*(*info).plotpos).refloopx0, (*(*info).plotpos).refloopy0,/NORM
 	PLOTS, [(*(*info).plotpos).refloopx0, (*(*info).plotpos).refloopx1], [1,1] * ( ((*(*info).dataparams).t-(*(*info).dispparams).t_low) / FLOAT((*(*info).dispparams).t_range-1) * (*(*info).plotpos).refloopyplspw + $
@@ -4370,9 +4378,15 @@ PRO CRISPEX_DRAW_REST_LOOP, event
 		ENDELSE
 		dispslice = (*(*(*(*info).loopsdata).rest_loopslice[k]))[*,lower_t:upper_t]
 		IF (*(*(*info).restoreparams).disp_imref)[k] THEN BEGIN
-			IF (*(*info).dispparams).slices_imscale THEN CRISPEX_DRAW_REFSLICE_SCALING,event,refdisp,minimum,maximum ELSE minimum = MIN(dispslice,MAX=maximum)
+			IF (*(*info).dispparams).slices_imscale THEN $
+        CRISPEX_DRAW_SCALING,event,refdisp,minimum,maximum, /REFERENCE $
+      ELSE $
+        minimum = MIN(dispslice,MAX=maximum)
 		ENDIF ELSE BEGIN
-			IF (*(*info).dispparams).slices_imscale THEN CRISPEX_DRAW_XYSLICE_SCALING,event,imdisp,minimum,maximum ELSE minimum = MIN(dispslice,MAX=maximum)
+			IF (*(*info).dispparams).slices_imscale THEN $
+        CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum,/MAIN $
+      ELSE $
+        minimum = MIN(dispslice,MAX=maximum)
 		ENDELSE
 		TV, CONGRID( BYTSCL(dispslice, MIN=minimum, MAX=maximum), (*(*info).dispparams).restloopnlxreb, (*(*info).dispparams).restloopntreb, /INTERP), $
 			(*(*info).plotpos).restloopx0, (*(*info).plotpos).restloopy0, /NORM
@@ -8239,33 +8253,51 @@ PRO CRISPEX_SCALING_MAN_FIRST, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_MAN_FIRST'
 	(*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] = 2
 	IF ((*(*info).scaling).imrefscaling EQ 0) THEN BEGIN
+  ; Set variables for main image
 		IF ((*(*info).scaling).scalestokes_max AND ((*(*info).dataparams).s GE 1)) THEN BEGIN
-			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = MIN(((*(*info).scaling).imagemin)[*,(*(*info).dataparams).s])
+			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = $
+        MIN(((*(*info).scaling).imagemin)[*,(*(*info).dataparams).s])
 			maximum = MAX(((*(*info).scaling).imagemax)[*,(*(*info).dataparams).s])
 		ENDIF ELSE BEGIN
-			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = ((*(*info).scaling).imagemin)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
+			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = $
+        ((*(*info).scaling).imagemin)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
 			maximum = ((*(*info).scaling).imagemax)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
 		ENDELSE
 	ENDIF ELSE IF ((*(*info).scaling).imrefscaling EQ 1) THEN BEGIN
+  ; Set variables for reference image
 		IF ((*(*info).dataparams).refnlp EQ 1) THEN BEGIN
-			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = (*(*info).scaling).refmin
+			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = $
+        (*(*info).scaling).refmin
 			maximum = (*(*info).scaling).refmax
 		ENDIF ELSE BEGIN
-			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = ((*(*info).scaling).refmin)[(*(*info).dataparams).lp_ref]
+			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = $
+        ((*(*info).scaling).refmin)[(*(*info).dataparams).lp_ref]
 			maximum = ((*(*info).scaling).refmax)[(*(*info).dataparams).lp_ref]
 		ENDELSE
 	ENDIF ELSE IF ((*(*info).scaling).imrefscaling EQ 2) THEN BEGIN
+  ; Set variables for Doppler image
 		IF ((*(*info).scaling).scalestokes_max AND ((*(*info).dataparams).s GE 1)) THEN BEGIN
-			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = MIN(((*(*info).scaling).dopplermin)[*,(*(*info).dataparams).s])
+			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = $
+        MIN(((*(*info).scaling).dopplermin)[*,(*(*info).dataparams).s])
 			maximum = MAX(((*(*info).scaling).dopplermax)[*,(*(*info).dataparams).s])
 		ENDIF ELSE BEGIN
-			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = ((*(*info).scaling).dopplermin)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
+			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = $
+        ((*(*info).scaling).dopplermin)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
 			maximum = ((*(*info).scaling).dopplermax)[(*(*info).dataparams).lp,(*(*info).dataparams).s]
 		ENDELSE
-	ENDIF
-	(*(*(*info).scaling).scale_range)[(*(*info).scaling).imrefscaling] = maximum - (*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling]
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).scaling).imrefscaling,(*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling],$
-		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling],maximum],labels=['Scaling image','Scaling setting','Scaling minimum','Scaling maximum']
+	ENDIF ELSE IF ((*(*info).scaling).imrefscaling EQ 3) THEN BEGIN
+  ; Set variables for SJI image
+			(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = $
+        (*(*info).scaling).sjimin
+			maximum = (*(*info).scaling).sjimax
+  ENDIF
+	(*(*(*info).scaling).scale_range)[(*(*info).scaling).imrefscaling] = $
+    maximum - (*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling]
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).scaling).imrefscaling,$
+    (*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling],$
+		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling],maximum],$
+    labels=['Scaling image','Scaling setting','Scaling minimum','Scaling maximum']
 	CRISPEX_SCALING_SET_SLIDERS, event
 	CRISPEX_SCALING_REDRAW, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).abs_scale_but, /SENSITIVE
@@ -8275,23 +8307,53 @@ END
 PRO CRISPEX_SCALING_MAN_CURR, event					
 ; Enables the manual scaling based on the current timestep
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_MAN_CURR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_MAN_CURR'
 	(*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] = 3
-	IF ((*(*info).scaling).imrefscaling EQ 0) THEN BEGIN
-		IF (*(*info).dataswitch).spfile OR (*(*info).dataswitch).onecube THEN imdata = (*(*(*info).data).imagedata)[(*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
-			(*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp] ELSE imdata = (*(*(*info).data).imagedata)[(*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp]
-		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = MIN(imdata, MAX=maximum)
-	ENDIF ELSE IF ((*(*info).scaling).imrefscaling EQ 1) THEN BEGIN
-		IF ((*(*info).dataparams).refnt EQ 0) THEN refdata = *(*(*info).data).refdata ELSE IF ((*(*info).dataparams).refnt EQ 1) THEN refdata = (*(*(*info).data).refdata)[0] ELSE $
-			IF ((*(*info).dataparams).refnlp EQ 1) THEN refdata = (*(*(*info).data).refdata)[(*(*info).dataparams).t] ELSE $
-			refdata = (*(*(*info).data).refdata)[(*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref]
-		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = MIN(refdata, MAX=maximum)
-	ENDIF ELSE IF ((*(*info).scaling).imrefscaling EQ 2) THEN BEGIN
-		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = MIN(*(*(*info).data).dopslice, MAX=maximum)
-	ENDIF
-	(*(*(*info).scaling).scale_range)[(*(*info).scaling).imrefscaling] = maximum - (*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling]
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).scaling).imrefscaling,(*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling],$
-		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling],maximum],labels=['Scaling image','Scaling setting','Scaling minimum','Scaling maximum']
+  IF ((*(*info).scaling).imrefscaling EQ 0) THEN $
+    selected_data = *(*(*info).data).xyslice $
+  ELSE IF ((*(*info).scaling).imrefscaling EQ 1) THEN $
+    selected_data = *(*(*info).data).refslice $
+  ELSE IF ((*(*info).scaling).imrefscaling EQ 2) THEN $
+    selected_data = *(*(*info).data).dopslice $
+  ELSE IF ((*(*info).scaling).imrefscaling EQ 3) THEN $
+    selected_data = *(*(*info).data).sjislice
+	(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = $
+    MIN(selected_data, MAX=maximum)
+;	IF ((*(*info).scaling).imrefscaling EQ 0) THEN BEGIN
+;  ; Set variables for main image
+;		IF (*(*info).dataswitch).spfile OR (*(*info).dataswitch).onecube THEN $
+;      imdata = (*(*(*info).data).imagedata)[(*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
+;			(*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp] ELSE imdata = (*(*(*info).data).imagedata)[(*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp]
+;		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = MIN(imdata, MAX=maximum)
+;	ENDIF ELSE IF ((*(*info).scaling).imrefscaling EQ 1) THEN BEGIN
+;  ; Set variables for reference image
+;		IF ((*(*info).dataparams).refnt EQ 0) THEN $
+;      refdata = *(*(*info).data).refdata $
+;    ELSE IF ((*(*info).dataparams).refnt EQ 1) THEN $
+;      refdata = (*(*(*info).data).refdata)[0] $
+;    ELSE IF ((*(*info).dataparams).refnlp EQ 1) THEN $
+;      refdata = (*(*(*info).data).refdata)[(*(*info).dataparams).t] $
+;    ELSE $
+;			refdata = (*(*(*info).data).refdata)[$
+;        (*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref]
+;		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = MIN(refdata, MAX=maximum)
+;	ENDIF ELSE IF ((*(*info).scaling).imrefscaling EQ 2) THEN BEGIN
+;  ; Set variables for Doppler image
+;		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = $
+;      MIN(*(*(*info).data).dopslice, MAX=maximum)
+;	ENDIF ELSE IF ((*(*info).scaling).imrefscaling EQ 3) THEN BEGIN
+;  ; Set variables for SJI image
+;		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling] = $
+;      MIN(*(*(*info).data).sjislice, MAX=maximum)
+;  ENDIF
+	(*(*(*info).scaling).scale_range)[(*(*info).scaling).imrefscaling] = $
+    maximum - (*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling]
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).scaling).imrefscaling,$
+    (*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling],$
+		(*(*(*info).scaling).scale_minimum)[(*(*info).scaling).imrefscaling],maximum],$
+    labels=['Scaling image','Scaling setting','Scaling minimum','Scaling maximum']
 	CRISPEX_SCALING_SET_SLIDERS, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).abs_scale_but, /SENSITIVE
 	WIDGET_CONTROL, (*(*info).ctrlscp).rel_scale_but, /SENSITIVE
@@ -8366,77 +8428,128 @@ PRO CRISPEX_SCALING_MIN_SLIDER, event
 	IF ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 3) THEN CRISPEX_SCALING_MAN_CURR, event ELSE CRISPEX_SCALING_REDRAW, event 
 END
 
-PRO CRISPEX_SCALING_XY_SELECT, event
-; Handles the selection of scaling the main image
+;PRO CRISPEX_SCALING_XY_SELECT, event
+;; Handles the selection of scaling the main image
+;	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+;	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_XY_SELECT'
+;	(*(*info).scaling).imrefscaling = 0
+;	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [((*(*info).scaling).imrefscaling EQ 0)],labels=['Image scaling select']
+;	CRISPEX_SCALING_SET_BUTTONS, event
+;	CRISPEX_SCALING_SET_SLIDERS, event
+;END
+;
+;PRO CRISPEX_SCALING_REF_SELECT, event
+;; Handles the selection of scaling the reference image
+;	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+;	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_REF_SELECT'
+;	(*(*info).scaling).imrefscaling = 1
+;	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [((*(*info).scaling).imrefscaling EQ 1)],labels=['Reference scaling select']
+;	CRISPEX_SCALING_SET_BUTTONS, event
+;	CRISPEX_SCALING_SET_SLIDERS, event
+;END
+;
+;PRO CRISPEX_SCALING_DOP_SELECT, event
+;; Handles the selection of scaling the reference image
+;	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+;	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_DOP_SELECT'
+;	(*(*info).scaling).imrefscaling = 2
+;	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [((*(*info).scaling).imrefscaling EQ 2)],labels=['Doppler scaling select']
+;	CRISPEX_SCALING_SET_BUTTONS, event
+;	CRISPEX_SCALING_SET_SLIDERS, event
+;END
+
+PRO CRISPEX_SCALING_SELECT, event
+; Handles the selection of scaling 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_XY_SELECT'
-	(*(*info).scaling).imrefscaling = 0
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [((*(*info).scaling).imrefscaling EQ 0)],labels=['Image scaling select']
-	CRISPEX_SCALING_SET_BUTTONS, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SELECT'
+  ;index = {0,1,2,3} -> Main, reference, Doppler, slit-jaw
+  (*(*info).scaling).imrefscaling = event.INDEX
+;	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [((*(*info).scaling).imrefscaling EQ 2)],labels=['Doppler scaling select']
+	CRISPEX_SCALING_SET_BUTTONS, event, SENSITIVITY_OVERRIDE=sensitivity_override
 	CRISPEX_SCALING_SET_SLIDERS, event
 END
 
-PRO CRISPEX_SCALING_REF_SELECT, event
-; Handles the selection of scaling the reference image
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_REF_SELECT'
-	(*(*info).scaling).imrefscaling = 1
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [((*(*info).scaling).imrefscaling EQ 1)],labels=['Reference scaling select']
-	CRISPEX_SCALING_SET_BUTTONS, event
-	CRISPEX_SCALING_SET_SLIDERS, event
-END
-
-PRO CRISPEX_SCALING_DOP_SELECT, event
-; Handles the selection of scaling the reference image
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_DOP_SELECT'
-	(*(*info).scaling).imrefscaling = 2
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [((*(*info).scaling).imrefscaling EQ 2)],labels=['Doppler scaling select']
-	CRISPEX_SCALING_SET_BUTTONS, event
-	CRISPEX_SCALING_SET_SLIDERS, event
-END
 
 PRO CRISPEX_SCALING_REDRAW, event
 ; Handles the redrawing of window contents after adjustment of scaling
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_REDRAW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_REDRAW'
 	IF ((*(*info).scaling).imrefscaling EQ 0) THEN BEGIN
 		CRISPEX_DRAW_XY, event 
 		IF (*(*info).winswitch).showsp THEN CRISPEX_DRAW_SP, event 
 	ENDIF ELSE BEGIN
 		IF (*(*info).winswitch).showref THEN CRISPEX_DRAW_REF, event
 		IF (*(*info).winswitch).showdop THEN CRISPEX_DRAW_DOPPLER, event
+    IF (*(*info).winswitch).showsji THEN CRISPEX_DRAW_SJI, event
 	ENDELSE
-	IF ((*(*info).dispparams).slices_imscale AND (*(*info).winswitch).showrestloop) THEN CRISPEX_DRAW_REST_LOOP, event
+	IF ((*(*info).dispparams).slices_imscale AND (*(*info).winswitch).showrestloop) THEN $
+    CRISPEX_DRAW_REST_LOOP, event
 END
 
-PRO CRISPEX_SCALING_SET_BUTTONS, event
+PRO CRISPEX_SCALING_SET_BUTTONS, event, SENSITIVITY_OVERRIDE=sensitivity_override
 ; Handles the setting of scaling buttons
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SET_BUTTONS'
-	WIDGET_CONTROL, (*(*info).ctrlscp).auto_const, SET_BUTTON = ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 0) 
-	WIDGET_CONTROL, (*(*info).ctrlscp).auto_sing, SET_BUTTON = ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 1)
-	WIDGET_CONTROL, (*(*info).ctrlscp).man_first, SET_BUTTON = ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 2) 
-	WIDGET_CONTROL, (*(*info).ctrlscp).man_curr, SET_BUTTON = ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 3)
-	sens = ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] GE 2)
-	WIDGET_CONTROL, (*(*info).ctrlscp).abs_scale_but, SENSITIVE = sens, SET_BUTTON = ABS( (*(*(*info).scaling).relative)[(*(*info).scaling).imrefscaling] - 1 )
-	WIDGET_CONTROL, (*(*info).ctrlscp).rel_scale_but, SENSITIVE = sens, SET_BUTTON = (*(*(*info).scaling).relative)[(*(*info).scaling).imrefscaling]
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).scaling).imrefscaling,(*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling],$
-		ABS((*(*(*info).scaling).relative)[(*(*info).scaling).imrefscaling]-1),(*(*(*info).scaling).relative)[(*(*info).scaling).imrefscaling]],$
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SET_BUTTONS'
+  IF (N_ELEMENTS(SENSITIVITY_OVERRIDE) NE 1) THEN BEGIN
+    showarr = [1,(*(*info).winswitch).showref,(*(*info).dispswitch).drawdop,$
+      (*(*info).winswitch).showsji]
+    sensitivity_override = showarr[(*(*info).scaling).imrefscaling] 
+  ENDIF
+	WIDGET_CONTROL, (*(*info).ctrlscp).auto_const, $
+    SET_BUTTON=((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 0), $
+    SENSITIVE=sensitivity_override
+	WIDGET_CONTROL, (*(*info).ctrlscp).auto_sing, $
+    SET_BUTTON=((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 1), $
+    SENSITIVE=sensitivity_override
+	WIDGET_CONTROL, (*(*info).ctrlscp).man_first, $
+    SET_BUTTON=((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 2), $
+    SENSITIVE=sensitivity_override
+	WIDGET_CONTROL, (*(*info).ctrlscp).man_curr, $
+    SET_BUTTON=((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] EQ 3), $
+    SENSITIVE=sensitivity_override
+	sens = (((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] GE 2) AND $
+    sensitivity_override)
+	WIDGET_CONTROL, (*(*info).ctrlscp).abs_scale_but, SENSITIVE = sens, $ 
+    SET_BUTTON=ABS( (*(*(*info).scaling).relative)[(*(*info).scaling).imrefscaling] - 1 )
+	WIDGET_CONTROL, (*(*info).ctrlscp).rel_scale_but, SENSITIVE = sens, $
+    SET_BUTTON=(*(*(*info).scaling).relative)[(*(*info).scaling).imrefscaling]
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).scaling).imrefscaling,$
+    (*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling],$
+		ABS((*(*(*info).scaling).relative)[(*(*info).scaling).imrefscaling]-1),$
+    (*(*(*info).scaling).relative)[(*(*info).scaling).imrefscaling]],$
 		labels=['Image scaling','Scaling button set','Absolute scaling set','Relative scaling set']
 END
 
-PRO CRISPEX_SCALING_SET_SLIDERS, event
+PRO CRISPEX_SCALING_SET_SLIDERS, event, SENSITIVITY_OVERRIDE=sensitivity_override
 ; Handles the setting of scaling sliders
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SET_SLIDERS'
-	sens = ((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] GE 2)
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SET_SLIDERS'
+  IF (N_ELEMENTS(SENSITIVITY_OVERRIDE) NE 1) THEN BEGIN
+    showarr = [1,(*(*info).winswitch).showref,(*(*info).dispswitch).drawdop,$
+      (*(*info).winswitch).showsji]
+    sensitivity_override = showarr[(*(*info).scaling).imrefscaling] 
+  ENDIF
+	sens = (((*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] GE 2) AND $
+    sensitivity_override)
 	IF (*(*(*info).scaling).relative)[(*(*info).scaling).imrefscaling] THEN BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlscp).max_scale_slider, SET_VALUE = (*(*(*info).scaling).rel_scale_max_val)[(*(*info).scaling).imrefscaling], SENSITIVE = sens, SET_SLIDER_MIN = 1, SET_SLIDER_MAX = 100
-		WIDGET_CONTROL, (*(*info).ctrlscp).min_scale_slider, SET_VALUE = (*(*(*info).scaling).rel_scale_min_val)[(*(*info).scaling).imrefscaling], SENSITIVE = sens, SET_SLIDER_MIN = 0, SET_SLIDER_MAX = 99
+		WIDGET_CONTROL, (*(*info).ctrlscp).max_scale_slider, $
+      SET_VALUE = (*(*(*info).scaling).rel_scale_max_val)[(*(*info).scaling).imrefscaling], $
+      SENSITIVE = sens, SET_SLIDER_MIN = 1, SET_SLIDER_MAX = 100
+		WIDGET_CONTROL, (*(*info).ctrlscp).min_scale_slider, $
+      SET_VALUE = (*(*(*info).scaling).rel_scale_min_val)[(*(*info).scaling).imrefscaling], $
+      SENSITIVE = sens, SET_SLIDER_MIN = 0, SET_SLIDER_MAX = 99
 	ENDIF ELSE BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlscp).max_scale_slider, SET_VALUE = (*(*(*info).scaling).scale_max_val)[(*(*info).scaling).imrefscaling], SENSITIVE = sens, SET_SLIDER_MIN = 1, SET_SLIDER_MAX = 255
-		WIDGET_CONTROL, (*(*info).ctrlscp).min_scale_slider, SET_VALUE = (*(*(*info).scaling).scale_min_val)[(*(*info).scaling).imrefscaling], SENSITIVE = sens, SET_SLIDER_MIN = 0, SET_SLIDER_MAX = 254
+		WIDGET_CONTROL, (*(*info).ctrlscp).max_scale_slider, $
+      SET_VALUE = (*(*(*info).scaling).scale_max_val)[(*(*info).scaling).imrefscaling], $
+      SENSITIVE = sens, SET_SLIDER_MIN = 1, SET_SLIDER_MAX = 255
+		WIDGET_CONTROL, (*(*info).ctrlscp).min_scale_slider, $
+      SET_VALUE = (*(*(*info).scaling).scale_min_val)[(*(*info).scaling).imrefscaling], $
+      SENSITIVE = sens, SET_SLIDER_MIN = 0, SET_SLIDER_MAX = 254
 	ENDELSE
 END
 
@@ -8759,9 +8872,8 @@ PRO CRISPEX_SESSION_RESTORE, event
 			WIDGET_CONTROL, (*(*info).ctrlscp).doppler_but, SET_BUTTON = (*(*info).winswitch).showdop, SENSITIVE = ((*(*info).dataparams).nlp GT 1)
 			WIDGET_CONTROL, (*(*info).ctrlscp).param_but, SET_BUTTON = (*(*info).winswitch).showparam
 			; Scaling
-			WIDGET_CONTROL, (*(*info).ctrlscp).xy_scaling_but, SET_BUTTON = ((*(*info).scaling).imrefscaling EQ 0)
-			WIDGET_CONTROL, (*(*info).ctrlscp).ref_scaling_but, SET_BUTTON = ((*(*info).scaling).imrefscaling EQ 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).dop_scaling_but, SET_BUTTON = ((*(*info).scaling).imrefscaling EQ 2)
+      WIDGET_CONTROL, (*(*info).ctrlscp).scaling_cbox, $
+        SET_COMBOBOX_SELECT=(*(*info).scaling).imrefscaling
 			CRISPEX_SCALING_SET_BUTTONS, event
 			CRISPEX_SCALING_SET_SLIDERS, event
 			; Slits
@@ -9655,7 +9767,7 @@ PRO CRISPEX_SAVE_FRAMES_SAVE, event, supplied_filename
 			CRISPEX_DRAW_XY, event, NO_CURSOR=ABS((*(*info).savparams).overlays_curs-1), NO_NUMBER=ABS((*(*info).savparams).overlays_num-1), THICK=(*(*info).savparams).overlays_thick, $
 				NO_ENDPOINTS=ABS((*(*info).savparams).overlays_pts-1), SYMSIZE=(*(*info).savparams).overlays_symsize, ASECBAR=(*(*info).savparams).overlays_asecbar
 			image=TVRD()
-		ENDIF ELSE CRISPEX_DRAW_XYSLICE_SCALING, event, image
+		ENDIF ELSE CRISPEX_DRAW_SCALING, event, image, /MAIN
 		TVLCT,r,g,b,/GET
 		IF (*(*info).savparams).snapshot THEN midtension = '' ELSE BEGIN
 			t_id = 't'+STRING((*(*info).dataparams).t,FORMAT='(I0'+STRTRIM(ntpos,2)+')')
@@ -9720,7 +9832,7 @@ PRO CRISPEX_SAVE_LINESCAN_SAVE, event, supplied_filename
 			CRISPEX_DRAW_XY, event, NO_CURSOR=ABS((*(*info).savparams).overlays_curs-1), NO_NUMBER=ABS((*(*info).savparams).overlays_num-1), THICK=(*(*info).savparams).overlays_thick, $
 				NO_ENDPOINTS=ABS((*(*info).savparams).overlays_pts-1), SYMSIZE=(*(*info).savparams).overlays_symsize, ASECBAR=(*(*info).savparams).overlays_asecbar
 			image=TVRD()
-		ENDIF ELSE CRISPEX_DRAW_XYSLICE_SCALING, event, image
+		ENDIF ELSE CRISPEX_DRAW_SCALING, event, image, /MAIN
 		TVLCT,r,g,b,/GET
 		IF (*(*info).savparams).linescan_ls THEN BEGIN
 			CRISPEX_UPDATE_LP, event
@@ -10169,33 +10281,16 @@ PRO CRISPEX_UPDATE_T, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_T'
-;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		x_low = (*(*info).zooming).xpos
-		y_low = (*(*info).zooming).ypos
-;    IF ((*(*info).zooming).handle_extreme EQ 2) THEN BEGIN
-;      IF ((*(*info).data).ratio GT 1) THEN BEGIN
-;        d_nx = (*(*info).dataparams).d_nx
-;        d_ny = (*(*info).dataparams).ny-1
-;      ENDIF ELSE BEGIN
-;        IF ((*(*info).zooming).factor LE 1) THEN d_nx = (*(*info).dataparams).nx-1 ELSE $
-;          d_nx = (*(*info).dataparams).d_nx
-;;        true_winy = ny * 8
-;;        fake_winy = xywiny
-;;        part = xywiny / (ny * 8)
-;;        dny = part * ny = xywiny / 8. 
-;        d_ny = (*(*info).winsizes).xywiny / 8. ;(*(*info).dataparams).ny * 8
-;      ENDELSE
-;    ENDIF ELSE BEGIN
-      d_nx = (*(*info).dataparams).d_nx
-      d_ny = (*(*info).dataparams).d_ny
-;    ENDELSE
-  	x_upp = (*(*info).zooming).xpos + d_nx
-  	y_upp = (*(*info).zooming).ypos + d_ny
-		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, $
-      [x_low,x_upp,(*(*info).dataparams).d_nx,(*(*info).dataparams).nx,$
-       y_low,y_upp,(*(*info).dataparams).d_ny,(*(*info).dataparams).ny],$
-			labels=['x_low','x_upp','d_nx','nx','y_low','y_upp','d_ny','ny']
-;	ENDIF
+	x_low = (*(*info).zooming).xpos
+	y_low = (*(*info).zooming).ypos
+  d_nx = (*(*info).dataparams).d_nx
+  d_ny = (*(*info).dataparams).d_ny
+  x_upp = (*(*info).zooming).xpos + d_nx
+  y_upp = (*(*info).zooming).ypos + d_ny
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, $
+    [x_low,x_upp,(*(*info).dataparams).d_nx,(*(*info).dataparams).nx,$
+     y_low,y_upp,(*(*info).dataparams).d_ny,(*(*info).dataparams).ny],$
+		labels=['x_low','x_upp','d_nx','nx','y_low','y_upp','d_ny','ny']
 	IF (*(*info).winswitch).showdop THEN BEGIN
 		(*(*info).dataparams).lp_dop = 2*(*(*info).dataparams).lc - (*(*info).dataparams).lp
 		(*(*info).dispswitch).drawdop = (((*(*info).dataparams).lp_dop GE (*(*info).dispparams).lp_low)$
@@ -10206,44 +10301,20 @@ PRO CRISPEX_UPDATE_T, event
 	IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN BEGIN
     basecubeidx = (*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
 			            (*(*info).dataparams).s * (*(*info).dataparams).nlp
-;		IF((*(*info).zooming).factor NE 1) THEN BEGIN
-			*(*(*info).data).xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[$
-        basecubeidx + (*(*info).dataparams).lp])[x_low:x_upp, y_low:y_upp]), $
-        (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) 
-			IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
-				temp_xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[$
-          basecubeidx + (*(*info).dataparams).lp_dop])[x_low:x_upp, y_low:y_upp]), $
-          (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
-;		ENDIF ELSE BEGIN
-;			*(*(*info).data).xyslice = REFORM((*(*(*info).data).imagedata)[basecubeidx + $
-;        (*(*info).dataparams).lp])
-;			IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
-;        temp_xyslice = REFORM((*(*(*info).data).imagedata)[basecubeidx + $
-;          (*(*info).dataparams).lp_dop])
-;		ENDELSE
+		*(*(*info).data).xyslice = REFORM( ((*(*(*info).data).imagedata)[$
+      basecubeidx + (*(*info).dataparams).lp])[x_low:x_upp, y_low:y_upp])
+		IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
+			temp_xyslice = REFORM( ((*(*(*info).data).imagedata)[$
+        basecubeidx + (*(*info).dataparams).lp_dop])[x_low:x_upp, y_low:y_upp])
   ; Determine main image, in case the cube has no spectral dimension
 	ENDIF ELSE BEGIN
     basecubeidx = (*(*info).dataparams).s * (*(*info).dataparams).nlp 
-;		IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-			*(*(*info).data).xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[basecubeidx + $
-        (*(*info).dataparams).lp])[x_low:x_upp, y_low:y_upp]), $
-        (*(*info).winsizes).xywinx,(*(*info).winsizes).xywiny ) 
-			IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
-        temp_xyslice = CONGRID( REFORM( ((*(*(*info).data).imagedata)[basecubeidx + $
-        (*(*info).dataparams).lp_dop])[x_low:x_upp, y_low:y_upp]), $
-        (*(*info).winsizes).xywinx,(*(*info).winsizes).xywiny )
-;		ENDIF ELSE BEGIN
-;			*(*(*info).data).xyslice = REFORM((*(*(*info).data).imagedata)[basecubeidx + $
-;        (*(*info).dataparams).lp] ) 
-;			IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
-;				temp_xyslice = REFORM((*(*(*info).data).imagedata)[basecubeidx + $
-;          (*(*info).dataparams).lp_dop] ) 
-;		ENDELSE
+		*(*(*info).data).xyslice = REFORM( ((*(*(*info).data).imagedata)[basecubeidx + $
+      (*(*info).dataparams).lp])[x_low:x_upp, y_low:y_upp])
+		IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
+      temp_xyslice = REFORM( ((*(*(*info).data).imagedata)[basecubeidx + $
+      (*(*info).dataparams).lp_dop])[x_low:x_upp, y_low:y_upp])
 	ENDELSE
-;  IF ((*(*info).zooming).handle_extreme EQ 2) THEN BEGIN
-;    *(*(*info).data).xyslice = (*(*info).data).padded_bg + *(*(*info).data).xyslice
-;    stop
-;  ENDIF
   ; Determine Doppler image
 	IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN BEGIN
 		IF ((*(*info).dataparams).lp_dop GT (*(*info).dataparams).lc) THEN $
@@ -10253,68 +10324,35 @@ PRO CRISPEX_UPDATE_T, event
 	ENDIF
   ; Determine reference image
 	IF ((*(*info).winswitch).showref OR (*(*info).winswitch).showimref) THEN BEGIN
-;		IF (*(*info).dataswitch).refspfile THEN BEGIN
 		IF (((*(*info).dataparams).refnlp GT 1) AND ((*(*info).dataparams).refnt GT 1)) THEN BEGIN
       refidx = (*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref
-;			IF ((*(*info).zooming).factor NE 1) THEN $
-        *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[refidx])$
-          [x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
-;      ELSE $
-;				*(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[refidx])
+      *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[refidx])[x_low:x_upp, y_low:y_upp])
 		ENDIF ELSE BEGIN
-			IF ((*(*info).dataparams).refnt EQ 0) THEN BEGIN
-;				IF ((*(*info).zooming).factor NE 1) THEN $
-          *(*(*info).data).refslice = CONGRID( (*(*(*info).data).refdata)$
-          [x_low:x_upp, y_low:y_upp], (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
-;				ELSE $
-;          *(*(*info).data).refslice = *(*(*info).data).refdata 
-			ENDIF ELSE IF ((*(*info).dataparams).refnt EQ 1) THEN BEGIN
-				IF ((*(*info).dataparams).refnlp NE 1) THEN BEGIN
-;					IF ((*(*info).zooming).factor NE 1) THEN $
-            *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[$
-              (*(*info).dataparams).lp_ref])[x_low:x_upp, y_low:y_upp]), $
-						  (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
-;          ELSE $
-;            *(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[$
-;              (*(*info).dataparams).lp_ref])
-				ENDIF ELSE BEGIN
-;					IF ((*(*info).zooming).factor NE 1) THEN $
-            *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[0])$
-              [x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
-;          ELSE $
-;            *(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[0]) 
-				ENDELSE
+			IF ((*(*info).dataparams).refnt EQ 0) THEN $
+        *(*(*info).data).refslice = (*(*(*info).data).refdata)[x_low:x_upp, y_low:y_upp] $
+			ELSE IF ((*(*info).dataparams).refnt EQ 1) THEN BEGIN
+				IF ((*(*info).dataparams).refnlp NE 1) THEN $
+          *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[$
+            (*(*info).dataparams).lp_ref])[x_low:x_upp, y_low:y_upp]) $
+				ELSE $
+          *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[0])[x_low:x_upp, y_low:y_upp])
 			ENDIF ELSE IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN BEGIN
-;				IF ((*(*info).zooming).factor NE 1) THEN $
-          *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[$
-            (*(*info).dataparams).t])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, $
-				    (*(*info).winsizes).xywiny) ;$
-;        ELSE $
-;          *(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[(*(*info).dataparams).t])
-			ENDIF ELSE $;IF ((*(*info).zooming).factor NE 1) THEN $
-        *(*(*info).data).refslice = CONGRID( REFORM( ((*(*(*info).data).refdata)[$
+        *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[$
+          (*(*info).dataparams).t])[x_low:x_upp, y_low:y_upp])
+			ENDIF ELSE $
+        *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[$
           (*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref])$
-          [x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
-;      ELSE $
-;				*(*(*info).data).refslice = REFORM( (*(*(*info).data).refdata)[$
-;          (*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref])
+          [x_low:x_upp, y_low:y_upp])
 		ENDELSE
 	ENDIF
   ; Determine mask image
 	IF (*(*info).dataswitch).maskfile THEN BEGIN
 		IF ((*(*info).dataparams).masknt GT 1) THEN BEGIN
-;			IF ((*(*info).zooming).factor NE 1) THEN $
-        *(*(*info).data).maskslice = CONGRID( REFORM( ((*(*(*info).data).maskdata)[$
-          (*(*info).dataparams).t])[x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, $
-				  (*(*info).winsizes).xywiny) ;$
-;      ELSE $
-;        *(*(*info).data).maskslice = REFORM( (*(*(*info).data).maskdata)[(*(*info).dataparams).t])
+      *(*(*info).data).maskslice = REFORM( ((*(*(*info).data).maskdata)[$
+        (*(*info).dataparams).t])[x_low:x_upp, y_low:y_upp])
 		ENDIF ELSE BEGIN
-;			IF ((*(*info).zooming).factor NE 1) THEN $
-        *(*(*info).data).maskslice = CONGRID( REFORM( ((*(*(*info).data).maskdata)[0])$
-          [x_low:x_upp, y_low:y_upp]), (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) ;$
-;			ELSE $
-;        *(*(*info).data).maskslice = (*(*(*info).data).maskdata)[0]
+      *(*(*info).data).maskslice = REFORM( ((*(*(*info).data).maskdata)[0])$
+        [x_low:x_upp, y_low:y_upp])
 		ENDELSE
 	ENDIF
   ; Determine sji image
@@ -10757,7 +10795,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '599'
+	revision_number = '600'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -11473,8 +11511,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                                         '(initial scaling parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Initial scaling parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	imagescale = PTR_NEW([0,0,0])												; Image scaling based on first image
-	relative_scaling = PTR_NEW([0,0,0])
+	imagescale = PTR_NEW([0,0,0,0])												; Image scaling based on first image
+	relative_scaling = PTR_NEW([0,0,0,0])
 	immin = DBLARR(hdr.nlp,hdr.ns)
 	immax = DBLARR(hdr.nlp,hdr.ns)
 	immean = DBLARR(hdr.nlp,hdr.ns)
@@ -11565,6 +11603,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		refmax = 0
 	ENDELSE
 	ls_yrange_ref = ls_upp_y_ref - ls_low_y_ref 
+
+  sjimin = MIN((*hdr.sjidata)[0], MAX=sjimax)
 
 	scale_range = [0.,0.]
 	scale_minimum = [0.,0.]
@@ -11877,33 +11917,33 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	images_disp		= WIDGET_BASE(all_other_disp, /ROW)
 	images_label		= WIDGET_LABEL(images_disp, VALUE = 'Images:')
 	images_buts		= WIDGET_BASE(images_disp, /ROW, /NONEXCLUSIVE)
-	reference_but		= WIDGET_BUTTON(images_buts, VALUE = 'Reference image', $
+	reference_but		= WIDGET_BUTTON(images_buts, VALUE = 'Reference', $
     EVENT_PRO = 'CRISPEX_DISPLAYS_REF_TOGGLE', SENSITIVE = hdr.showref, TOOLTIP = 'Toggle display reference image')
 	WIDGET_CONTROL, reference_but, SET_BUTTON = hdr.showref
-	doppler_but		= WIDGET_BUTTON(images_buts, VALUE = 'Doppler image', EVENT_PRO = $
+	doppler_but		= WIDGET_BUTTON(images_buts, VALUE = 'Doppler', EVENT_PRO = $
   'CRISPEX_DISPLAYS_DOPPLER_TOGGLE', SENSITIVE = (hdr.nlp GT 1), TOOLTIP = 'Toggle display Doppler image')
+  sji_but       = WIDGET_BUTTON(images_buts, VALUE = 'Slit-jaw', EVENT_PRO = $
+    'CRISPEX_DISPLAYS_SJI_TOGGLE', SENSITIVE = hdr.sjifile, TOOLTIP='Toggle display slit-jaw image')
+  WIDGET_CONTROL, sji_but, SET_BUTTON = hdr.sjifile
 	param_but_field		= WIDGET_BASE(all_other_disp, /ROW, /NONEXCLUSIVE)
 	param_but		= WIDGET_BUTTON(param_but_field, VALUE = 'Parameters overview', EVENT_PRO = 'CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE', TOOLTIP = 'Toggle display parameters overview window')
 	WIDGET_CONTROL, param_but, /SET_BUTTON
 
 	scaling_tab 		= WIDGET_BASE(tab_tlb, TITLE = 'Scaling', /COLUMN)
 	xy_scaling		= WIDGET_BASE(scaling_tab, /FRAME, /COLUMN)
-	xy_ref_scaling		= WIDGET_BASE(xy_scaling, /ROW, /EXCLUSIVE)
-	xy_scaling_but		= WIDGET_BUTTON(xy_ref_scaling, VALUE = 'Main image', EVENT_PRO = 'CRISPEX_SCALING_XY_SELECT', /NO_RELEASE)
-	WIDGET_CONTROL, xy_scaling_but, /SET_BUTTON
-	ref_scaling_but		 = WIDGET_BUTTON(xy_ref_scaling, VALUE = 'Reference image', $
-    EVENT_PRO = 'CRISPEX_SCALING_REF_SELECT', /NO_RELEASE, SENSITIVE = hdr.showref)
-	dop_scaling_but		 = WIDGET_BUTTON(xy_ref_scaling, VALUE = 'Doppler image', EVENT_PRO = 'CRISPEX_SCALING_DOP_SELECT', /NO_RELEASE, SENSITIVE = 0)
+  scaling_cbox    = WIDGET_COMBOBOX(xy_scaling, $
+                    VALUE=['Main image','Reference image','Doppler image','Slit-jaw image'], $
+                    EVENT_PRO='CRISPEX_SCALING_SELECT')
 	xy_scale_opts		= WIDGET_BASE(xy_scaling, /COLUMN)
 	xy_scale_buts		= WIDGET_BASE(xy_scale_opts, /COLUMN, /EXCLUSIVE)
-	auto_const		= WIDGET_BUTTON(xy_scale_buts, VALUE = 'Automatically, based on first slice', EVENT_PRO = 'CRISPEX_SCALING_AUTO_CONST', /NO_RELEASE, $
+	auto_const		= WIDGET_BUTTON(xy_scale_buts, VALUE = 'Automatically, from first time step', EVENT_PRO = 'CRISPEX_SCALING_AUTO_CONST', /NO_RELEASE, $
 					TOOLTIP = 'Scale each image automatically using extrema from full FOV of first time step')
 	WIDGET_CONTROL, auto_const, SET_BUTTON = 1
-	auto_sing		= WIDGET_BUTTON(xy_scale_buts, VALUE = 'Automatically, per slice', EVENT_PRO = 'CRISPEX_SCALING_AUTO_SING', /NO_RELEASE, $
+	auto_sing		= WIDGET_BUTTON(xy_scale_buts, VALUE = 'Automatically, per time step', EVENT_PRO = 'CRISPEX_SCALING_AUTO_SING', /NO_RELEASE, $
 					TOOLTIP = 'Scale each image automatically using extrema from full FOV of same image')
-	man_first		= WIDGET_BUTTON(xy_scale_buts, VALUE = 'Manually, based on first slice', EVENT_PRO = 'CRISPEX_SCALING_MAN_FIRST', /NO_RELEASE, $
+	man_first		= WIDGET_BUTTON(xy_scale_buts, VALUE = 'Manually, from first time time step', EVENT_PRO = 'CRISPEX_SCALING_MAN_FIRST', /NO_RELEASE, $
 					TOOLTIP = 'Scale each image manually using extrema from full FOV of first time step')
-	man_curr		= WIDGET_BUTTON(xy_scale_buts, VALUE = 'Manually, based on current slice', EVENT_PRO = 'CRISPEX_SCALING_MAN_CURR', /NO_RELEASE, $
+	man_curr		= WIDGET_BUTTON(xy_scale_buts, VALUE = 'Manually, from currrent time step', EVENT_PRO = 'CRISPEX_SCALING_MAN_CURR', /NO_RELEASE, $
 					TOOLTIP = 'Scale each image manully using extrema from FOV of current time step')
 	abs_rel_buts 		= WIDGET_BASE(xy_scale_opts, /ROW, /EXCLUSIVE)
 	abs_scale_but		= WIDGET_BUTTON(abs_rel_buts, VALUE = 'Absolute (0-255)', SENSITIVE = 0)
@@ -12120,7 +12160,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		lower_y_text:lower_y_text, upper_y_text:upper_y_text, $	
 		sp_toggle_but:sp_toggle_but, refsp_toggle_but:refsp_toggle_but, int_toggle_but:int_toggle_but, $
 		phis_toggle_but:phis_toggle_but, param_but:param_but, reference_but:reference_but, doppler_but:doppler_but, $						
-		xy_scaling_but:xy_scaling_but, ref_scaling_but:ref_scaling_but, dop_scaling_but:dop_scaling_but, $				
+    scaling_cbox:scaling_cbox, $
 		auto_const:auto_const, auto_sing:auto_sing, man_first:man_first, man_curr:man_curr, $		
 		abs_scale_but:abs_scale_but, rel_scale_but:rel_scale_but, $
 		max_scale_slider:max_scale_slid, min_scale_slider:min_scale_slid, $				
@@ -12465,11 +12505,13 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- SCALING
 	scaling = { $
-		imagescale:imagescale, imagemin:immin, imagemax:immax, scale_range:PTR_NEW([0.,0.,0.]), scale_minimum:PTR_NEW([0.,0.,0.]), $	
-		scale_max_val:PTR_NEW([255.,255.,255.]), scale_min_val:PTR_NEW([0.,0.,0.]), $				
-		rel_scale_max_val:PTR_NEW([100.,100.,100.]), rel_scale_min_val:PTR_NEW([0.,0.,0.]), $			
+		imagescale:imagescale, imagemin:immin, imagemax:immax, $
+    scale_range:PTR_NEW(REPLICATE(0.,4)), scale_minimum:PTR_NEW(REPLICATE(0.,4)), $	
+		scale_max_val:PTR_NEW(REPLICATE(255.,4)), scale_min_val:PTR_NEW(REPLICATE(0.,4)), $				
+		rel_scale_max_val:PTR_NEW(REPLICATE(100.,4)), rel_scale_min_val:PTR_NEW(REPLICATE(0.,4)), $			
 		refmin:refmin, refmax:refmax, imrefscaling:0, relative:relative_scaling, $	
-		scalestokes_max:hdr.scalestokes_max, dopplermin:dopplermin, dopplermax:dopplermax $
+		scalestokes_max:hdr.scalestokes_max, dopplermin:dopplermin, dopplermax:dopplermax, $
+    sjimin:sjimin, sjimax:sjimax $
 	}
 ;--------------------------------------------------------------------------------- STOKES PARAMS
 	stokesparams = { $
