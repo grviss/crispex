@@ -2512,7 +2512,8 @@ PRO CRISPEX_DISPLAYS_SJI_TOGGLE, event, NO_DRAW=no_draw
 	IF (*(*info).winswitch).showsji THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Slit-jaw image'
 		CRISPEX_WINDOW, (*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny, $
-      (*(*info).winids).root, title, sjitlb, sjiwid, (*(*info).winsizes).spxoffset, 0, $
+      (*(*info).winids).root, title, sjitlb, sjiwid, $
+      (*(*info).winsizes).lsxoffset+(*(*info).winsizes).lswinx+(*(*info).winsizes).xdelta, 0, $
       DRAWID = sjidrawid, DRAWBASE = sjidrawbase
 		(*(*info).winids).sjitlb = sjitlb		&	(*(*info).winids).sjiwid = sjiwid	
     (*(*info).winids).sjidrawid = sjidrawid
@@ -3131,15 +3132,9 @@ PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
 		(*(*info).dataparams).lp = (*(*info).dataparams).lp
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_SLIDER_MIN = (*(*info).dispparams).lp_low, $
                   SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, SET_VALUE = (*(*info).dataparams).lp
-	IF ((*(*info).dispparams).lp_range - 1 EQ 1) THEN BEGIN
-		lp_step = 1
-		lp_sens = 0 
-	ENDIF ELSE BEGIN
-		lp_step = (*(*info).pbparams).lp_step
-		lp_sens = 1
-	ENDELSE
-	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, $
-    SET_SLIDER_MAX = (*(*info).dispparams).lp_range - 1, SET_VALUE = lp_step, SENSITIVE = lp_sens
+	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_SLIDER_MIN=(*(*info).dispparams).lp_low, $
+    SET_SLIDER_MAX=(*(*info).dispparams).lp_upp, SET_VALUE=(*(*info).dataparams).lp, $
+    SENSITIVE=(((*(*info).dispparams).lp_range-1) NE 1)
   IF ((*(*info).dispswitch).warpspslice AND (*(*info).winswitch).showphis) THEN BEGIN
     WIDGET_CONTROL, /HOURGLASS
     CRISPEX_DISPRANGE_GET_WARP, event, /PHIS
@@ -3896,7 +3891,7 @@ PRO CRISPEX_DRAW_REFLS, event
            XTITLE = xtitle, YTITLE=ytitle, $
            POSITION = [reflsx0,((*(*info).plotpos).reflsy0),reflsx1,((*(*info).plotpos).reflsy1)], $
            XTICKLEN = (*(*info).plotaxes).reflsxticklen, YTICKLEN = (*(*info).plotaxes).reflsyticklen, $
-           COLOR = (*(*info).plotparams).plotcol, $
+           COLOR = (*(*info).plotparams).plotcol, LINE=3, $
            NOERASE=(((*(*info).intparams).nrefdiagnostics GT 1) AND (d GT 0))
     ; In case of multiple diagnostics
     IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
@@ -3943,12 +3938,11 @@ PRO CRISPEX_DRAW_REFLS, event
     ; Overplot detailed spectrum
 	  IF ((*(*info).dispswitch).ref_detspect_scale EQ 0) THEN $
       refssp *= ((*(*info).paramparams).scale_cubes)[1] / (10.^(order_corr))
-	  OPLOT, (*(*info).dataparams).reflps, refssp, LINE=2, COLOR = (*(*info).plotparams).plotcol
+	  OPLOT, (*(*info).dataparams).reflps, refssp, LINE=0, COLOR = (*(*info).plotparams).plotcol
     ; Overplot average minus detailed spectrum
-	  IF (*(*info).plotswitch).ref_subtract THEN BEGIN
-	  	OPLOT, (*(*info).dataparams).reflps, refspec-refssp, COLOR = (*(*info).plotparams).plotcol
-	  	OPLOT, (*(*info).dataparams).reflps, refspec-refssp, PSYM = 4, COLOR = (*(*info).plotparams).plotcol
-	  ENDIF
+	  IF (*(*info).plotswitch).ref_subtract THEN $
+	  	OPLOT, (*(*info).dataparams).reflps, refspec-refssp, COLOR=(*(*info).plotparams).plotcol, $
+        LINE=2
     ; Overplot spectral indicator
 	  PLOTS, [1,1] * (*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref],[ls_low_y,ls_upp_y],$
       COLOR = (*(*info).plotparams).plotcol
@@ -4213,7 +4207,7 @@ PRO CRISPEX_DRAW_LS, event
              XTITLE = xtitle, YTITLE=ytitle, $
              POSITION = [lsx0,((*(*info).plotpos).lsy0)[i],lsx1,((*(*info).plotpos).lsy1)[i]], $
              XTICKLEN = (*(*info).plotaxes).lsxticklen, YTICKLEN = (*(*info).plotaxes).lsyticklen, $
-             COLOR = (*(*info).plotparams).plotcol, $
+             COLOR = (*(*info).plotparams).plotcol, LINE=3, $
              NOERASE=((((*(*info).intparams).ndiagnostics GT 1) AND (d GT 0)) OR (i GT 0))
       ; In case of multiple diagnostics
       IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
@@ -4274,12 +4268,10 @@ PRO CRISPEX_DRAW_LS, event
       ; Overplot detailed spectrum
   		IF ((*(*info).dispswitch).detspect_scale EQ 0) THEN $
         ssp *= ((*(*info).paramparams).scale_cubes)[0] / (10.^(order_corr))
-  		OPLOT, (*(*info).dataparams).lps, ssp, LINE=2, COLOR = (*(*info).plotparams).plotcol
+  		OPLOT, (*(*info).dataparams).lps, ssp, LINE=0, COLOR = (*(*info).plotparams).plotcol
       ; Overplot average minus detailed spectrum
-  		IF (*(*info).plotswitch).subtract THEN BEGIN
-  			OPLOT, (*(*info).dataparams).lps, spec-ssp, COLOR = (*(*info).plotparams).plotcol
-  			OPLOT, (*(*info).dataparams).lps, spec-ssp, PSYM = 4, COLOR = (*(*info).plotparams).plotcol
-  		ENDIF
+  		IF (*(*info).plotswitch).subtract THEN $
+  			OPLOT, (*(*info).dataparams).lps, spec-ssp, COLOR = (*(*info).plotparams).plotcol, LINE=2
       ; Overplot spectral indicator
   		PLOTS, [1,1] * (*(*info).dataparams).lps[(*(*info).dataparams).lp],[ls_low_y,ls_upp_y], $
               COLOR = (*(*info).plotparams).plotcol
@@ -5737,11 +5729,8 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
   CRISPEX_IO_PARSE_WARPSLICE, hdr_out.lps, hdr_out.nlp, hdr_out.nt, hdr_out.dlambda[0], $
                               hdr_out.dlambda_set[0], hdr_out.verbosity, NO_WARP=no_warp, $
                               WARPSPSLICE=warpspslice, XO=xo, XI=xi, YO=yo, YI=yi, $
-                              IDX_SELECT=idx_select
-;  CRISPEX_IO_PARSE_WARPSLICE, hdr_out.lps, hdr_out.nlp, CEIL(1.1*SQRT(hdr_out.nx^2+hdr_out.ny^2)), hdr_out.dlambda[0], $
-;                              hdr_out.dlambda_set[0], hdr_out.verbosity, NO_WARP=no_warp, $
-;                              XO=phisxo, XI=phisxi, YO=phisyo, YI=phisyi, $
-;                              IDX_SELECT=idx_select
+                              IDX_SELECT=idx_select;, DIAG_START=hdr_out.diag_start, $
+;                              DIAG_WIDTH=hdr_out.diag_width
   IF (hdr_out.nrefdiagnostics GT 1) THEN BEGIN
     refidx = LINDGEN(hdr_out.refnlp)
     FOR d=0,hdr_out.nrefdiagnostics-1 DO BEGIN
@@ -5756,7 +5745,8 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
   CRISPEX_IO_PARSE_WARPSLICE, hdr_out.reflps, hdr_out.refnlp, hdr_out.nt, hdr_out.dlambda[1], $   
                               hdr_out.dlambda_set[1], hdr_out.verbosity, NO_WARP=no_warp, $
                               WARPSPSLICE=warprefspslice, XO=xo_ref, XI=xi_ref, YO=yo_ref, $
-                              YI=yi_ref, IDX_SELECT=refidx_select, /REFERENCE
+                              YI=yi_ref, IDX_SELECT=refidx_select, /REFERENCE;, $
+;                              DIAG_START=hdr_out.refdiag_start, DIAG_WIDTH=hdr_out.refdiag_width
   hdr_out = CREATE_STRUCT(hdr_out, 'xo', xo, 'xi', xi, 'yo', yo, 'yi', yi, 'xo_ref', xo_ref, $
                                     'xi_ref', xi_ref, 'yo_ref', yo_ref, 'yi_ref', yi_ref, $
 ;                                    'phisxo',phisxo,'phisxi',phisxi,'phisyo',phisyo,'phisyi',phisyi,$
@@ -5994,16 +5984,21 @@ END
 
 PRO CRISPEX_IO_PARSE_WARPSLICE, lps, nlp, nt, dlambda, dlambda_set, verbosity, NO_WARP=no_warp, $
                                 WARPSPSLICE=warpspslice, XO=xo, XI=xi, YO=yo, YI=yi, $
-                                REFERENCE=reference, IDX_SELECT=idx_select
+                                REFERENCE=reference, IDX_SELECT=idx_select;, $
+;                                DIAG_START=diag_start, DIAG_WIDTH=diag_width
 ; Handles warping of the slice, also given keyword NO_WARP
   warpspslice = 0				; Temporal spectrum is not warped to correct non-equidistant spectral positions
   xi = 0  &   yi = 0  &  xo = 0  &  yo = 0
   feedback_text = ['main','reference']  &  warp_text = ['No warp','Warp']
 	IF (nlp GT 1) THEN BEGIN
 		IF dlambda_set THEN ndecimals = ABS(FLOOR(ALOG10(ABS(dlambda)))) ELSE ndecimals = 2
-    ; if ndiagnostics > 1, check for equidistancy diagnostic excluding jumps
 		equidist = STRING((SHIFT(FLOAT(lps),-1) - FLOAT(lps))[0:nlp-2],$
                         FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
+    ; if ndiagnostics > 1, check for equidistancy diagnostic excluding jumps
+;    IF (N_ELEMENTS(DIAG_START) LT 1) THEN BEGIN
+;      diag_start = 0
+;      diag_width = nlp
+;    ENDIF ;ELSE equidist[diag_start-1] = 0
     IF (N_ELEMENTS(IDX_SELECT) GT 0) THEN equidist = equidist[idx_select] 
     ; Check for non-equidistant spectral positions and allowed consequential warping
 		warpspslice = (((WHERE(equidist NE equidist[0]))[0] NE -1) AND ~KEYWORD_SET(NO_WARP))
@@ -6013,8 +6008,23 @@ PRO CRISPEX_IO_PARSE_WARPSLICE, lps, nlp, nt, dlambda, dlambda_set, verbosity, N
 		  xo = ((lps-min_lps) / FLOAT(MAX(lps-min_lps)) * nlp) # REPLICATE(1,nt)
 		  yi = REPLICATE(1,nlp) # FINDGEN(nt)
 		  yo = yi
+;		  xi = FINDGEN(nlp) # REPLICATE(1,nt)
+;		  yi = REPLICATE(1,nlp) # FINDGEN(nt)
+;      xo = FLTARR(nlp,nt)
+;      lps_rewrite = FLTARR(nlp)
+;      lps_rewrite[0] = equidist[0]
+;      FOR i=0,N_ELEMENTS(equidist)-1 DO lps_rewrite[i] = lps_rewrite[i-1] + equidist[i]
+;      min_lps = MIN(lps_rewrite)
+;		  xo = ((lps_rewrite-min_lps) / FLOAT(MAX(lps_rewrite-min_lps)) * nlp) # REPLICATE(1,nt)
+;;      FOR i=0,N_ELEMENTS(DIAG_START)-1 DO BEGIN
+;;        lps_sel = lps[diag_start[i]:(diag_start[i]+diag_width[i]-1)]
+;;        min_lps = MIN(lps_sel)
+;;  		  xo[diag_start[i]:(diag_start[i]+diag_width[i]-1),*] = $
+;;          ((lps_sel-min_lps) / FLOAT(MAX(lps_sel-min_lps)) * diag_width[i]) # REPLICATE(1,nt)
+;;        stop
+;;      ENDFOR
+;		  yo = yi
 		ENDIF 
-;    stop
     IF verbosity[1] THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, warp_text[warpspslice]+$
                           ' applied to '+feedback_text[KEYWORD_SET(REFERENCE)]+$
                           ' spectral slice.', /NO_ROUTINE
@@ -6330,11 +6340,11 @@ PRO CRISPEX_PB_BG, event
 	CASE (*(*info).pbparams).mode OF
 		'PAUSE'	: BEGIN
 				IF (*(*info).pbparams).spmode THEN BEGIN
-					(*(*info).dataparams).lp += (*(*info).pbparams).spdirection * (*(*info).pbparams).lp_step
-					(*(*info).pbparams).spdirection *= -1
-					IF ((*(*info).dataparams).lp GT (*(*info).dispparams).lp_upp) THEN (*(*info).dataparams).lp -= (*(*info).dispparams).lp_range ELSE $
-						IF ((*(*info).dataparams).lp LT (*(*info).dispparams).lp_low) THEN (*(*info).dataparams).lp += (*(*info).dispparams).lp_range
-			  	ENDIF ELSE IF (*(*info).pbparams).imrefmode THEN BEGIN
+          IF ((*(*info).dataparams).lp NE (*(*info).pbparams).lp_blink) THEN $
+            (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink $
+          ELSE $
+            (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink_init
+			  ENDIF ELSE IF (*(*info).pbparams).imrefmode THEN BEGIN
 					(*(*info).winids).imrefdisp = ABS((*(*info).winids).imrefdisp-1)
 				ENDIF ELSE RETURN
 				WIDGET_CONTROL,(*(*info).ctrlscp).lp_slider, SET_VALUE = (*(*info).dataparams).lp
@@ -6343,10 +6353,10 @@ PRO CRISPEX_PB_BG, event
 				IF ((*(*info).feedbparams).count_pbstats EQ 0) THEN (*(*info).feedbparams).pbstats = SYSTIME(/SECONDS)
 				(*(*info).dataparams).t += (*(*info).pbparams).direction * (*(*info).pbparams).t_step
 				IF (*(*info).pbparams).spmode THEN BEGIN
-					(*(*info).dataparams).lp += (*(*info).pbparams).spdirection * (*(*info).pbparams).lp_step
-					(*(*info).pbparams).spdirection *= -1
-					IF ((*(*info).dataparams).lp GT (*(*info).dispparams).lp_upp) THEN (*(*info).dataparams).lp -= (*(*info).dispparams).lp_range ELSE $
-						IF ((*(*info).dataparams).lp LT (*(*info).dispparams).lp_low) THEN (*(*info).dataparams).lp += (*(*info).dispparams).lp_range
+          IF ((*(*info).dataparams).lp NE (*(*info).pbparams).lp_blink) THEN $
+            (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink $
+          ELSE $
+            (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink_init
 					WIDGET_CONTROL,(*(*info).ctrlscp).lp_slider, SET_VALUE = (*(*info).dataparams).lp
 			  	ENDIF ELSE IF (*(*info).pbparams).imrefmode THEN BEGIN
 					(*(*info).winids).imrefdisp = ABS((*(*info).winids).imrefdisp-1)
@@ -6529,9 +6539,12 @@ PRO CRISPEX_PB_SPECTBLINK, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).imref_blink_but, SENSITIVE=ABS((*(*info).pbparams).spmode-1)
 	IF (*(*info).pbparams).spmode THEN BEGIN
 		(*(*info).pbparams).spmode = 1	&	(*(*info).pbparams).spdirection = 1
+    (*(*info).pbparams).lp_blink_init = (*(*info).dataparams).lp
 		IF ((*(*info).feedbparams).count_pbstats EQ 0) THEN (*(*info).feedbparams).pbstats = SYSTIME(/SECONDS)
 		WIDGET_CONTROL, (*(*info).pbparams).bg, TIMER = 0.0
 	ENDIF ELSE BEGIN
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
+      SENSITIVE=((*(*info).pbparams).lp_blink NE (*(*info).dataparams).lp)
 		IF ((*(*info).winids).feedbacktlb NE 0) THEN BEGIN
 			(*(*info).feedbparams).count_pbstats = 0
 			WIDGET_CONTROL, (*(*info).ctrlsfeedb).close_button, /SENSITIVE
@@ -9107,8 +9120,9 @@ PRO CRISPEX_SESSION_RESTORE, event
 			WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_VALUE = (*(*info).dataparams).lp, SET_SLIDER_MIN = (*(*info).dispparams).lp_low, SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, $
 				SENSITIVE = ((*(*info).dataparams).nlp GT 1)
 			WIDGET_CONTROL, (*(*info).ctrlscp).lp_speed_slider, SET_VALUE = (*(*info).pbparams).t_speed, SENSITIVE = ((*(*info).dataswitch).spfile AND (*(*info).pbparams).spmode)
-			WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_SLIDER_MAX = (*(*info).dispparams).lp_range - 1, SET_VALUE = (*(*info).pbparams).lp_step, $
-				SENSITIVE = (((*(*info).dispparams).lp_range - 1 NE 1) AND (*(*info).dataparams).nlp GT 1)
+  	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_SLIDER_MIN=(*(*info).dispparams).lp_low, $
+      SET_SLIDER_MAX=(*(*info).dispparams).lp_upp, SET_VALUE=(*(*info).dataparams).lp, $
+      SENSITIVE=(((*(*info).dispparams).lp_range-1) NE 1)
 			WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, SET_BUTTON = (*(*info).pbparams).spmode, SENSITIVE = (((*(*info).dataparams).nlp GT 1) AND ((*(*info).winswitch).showimref EQ 0))
 			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SET_BUTTON = ((*(*info).ctrlsswitch).lp_ref_lock AND ((*(*info).dataparams).refnlp GT 1)), $
 				SENSITIVE = (((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND ((*(*info).dataparams).refnlp GT 1))
@@ -10356,6 +10370,8 @@ PRO CRISPEX_SLIDER_LP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP'
 	(*(*info).dataparams).lp = event.VALUE
+  WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
+    SENSITIVE=((*(*info).pbparams).lp_blink NE (*(*info).dataparams).lp)
 	CRISPEX_SLIDER_LP_UPDATE, event
 END
 
@@ -10363,7 +10379,7 @@ PRO CRISPEX_SLIDER_LP_DECR, event
 ; Handles increase of spectral position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_DECR'
-	(*(*info).dataparams).lp -= (*(*info).pbparams).lp_step 
+	(*(*info).dataparams).lp -= 1L 
 	IF ((*(*info).dataparams).lp LT (*(*info).dispparams).lp_low) THEN (*(*info).dataparams).lp = (*(*info).dispparams).lp_upp
 	CRISPEX_SLIDER_LP_UPDATE, event, /OVERRIDE_DIAGNOSTIC
 END
@@ -10372,7 +10388,8 @@ PRO CRISPEX_SLIDER_LP_INCR, event
 ; Handles increase of spectral position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_INCR'
-	(*(*info).dataparams).lp = (((*(*info).dataparams).lp - (*(*info).dispparams).lp_low + (*(*info).pbparams).lp_step) MOD ((*(*info).dispparams).lp_upp - (*(*info).dispparams).lp_low + 1)) + (*(*info).dispparams).lp_low
+	(*(*info).dataparams).lp = (((*(*info).dataparams).lp - (*(*info).dispparams).lp_low + 1L) $
+    MOD ((*(*info).dispparams).lp_upp - (*(*info).dispparams).lp_low + 1)) + (*(*info).dispparams).lp_low
 	CRISPEX_SLIDER_LP_UPDATE, event, /OVERRIDE_DIAGNOSTIC
 END
 
@@ -10453,12 +10470,18 @@ PRO CRISPEX_SLIDER_LP_UPDATE, event, OVERRIDE_DIAGNOSTIC=override_diagnostic
 	CRISPEX_DRAW, event
 END
 
-PRO CRISPEX_SLIDER_SPECTSTEP, event
+PRO CRISPEX_SLIDER_SPECTBLINK, event
 ; Handles the change in spectral step (for spectral blink) slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_SPECTSTEP'
-	(*(*info).pbparams).lp_step = event.VALUE
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).lp_step], labels=['lp_step']
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_SPECTBLINK'
+	(*(*info).pbparams).lp_blink = event.VALUE
+  WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
+    SENSITIVE=((*(*info).pbparams).lp_blink NE (*(*info).dataparams).lp)
+  (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink
+  CRISPEX_SLIDER_LP_UPDATE, event
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).lp_blink], labels=['lp_blink']
 END
 
 PRO CRISPEX_SLIDER_SPEED, event
@@ -11123,7 +11146,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '602'
+	revision_number = '603'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -12140,17 +12163,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	spectral_tab		= WIDGET_BASE(tab_tlb, TITLE = sp_h[heightset], /COLUMN)
 	lp_ranges		= WIDGET_BASE(spectral_tab, /COLUMN, /FRAME)
 	lp_range_field		= WIDGET_BASE(lp_ranges, /ROW)
-;	lower_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Lower '+lp_h[heightset]+'-value:', /ALIGN_LEFT)
 	lower_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Lower index:', /ALIGN_LEFT)
 	lower_lp_text		= WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_first,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_LOW', SENSITIVE = lp_blink_vals_sens)
-;	upper_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Upper '+lp_h[heightset]+'-value:', /ALIGN_LEFT)
 	upper_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Upper index:', /ALIGN_LEFT)
 	upper_lp_text		= WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_last_vals,2),  /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_UPP', SENSITIVE = lp_blink_vals_sens)
 	reset_lprange_but	= WIDGET_BUTTON(lp_ranges, VALUE = 'Reset '+STRLOWCASE(sp_h[heightset])+' boundaries', EVENT_PRO = 'CRISPEX_DISPRANGE_LP_RESET', SENSITIVE = 0)
 	lp_slid			= WIDGET_SLIDER(control_panel, TITLE = 'Main '+STRLOWCASE(sp_h[heightset])+' position', MIN = lp_first, MAX = lp_last_slid, VALUE = lp_start, EVENT_PRO = 'CRISPEX_SLIDER_LP', $
 					/DRAG, SENSITIVE = lp_slid_sens)
 	lp_speed_slid		= WIDGET_SLIDER(spectral_tab, TITLE = 'Animation speed [blink/s]', MIN = 1, MAX = 100, VALUE = t_speed, EVENT_PRO = 'CRISPEX_SLIDER_SPEED', /DRAG, SENSITIVE = 0)
-	lp_blink_slid		= WIDGET_SLIDER(spectral_tab, TITLE = sp_h[heightset]+' increment', MIN = 1, MAX = lp_last_blink, EVENT_PRO = 'CRISPEX_SLIDER_SPECTSTEP',/DRAG, SENSITIVE = lp_blink_vals_sens)
+	lp_blink_slid		= WIDGET_SLIDER(spectral_tab, $
+    TITLE=sp_h[heightset]+' position to blink against', MIN=lp_first, MAX=lp_last_slid, $
+    VALUE=lp_start, EVENT_PRO='CRISPEX_SLIDER_SPECTBLINK', /DRAG, SENSITIVE = lp_blink_vals_sens)
 	lp_blink_field		= WIDGET_BASE(spectral_tab, /ROW,/NONEXCLUSIVE)
 	lp_blink_but		= WIDGET_BUTTON(lp_blink_field, VALUE = 'Blink between '+STRLOWCASE(sp_h[heightset])+' positions', EVENT_PRO = 'CRISPEX_PB_SPECTBLINK', SENSITIVE = lp_slid_sens)
 	lp_ref_but_field	= WIDGET_BASE(spectral_tab, /ROW, /NONEXCLUSIVE)
@@ -12741,7 +12764,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;--------------------------------------------------------------------------------- PLAYBACK
 	pbparams = { $
 		t_step:t_step, t_speed:t_speed, direction:direction, bg:bg, mode:'PAUSE', lmode:'LOOP', $				
-		imrefmode:0, lp_step:1, spmode:0, spdirection:1 $						
+		imrefmode:0, lp_blink:lp_start, lp_blink_init:lp_start, spmode:0, spdirection:1 $						
 	}
 ;--------------------------------------------------------------------------------- PHI SLIT VARIABLES 
 	phiparams = { $
