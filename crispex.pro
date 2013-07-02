@@ -7453,7 +7453,9 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
         tarr_sel = REFORM(tarr[tini_col,*]) $
       ELSE $
         tarr_sel = tarr
-    ENDIF
+    ENDIF ELSE BEGIN
+      tarr_sel=[0]
+    ENDELSE
     sjixoff = 0
     sjiyoff = 0
     sjix0 = 0
