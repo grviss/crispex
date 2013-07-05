@@ -170,8 +170,9 @@
 ;		  - current session (*.CSES file).
 ;
 ; RESTRICTIONS:
-;   Requires the following procedures and functions if reading FITS cubes:
-;     Functions: FITSPOINTER(), READFITS()
+;   Requires the following procedures and functions:
+;     Functions: HISTO_OPT()                  [general]
+;                FITSPOINTER(), READFITS()    [if reading FITS cubes]
 ;
 ; PROCEDURE:
 ;   In default setting, four windows are opened, one control panel and three subsidiary windows 
@@ -425,7 +426,7 @@ FUNCTION CRISPEX_READ_BMP_BUTTONS, filename, srcdir
 	RETURN, button_dummy
 END
 
-;------------------------- SCALING CONTRAST FUNCTION
+;------------------------- SCALING FUNCTIONS
 FUNCTION CRISPEX_SCALING_CONTRAST, minimum_init, maximum_init, $
   minimum_perc, maximum_perc
   minimum_init = DOUBLE(minimum_init)
@@ -436,6 +437,24 @@ FUNCTION CRISPEX_SCALING_CONTRAST, minimum_init, maximum_init, $
 ;  level = 0.5*(maximum-minimum)+minimum
 ;  width = (1.-contrast_value/101.)*(maximum-minimum)
 ;  minmax = [level-width/2.,level+width/2.]
+  RETURN, minmax
+END
+
+FUNCTION CRISPEX_SCALING_SLICES, dispslice, gamma_val, histo_opt_val, $
+  default_min, default_max
+  IF (gamma_val NE 1) THEN BEGIN
+    whereneg = WHERE(dispslice LT 0, nwhereneg)
+    IF (nwhereneg GT 0) THEN BEGIN
+      dispslice = (TEMPORARY(ABS(dispslice)))^gamma_val
+      dispslice[whereneg] *= -1.
+    ENDIF ELSE $
+      dispslice = (TEMPORARY((dispslice)))^gamma_val
+  ENDIF
+  IF (histo_opt_val NE 0) THEN $
+    dispslice = HISTO_OPT(TEMPORARY(dispslice), histo_opt_val)
+  minimum = MIN(dispslice,MAX=maximum)
+  minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+    default_min, default_max)
   RETURN, minmax
 END
 
@@ -565,7 +584,6 @@ PRO CRISPEX_CLOSE_CLEANUP, base
 	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)) THEN FREE_LUN, (*(*info).data).lunrefsp
 	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)) THEN FREE_LUN, (*(*info).data).lunmask
 	CRISPEX_CLOSE_CLEAN_INSTANCE_FILE, (*(*info).paths).dir_inst_write, (*(*info).paths).dir_inst, (*(*info).paths).hostname, ((*(*info).sesparams).curr_instance_id)[0]
-;  GAMMA_CT, 1
 	PTR_FREE, info
 END
 
@@ -3690,108 +3708,43 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
 ;    sel = 0
     IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN selected_data = *(*(*info).data).xyslice
 		IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
-;			IF ((*(*info).scaling).scalestokes_max AND ((*(*info).dataparams).s GE 1)) THEN BEGIN
-;				minimum = MIN(((*(*info).scaling).imagemin)[*,(*(*info).dataparams).s,$
-;          (*(*info).scaling).gamma[scale_idx]])
-;				maximum = MAX(((*(*info).scaling).imagemax)[*,(*(*info).dataparams).s,$
-;          (*(*info).scaling).gamma[scale_idx]])
-;			ENDIF ELSE BEGIN
-;				minimum = ((*(*info).scaling).imagemin)[(*(*info).dataparams).lp,(*(*info).dataparams).s,$
-;          (*(*info).scaling).gamma[scale_idx]]
-;				maximum = ((*(*info).scaling).imagemax)[(*(*info).dataparams).lp,(*(*info).dataparams).s,$
-;          (*(*info).scaling).gamma[scale_idx]]
-;			ENDELSE
-;      minmax_data = ((*(*(*info).data).imagedata)[$
-;        (*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp])$
       minimum = (*(*info).scaling).imagemin
       maximum = (*(*info).scaling).imagemax
     ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[sel] EQ 1) THEN BEGIN
       minimum = (*(*info).scaling).imagemin_curr
       maximum = (*(*info).scaling).imagemax_curr
     ENDIF
-;      minmax_data = *(*(*info).scaling).sel_xyslice 
-;    ELSE BEGIN
-;      minimum = MIN(selected_data, MAX=maximum)
-;    ENDELSE
   ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
 ;    sel = 1
     IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN selected_data = *(*(*info).data).refslice
   	IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
-;  		IF ((*(*info).dataparams).refnlp EQ 1) THEN BEGIN
-;  			minimum = (*(*info).scaling).refmin 
-;  			maximum = (*(*info).scaling).refmax
-;  		ENDIF ELSE BEGIN
-;  			minimum = ((*(*info).scaling).refmin)[(*(*info).dataparams).lp_ref,$
-;          (*(*info).scaling).gamma[scale_idx]]
-;  			maximum = ((*(*info).scaling).refmax)[(*(*info).dataparams).lp_ref,$
-;          (*(*info).scaling).gamma[scale_idx]]
-;  		ENDELSE
-;      minmax_data = ((*(*(*info).data).refdata)[(*(*info).dataparams).lp_ref])$
       minimum = (*(*info).scaling).refmin
       maximum = (*(*info).scaling).refmax
     ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[sel] EQ 1) THEN BEGIN
-;      minmax_data = *(*(*info).scaling).sel_refslice 
       minimum = (*(*info).scaling).refmin_curr
       maximum = (*(*info).scaling).refmax_curr
     ENDIF 
-;    ELSE $
-;      minmax_data = selected_data
   ENDIF ELSE IF KEYWORD_SET(DOPPLER) THEN BEGIN
 ;    sel = 2
     IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN selected_data = *(*(*info).data).dopslice
 		IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
-;			IF ((*(*info).scaling).scalestokes_max AND ((*(*info).dataparams).s GE 1)) THEN BEGIN
-;				minimum = MIN(((*(*info).scaling).dopplermin)[*,(*(*info).dataparams).s,$
-;          (*(*info).scaling).gamma[scale_idx]])
-;				maximum = MAX(((*(*info).scaling).dopplermax)[*,(*(*info).dataparams).s,$
-;          (*(*info).scaling).gamma[scale_idx]])
-;			ENDIF ELSE BEGIN
-;				minimum = ((*(*info).scaling).dopplermin)[(*(*info).dataparams).lp,(*(*info).dataparams).s,$
-;          (*(*info).scaling).gamma[scale_idx]]
-;				maximum = ((*(*info).scaling).dopplermax)[(*(*info).dataparams).lp,(*(*info).dataparams).s,$
-;          (*(*info).scaling).gamma[scale_idx]]
-;			ENDELSE
       minimum = (*(*info).scaling).dopmin
       maximum = (*(*info).scaling).dopmax
     ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[sel] EQ 1) THEN BEGIN
       minimum = (*(*info).scaling).dopmin_curr
       maximum = (*(*info).scaling).dopmax_curr
     ENDIF
-;      minmax_data = *(*(*info).scaling).sel_dopslice
-;    ELSE BEGIN
-;      minimum = MIN(selected_data, MAX=maximum)
-;      ;minmax_data = selected_data
-;    ENDELSE
   ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
 ;    sel = 3
     IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN selected_data = *(*(*info).data).sjislice 
     IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
       minimum = (*(*info).scaling).sjimin
       maximum = (*(*info).scaling).sjimax
-;      minmax_data = ((*(*(*info).data).sjidata)[0]) $
     ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[sel] EQ 1) THEN BEGIN
       minimum = (*(*info).scaling).sjimin_curr
       maximum = (*(*info).scaling).sjimax_curr
-;      minmax_data = *(*(*info).scaling).sel_sjislice
     ENDIF
-;    ELSE $
-;      minmax_data = selected_data
   ENDIF
-;	IF ((*(*(*info).scaling).imagescale)[sel] EQ 1) THEN $
-;    minimum = MIN(selected_data, MAX=maximum) $
-;  ELSE IF ((*(*(*info).scaling).imagescale)[sel] GE 2) THEN BEGIN
-;		IF (*(*(*info).scaling).relative)[sel] THEN BEGIN
-;			minimum = (*(*(*info).scaling).scale_range)[sel] / 100. * $
-;        (*(*(*info).scaling).rel_scale_min_val)[sel] + (*(*(*info).scaling).scale_minimum)[sel]
-;			maximum = (*(*(*info).scaling).scale_range)[sel] / 100. * $
-;        (*(*(*info).scaling).rel_scale_max_val)[sel] + (*(*(*info).scaling).scale_minimum)[sel]
-;		ENDIF ELSE BEGIN
-;			minimum = (*(*(*info).scaling).scale_range)[sel] / 255. * $
-;        (*(*(*info).scaling).scale_min_val)[sel] + (*(*(*info).scaling).scale_minimum)[sel]
-;			maximum = (*(*(*info).scaling).scale_range)[sel] / 255. * $
-;        (*(*(*info).scaling).scale_max_val)[sel] + (*(*(*info).scaling).scale_minimum)[sel]
-;		ENDELSE
-;	ENDIF 
   IF ((*(*info).scaling).gamma[scale_idx] NE 1.) THEN BEGIN
     wherelt0 = WHERE(selected_data LT 0)
     IF (wherelt0[0] EQ -1) THEN $
@@ -3801,10 +3754,11 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
       selected_data[wherelt0] *= -1
     ENDELSE
   ENDIF
-;    minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[scale_idx]
-;  minimum = MIN(minmax_data, MAX=maximum)
-  IF ((*(*(*info).scaling).imagescale)[sel] EQ 2) THEN $
+  IF ((*(*(*info).scaling).imagescale)[sel] EQ 2) THEN BEGIN
+    selected_data = HISTO_OPT(TEMPORARY(selected_data), $
+      (*(*info).scaling).histo_opt_val[scale_idx])
     minimum = MIN(selected_data, MAX=maximum)
+  ENDIF
   minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
     (*(*info).scaling).minimum[scale_idx],(*(*info).scaling).maximum[scale_idx])
 	finalimage = BYTSCL(selected_data, MIN = minmax[0], MAX = minmax[1]) 
@@ -3818,7 +3772,6 @@ PRO CRISPEX_DRAW_XY, event, no_cursor=no_cursor, no_number=no_number, thick=thic
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_XY'
 	WSET, (*(*info).winids).imwid
-;  GAMMA_CT, (*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all]
 	CRISPEX_DRAW_SCALING, event, imdisp, minimum, maximum, /MAIN
   TV, CONGRID(imdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
 	CRISPEX_DRAW_SUBCOLOR, event, 0, subcolor, minimum, maximum
@@ -3850,8 +3803,6 @@ PRO CRISPEX_DRAW_DOPPLER, event
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_DOPPLER'
 	WSET, (*(*info).winids).dopwid
 	IF (*(*info).dispswitch).drawdop THEN BEGIN
-;    GAMMA_CT, (*(*info).scaling).gamma[(*(*info).intparams).ndiagnostics + $
-;      (*(*info).intparams).nrefdiagnostics + (*(*info).intparams).lp_diag_all]
 		CRISPEX_DRAW_SCALING, event, dopdisp, dopminimum, dopmaximum, /DOPPLER
     TV, CONGRID(dopdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
 		CRISPEX_DRAW_SUBCOLOR, event, 2, dopsubcolor, dopminimum, dopmaximum
@@ -3891,8 +3842,6 @@ PRO CRISPEX_DRAW_REF, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_REF'
 	WSET, (*(*info).winids).refwid
-;  GAMMA_CT, (*(*info).scaling).gamma[(*(*info).intparams).ndiagnostics + $
-;    (*(*info).intparams).lp_ref_diag_all]
 	CRISPEX_DRAW_SCALING, event, refdisp, refmin, refmax, /REFERENCE
   TV, CONGRID(refdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) 
 	CRISPEX_DRAW_SUBCOLOR, event, 1, subcolor_ref, refmin, refmax
@@ -3916,8 +3865,6 @@ PRO CRISPEX_DRAW_IMREF_BLINK, event
   ELSE $
 		time = STRTRIM((*(*info).dataparams).t,2)
 	IF (*(*info).winids).imrefdisp THEN BEGIN
-;    GAMMA_CT, (*(*info).scaling).gamma[(*(*info).intparams).ndiagnostics + $
-;      (*(*info).intparams).lp_ref_diag_all]
 		CRISPEX_DRAW_SCALING, event, refdisp, refmin, refmax, /REFERENCE
     TV, CONGRID(refdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) 
 		CRISPEX_DRAW_SUBCOLOR, event, 1, subcolor_ref, refmin, refmax
@@ -3928,7 +3875,6 @@ PRO CRISPEX_DRAW_IMREF_BLINK, event
 		IF (color_reftxt GE 122) THEN reftxtcol = 0 ELSE reftxtcol = 255
 		XYOUTS, 10, 10, 'Reference image, t='+time, /DEVICE, COLOR=reftxtcol
 	ENDIF ELSE BEGIN
-;    GAMMA_CT, (*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all]
 		CRISPEX_DRAW_SCALING, event, imdisp, minimum, maximum, /MAIN
     TV, CONGRID(imdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) 
 		CRISPEX_DRAW_SUBCOLOR, event, 0, subcolor, minimum, maximum
@@ -4095,17 +4041,22 @@ PRO CRISPEX_DRAW_REFSP, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_REFSP'
 	WSET,(*(*info).winids).refspwid
-;  GAMMA_CT, 1
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).refspwid], labels=['Window ID for draw']
 	refspslice = ((*(*(*info).data).refspdata)[ FIX((*(*info).dataparams).y) * $
                 (*(*info).dataparams).nx + FIX((*(*info).dataparams).x) ])[$
                 (*(*info).dispparams).lp_ref_low:(*(*info).dispparams).lp_ref_upp,$
 		            (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
-	IF (*(*info).dispparams).slices_imscale THEN $                ; Determine scaling and scale slice
-    CRISPEX_DRAW_SCALING,event,refdisp,refmin,refmax, /REFERENCE $
-  ELSE $
-    refmin = MIN(refspslice,MAX=refmax)
+;	IF (*(*info).dispparams).slices_imscale THEN $                ; Determine scaling and scale slice
+;    CRISPEX_DRAW_SCALING,event,refdisp,refmin,refmax, /REFERENCE $
+;  ELSE $
+;    refmin = MIN(refspslice,MAX=refmax)
+	IF (*(*info).dispparams).slices_imscale THEN BEGIN
+    sel_idx = (*(*info).intparams).lp_ref_diag_all+(*(*info).intparams).ndiagnostics
+    CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN
+    refminmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+      (*(*info).scaling).minimum[sel_idx], (*(*info).scaling).maximum[sel_idx])
+  ENDIF 
 	IF (*(*info).dispswitch).warprefspslice THEN $                ; Warp slice if non-equidistant lp
     dispslice = WARP_TRI($
       (*(*info).dispparams).xo_ref[$
@@ -4142,13 +4093,18 @@ PRO CRISPEX_DRAW_REFSP, event
 ;    dispslice = tmp_disp
     ; Display slice
 ;      tmp_disp *= (*(*info).scaling).mult_val[sel_idx]
-;      GAMMA_CT, (*(*info).scaling).gamma[wheredispdiag[d]+(*(*info).intparams).ndiagnostics]
 ;      CRISPEX_DRAW_SCALING,event,fin_disp,minimum,maximum, /MAIN, SELECTED_DATA=tmp_disp
-      IF ((*(*info).scaling).gamma[sel_idx] NE 1) THEN $
-        tmp_disp = (TEMPORARY(tmp_disp))^(*(*info).scaling).gamma[sel_idx]
-      refmin = MIN(tmp_disp,MAX=refmax)
-      refminmax = CRISPEX_SCALING_CONTRAST(refmin,refmax,$
-        (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
+;      IF ((*(*info).scaling).gamma[sel_idx] NE 1) THEN $
+;        tmp_disp = (TEMPORARY(tmp_disp))^(*(*info).scaling).gamma[sel_idx]
+;      refmin = MIN(tmp_disp,MAX=refmax)
+;      refminmax = CRISPEX_SCALING_CONTRAST(refmin,refmax,$
+;        (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
+      IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
+        refminmax = CRISPEX_SCALING_SLICES(tmp_disp, $
+          (*(*info).scaling).gamma[sel_idx], $
+          (*(*info).scaling).histo_opt_val[sel_idx], $
+          (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
+      ENDIF
       TV,(CONGRID( BYTSCL(tmp_disp,MIN=refminmax[0],MAX=refminmax[1]), $
         (*(*info).dispparams).refnlpreb*diag_ratio[d], (*(*info).dispparams).refntreb, $
         INTERP = (*(*info).dispparams).interpspslice, /CENTER)),$
@@ -4160,18 +4116,21 @@ PRO CRISPEX_DRAW_REFSP, event
     ; Display slice
     sel_idx = (*(*info).intparams).lp_ref_diag_all+(*(*info).intparams).ndiagnostics
 ;    dispslice *= (*(*info).scaling).mult_val[sel_idx]
-    IF ((*(*info).scaling).gamma[sel_idx] NE 1) THEN $
-      dispslice = (TEMPORARY(dispslice))^(*(*info).scaling).gamma[sel_idx]
-;    GAMMA_CT,(*(*info).scaling).gamma[(*(*info).intparams).lp_ref_diag_all+$
-;      (*(*info).intparams).ndiagnostics]
-    refmin = MIN(dispslice,MAX=refmax)
-    refminmax = CRISPEX_SCALING_CONTRAST(refmin,refmax,$
-      (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
+;    IF ((*(*info).scaling).gamma[sel_idx] NE 1) THEN $
+;      dispslice = (TEMPORARY(dispslice))^(*(*info).scaling).gamma[sel_idx]
+;    refmin = MIN(dispslice,MAX=refmax)
+;    refminmax = CRISPEX_SCALING_CONTRAST(refmin,refmax,$
+;      (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
+    IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
+      refminmax = CRISPEX_SCALING_SLICES(dispslice, $
+        (*(*info).scaling).gamma[sel_idx], $
+        (*(*info).scaling).histo_opt_val[sel_idx], $
+        (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
+    ENDIF
     TV,(CONGRID( BYTSCL(dispslice,MIN=refminmax[0],MAX=refminmax[1]), (*(*info).dispparams).refnlpreb, $
        (*(*info).dispparams).refntreb, INTERP = (*(*info).dispparams).interpspslice, /CENTER)),$
        (*(*info).plotpos).refspx0, (*(*info).plotpos).refspy0, /NORM
   ENDELSE
-;  GAMMA_CT, 1
   ; In case of multiple diagnostics, overplot separator axes
   IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
     ; Loop over all but the last diagnostic for plotting separators
@@ -4220,8 +4179,6 @@ PRO CRISPEX_DRAW_SJI, event
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SJI'
 	WSET, (*(*info).winids).sjiwid
 ;	sjimin = MIN( *(*(*info).data).sjislice, MAX=sjimax) 
-;  GAMMA_CT, (*(*info).scaling).gamma[2*(*(*info).intparams).ndiagnostics + $
-;    (*(*info).intparams).nrefdiagnostics]
 	CRISPEX_DRAW_SCALING, event, sjidisp, minimum, maximum, /SJI
   TV, CONGRID(sjidisp,(*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny)
   ; Determine cursor colour and overplot cursors and masks
@@ -4476,17 +4433,22 @@ PRO CRISPEX_DRAW_SP, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SP'
 	WSET,(*(*info).winids).spwid
-;  GAMMA_CT, 1
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).spwid], labels=['Window ID for draw']
 	spslice = ((*(*(*info).data).spdata)[ FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * $
             (*(*info).dataparams).ns + FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns +$
 		        (*(*info).dataparams).s ])[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp,$
             (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
-	IF (*(*info).dispparams).slices_imscale THEN $                ; Determine scaling and scale slice 
-    CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN $
-  ELSE $
-    minimum = MIN(spslice,MAX=maximum)
+	IF (*(*info).dispparams).slices_imscale THEN BEGIN
+    CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN
+    minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+      (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
+      (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+  ENDIF 
+;	IF (*(*info).dispparams).slices_imscale THEN $                ; Determine scaling and scale slice 
+;    CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN $
+;  ELSE $
+;    minimum = MIN(spslice,MAX=maximum)
 	IF (*(*info).dispswitch).warpspslice THEN $                   ; Warp slice if non-equidistant lp
     dispslice = WARP_TRI( $
      (*(*info).dispparams).xo[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp,$
@@ -4518,12 +4480,27 @@ PRO CRISPEX_DRAW_SP, event
 ;    dispslice = tmp_disp
     ; Display slice
 ;      tmp_disp *= (*(*info).scaling).mult_val[wheredispdiag[d]]
-;      GAMMA_CT, (*(*info).scaling).gamma[wheredispdiag[d]]
-      IF ((*(*info).scaling).gamma[wheredispdiag[d]] NE 1) THEN $
-        tmp_disp = (TEMPORARY(tmp_disp))^(*(*info).scaling).gamma[wheredispdiag[d]]
-      minimum = MIN(tmp_disp,MAX=maximum)
-      minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
-        (*(*info).scaling).minimum[wheredispdiag[d]],(*(*info).scaling).maximum[wheredispdiag[d]])
+;      IF ((*(*info).scaling).gamma[wheredispdiag[d]] NE 1) THEN $
+;        tmp_disp = (TEMPORARY(tmp_disp))^(*(*info).scaling).gamma[wheredispdiag[d]]
+;      tmp_disp = HISTO_OPT(TEMPORARY(tmp_disp), $
+;        (*(*info).scaling).histo_opt_val[wheredispdiag[d]])
+;      minimum = MIN(tmp_disp,MAX=maximum)
+;      minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+;        (*(*info).scaling).minimum[wheredispdiag[d]],(*(*info).scaling).maximum[wheredispdiag[d]])
+;    	IF (*(*info).dispparams).slices_imscale THEN BEGIN
+;        CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN
+;        minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+;          (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
+;          (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+;      ENDIF ELSE BEGIN
+    	IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
+;    minimum = MIN(spslice,MAX=maximum)
+        minmax = CRISPEX_SCALING_SLICES(tmp_disp, $
+          (*(*info).scaling).gamma[wheredispdiag[d]], $
+          (*(*info).scaling).histo_opt_val[wheredispdiag[d]],$
+          (*(*info).scaling).minimum[wheredispdiag[d]],$
+          (*(*info).scaling).maximum[wheredispdiag[d]])
+      ENDIF
       TV,(CONGRID( BYTSCL(tmp_disp, MIN=minmax[0], MAX=minmax[1]), $
         (*(*info).dispparams).nlpreb*diag_ratio[d], (*(*info).dispparams).ntreb, $
         INTERP = (*(*info).dispparams).interpspslice, /CENTER) ), $
@@ -4533,18 +4510,25 @@ PRO CRISPEX_DRAW_SP, event
     diag_starts = 0
     ; Display slice
 ;    dispslice *= (*(*info).scaling).mult_val[(*(*info).intparams).lp_diag_all]
-;    GAMMA_CT, (*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all]
-    IF ((*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all] NE 1) THEN $
-      dispslice = (TEMPORARY(dispslice))^(*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all]
-    minimum = MIN(dispslice,MAX=maximum)
-    minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
-      (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
-      (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+;    IF ((*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all] NE 1) THEN $
+;      dispslice = (TEMPORARY(dispslice))^(*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all]
+;    dispslice = HISTO_OPT(TEMPORARY(dispslice), $
+;      (*(*info).scaling).histo_opt_val[(*(*info).intparams).lp_diag_all])
+;    minimum = MIN(dispslice,MAX=maximum)
+;    minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+;      (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
+;      (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+    IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
+      minmax = CRISPEX_SCALING_SLICES(dispslice, $
+        (*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all], $
+        (*(*info).scaling).histo_opt_val[(*(*info).intparams).lp_diag_all], $
+        (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
+        (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+    ENDIF
     TV,(CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1]), (*(*info).dispparams).nlpreb, $
        (*(*info).dispparams).ntreb, INTERP = (*(*info).dispparams).interpspslice, /CENTER) ), $
        (*(*info).plotpos).spx0, (*(*info).plotpos).spy0, /NORM
   ENDELSE
-;  GAMMA_CT, 1
   ; In case of multiple diagnostics, overplot separator axes
   IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
     ; Loop over all but the last diagnostic for plotting separators
@@ -4723,10 +4707,16 @@ PRO CRISPEX_DRAW_PHIS, event
 	phislice = (*(*(*info).data).phislice)[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp,*]
   ; If 2D, then display
   IF ((SIZE(phislice))[0] EQ 2) THEN BEGIN
-  	IF (*(*info).dispparams).slices_imscale THEN $
-      CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN $
-    ELSE $
-      minimum = MIN(phislice,MAX=maximum)
+;  	IF (*(*info).dispparams).slices_imscale THEN $
+;      CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN $
+;    ELSE $
+;      minimum = MIN(phislice,MAX=maximum)
+  	IF (*(*info).dispparams).slices_imscale THEN BEGIN
+      CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN
+      minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+        (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
+        (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+    ENDIF 
     ; Warp slice if non-equidistant lp
   	IF (*(*info).dispswitch).warpspslice THEN BEGIN
       dispslice = INTERPOLATE(phislice,$
@@ -4748,12 +4738,20 @@ PRO CRISPEX_DRAW_PHIS, event
 ;      dispslice = tmp_disp
       ; Display slice
 ;        tmp_disp *= (*(*info).scaling).mult_val[wheredispdiag[d]]
-;        GAMMA_CT, (*(*info).scaling).gamma[wheredispdiag[d]]
-        IF ((*(*info).scaling).gamma[wheredispdiag[d]] NE 1) THEN $
-          tmp_disp = (TEMPORARY(tmp_disp))^(*(*info).scaling).gamma[wheredispdiag[d]]
-        minimum = MIN(tmp_disp,MAX=maximum)
-        minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
-          (*(*info).scaling).minimum[wheredispdiag[d]],(*(*info).scaling).maximum[wheredispdiag[d]])
+;        IF ((*(*info).scaling).gamma[wheredispdiag[d]] NE 1) THEN $
+;          tmp_disp = (TEMPORARY(tmp_disp))^(*(*info).scaling).gamma[wheredispdiag[d]]
+;        tmp_disp = HISTO_OPT(TEMPORARY(tmp_disp), $
+;          (*(*info).scaling).histo_opt_val[wheredispdiag[d]])
+;        minimum = MIN(tmp_disp,MAX=maximum)
+;        minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+;          (*(*info).scaling).minimum[wheredispdiag[d]],(*(*info).scaling).maximum[wheredispdiag[d]])
+      	IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
+          minmax = CRISPEX_SCALING_SLICES(tmp_disp, $
+            (*(*info).scaling).gamma[wheredispdiag[d]], $
+            (*(*info).scaling).histo_opt_val[wheredispdiag[d]],$
+            (*(*info).scaling).minimum[wheredispdiag[d]],$
+            (*(*info).scaling).maximum[wheredispdiag[d]])
+        ENDIF
         TV,(CONGRID( BYTSCL(tmp_disp, MIN=minmax[0], MAX=minmax[1]), $
           (*(*info).dispparams).phisnlpreb*diag_ratio[d], (*(*info).dispparams).nphireb, $
           INTERP = (*(*info).dispparams).interpspslice, /CENTER) ), $
@@ -4764,19 +4762,26 @@ PRO CRISPEX_DRAW_PHIS, event
       diag_starts = 0
       ; Display slice
 ;      dispslice *= (*(*info).scaling).mult_val[(*(*info).intparams).lp_diag_all]
-;      GAMMA_CT, (*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all]
-      IF ((*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all] NE 1) THEN $
-        dispslice = (TEMPORARY(dispslice))^(*(*info).scaling).gamma[$
-          (*(*info).intparams).lp_diag_all]
-      minimum = MIN(dispslice,MAX=maximum)
-      minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
-        (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
-        (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+;      IF ((*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all] NE 1) THEN $
+;        dispslice = (TEMPORARY(dispslice))^(*(*info).scaling).gamma[$
+;          (*(*info).intparams).lp_diag_all]
+;      dispslice = HISTO_OPT(TEMPORARY(dispslice), $
+;        (*(*info).scaling).histo_opt_val[(*(*info).intparams).lp_diag_all])
+;      minimum = MIN(dispslice,MAX=maximum)
+;      minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+;        (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
+;        (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+      IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
+        minmax = CRISPEX_SCALING_SLICES(dispslice, $
+          (*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all], $
+          (*(*info).scaling).histo_opt_val[(*(*info).intparams).lp_diag_all], $
+          (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
+          (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+      ENDIF
     	TV, CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1]), (*(*info).dispparams).phisnlpreb, $
         (*(*info).dispparams).nphireb, INTERP = (*(*info).dispparams).interpspslice), $
         (*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, /NORM
     ENDELSE
-;    GAMMA_CT, 1
     IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
       ; Loop over all but the last diagnostic for plotting separators
       FOR d=0,(*(*info).intparams).ndisp_diagnostics-2 DO BEGIN
@@ -4840,18 +4845,22 @@ PRO CRISPEX_DRAW_LOOPSLAB, event
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).loopwid], labels=['Window ID for draw']
 	dispslice = (*(*(*info).loopsdata).loopslice)[*,$
     (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
-	IF (*(*info).dispparams).slices_imscale THEN $
-    CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum,/MAIN $
-  ELSE $
-    minimum = MIN(dispslice,MAX=maximum)
-;  GAMMA_CT, (*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all]
-  minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
-    (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
-    (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+	IF (*(*info).dispparams).slices_imscale THEN BEGIN
+    CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum,/MAIN 
+    minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+      (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
+      (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+  ENDIF ELSE BEGIN
+;    minimum = MIN(dispslice,MAX=maximum)
+    minmax = CRISPEX_SCALING_SLICES(dispslice, $
+      (*(*info).scaling).gamma[(*(*info).intparams).lp_diag_all], $
+      (*(*info).scaling).histo_opt_val[(*(*info).intparams).lp_diag_all], $
+      (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
+      (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
+  ENDELSE
 	TV, CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1]), (*(*info).dispparams).loopnlxreb, $
     (*(*info).dispparams).loopntreb, /INTERP), $
 		(*(*info).plotpos).loopx0, (*(*info).plotpos).loopy0,/NORM
-;  GAMMA_CT, 1
 	PLOTS, [(*(*info).plotpos).loopx0, (*(*info).plotpos).loopx1], $
     [1,1] * ( ((*(*info).dataparams).t-(*(*info).dispparams).t_low) / $
     FLOAT((*(*info).dispparams).t_range-1) * (*(*info).plotpos).loopyplspw + $
@@ -4877,21 +4886,25 @@ PRO CRISPEX_DRAW_REFLOOPSLAB, event
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).refloopwid], labels=['Window ID for draw']
 	dispslice = (*(*(*info).loopsdata).refloopslice)[*,$
     (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
-	IF (*(*info).dispparams).slices_imscale THEN $
-    CRISPEX_DRAW_SCALING,event,refdisp,minimum,maximum,/REFERENCE $
-  ELSE $
-    minimum = MIN(dispslice,MAX=maximum)
-;  GAMMA_CT, (*(*info).scaling).gamma[(*(*info).intparams).lp_ref_diag_all+$
-;    (*(*info).intparams).ndiagnostics]
-  minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
-    (*(*info).scaling).minimum[(*(*info).intparams).lp_ref_diag_all+$
-    (*(*info).intparams).ndiagnostics], FLOAT($
-    (*(*info).scaling).maximum[(*(*info).intparams).lp_ref_diag_all+$
-    (*(*info).intparams).ndiagnostics]))
+  sel_idx = (*(*info).intparams).lp_ref_diag_all+(*(*info).intparams).ndiagnostics
+	IF (*(*info).dispparams).slices_imscale THEN BEGIN
+    CRISPEX_DRAW_SCALING,event,refdisp,minimum,maximum,/REFERENCE 
+    minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+      (*(*info).scaling).minimum[sel_idx], (*(*info).scaling).maximum[sel_idx])
+  ENDIF ELSE BEGIN
+;    minimum = MIN(dispslice,MAX=maximum)
+;    minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+;      (*(*info).scaling).minimum[(*(*info).intparams).lp_ref_diag_all+$
+;      (*(*info).intparams).ndiagnostics], FLOAT($
+;      (*(*info).scaling).maximum[(*(*info).intparams).lp_ref_diag_all+$
+;      (*(*info).intparams).ndiagnostics]))
+    minmax = CRISPEX_SCALING_SLICES(dispslice, $
+      (*(*info).scaling).gamma[sel_idx],(*(*info).scaling).histo_opt_val[sel_idx], $
+      (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
+  ENDELSE
 	TV, CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1]), (*(*info).dispparams).refloopnlxreb, $
     (*(*info).dispparams).refloopntreb, /INTERP), $
 		(*(*info).plotpos).refloopx0, (*(*info).plotpos).refloopy0,/NORM
-;  GAMMA_CT, 1
 	PLOTS, [(*(*info).plotpos).refloopx0, (*(*info).plotpos).refloopx1], $
     [1,1] * ( ((*(*info).dataparams).t-(*(*info).dispparams).t_low) / $
     FLOAT((*(*info).dispparams).t_range-1) * (*(*info).plotpos).refloopyplspw + $
@@ -8814,10 +8827,11 @@ PRO CRISPEX_SCALING_SELECT_TYPE, event
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SELECT_TYPE'
   ;index = {0,1,2} -> Based on first, based on current, per time step
   (*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] = event.INDEX
-  IF (event.INDEX EQ 0) THEN $
-    CRISPEX_SCALING_SELECT_FIRST, event $
-  ELSE IF (event.INDEX EQ 1) THEN $
-    CRISPEX_SCALING_SELECT_CURRENT, event
+;  IF (event.INDEX EQ 0) THEN $
+;    CRISPEX_SCALING_SELECT_FIRST, event $
+;  ELSE IF (event.INDEX EQ 1) THEN $
+;    CRISPEX_SCALING_SELECT_CURRENT, event
+  CRISPEX_SCALING_APPLY_SELECTED, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).scaling).imrefscaling,$
     (*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling]],$
@@ -8830,46 +8844,50 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_APPLY_SELECTED'
   ; Main image
+  idx = (*(*info).intparams).lp_diag_all
   IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN BEGIN
     minmax_data = (*(*(*info).data).imagedata)[$
       (*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp]
-    minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[$
-      (*(*info).intparams).lp_diag_all]
+    minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[idx]
+    minmax_data = HISTO_OPT(TEMPORARY(minmax_data), (*(*info).scaling).histo_opt_val[idx])
     (*(*info).scaling).imagemin = MIN(minmax_data, MAX=maximum)
     (*(*info).scaling).imagemax = maximum
   ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[0] EQ 1) THEN BEGIN
     minmax_data = *(*(*info).data).xyslice
-    minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[$
-      (*(*info).intparams).lp_diag_all]
+    minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[idx]
+    minmax_data = HISTO_OPT(TEMPORARY(minmax_data), (*(*info).scaling).histo_opt_val[idx])
     (*(*info).scaling).imagemin_curr = MIN(minmax_data, MAX=maximum)
     (*(*info).scaling).imagemax_curr = maximum
   ENDIF
   ; Reference image
   IF (*(*info).winswitch).showref THEN BEGIN
+    idx = (*(*info).intparams).ndiagnostics + (*(*info).intparams).lp_ref_diag_all
     IF ((*(*(*info).scaling).imagescale)[1] EQ 0) THEN BEGIN
       minmax_data = (*(*(*info).data).refdata)[(*(*info).dataparams).lp_ref]
-      minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[$
-        (*(*info).intparams).ndiagnostics + (*(*info).intparams).lp_ref_diag_all]
+      minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[idx]
+      minmax_data = HISTO_OPT(TEMPORARY(minmax_data), (*(*info).scaling).histo_opt_val[idx])
       (*(*info).scaling).refmin = MIN(minmax_data, MAX=maximum)
       (*(*info).scaling).refmax = maximum
     ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[1] EQ 1) THEN BEGIN
       minmax_data = *(*(*info).data).refslice
-      minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[$
-        (*(*info).intparams).ndiagnostics + (*(*info).intparams).lp_ref_diag_all]
+      minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[idx]
+      minmax_data = HISTO_OPT(TEMPORARY(minmax_data), (*(*info).scaling).histo_opt_val[idx])
       (*(*info).scaling).refmin_curr = MIN(minmax_data, MAX=maximum)
       (*(*info).scaling).refmax_curr = maximum
     ENDIF
   ENDIF
   ; Doppler image
   IF (*(*info).winswitch).showdop THEN BEGIN
-    gamma_val = (*(*info).scaling).gamma[(*(*info).intparams).ndiagnostics + $
-      (*(*info).intparams).nrefdiagnostics + (*(*info).intparams).lp_diag_all]
+    idx = (*(*info).intparams).ndiagnostics + $
+      (*(*info).intparams).nrefdiagnostics + (*(*info).intparams).lp_diag_all
+    gamma_val = (*(*info).scaling).gamma[idx]
     IF ((*(*(*info).scaling).imagescale)[2] EQ 0) THEN BEGIN
       minmax_data = (*(*info).data).dopplerscan[*,*,$
         (*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp]
       whereneg = WHERE(minmax_data LT 0)
       minmax_data = (TEMPORARY(ABS(minmax_data)))^gamma_val
       minmax_data[whereneg] *= -1.
+      minmax_data = HISTO_OPT(TEMPORARY(minmax_data), (*(*info).scaling).histo_opt_val[idx])
       (*(*info).scaling).dopmin = MIN(minmax_data, MAX=maximum)
       (*(*info).scaling).dopmax = maximum
     ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[2] EQ 1) THEN BEGIN
@@ -8877,26 +8895,40 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event
       whereneg = WHERE(minmax_data LT 0)
       minmax_data = (TEMPORARY(ABS(minmax_data)))^gamma_val
       minmax_data[whereneg] *= -1.
+      minmax_data = HISTO_OPT(TEMPORARY(minmax_data), (*(*info).scaling).histo_opt_val[idx])
       (*(*info).scaling).dopmin_curr = MIN(minmax_data, MAX=maximum)
       (*(*info).scaling).dopmax_curr = maximum
     ENDIF
   ENDIF
   ; SJI image
   IF (*(*info).winswitch).showsji THEN BEGIN
+    idx = 2*(*(*info).intparams).ndiagnostics + (*(*info).intparams).nrefdiagnostics
     IF ((*(*(*info).scaling).imagescale)[3] EQ 0) THEN BEGIN
       minmax_data = (*(*(*info).data).sjidata)[0]
-      minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[$
-        2*(*(*info).intparams).ndiagnostics + (*(*info).intparams).nrefdiagnostics]
+      minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[idx]
+      minmax_data = HISTO_OPT(TEMPORARY(minmax_data), (*(*info).scaling).histo_opt_val[idx])
       (*(*info).scaling).sjimin = MIN(minmax_data, MAX=maximum)
       (*(*info).scaling).sjimax = maximum
     ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[3] EQ 1) THEN BEGIN
       minmax_data = *(*(*info).data).sjislice
-      minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[$
-        2*(*(*info).intparams).ndiagnostics + (*(*info).intparams).nrefdiagnostics]
+      minmax_data = (TEMPORARY(minmax_data))^(*(*info).scaling).gamma[idx]
+      minmax_data = HISTO_OPT(TEMPORARY(minmax_data), (*(*info).scaling).histo_opt_val[idx])
       (*(*info).scaling).sjimin_curr = MIN(minmax_data, MAX=maximum)
       (*(*info).scaling).sjimax_curr = maximum
     ENDIF
   ENDIF
+END
+
+PRO CRISPEX_SCALING_HISTO_OPT_VALUE, event
+; Handles the selection of diagnostic for multiplying detailed spectrum
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_HISTO_OPT_VALUE'
+	WIDGET_CONTROL, (*(*info).ctrlscp).histo_opt_txt, GET_VALUE = textvalue
+  textvalue = FLOAT(textvalue[0])
+	(*(*info).scaling).histo_opt_val[(*(*info).scaling).idx] = FLOAT(textvalue[0])
+  CRISPEX_SCALING_APPLY_SELECTED, event
+  CRISPEX_SCALING_REDRAW, event
 END
 
 PRO CRISPEX_SCALING_SLIDER_MIN, event
@@ -8949,8 +8981,10 @@ PRO CRISPEX_SCALING_RESET_DEFAULTS, event, IDX=idx, NO_DRAW=no_draw
   (*(*info).scaling).minimum[idx] = 0
   (*(*info).scaling).maximum[idx] = 100
   (*(*info).scaling).gamma[idx] = 1.
+  (*(*info).scaling).histo_opt_val[idx] = 0.
   IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
     CRISPEX_SCALING_APPLY_SELECTED, event
+    CRISPEX_SCALING_SET_BOXBUTTONS, event
     CRISPEX_SCALING_SET_SLIDERS, event;, SET_GAMMA=50, /GAMMA_ONLY
     CRISPEX_SCALING_REDRAW, event
   ENDIF
@@ -9003,6 +9037,16 @@ PRO CRISPEX_SCALING_SET_BOXBUTTONS, event, SENSITIVITY_OVERRIDE=sensitivity_over
       SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
   WIDGET_CONTROL, (*(*info).ctrlscp).diagscale_label, $
     SET_VALUE=(*(*info).scaling).diagscale_label_vals[(*(*info).scaling).idx]
+  ; HISTO_OPT controls
+  WIDGET_CONTROL, (*(*info).ctrlscp).histo_opt_txt, $
+    SET_VALUE=STRTRIM((*(*info).scaling).histo_opt_val[(*(*info).scaling).idx],2), $
+    SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
+  ; Multiply controls
+	WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_cbox, $
+    SET_COMBOBOX_SELECT=(*(*info).scaling).idx, SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
+	WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_txt, $
+    SET_VALUE=STRTRIM((*(*info).scaling).mult_val[(*(*info).scaling).mult_diag],2), $
+    SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
 ;	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
 ;    CRISPEX_VERBOSE_GET, event, [(*(*info).scaling).imrefscaling,$
 ;    (*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling],$
@@ -9065,7 +9109,6 @@ PRO CRISPEX_SCALING_MULTIPLY_LS_VALUE, event
   CRISPEX_DRAW_SPECTRAL, event
   CRISPEX_DRAW_TIMESLICES, event
 END
-
 
 ;================================================================================= SESSION SAVE/RESTORE PROCEDURES
 PRO CRISPEX_SESSION_SAVE_WINDOW, event
@@ -11388,7 +11431,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '606'
+	revision_number = '607'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -12213,6 +12256,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;  ENDFOR
   sjimin = MIN((*hdr.sjidata)[0], MAX=sjimax_val)
   sjimax = sjimax_val
+  histo_opt_val = 0.
 
 ;	scale_range = [0.,0.]
 ;	scale_minimum = [0.,0.]
@@ -12577,6 +12621,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     [hdr.diagnostics,hdr.refdiagnostics,hdr.diagnostics,'N/A']
   diagscale_label = WIDGET_LABEL(xy_scaling, VALUE=diagscale_label_vals[0], /ALIGN_LEFT, $
     /DYNAMIC_RESIZE)
+  histo_base = WIDGET_BASE(xy_scaling, /ROW)
+  histo_opt_label = WIDGET_LABEL(histo_base, VALUE='Histogram optimisation', /ALIGN_LEFT)
+  histo_opt_txt   = WIDGET_TEXT(histo_base, VALUE=STRTRIM(histo_opt_val,2), /EDITABLE, $
+    XSIZE=5, EVENT_PRO='CRISPEX_SCALING_HISTO_OPT_VALUE')
   minmax_sliders = WIDGET_BASE(xy_scaling, /ROW)
   scalemin_slider = WIDGET_SLIDER(minmax_sliders, TITLE='Image minimum [%]', MIN=0, MAX=99, $
     VALUE=0, EVENT_PRO='CRISPEX_SCALING_SLIDER_MIN', /DRAG, XSIZE=131)
@@ -12599,8 +12647,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   ls_scale_label= WIDGET_LABEL(ls_scale_opts, VALUE='Detailed spectrum:', /ALIGN_LEFT)
   ls_mult_opts  = WIDGET_BASE(ls_scale_opts, /ROW)
   ls_mult_label = WIDGET_LABEL(ls_mult_opts, VALUE='Multiply', /ALIGN_LEFT)
-  ls_mult_list  = [REPLICATE('Main ',hdr.ndiagnostics)+hdr.diagnostics, $
-                    REPLICATE('Reference ',hdr.nrefdiagnostics)+hdr.refdiagnostics]
+  IF (hdr.refdiagnostics[0] NE 'N/A') THEN $
+    ls_mult_list  = [REPLICATE('Main ',hdr.ndiagnostics)+hdr.diagnostics, $
+                      REPLICATE('Reference ',hdr.nrefdiagnostics)+hdr.refdiagnostics] $
+  ELSE $
+    ls_mult_list  = [REPLICATE('Main ',hdr.ndiagnostics)+hdr.diagnostics]
   ls_mult_cbox  = WIDGET_COMBOBOX(ls_mult_opts, VALUE=ls_mult_list, $
     EVENT_PRO='CRISPEX_SCALING_MULTIPLY_LS_SELECT', /DYNAMIC_RESIZE)
   ls_mult_by    = WIDGET_LABEL(ls_mult_opts, VALUE='by', /ALIGN_CENTER)
@@ -12825,6 +12876,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		sp_toggle_but:sp_toggle_but, refsp_toggle_but:refsp_toggle_but, int_toggle_but:int_toggle_but, $
 		phis_toggle_but:phis_toggle_but, param_but:param_but, reference_but:reference_but, doppler_but:doppler_but, $						
     scaling_cbox:scaling_cbox, imagescale_cbox:imagescale_cbox, $
+    histo_opt_txt:histo_opt_txt, $
     gamma_label:gamma_label, gamma_slider:gamma_slider, scalemin_slider:scalemin_slider, $
     scalemax_slider:scalemax_slider, $
     scaling_reset_button:scaling_reset_but, scaling_reset_all_but:scaling_reset_all_but, $
@@ -13189,6 +13241,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     minimum:REPLICATE(0,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
     maximum:REPLICATE(100,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
     idx:0, diagscale_label_vals:diagscale_label_vals, mult_diag:0, $
+    histo_opt_val:REPLICATE(histo_opt_val,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
     mult_val:REPLICATE(1.,hdr.ndiagnostics+hdr.nrefdiagnostics), $
     sel_xyslice:sel_xyslice, sel_refslice:sel_refslice, sel_dopslice:sel_dopslice, $
     sel_sjislice:sel_sjislice $
