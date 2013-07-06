@@ -861,15 +861,21 @@ PRO CRISPEX_CURSOR_TRANSFORM_COORDS, event, MAIN2SJI=main2sji
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CURSOR_TRANSFORM_COORDS'
   IF KEYWORD_SET(MAIN2SJI) THEN BEGIN
-    (*(*info).dataparams).xsji = ((*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,0]-$
-                                  (*(*info).dispparams).sjix0) + (*(*info).dataparams).x
-    (*(*info).dataparams).ysji = ((*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,1]-$
-                                  (*(*info).dispparams).sjiy0) + (*(*info).dataparams).y
+    (*(*info).dataparams).xsji = $
+      (*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,0] + $
+      ((*(*info).dataparams).x * (*(*info).dataparams).dx / (*(*info).dataparams).sjidx - $
+      ((*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,0] - $
+      (*(*info).dispparams).xyrastersji[0,0])) 
+    (*(*info).dataparams).ysji = $
+      (*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,1] + $
+      ((*(*info).dataparams).y * (*(*info).dataparams).dy / (*(*info).dataparams).sjidy - $
+      ((*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,1] - $
+      (*(*info).dispparams).xyrastersji[0,1])) 
 		sxsji = (*(*info).dataparams).xsji * (*(*info).winsizes).sjiwinx / $
-          ((*(*info).dataparams).sjinx+1)
+          ((*(*info).dataparams).sjinx)
 	  (*(*info).curs).sxsji = sxsji
 		sysji = (*(*info).dataparams).ysji * (*(*info).winsizes).sjiwiny / $
-          ((*(*info).dataparams).sjiny+1)
+          ((*(*info).dataparams).sjiny)
 	  (*(*info).curs).sysji = sysji
   ENDIF
 END
@@ -3259,6 +3265,7 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, no_numbe
   IF KEYWORD_SET(SJI) THEN BEGIN
     sx_loc = (*(*info).curs).sxsji
     sy_loc = (*(*info).curs).sysji
+    IF (*(*info).overlayswitch).sjiraster THEN CRISPEX_DRAW_RASTER_OVERLAYS, event
   ENDIF ELSE BEGIN
     sx_loc = (*(*info).curs).sx
     sy_loc = (*(*info).curs).sy
@@ -3500,21 +3507,42 @@ END
 PRO CRISPEX_DRAW_MASK_OVERLAYS, event
 ; Handles the overlay of a mask
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_MASK_OVERLAYS'
-;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		x_low = (*(*info).zooming).xpos
-		x_upp = (*(*info).zooming).xpos + (*(*info).dataparams).d_nx
-		y_low = (*(*info).zooming).ypos
-		y_upp = (*(*info).zooming).ypos + (*(*info).dataparams).d_ny
-;	ENDIF ELSE BEGIN
-;		x_low = 0
-;		x_upp = (*(*info).dataparams).nx-1
-;		y_low = 0
-;		y_upp = (*(*info).dataparams).ny-1
-;	ENDELSE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_MASK_OVERLAYS'
+	x_low = (*(*info).zooming).xpos
+	x_upp = (*(*info).zooming).xpos + (*(*info).dataparams).d_nx
+	y_low = (*(*info).zooming).ypos
+	y_upp = (*(*info).zooming).ypos + (*(*info).dataparams).d_ny
 	LOADCT, (*(*info).overlayparams).maskct, /SILENT
 	CONTOUR,*(*(*info).data).maskslice,COLOR=(*(*info).overlayparams).maskcolor, LEVELS = 1, /ISOTROPIC, XS=13,YS=13,POSITION=[0,0,1,1],/NORMAL, /NOERASE
 ;	CONTOUR,*(*(*info).data).maskslice,COLOR=(*(*info).overlayparams).maskcolor-100, LEVELS = 2, /ISOTROPIC, XS=13,YS=13,POSITION=[0,0,1,1],/NORMAL, /NOERASE
+	LOADCT, 0, /SILENT
+END
+
+PRO CRISPEX_DRAW_RASTER_OVERLAYS, event
+; Handles the overlay of raster contours on SJI
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_RASTER_OVERLAYS'
+	LOADCT, (*(*info).overlayparams).maskct, /SILENT
+  FOR i=0,N_ELEMENTS((*(*info).dispparams).rastercont[*,0])-1 DO BEGIN
+    xlow = (*(*info).dispparams).rastercont[i,0] * (*(*info).winsizes).sjiwinx / $
+      ((*(*info).dataparams).sjinx)
+    xupp = (*(*info).dispparams).rastercont[i,2] * (*(*info).winsizes).sjiwinx / $
+      ((*(*info).dataparams).sjinx)
+    ylow = (*(*info).dispparams).rastercont[i,1] * (*(*info).winsizes).sjiwiny / $
+      ((*(*info).dataparams).sjiny)
+    yupp = (*(*info).dispparams).rastercont[i,3] * (*(*info).winsizes).sjiwiny / $
+      ((*(*info).dataparams).sjiny)
+    ; plot lower vertical boundary
+    PLOTS, REPLICATE(xlow,2), [ylow,yupp], COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
+    ; plot upper horizontal boundary
+    PLOTS, [xlow,xupp], REPLICATE(yupp,2), COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
+    ; plot upper vertical boundary
+    PLOTS, REPLICATE(xupp,2), [ylow,yupp], COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
+    ; plot lower horizontal boundary
+    PLOTS, [xlow,xupp], REPLICATE(ylow,2), COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
+  ENDFOR
 	LOADCT, 0, /SILENT
 END
 
@@ -5850,6 +5878,17 @@ PRO CRISPEX_IO_OPEN_SJICUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
 	  hdr_out.sjidata = PTR_NEW(sji, /NO_COPY)
     hdr_out.lunsji = lunsji
 	  hdr_out.sjislice	= PTR_NEW(BYTARR(hdr_out.sjinx,hdr_out.sjiny))
+    nrasters = N_ELEMENTS(hdr_out.xyrastersji[*,0])
+    rastercont = FLTARR(nrasters,4)
+    raster_width = hdr_out.dx / FLOAT(hdr_out.sjidx)
+    raster_height = hdr_out.ny * (hdr_out.dy / FLOAT(hdr_out.sjidy))
+    FOR i=0,nrasters-1 DO BEGIN
+      rastercont[i,0] = hdr_out.xyrastersji[i,0]
+      rastercont[i,1] = hdr_out.xyrastersji[i,1]
+      rastercont[i,2] = hdr_out.xyrastersji[i,0]+raster_width
+      rastercont[i,3] = hdr_out.xyrastersji[i,1]+raster_height
+    ENDFOR
+    hdr_out = CREATE_STRUCT(hdr_out, 'rastercont', rastercont)
     CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, SJICUBE=hdr_out.sjifilename
 END
 
@@ -6537,6 +6576,15 @@ PRO CRISPEX_MASK_BUTTONS_SET, event
 	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[0],SET_BUTTON = ((*(*info).overlayswitch).maskim)[0], SENSITIVE = (*(*info).overlayswitch).mask
 	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[1],SET_BUTTON = ((*(*info).overlayswitch).maskim)[1], SENSITIVE = ((*(*info).overlayswitch).mask AND (*(*info).dataswitch).reffile)
 	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[2],SET_BUTTON = ((*(*info).overlayswitch).maskim)[2], SENSITIVE = ((*(*info).overlayswitch).mask AND (*(*info).winswitch).showdop)
+END
+
+PRO CRISPEX_MASK_OVERLAY_RASTER_TOGGLE, event
+; Updates reference loopslab display window plot axes range according to set parameters
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MASK_OVERLAY_RASTER_TOGGLE'
+  (*(*info).overlayswitch).sjiraster = event.SELECT
+  CRISPEX_DRAW_SJI, event
 END
 
 ;================================================================================= MEASUREMENT PROCEDURES
@@ -11436,7 +11484,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '608'
+	revision_number = '609'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -11664,7 +11712,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                             STARTUPTLB=startuptlb, $
                             IO_FAILSAFE_SJI_ERROR=io_failsafe_sji_error
   IF (io_failsafe_sji_error EQ 1) THEN RETURN
-  IF (N_ELEMENTS(sjicube) NE 1) THEN hdr = CREATE_STRUCT(hdr, 'tarr_sji', 0, 'tsel_sji', 0)
+  IF (N_ELEMENTS(sjicube) NE 1) THEN $
+    hdr = CREATE_STRUCT(hdr, 'tarr_sji', 0, 'tsel_sji', 0, 'rastercont', 0)
   
   CRISPEX_IO_OPEN_MASKCUBE, MASKCUBE=maskcube, HDR_IN=hdr, HDR_OUT=hdr, STARTUPTLB=startuptlb, $
                             IO_FAILSAFE_MASK_ERROR=io_failsafe_mask_error
@@ -12735,6 +12784,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	masks_overlay_col_slid  = WIDGET_SLIDER(masks_overlay_color, MIN = 0, MAX = 255, VALUE = 255, $
                               TITLE = 'Color index', EVENT_PRO='CRISPEX_MASK_OVERLAY_COLOR_SLIDER',$
                               /DRAG, SENSITIVE = maskfile)
+  raster_base = WIDGET_BASE(masks_tab,/FRAME,/COLUMN)
+  raster_overlay_label = WIDGET_LABEL(raster_base, VALUE='Raster:',/ALIGN_LEFT)
+  raster_overlay = WIDGET_BASE(raster_base, /ROW, /NONEXCLUSIVE)
+  raster_but = WIDGET_BUTTON(raster_overlay, VALUE='Overlay boundaries on slit-jaw image', $
+    EVENT_PRO='CRISPEX_MASK_OVERLAY_RASTER_TOGGLE', SENSITIVE=hdr.sjifile)
+  WIDGET_CONTROL, raster_but, SET_BUTTON=hdr.sjifile
 
 	overlays_tab		= WIDGET_BASE(tab_tlb, TITLE = 'Miscellaneous', /COLUMN)
 	overlays		= WIDGET_BASE(overlays_tab, /FRAME, /COLUMN)
@@ -12930,7 +12985,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		measure_asec_lab:measure_asec_lab, measure_asec_text:measure_asec_text, $
 		measure_km_lab:measure_km_lab, measure_km_text:measure_km_text, $					
 		mask_button_ids:mask_button_ids, masks_overlay_ct_cbox:masks_overlay_ct_cbox, $
-		masks_overlay_col_slid:masks_overlay_col_slid, dispwid:dispwid, clear_current_inst:clear_current_inst, $
+		masks_overlay_col_slid:masks_overlay_col_slid, raster_button:raster_but, $
+    dispwid:dispwid, clear_current_inst:clear_current_inst, $
 		verbose_set:PTR_NEW([sh_verb_0,sh_verb_4,sh_verb_8,sh_verb_16]) $
 	}
 ;--------------------------------------------------------------------------------- RETRIEVE LOOPS CONTROLS 
@@ -13057,6 +13113,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     phisxi:PTR_NEW(0), phisyi:PTR_NEW(0), phisxo:PTR_NEW(0), phisyo:PTR_NEW(0), $
     tsel_sji:hdr.tsel_sji, xyrastersji:hdr.xyrastersji, sjix0:hdr.sjix0, sjiy0:hdr.sjiy0, $
     xsji_first:0L, xsji_last:(hdr.sjinx-1), ysji_first:0L, ysji_last:(hdr.sjiny-1),  $
+    rastercont:hdr.rastercont, $
 		interpspslice:interpspslice, phislice_update:phislice_update, slices_imscale:slices_imscale $				
 	}
 ;--------------------------------------------------------------------------------- DATA DISPLAY SWITCHES
@@ -13124,7 +13181,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;--------------------------------------------------------------------------------- OVERLAY SWITCHES
 	overlayswitch = { $
 		det_overlay_all:1, loopslit:0, overlalways:1, looppath_feedback:1, mask:hdr.maskfile, $
-    maskim:[hdr.maskfile,hdr.showref,0] $		
+    maskim:[hdr.maskfile,hdr.showref,0], sjiraster:1 $		
 	}
 ;--------------------------------------------------------------------------------- PARAMETER WINDOW CONTROLS 
 	paramparams = { $
