@@ -11419,7 +11419,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '610'
+	revision_number = '611'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -11439,9 +11439,21 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	dir_aux         = dir_crispex+'aux'+PATH_SEP()                ; Path to auxiliary routines
 	dir_resources   = dir_crispex+'resources'+PATH_SEP()          ; Path to resources container
 	dir_buttons     = dir_resources+'buttons'+PATH_SEP()          ; Path to button images
-	dir_settings    = dir_crispex+'settings'+PATH_SEP()           ; Path to settings container
+  dir_home        = GETENV('HOME')+PATH_SEP()                   ; Get home directory
+	dir_settings    = dir_home+'crispex'+PATH_SEP()+'settings'+PATH_SEP()           ; Path to settings container
 	dir_cpft        = dir_settings+'cpft'+PATH_SEP()              ; Path to performance file dir
 	dir_inst        = dir_settings+'inst'+PATH_SEP()              ; Path to instances file dir
+  dirs_settings   = [dir_settings,dir_cpft,dir_inst]           
+  dirs_sett_exist = FILE_TEST(dirs_settings,/DIRECTORY)         ; Check for settings path existence
+  ; If any of the settings paths does not exist, create it
+  IF (TOTAL(dirs_sett_exist) NE N_ELEMENTS(dirs_sett_exist)) THEN BEGIN
+    wherenotexist = WHERE(dirs_sett_exist EQ 0, nwherenotexist)
+    FOR i=0,nwherenotexist-1 DO BEGIN
+			CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, dirs_settings[wherenotexist[i]]+' does not exist. '+$
+        'Creating directory.', /WARNING
+      SPAWN, 'mkdir -p '+dirs_settings[wherenotexist[i]]
+    ENDFOR
+  ENDIF
 	dir_cpft_write  = FILE_TEST(dir_cpft, /WRITE)                 ; Check for cpft dir writeability
 	dir_inst_write  = FILE_TEST(dir_inst, /WRITE)                 ; Check for inst dir writeability
 	IF (verbosity[1] EQ 1) THEN $
