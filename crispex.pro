@@ -11503,7 +11503,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ENDELSE
 
 ;------------------------- SETTINGS FOR PERFORMANCE SAVE FILE
-	SPAWN, 'echo $HOSTNAME', hostname
+	hostname=getenv('HOSTNAME') ; was SPAWN, 'echo $HOSTNAME', hostname
 	cpftfile = FILE_SEARCH(dir_settings+'crispex.'+hostname+'.cpft', COUNT = cpftfilecount)
 	IF cpftfilecount THEN BEGIN   ; If cpft file is present, restore
 		RESTORE, cpftfile[0] 
