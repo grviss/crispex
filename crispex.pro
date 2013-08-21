@@ -5784,7 +5784,7 @@ PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tsel_sji = LONARR(hdr_out.nt)
       FOR tt=0,hdr_out.nt-1 DO BEGIN
         tdiff = ABS(hdr_out.tarr_sji - hdr_out.tarr_main[tt])
-        tsel_sji[tt] = WHERE(tdiff EQ MIN(tdiff))
+        tsel_sji[tt] = (WHERE(tdiff EQ MIN(tdiff)))[0]
       ENDFOR
       hdr_out = CREATE_STRUCT(hdr_out, 'tsel_sji', tsel_sji)
     ENDIF ELSE $
@@ -7507,6 +7507,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   naxis = SXPAR(header,'NAXIS*')
   CASE (strsplit(SXPAR(header,'CTYPE2'),' ',/extract))[0] OF
     'y': sortorder = INDGEN(4)       ; CRISPEX imcube
+    'HPLT-TAN': sortorder = INDGEN(3); IRIS SJI-file
     'time': sortorder = [2,3,0,1]    ; CRISPEX refcube
     'SolarY': sortorder = INDGEN(3)  ; Bifrost simcube
     ELSE: BEGIN
@@ -7565,11 +7566,12 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     IF (nt GT 1) THEN BEGIN
       tarr = READFITS(filename, hdr_tmp, EXTEN_NO=2, /SILENT)
       tval = SXPAR(header, 'CRVAL4')
-      wheretval = (WHERE(tarr EQ tval))[0]
+      dum=min(abs(tarr-tval),wheretval)
+;      wheretval = (WHERE(tarr EQ tval))[0]
       IF (wheretval EQ -1) THEN $
         tini_col = 0 $
       ELSE $
-        tini_col = (ARRAY_INDICES(tarr,WHERE(tarr EQ tval)))[0]
+        tini_col = (ARRAY_INDICES(tarr,wheretval))[0]
       IF (SIZE(tarr,/N_DIMENSIONS) EQ 2) THEN $
         tarr_sel = REFORM(tarr[tini_col,*]) $
       ELSE $
@@ -7630,7 +7632,8 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   IF ((SIZE(SXPAR(header,'SJIFIL*'),/TYPE) EQ 7) AND $
     (~KEYWORD_SET(SPCUBE) AND ~KEYWORD_SET(REFSPCUBE))) THEN BEGIN
     raster_coords = READFITS(filename, hdr_tmp, EXTEN_NO=3, /SILENT)
-    xyrastersji = REFORM(ABS(raster_coords[*,0,*]))
+    xyrastersji = FLTARR(nx,2)
+    xyrastersji[*,*] = ABS(raster_coords[*,0,*])
   ENDIF ELSE xyrastersji = 0
   ;
   key = {nx:nx,ny:ny,nlp:nlp,nt:nt,ns:ns,cslab:cslab, $
@@ -12304,7 +12307,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;  ENDFOR
   sjimin = MIN((*hdr.sjidata)[0], MAX=sjimax_val)
   sjimax = sjimax_val
-  histo_opt_val = 0.
+  histo_opt_val = 0.0001
 
 ;	scale_range = [0.,0.]
 ;	scale_minimum = [0.,0.]
@@ -12539,7 +12542,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 	spatial_tab		= WIDGET_BASE(tab_tlb, TITLE = 'Spatial', /COLUMN)
 	cursor_frame		= WIDGET_BASE(spatial_tab, /FRAME, /COLUMN)
-	x_slid			= WIDGET_SLIDER(cursor_frame, TITLE = 'X position of the cursor [pixel]', MIN = x_first, MAX = x_last, VALUE = x_start, EVENT_PRO = 'CRISPEX_SLIDER_X', /DRAG)
+	x_slid			= WIDGET_SLIDER(cursor_frame, TITLE = 'X position of the cursor [pixel]', MIN = x_first, MAX = (x_last > 1), VALUE = x_start, EVENT_PRO = 'CRISPEX_SLIDER_X', /DRAG)
 	y_slid			= WIDGET_SLIDER(cursor_frame, TITLE = 'Y position of the cursor [pixel]', MIN = y_first, MAX = y_last, VALUE = y_start, EVENT_PRO = 'CRISPEX_SLIDER_Y', /DRAG)
 
 	lock_field		= WIDGET_BASE(control_panel, /FRAME, /ROW, /EXCLUSIVE)
