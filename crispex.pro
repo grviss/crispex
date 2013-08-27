@@ -392,8 +392,8 @@ FUNCTION CRISPEX_BGROUP_STOKES_SELECT_XY, event, NO_DRAW=no_draw;, SET_STOKES=se
     CRISPEX_VERBOSE_GET, event, [((*(*info).stokesparams).labels)[(*(*info).dataparams).s]],$
                          labels=['Stokes image selected']
   IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
-  	WIDGET_CONTROL, (*(*info).ctrlsparam).stokes_val, $
-      SET_VALUE = STRTRIM(((*(*info).stokesparams).labels)[(*(*info).dataparams).s],2)
+;  	WIDGET_CONTROL, (*(*info).ctrlsparam).stokes_val, $
+;      SET_VALUE = STRTRIM(((*(*info).stokesparams).labels)[(*(*info).dataparams).s],2)
     CRISPEX_SCALING_APPLY_SELECTED, event
   	CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE, event
   	CRISPEX_UPDATE_T, event
@@ -588,9 +588,11 @@ END
 PRO CRISPEX_CLOSE, event								
 ; Called upon closing program, checks for existence of performance test file; if not present it is written
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CLOSE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CLOSE'
 	IF ((*(*info).paths).dir_settings_write EQ 1) THEN BEGIN
-		pftfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'.cpft', COUNT = pftfilecount)
+		pftfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+$
+      (*(*info).paths).hostname+'.cpft', COUNT = pftfilecount)
 		IF (pftfilecount EQ 0) AND ((*(*info).feedbparams).estimate_run EQ 1) THEN BEGIN
 			estimate_lx = (*(*info).feedbparams).estimate_lx
 			estimate_time = (*(*info).feedbparams).estimate_time
@@ -1046,7 +1048,7 @@ PRO CRISPEX_DISPLAYS_ALL_TO_FRONT, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_ALL_TO_FRONT', /IGNORE_LAST
 	; Data windows
 	IF ((*(*info).winids).sjitlb NE 0) THEN WSHOW, (*(*info).winids).sjiwid
-	WSHOW, (*(*info).winids).imwid
+;	WSHOW, (*(*info).winids).imwid
 	IF ((*(*info).winids).sptlb NE 0) THEN WSHOW, (*(*info).winids).spwid
 	IF ((*(*info).winids).lstlb NE 0) THEN WSHOW, (*(*info).winids).lswid
 	IF ((*(*info).winids).phistlb NE 0) THEN WSHOW, (*(*info).winids).phiswid
@@ -1231,7 +1233,8 @@ PRO CRISPEX_DISPLAYS_INT_MENU, event, set_but_array
 				WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_none, /SET_BUTTON
 				WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, SENSITIVE = 0
 		ENDIF
-	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = (*(*info).winsizes).spxoffset, TLB_SET_YOFFSET = 0
+	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = (*(*info).winsizes).spxoffset, $
+    TLB_SET_YOFFSET = 0 
 	WIDGET_CONTROL, base, SET_UVALUE = info
 	XMANAGER, 'CRISPEX', base, /NO_BLOCK
 	(*(*info).winids).intmenutlb = base
@@ -1506,182 +1509,182 @@ PRO CRISPEX_DISPLAYS_REFLOOPSLAB, event, NO_DRAW=no_draw
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).reflooptlb,(*(*info).winids).refloopwid,(*(*info).winids).refloopdrawid], labels=['reflooptlb','refloopwid','refloopdrawid']
 END
 
-PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event 
-; Sets up the parameter overview window
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE', /IGNORE_LAST
-	(*(*info).winswitch).showparam = event.SELECT
-	IF ((*(*info).winswitch).showparam EQ 1) THEN BEGIN
-		base = WIDGET_BASE(TITLE='CRISPEX'+(*(*info).sesparams).instance_label+': Parameters overview',$
-           GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
-		disp_base = WIDGET_BASE(base, /ROW)
-    ; Column 1 of parameters overview containing cursor x,y and zoomfactor
-		disp = WIDGET_BASE(disp_base, /COLUMN)
-    ; Cursor x info
-		x_coord_base = WIDGET_BASE(disp, /ROW)
-		x_coord_txt = WIDGET_LABEL(x_coord_base, VALUE = 'Cursor x:')
-		(*(*info).ctrlsparam).x_coord_val = WIDGET_LABEL(x_coord_base, $
-      VALUE = STRTRIM((*(*info).dataparams).x,2), /DYNAMIC_RESIZE)
-    ; Cursor y info
-		y_coord_base = WIDGET_BASE(disp, /ROW)
-		y_coord_txt = WIDGET_LABEL(y_coord_base, VALUE = 'Cursor y:')
-		(*(*info).ctrlsparam).y_coord_val = WIDGET_LABEL(y_coord_base, $
-      VALUE = STRTRIM((*(*info).dataparams).y,2), /DYNAMIC_RESIZE)
-    ; Zommfactor info
-		zoom_base = WIDGET_BASE(disp, /ROW)
-		zoom_txt = WIDGET_LABEL(zoom_base, VALUE = 'Zoomfactor:')
-		(*(*info).ctrlsparam).zoom_val = WIDGET_LABEL(zoom_base, $
-      VALUE = STRTRIM(LONG((*(*info).zooming).factor),2), /DYNAMIC_RESIZE)
-    ; Column 2 containing main spectral/height info, including Doppler
-		disp2 = WIDGET_BASE(disp_base, /COLUMN)
-    ; Main spectral info
-		lp_coord_base = WIDGET_BASE(disp2, /ROW)
-		lp_coord_txt = WIDGET_LABEL(lp_coord_base, $
-      VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' index:')
-		(*(*info).ctrlsparam).lp_coord_val = WIDGET_LABEL(lp_coord_base, $
-      VALUE = STRTRIM(LONG((*(*info).dataparams).lp),2), /DYNAMIC_RESIZE)
-		act_lp_base = WIDGET_BASE(disp2, /ROW)
-		act_lp_txt = WIDGET_LABEL(act_lp_base, $
-      VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' ['+$
-              ((*(*info).dataparams).lpunit)[0]+']:')
-    ; Main Doppler info
-  	IF ((*(*info).plotswitch).v_dop_set OR (*(*info).plotswitch).heightset) THEN $
-      (*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, $
-        VALUE = STRTRIM(STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp],$
-        FORMAT = '(3(F9.1,x))'),2),/DYNAMIC_RESIZE) $
-    ELSE (*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, VALUE = 'N/A')
-    IF ((*(*info).plotswitch).heightset EQ 0) THEN BEGIN
-  		v_dop_base = WIDGET_BASE(disp2, /ROW)
-  		v_dop_txt = WIDGET_LABEL(v_dop_base, VALUE = 'Doppler velocity (km/s):')
-  		IF (*(*info).plotswitch).v_dop_set THEN BEGIN
-  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, $
-          VALUE = STRTRIM(STRING((*(*(*info).plotaxes).v_dop[$
-            (*(*info).intparams).lp_diag_all])[(*(*info).dataparams).lp-(*(*info).intparams).diag_start[(*(*info).intparams).lp_diag_all]],$
-                  FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
-  		ENDIF ELSE IF (*(*info).plotswitch).heightset THEN BEGIN
-  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
-  		ENDIF ELSE BEGIN
-  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
-  		ENDELSE
-    ENDIF
-    ; Column 3 (if reference present) containing reference spectral/height info, including Doppler
-		IF ((*(*info).dataparams).refnlp GT 1) THEN BEGIN
-			dispref = WIDGET_BASE(disp_base, /COLUMN)
-      ; Reference spectral info
-			lp_ref_coord_base = WIDGET_BASE(dispref, /ROW)
-			lp_ref_coord_txt = WIDGET_LABEL(lp_ref_coord_base, VALUE = 'Reference '+$
-        STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' index:')
-			(*(*info).ctrlsparam).lp_ref_coord_val = WIDGET_LABEL(lp_ref_coord_base, $
-        VALUE = STRTRIM(LONG((*(*info).dataparams).lp_ref),2), /DYNAMIC_RESIZE)
-			act_lp_ref_base = WIDGET_BASE(dispref, /ROW)
-			act_lp_ref_txt = WIDGET_LABEL(act_lp_ref_base, VALUE = 'Reference '+$
-        STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' ['+$
-        ((*(*info).dataparams).lpunit)[1]+']:')
-      ; Reference Doppler info
-    	IF ((*(*info).plotswitch).v_dop_set_ref OR (*(*info).plotswitch).refheightset) THEN $
-        (*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, $
-          VALUE = STRTRIM(STRING((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref],$
-          FORMAT = '(3(F9.1,x))'),2),/DYNAMIC_RESIZE) $
-      ELSE (*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, VALUE = 'N/A')
-      IF ((*(*info).plotswitch).heightset EQ 0) THEN BEGIN
-  			v_dop_ref_base = WIDGET_BASE(dispref, /ROW)
-  			v_dop_ref_txt = WIDGET_LABEL(v_dop_ref_base, VALUE = 'Reference Doppler velocity (km/s):')
-  			IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
-  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, $
-          VALUE = STRTRIM(STRING((*(*(*info).plotaxes).v_dop_ref[$
-            (*(*info).intparams).lp_ref_diag_all])[(*(*info).dataparams).lp-$
-            (*(*info).intparams).refdiag_start[(*(*info).intparams).lp_ref_diag_all]],$
-                    FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
-  			ENDIF ELSE IF (*(*info).plotswitch).refheightset THEN BEGIN
-  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
-  			ENDIF ELSE BEGIN
-  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
-  			ENDELSE
-      ENDIF
-		ENDIF
-    ; Column 4 (if reference present, else column 3) containing channel and time info
-		disp3 = WIDGET_BASE(disp_base, /COLUMN)
-    ; Channel info
-		stokes_base = WIDGET_BASE(disp3, /ROW)
-		stokes_txt = WIDGET_LABEL(stokes_base, VALUE = 'Stokes:')
-		(*(*info).ctrlsparam).stokes_val = WIDGET_LABEL(stokes_base, $
-      VALUE = STRTRIM(((*(*info).stokesparams).labels)[(*(*info).dataparams).s],2), /DYNAMIC_RESIZE)
-    ; Time info
-		t_coord_base = WIDGET_BASE(disp3, /ROW)
-		t_coord_txt = WIDGET_LABEL(t_coord_base, VALUE = 'Time index:')
-		(*(*info).ctrlsparam).t_coord_val = WIDGET_LABEL(t_coord_base, $
-      VALUE = STRTRIM((*(*info).dataparams).t,2), /DYNAMIC_RESIZE)
-		act_t_base = WIDGET_BASE(disp3, /ROW)
-		act_t_txt = WIDGET_LABEL(act_t_base, VALUE = 'Actual '+(*(*info).plottitles).spytitle+':')
-		IF (*(*info).paramswitch).dt_set THEN $
-      (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = $
-        STRTRIM(STRING((*(*info).dataparams).t * (*(*info).plotaxes).dt, FORMAT='(3(F9.2,x))'),2), $
-			  /DYNAMIC_RESIZE) $
-    ELSE $
-      (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = 'N/A')
-    ; Column 5 (if reference present, else column 4) containing image values below cursor
-    ; Main image value info
-		IF (*(*info).paramswitch).img_get THEN BEGIN
-			disp4 = WIDGET_BASE(disp_base, /COLUMN)
-			img_base = WIDGET_BASE(disp4, /ROW)
-			img_label = WIDGET_LABEL(img_base, VALUE = 'Main cube value ['+$
-        ((*(*info).dataparams).bunit)[0]+'] :')
-			(*(*info).ctrlsparam).img_val = WIDGET_LABEL(img_base, VALUE = $
-        STRTRIM(STRING((*(*info).paramparams).img_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
-		ENDIF
-    ; Reference image value info
-		IF (*(*info).paramswitch).ref_get THEN BEGIN
-			IF ((*(*info).paramswitch).img_get EQ 0) THEN disp4 = WIDGET_BASE(disp_base, /COLUMN)
-			ref_base = WIDGET_BASE(disp4, /ROW)
-			ref_label = WIDGET_LABEL(ref_base, VALUE = 'Reference cube value ['+$
-        ((*(*info).dataparams).bunit)[1]+'] :')
-      (*(*info).ctrlsparam).ref_val = WIDGET_LABEL(ref_base, VALUE = $
-        STRTRIM(STRING((*(*info).paramparams).ref_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
-		ENDIF
-		IF ((*(*info).paramswitch).img_get OR (*(*info).paramswitch).ref_get) THEN BEGIN
-			IF ((*(*info).paramswitch).ref_get EQ 0) THEN BEGIN
-				mainlabel = 'main cube value:' 
-				extra_label = ''
-			ENDIF ELSE BEGIN
-				mainlabel = 'cube values, main:'
-				extra_label = ','
-			ENDELSE
-			IF ((*(*info).paramswitch).img_get EQ 0) THEN $
-        mainlabel = 'reference cube value:'  $
-      ELSE $
-        label = 'reference:'
-			sc_base = WIDGET_BASE(disp4, /ROW)
-			sc_label = WIDGET_LABEL(sc_base, VALUE = 'Scaled '+mainlabel)
-			IF (*(*info).paramswitch).img_get THEN $
-        (*(*info).ctrlsparam).imgsc_val = WIDGET_LABEL(sc_base, VALUE = $
-          STRTRIM(STRING((*(*info).paramparams).imgsc_get_val,FORMAT='(3(F9.2,x))'),2)+extra_label,$
-				  /DYNAMIC_RESIZE)
-			IF (*(*info).paramswitch).ref_get THEN BEGIN
-				IF (*(*info).paramswitch).img_get THEN refsc_label = WIDGET_LABEL(sc_base, VALUE = label)
-				(*(*info).ctrlsparam).refsc_val = WIDGET_LABEL(sc_base, VALUE = $
-          STRTRIM(STRING((*(*info).paramparams).refsc_get_val,FORMAT='(3(F9.2,x))'),2),$
-          /DYNAMIC_RESIZE)
-			ENDIF
-		ENDIF
-    ; Window realisation
-    IF ((*(*info).winsizes).xywiny GT (*(*info).winsizes).spwiny) THEN $
-      y_off = (*(*info).winsizes).xywiny $
-    ELSE $
-      y_off = (*(*info).winsizes).spwiny
-		WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = 0, TLB_SET_YOFFSET = $
-                    y_off + 2*(*(*info).winsizes).ydelta
-		WIDGET_CONTROL, base, SET_UVALUE = info
-		XMANAGER, 'CRISPEX', base, /NO_BLOCK
-		(*(*info).winids).paramtlb = base
-	ENDIF ELSE BEGIN
-		WIDGET_CONTROL, (*(*info).winids).paramtlb, /DESTROY
-		(*(*info).winids).paramtlb = 0
-		(*(*info).winswitch).showparam = 0
-	ENDELSE
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).looptlb], labels=['looptlb']
-END
+;PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event 
+;; Sets up the parameter overview window
+;	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+;	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+;    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE', /IGNORE_LAST
+;	(*(*info).winswitch).showparam = event.SELECT
+;	IF ((*(*info).winswitch).showparam EQ 1) THEN BEGIN
+;		base = WIDGET_BASE(TITLE='CRISPEX'+(*(*info).sesparams).instance_label+': Parameters overview',$
+;           GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
+;		disp_base = WIDGET_BASE(base, /ROW)
+;    ; Column 1 of parameters overview containing cursor x,y and zoomfactor
+;		disp = WIDGET_BASE(disp_base, /COLUMN)
+;    ; Cursor x info
+;		x_coord_base = WIDGET_BASE(disp, /ROW)
+;		x_coord_txt = WIDGET_LABEL(x_coord_base, VALUE = 'Cursor x:')
+;		(*(*info).ctrlsparam).x_coord_val = WIDGET_LABEL(x_coord_base, $
+;      VALUE = STRTRIM((*(*info).dataparams).x,2), /DYNAMIC_RESIZE)
+;    ; Cursor y info
+;		y_coord_base = WIDGET_BASE(disp, /ROW)
+;		y_coord_txt = WIDGET_LABEL(y_coord_base, VALUE = 'Cursor y:')
+;		(*(*info).ctrlsparam).y_coord_val = WIDGET_LABEL(y_coord_base, $
+;      VALUE = STRTRIM((*(*info).dataparams).y,2), /DYNAMIC_RESIZE)
+;    ; Zommfactor info
+;		zoom_base = WIDGET_BASE(disp, /ROW)
+;		zoom_txt = WIDGET_LABEL(zoom_base, VALUE = 'Zoomfactor:')
+;		(*(*info).ctrlsparam).zoom_val = WIDGET_LABEL(zoom_base, $
+;      VALUE = STRTRIM(LONG((*(*info).zooming).factor),2), /DYNAMIC_RESIZE)
+;    ; Column 2 containing main spectral/height info, including Doppler
+;		disp2 = WIDGET_BASE(disp_base, /COLUMN)
+;    ; Main spectral info
+;		lp_coord_base = WIDGET_BASE(disp2, /ROW)
+;		lp_coord_txt = WIDGET_LABEL(lp_coord_base, $
+;      VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' index:')
+;		(*(*info).ctrlsparam).lp_coord_val = WIDGET_LABEL(lp_coord_base, $
+;      VALUE = STRTRIM(LONG((*(*info).dataparams).lp),2), /DYNAMIC_RESIZE)
+;		act_lp_base = WIDGET_BASE(disp2, /ROW)
+;		act_lp_txt = WIDGET_LABEL(act_lp_base, $
+;      VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' ['+$
+;              ((*(*info).dataparams).lpunit)[0]+']:')
+;    ; Main Doppler info
+;  	IF ((*(*info).plotswitch).v_dop_set OR (*(*info).plotswitch).heightset) THEN $
+;      (*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, $
+;        VALUE = STRTRIM(STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp],$
+;        FORMAT = '(3(F9.1,x))'),2),/DYNAMIC_RESIZE) $
+;    ELSE (*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, VALUE = 'N/A')
+;    IF ((*(*info).plotswitch).heightset EQ 0) THEN BEGIN
+;  		v_dop_base = WIDGET_BASE(disp2, /ROW)
+;  		v_dop_txt = WIDGET_LABEL(v_dop_base, VALUE = 'Doppler velocity (km/s):')
+;  		IF (*(*info).plotswitch).v_dop_set THEN BEGIN
+;  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, $
+;          VALUE = STRTRIM(STRING((*(*(*info).plotaxes).v_dop[$
+;            (*(*info).intparams).lp_diag_all])[(*(*info).dataparams).lp-(*(*info).intparams).diag_start[(*(*info).intparams).lp_diag_all]],$
+;                  FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
+;  		ENDIF ELSE IF (*(*info).plotswitch).heightset THEN BEGIN
+;  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
+;  		ENDIF ELSE BEGIN
+;  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
+;  		ENDELSE
+;    ENDIF
+;    ; Column 3 (if reference present) containing reference spectral/height info, including Doppler
+;		IF ((*(*info).dataparams).refnlp GT 1) THEN BEGIN
+;			dispref = WIDGET_BASE(disp_base, /COLUMN)
+;      ; Reference spectral info
+;			lp_ref_coord_base = WIDGET_BASE(dispref, /ROW)
+;			lp_ref_coord_txt = WIDGET_LABEL(lp_ref_coord_base, VALUE = 'Reference '+$
+;        STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' index:')
+;			(*(*info).ctrlsparam).lp_ref_coord_val = WIDGET_LABEL(lp_ref_coord_base, $
+;        VALUE = STRTRIM(LONG((*(*info).dataparams).lp_ref),2), /DYNAMIC_RESIZE)
+;			act_lp_ref_base = WIDGET_BASE(dispref, /ROW)
+;			act_lp_ref_txt = WIDGET_LABEL(act_lp_ref_base, VALUE = 'Reference '+$
+;        STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' ['+$
+;        ((*(*info).dataparams).lpunit)[1]+']:')
+;      ; Reference Doppler info
+;    	IF ((*(*info).plotswitch).v_dop_set_ref OR (*(*info).plotswitch).refheightset) THEN $
+;        (*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, $
+;          VALUE = STRTRIM(STRING((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref],$
+;          FORMAT = '(3(F9.1,x))'),2),/DYNAMIC_RESIZE) $
+;      ELSE (*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, VALUE = 'N/A')
+;      IF ((*(*info).plotswitch).heightset EQ 0) THEN BEGIN
+;  			v_dop_ref_base = WIDGET_BASE(dispref, /ROW)
+;  			v_dop_ref_txt = WIDGET_LABEL(v_dop_ref_base, VALUE = 'Reference Doppler velocity (km/s):')
+;  			IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
+;  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, $
+;          VALUE = STRTRIM(STRING((*(*(*info).plotaxes).v_dop_ref[$
+;            (*(*info).intparams).lp_ref_diag_all])[(*(*info).dataparams).lp-$
+;            (*(*info).intparams).refdiag_start[(*(*info).intparams).lp_ref_diag_all]],$
+;                    FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
+;  			ENDIF ELSE IF (*(*info).plotswitch).refheightset THEN BEGIN
+;  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
+;  			ENDIF ELSE BEGIN
+;  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
+;  			ENDELSE
+;      ENDIF
+;		ENDIF
+;    ; Column 4 (if reference present, else column 3) containing channel and time info
+;		disp3 = WIDGET_BASE(disp_base, /COLUMN)
+;    ; Channel info
+;		stokes_base = WIDGET_BASE(disp3, /ROW)
+;		stokes_txt = WIDGET_LABEL(stokes_base, VALUE = 'Stokes:')
+;		(*(*info).ctrlsparam).stokes_val = WIDGET_LABEL(stokes_base, $
+;      VALUE = STRTRIM(((*(*info).stokesparams).labels)[(*(*info).dataparams).s],2), /DYNAMIC_RESIZE)
+;    ; Time info
+;		t_coord_base = WIDGET_BASE(disp3, /ROW)
+;		t_coord_txt = WIDGET_LABEL(t_coord_base, VALUE = 'Time index:')
+;		(*(*info).ctrlsparam).t_coord_val = WIDGET_LABEL(t_coord_base, $
+;      VALUE = STRTRIM((*(*info).dataparams).t,2), /DYNAMIC_RESIZE)
+;		act_t_base = WIDGET_BASE(disp3, /ROW)
+;		act_t_txt = WIDGET_LABEL(act_t_base, VALUE = 'Actual '+(*(*info).plottitles).spytitle+':')
+;		IF (*(*info).paramswitch).dt_set THEN $
+;      (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = $
+;        STRTRIM(STRING((*(*info).dataparams).t * (*(*info).plotaxes).dt, FORMAT='(3(F9.2,x))'),2), $
+;			  /DYNAMIC_RESIZE) $
+;    ELSE $
+;      (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = 'N/A')
+;    ; Column 5 (if reference present, else column 4) containing image values below cursor
+;    ; Main image value info
+;		IF (*(*info).paramswitch).img_get THEN BEGIN
+;			disp4 = WIDGET_BASE(disp_base, /COLUMN)
+;			img_base = WIDGET_BASE(disp4, /ROW)
+;			img_label = WIDGET_LABEL(img_base, VALUE = 'Main cube value ['+$
+;        ((*(*info).dataparams).bunit)[0]+'] :')
+;			(*(*info).ctrlsparam).img_val = WIDGET_LABEL(img_base, VALUE = $
+;        STRTRIM(STRING((*(*info).paramparams).img_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
+;		ENDIF
+;    ; Reference image value info
+;		IF (*(*info).paramswitch).ref_get THEN BEGIN
+;			IF ((*(*info).paramswitch).img_get EQ 0) THEN disp4 = WIDGET_BASE(disp_base, /COLUMN)
+;			ref_base = WIDGET_BASE(disp4, /ROW)
+;			ref_label = WIDGET_LABEL(ref_base, VALUE = 'Reference cube value ['+$
+;        ((*(*info).dataparams).bunit)[1]+'] :')
+;      (*(*info).ctrlsparam).ref_val = WIDGET_LABEL(ref_base, VALUE = $
+;        STRTRIM(STRING((*(*info).paramparams).ref_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
+;		ENDIF
+;		IF ((*(*info).paramswitch).img_get OR (*(*info).paramswitch).ref_get) THEN BEGIN
+;			IF ((*(*info).paramswitch).ref_get EQ 0) THEN BEGIN
+;				mainlabel = 'main cube value:' 
+;				extra_label = ''
+;			ENDIF ELSE BEGIN
+;				mainlabel = 'cube values, main:'
+;				extra_label = ','
+;			ENDELSE
+;			IF ((*(*info).paramswitch).img_get EQ 0) THEN $
+;        mainlabel = 'reference cube value:'  $
+;      ELSE $
+;        label = 'reference:'
+;			sc_base = WIDGET_BASE(disp4, /ROW)
+;			sc_label = WIDGET_LABEL(sc_base, VALUE = 'Scaled '+mainlabel)
+;			IF (*(*info).paramswitch).img_get THEN $
+;        (*(*info).ctrlsparam).imgsc_val = WIDGET_LABEL(sc_base, VALUE = $
+;          STRTRIM(STRING((*(*info).paramparams).imgsc_get_val,FORMAT='(3(F9.2,x))'),2)+extra_label,$
+;				  /DYNAMIC_RESIZE)
+;			IF (*(*info).paramswitch).ref_get THEN BEGIN
+;				IF (*(*info).paramswitch).img_get THEN refsc_label = WIDGET_LABEL(sc_base, VALUE = label)
+;				(*(*info).ctrlsparam).refsc_val = WIDGET_LABEL(sc_base, VALUE = $
+;          STRTRIM(STRING((*(*info).paramparams).refsc_get_val,FORMAT='(3(F9.2,x))'),2),$
+;          /DYNAMIC_RESIZE)
+;			ENDIF
+;		ENDIF
+;    ; Window realisation
+;    IF ((*(*info).winsizes).xywiny GT (*(*info).winsizes).spwiny) THEN $
+;      y_off = (*(*info).winsizes).xywiny $
+;    ELSE $
+;      y_off = (*(*info).winsizes).spwiny
+;		WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = 0, TLB_SET_YOFFSET = $
+;                    y_off + 2*(*(*info).winsizes).ydelta
+;		WIDGET_CONTROL, base, SET_UVALUE = info
+;		XMANAGER, 'CRISPEX', base, /NO_BLOCK
+;		(*(*info).winids).paramtlb = base
+;	ENDIF ELSE BEGIN
+;		WIDGET_CONTROL, (*(*info).winids).paramtlb, /DESTROY
+;		(*(*info).winids).paramtlb = 0
+;		(*(*info).winswitch).showparam = 0
+;	ENDELSE
+;	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+;    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).looptlb], labels=['looptlb']
+;END
 
 PRO CRISPEX_DISPLAYS_PLOT_RESIZE, event, new_xres_tmp, new_yres_tmp, init_xres, init_yres, init_xmargin, init_xwall, new_xres, new_yres, new_width, new_height, $
 	x0, x1, y0, y1, v_dop_set, INX0=inx0, INX1=inx1, INY0=iny0, INY1=iny1, ERROR=error, GOLDEN=golden, ACTUAL_RESIZE=actual_resize, DETSPECT=detspect, STOKES_SELECT=stokes_select
@@ -2735,8 +2738,9 @@ PRO CRISPEX_DISPLAYS_SP_TOGGLE, event, NO_DRAW=no_draw
 		wintitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+$
       ((*(*info).plottitles).spwintitle)[(*(*info).plotswitch).heightset]
     ; Create window
-		CRISPEX_WINDOW, (*(*info).winsizes).spxres, (*(*info).winsizes).spyres, (*(*info).winids).root,$
-      wintitle, tlb, wid, (*(*info).winsizes).spxoffset, 0, DRAWID = spdrawid, RESIZING = 1, $
+		CRISPEX_WINDOW, (*(*info).winsizes).spxres, (*(*info).winsizes).spyres, $
+      (*(*info).winids).root, wintitle, tlb, wid, (*(*info).winsizes).spxoffset, $
+      (*(*info).winsizes).spyoffset, DRAWID = spdrawid, RESIZING = 1, $
       RES_HANDLER = 'CRISPEX_DISPLAYS_SP_RESIZE'
     ; Save window variables
 		(*(*info).winids).sptlb = tlb		&	(*(*info).winids).spwid = wid	&	(*(*info).winswitch).showsp = 1
@@ -3602,85 +3606,192 @@ PRO CRISPEX_DRAW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW'
-	IF (*(*info).winswitch).showparam THEN BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlsparam).x_coord_val, $
-      SET_VALUE = STRTRIM(FIX((*(*info).dataparams).x),2)
-		WIDGET_CONTROL, (*(*info).ctrlsparam).y_coord_val, $
-      SET_VALUE = STRTRIM(FIX((*(*info).dataparams).y),2)
-		WIDGET_CONTROL, (*(*info).ctrlsparam).t_coord_val, $
-      SET_VALUE = STRTRIM((*(*info).dataparams).t,2)
-		WIDGET_CONTROL, (*(*info).ctrlsparam).lp_coord_val, $
-      SET_VALUE = STRTRIM(LONG((*(*info).dataparams).lp),2)
-		WIDGET_CONTROL, (*(*info).ctrlsparam).zoom_val, $
-      SET_VALUE = STRTRIM(LONG((*(*info).zooming).factor),2)
-		IF (*(*info).paramswitch).dt_set THEN BEGIN
-      t_disp_val = (*(*info).dataparams).tarr_main[(*(*info).dataparams).t]
-      t_val_format = '(3(F9.2,x))'
-      IF (t_disp_val NE 0.) THEN BEGIN
-        IF ((FLOOR(ALOG10(ABS(t_disp_val))) LE -2) OR $
-            (FLOOR(ALOG10(ABS(t_disp_val))) GE 3)) THEN $
-          t_val_format = '(3(E10.4,x))'
-      ENDIF
-      WIDGET_CONTROL, (*(*info).ctrlsparam).act_t_val, $
-        SET_VALUE = STRING((*(*info).dataparams).tarr_main[(*(*info).dataparams).t],$
-        FORMAT=t_val_format)
-    ENDIF
-		IF (*(*info).plotswitch).v_dop_set THEN BEGIN
-			WIDGET_CONTROL, (*(*info).ctrlsparam).act_lp_val, SET_VALUE = STRTRIM(STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp], FORMAT = '(3(F9.1,x))'),2)
-			WIDGET_CONTROL, (*(*info).ctrlsparam).v_dop_val, $
-          SET_VALUE = STRTRIM(STRING((*(*(*info).plotaxes).v_dop[$
-            (*(*info).intparams).lp_diag_all])[(*(*info).dataparams).lp-(*(*info).intparams).diag_start[(*(*info).intparams).lp_diag_all]],$
-      FORMAT = '(3(F9.2,x))'),2)
-		ENDIF ELSE IF (*(*info).plotswitch).heightset THEN BEGIN
-			WIDGET_CONTROL, (*(*info).ctrlsparam).act_lp_val, SET_VALUE = STRTRIM(STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp], FORMAT = '(3(F9.1,x))'),2)
-		ENDIF
-		IF ((*(*info).dataparams).refnlp GT 1) THEN BEGIN
-			WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_coord_val, SET_VALUE = STRTRIM(LONG((*(*info).dataparams).lp_ref),2)
-			IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
-				WIDGET_CONTROL, (*(*info).ctrlsparam).act_lp_ref_val, SET_VALUE = STRTRIM(STRING((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref], FORMAT = '(3(F9.1,x))'),2)
-				WIDGET_CONTROL, (*(*info).ctrlsparam).v_dop_ref_val, $
-          SET_VALUE = STRTRIM(STRING((*(*(*info).plotaxes).v_dop_ref[$
-            (*(*info).intparams).lp_ref_diag_all])[(*(*info).dataparams).lp_ref-$
-            (*(*info).intparams).refdiag_start[(*(*info).intparams).lp_ref_diag_all]],$
-          FORMAT = '(3(F9.2,x))'),2)
-			ENDIF ELSE IF (*(*info).plotswitch).refheightset THEN BEGIN
-				WIDGET_CONTROL, (*(*info).ctrlsparam).act_lp_ref_val, SET_VALUE = STRTRIM(STRING((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref], FORMAT = '(3(F9.1,x))'),2)
-			ENDIF
-		ENDIF		
-		IF (*(*info).paramswitch).ref_get THEN BEGIN
-			IF ((*(*info).dataparams).refnt EQ 0) THEN refdata = *(*(*info).data).refdata ELSE IF ((*(*info).dataparams).refnt EQ 1) THEN refdata = (*(*(*info).data).refdata)[0] ELSE $
-					refdata = (*(*(*info).data).refdata)[(*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref]
-			(*(*info).paramparams).ref_get_val = refdata[FIX((*(*info).dataparams).x),FIX((*(*info).dataparams).y)] * ((*(*info).paramparams).scale_cubes)[1]
-			IF ((FLOOR(ALOG10(ABS((*(*info).paramparams).ref_get_val))) LE -2) OR (FLOOR(ALOG10(ABS((*(*info).paramparams).ref_get_val))) GE 3)) THEN ref_val_format = '(3(E10.4,x))' ELSE ref_val_format = '(3(F9.2,x))'
-			(*(*info).paramparams).refsc_get_val = refdata[FIX((*(*info).dataparams).x),FIX((*(*info).dataparams).y)]/((*(*info).dataparams).refms)
-			IF ((FLOOR(ALOG10(ABS((*(*info).paramparams).refsc_get_val))) LE -2) OR (FLOOR(ALOG10(ABS((*(*info).paramparams).refsc_get_val))) GE 3)) THEN refsc_val_format = '(3(E10.4,x))' $
-				ELSE refsc_val_format = '(3(F9.2,x))'
-			WIDGET_CONTROL, (*(*info).ctrlsparam).ref_val, SET_VALUE = STRTRIM(STRING((*(*info).paramparams).ref_get_val,FORMAT=ref_val_format),2)
-			WIDGET_CONTROL, (*(*info).ctrlsparam).refsc_val, SET_VALUE = STRTRIM(STRING((*(*info).paramparams).refsc_get_val,FORMAT=refsc_val_format),2)
-		ENDIF
-		IF (*(*info).paramswitch).img_get THEN BEGIN
-			IF (*(*info).plotswitch).scalestokes THEN ms = (*(*info).dataparams).ms ELSE ms = ((*(*info).dataparams).ms)[(*(*info).dataparams).s]
-			IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN $
-				imdata = (*(*(*info).data).imagedata)[(*(*info).dataparams).t*(*(*info).dataparams).nlp*(*(*info).dataparams).ns + (*(*info).dataparams).s*(*(*info).dataparams).nlp + (*(*info).dataparams).lp] $
-				ELSE imdata = (*(*(*info).data).imagedata)[(*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp] 
-			(*(*info).paramparams).img_get_val = imdata[FIX((*(*info).dataparams).x),FIX((*(*info).dataparams).y)] * ((*(*info).paramparams).scale_cubes)[0]
-			IF ((FLOOR(ALOG10(ABS((*(*info).paramparams).img_get_val))) LE -2) OR (FLOOR(ALOG10(ABS((*(*info).paramparams).img_get_val)) GE 3))) THEN img_val_format = '(3(E10.4,x))' ELSE img_val_format = '(3(F9.2,x))'
-			(*(*info).paramparams).imgsc_get_val = imdata[FIX((*(*info).dataparams).x),FIX((*(*info).dataparams).y)]/ms
-			IF ((FLOOR(ALOG10(ABS((*(*info).paramparams).imgsc_get_val))) LE -2) OR (FLOOR(ALOG10(ABS((*(*info).paramparams).imgsc_get_val))) GE 3)) THEN imgsc_val_format = '(3(E10.4,x))' $
-				ELSE imgsc_val_format = '(3(F9.2,x))'
-			IF ((*(*info).paramswitch).ref_get EQ 0) THEN extra_label = '' ELSE extra_label = ','
-			WIDGET_CONTROL, (*(*info).ctrlsparam).img_val, SET_VALUE = STRTRIM(STRING((*(*info).paramparams).img_get_val,FORMAT=img_val_format),2)
-			WIDGET_CONTROL, (*(*info).ctrlsparam).imgsc_val, SET_VALUE = STRTRIM(STRING((*(*info).paramparams).imgsc_get_val,FORMAT=imgsc_val_format),2)+extra_label
-		ENDIF
-	ENDIF
+;	IF (*(*info).winswitch).showparam THEN BEGIN
 	IF ((*(*info).curs).lockset AND ((*(*info).overlayswitch).loopslit NE 1)) THEN BEGIN
-		(*(*info).curs).sx = (*(*info).curs).sxlock	&	(*(*info).curs).sy = (*(*info).curs).sylock
+		(*(*info).curs).sx = (*(*info).curs).sxlock	
+    (*(*info).curs).sy = (*(*info).curs).sylock
 	ENDIF 
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).paramswitch).img_get,(*(*info).paramparams).img_get_val], labels=['Get image value','Image value']
+;	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).paramswitch).img_get,(*(*info).paramparams).img_get_val], labels=['Get image value','Image value']
+  CRISPEX_DRAW_FEEDBPARAMS, event
 	CRISPEX_DRAW_IMREF, event
 	CRISPEX_DRAW_SPECTRAL, event
 	CRISPEX_DRAW_TIMESLICES, event
 	CRISPEX_DRAW_OTHER, event
+END
+
+PRO CRISPEX_DRAW_FEEDBPARAMS, event
+; Prints all feedback parameters to appropriate fields
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_FEEDBPARAMS'
+  ; Position parameters
+  ; Main
+  xycoord_txt = '('+STRING(LONG((*(*info).dataparams).x),$
+    FORMAT=(*(*info).paramparams).xcoord_format)+$
+    ','+STRING(LONG((*(*info).dataparams).y),$
+    FORMAT=(*(*info).paramparams).ycoord_format)+')'
+  WIDGET_CONTROL, (*(*info).ctrlsparam).xycoord_val, $
+    SET_VALUE=xycoord_txt
+  xycoord_real_txt = '('+STRING(FLOAT((*(*info).dataparams).x*(*(*info).dataparams).dx),$
+    FORMAT=(*(*info).paramparams).xcoord_real_format)+$
+    ','+STRING(FLOAT((*(*info).dataparams).y*(*(*info).dataparams).dy),$
+    FORMAT=(*(*info).paramparams).ycoord_real_format)+')'
+  WIDGET_CONTROL, (*(*info).ctrlsparam).xycoord_real_val, $
+    SET_VALUE=xycoord_real_txt
+  ; Reference
+  IF (*(*info).winswitch).showref THEN BEGIN
+    refxycoord_txt = '('+STRING(LONG((*(*info).dataparams).x),$
+      FORMAT=(*(*info).paramparams).refxcoord_format)+$
+      ','+STRING(LONG((*(*info).dataparams).y),$
+      FORMAT=(*(*info).paramparams).refycoord_format)+')'
+    WIDGET_CONTROL, (*(*info).ctrlsparam).refxycoord_val, $
+      SET_VALUE=refxycoord_txt
+    refxycoord_real_txt = '('+STRING(FLOAT($
+      (*(*info).dataparams).x*(*(*info).dataparams).dx),$
+      FORMAT=(*(*info).paramparams).refxcoord_real_format)+$
+      ','+STRING(FLOAT((*(*info).dataparams).y*(*(*info).dataparams).dy),$
+      FORMAT=(*(*info).paramparams).refycoord_real_format)+')'
+    WIDGET_CONTROL, (*(*info).ctrlsparam).refxycoord_real_val, $
+      SET_VALUE=refxycoord_real_txt
+  ENDIF
+  ; SJI
+  IF (*(*info).winswitch).showsji THEN BEGIN
+    sjixycoord_txt = '('+STRING(LONG((*(*info).dataparams).xsji),$
+      FORMAT=(*(*info).paramparams).sjixcoord_format)+$
+      ','+STRING(LONG((*(*info).dataparams).ysji),$
+      FORMAT=(*(*info).paramparams).sjiycoord_format)+')'
+    WIDGET_CONTROL, (*(*info).ctrlsparam).sjixycoord_val, $
+      SET_VALUE=sjixycoord_txt
+    sjixycoord_real_txt = '('+STRING(FLOAT($
+      (*(*info).dataparams).xsji*(*(*info).dataparams).sjidx),$
+      FORMAT=(*(*info).paramparams).sjixcoord_real_format)+$
+      ','+STRING(FLOAT((*(*info).dataparams).ysji*(*(*info).dataparams).sjidy),$
+      FORMAT=(*(*info).paramparams).sjiycoord_real_format)+')'
+    WIDGET_CONTROL, (*(*info).ctrlsparam).sjixycoord_real_val, $
+      SET_VALUE=sjixycoord_real_txt
+  ENDIF
+
+  ; Spectral parameters
+  ; Main
+  lp_idx_txt = STRING((*(*info).dataparams).lp, FORMAT=(*(*info).paramparams).lp_idx_format)
+  WIDGET_CONTROL, (*(*info).ctrlsparam).lp_idx_val, SET_VALUE=lp_idx_txt
+  IF (*(*info).plotswitch).v_dop_set THEN BEGIN
+    lp_real_txt = STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp], $
+      FORMAT=(*(*info).paramparams).lp_real_format)
+    lp_vdop_txt = STRING((*(*(*info).plotaxes).v_dop[(*(*info).intparams).lp_diag_all])[$
+      (*(*info).dataparams).lp-(*(*info).intparams).diag_start[$
+      (*(*info).intparams).lp_diag_all]], FORMAT=(*(*info).paramparams).lp_vdop_format)
+    WIDGET_CONTROL, (*(*info).ctrlsparam).lp_real_val, SET_VALUE=lp_real_txt
+    WIDGET_CONTROL, (*(*info).ctrlsparam).lp_vdop_val, SET_VALUE=lp_vdop_txt
+  ENDIF
+  ; Reference
+  IF ((*(*info).dataparams).refnlp GT 1) THEN BEGIN
+    lp_ref_idx_txt = STRING((*(*info).dataparams).lp_ref, $
+      FORMAT=(*(*info).paramparams).lp_ref_idx_format)
+    WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_idx_val, SET_VALUE=lp_ref_idx_txt
+    IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
+      lp_ref_real_txt = STRING((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref], $
+        FORMAT=(*(*info).paramparams).lp_ref_real_format)
+      lp_ref_vdop_txt = STRING((*(*(*info).plotaxes).v_dop_ref[$
+        (*(*info).intparams).lp_ref_diag_all])[(*(*info).dataparams).lp_ref-$
+        (*(*info).intparams).refdiag_start[(*(*info).intparams).lp_ref_diag_all]], $
+        FORMAT=(*(*info).paramparams).lp_ref_vdop_format)
+      WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_real_val, SET_VALUE=lp_ref_real_txt
+      WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_vdop_val, SET_VALUE=lp_ref_vdop_txt
+    ENDIF
+  ENDIF
+
+  ; Time parameters
+  ; Main
+  t_idx_txt = STRING(LONG((*(*info).dataparams).t),$
+    FORMAT=(*(*info).paramparams).t_idx_format)
+  WIDGET_CONTROL, (*(*info).ctrlsparam).t_idx_val, SET_VALUE=t_idx_txt
+  IF (*(*info).paramswitch).dt_set THEN BEGIN
+    t_real_txt = STRING((*(*info).dataparams).tarr_main[(*(*info).dataparams).t],$
+      FORMAT=(*(*info).paramparams).t_real_format)
+    WIDGET_CONTROL, (*(*info).ctrlsparam).t_real_val, SET_VALUE=t_real_txt
+  ENDIF
+  IF (*(*info).paramswitch).t_raster THEN BEGIN
+    t_raster_real_txt = STRING((*(*info).dataparams).tarr_raster_main[(*(*info).dataparams).x,$
+      (*(*info).dataparams).t], FORMAT=(*(*info).paramparams).t_raster_real_format)
+    WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_real_val, SET_VALUE=t_raster_real_txt
+  ENDIF
+  ; Reference
+  IF (*(*info).winswitch).showref THEN BEGIN
+    IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN
+      t_ref_idx_txt = STRING(LONG((*(*info).dataparams).t),$
+        FORMAT=(*(*info).paramparams).t_ref_idx_format)
+      WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_idx_val, SET_VALUE=t_ref_idx_txt
+      IF (*(*info).paramswitch).dt_set THEN BEGIN
+        t_ref_real_txt = STRING((*(*info).dataparams).tarr_ref[(*(*info).dataparams).t],$
+          FORMAT=(*(*info).paramparams).t_ref_real_format)
+        WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_real_val, SET_VALUE=t_ref_real_txt
+      ENDIF
+      IF (*(*info).paramswitch).t_raster THEN BEGIN
+        t_raster_ref_real_txt = STRING((*(*info).dataparams).tarr_raster_ref[$
+          (*(*info).dataparams).x,(*(*info).dataparams).t], $
+          FORMAT=(*(*info).paramparams).t_raster_ref_real_format)
+        WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_ref_real_val, $
+          SET_VALUE=t_raster_ref_real_txt
+      ENDIF
+    ENDIF
+  ENDIF
+  ; SJI
+  IF (*(*info).winswitch).showsji THEN BEGIN
+    IF ((*(*info).dataparams).sjint GT 1) THEN BEGIN
+      t_sji_idx_txt = STRING(LONG((*(*info).dispparams).tsel_sji[(*(*info).dataparams).t]),$
+        FORMAT=(*(*info).paramparams).t_sji_idx_format)
+      WIDGET_CONTROL, (*(*info).ctrlsparam).t_sji_idx_val, SET_VALUE=t_sji_idx_txt
+      IF (*(*info).paramswitch).dt_set THEN BEGIN
+        t_sji_real_txt = STRING((*(*info).dataparams).tarr_sji[$
+          (*(*info).dispparams).tsel_sji[(*(*info).dataparams).t]],$
+          FORMAT=(*(*info).paramparams).t_sji_real_format)
+        WIDGET_CONTROL, (*(*info).ctrlsparam).t_sji_real_val, SET_VALUE=t_sji_real_txt
+      ENDIF
+    ENDIF
+  ENDIF
+  
+  ; Data values parameters
+  ; Main
+  act_dataval = (*(*(*info).data).xyslice)[LONG((*(*info).dataparams).x), $
+    LONG((*(*info).dataparams).y)]
+  IF (act_dataval NE 0) THEN $
+    order = FLOOR(ALOG10(ABS(act_dataval))) $
+  ELSE $
+    order = 0
+  IF ((order LE -2) OR (order GE 3)) THEN format = '(E10.4)' ELSE format = '(F9.2)'
+  dataval_real_txt = STRING(act_dataval, FORMAT=format) 
+  WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_real_val, SET_VALUE=dataval_real_txt
+  ; Reference
+  IF (*(*info).winswitch).showref THEN BEGIN
+    act_ref_dataval = (*(*(*info).data).refslice)[LONG((*(*info).dataparams).x), $
+      LONG((*(*info).dataparams).y)]
+    IF (act_ref_dataval NE 0) THEN $
+      order = FLOOR(ALOG10(ABS(act_ref_dataval))) $
+    ELSE $
+      order = 0
+    IF ((order LE -2) OR (order GE 3)) THEN format = '(E10.4)' ELSE format = '(F9.2)'
+    dataval_ref_real_txt = STRING(act_ref_dataval, FORMAT=format)
+    WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_ref_real_val, $
+      SET_VALUE=dataval_ref_real_txt
+  ENDIF
+  ; SJI
+  IF (*(*info).winswitch).showsji THEN BEGIN
+    act_sji_dataval = (*(*(*info).data).sjislice)[LONG((*(*info).dataparams).xsji), $
+      LONG((*(*info).dataparams).ysji)]
+    IF (act_sji_dataval NE 0) THEN $
+      order = FLOOR(ALOG10(ABS(act_sji_dataval))) $
+    ELSE $
+      order = 0
+    IF ((order LE -2) OR (order GE 3)) THEN format = '(E10.4)' ELSE format = '(F9.2)'
+    dataval_sji_real_txt = STRING(act_sji_dataval, FORMAT=format)
+    WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_sji_real_val, $
+      SET_VALUE=dataval_sji_real_txt
+  ENDIF
+
+  ; Zoom value
+	WIDGET_CONTROL, (*(*info).ctrlsparam).zoom_val, $
+    SET_VALUE = STRING((*(*info).zooming).factor*100.,FORMAT='(I4)')+'%'
 END
 
 PRO CRISPEX_DRAW_IMREF, event
@@ -3779,6 +3890,12 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SCALING'
+	x_low = (*(*info).zooming).xpos
+	y_low = (*(*info).zooming).ypos
+  d_nx = (*(*info).dataparams).d_nx
+  d_ny = (*(*info).dataparams).d_ny
+  x_upp = (*(*info).zooming).xpos + d_nx
+  y_upp = (*(*info).zooming).ypos + d_ny
   ; sel = 0 -> main
   ; sel = 1 -> reference
   ; sel = 2 -> doppler
@@ -3797,7 +3914,8 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
 ;    (sel GT 2)
   IF KEYWORD_SET(MAIN) THEN BEGIN
 ;    sel = 0
-    IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN selected_data = *(*(*info).data).xyslice
+    IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN $
+      selected_data = (*(*(*info).data).xyslice)[x_low:x_upp,y_low:y_upp]
 		IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
       minimum = (*(*info).scaling).imagemin
       maximum = (*(*info).scaling).imagemax
@@ -3807,7 +3925,8 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
     ENDIF
   ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
 ;    sel = 1
-    IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN selected_data = *(*(*info).data).refslice
+    IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN $
+      selected_data = (*(*(*info).data).refslice)[x_low:x_upp,y_low:y_upp]
   	IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
       minimum = (*(*info).scaling).refmin
       maximum = (*(*info).scaling).refmax
@@ -3817,7 +3936,8 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
     ENDIF 
   ENDIF ELSE IF KEYWORD_SET(DOPPLER) THEN BEGIN
 ;    sel = 2
-    IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN selected_data = *(*(*info).data).dopslice
+    IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN $
+      selected_data = (*(*(*info).data).dopslice)[x_low:x_upp,y_low:y_upp]
 		IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
       minimum = (*(*info).scaling).dopmin
       maximum = (*(*info).scaling).dopmax
@@ -3962,7 +4082,7 @@ PRO CRISPEX_DRAW_IMREF_BLINK, event
 		IF (subcolor_ref GE 122) THEN curscolor_ref = 0 ELSE curscolor_ref = 255
 		CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor_ref, $
       DRAW_MASK=((*(*info).overlayswitch).mask AND ((*(*info).overlayswitch).maskim)[1])
-		CRISPEX_DRAW_SUBCOLOR, event, 1, color_reftxt, refmin, refmax, xyrange=[10,100,5,20]
+		CRISPEX_DRAW_SUBCOLOR, event, 1, color_reftxt, refmin, refmax;, xyrange=[10,100,5,20]
 		IF (color_reftxt GE 122) THEN reftxtcol = 0 ELSE reftxtcol = 255
 		XYOUTS, 10, 10, 'Reference image, t='+time, /DEVICE, COLOR=reftxtcol
 	ENDIF ELSE BEGIN
@@ -3972,7 +4092,7 @@ PRO CRISPEX_DRAW_IMREF_BLINK, event
 		IF (subcolor GE 122) THEN curscolor = 0 ELSE curscolor = 255
 		CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, $
       DRAW_MASK=((*(*info).overlayswitch).mask AND ((*(*info).overlayswitch).maskim)[0])
-		CRISPEX_DRAW_SUBCOLOR, event, 0, color_txt, minimum, maximum, xyrange=[10,70,5,20]
+		CRISPEX_DRAW_SUBCOLOR, event, 0, color_txt, minimum, maximum;, xyrange=[10,70,5,20]
 		IF (color_txt GE 122) THEN txtcol = 0 ELSE txtcol = 255
 		XYOUTS, 10, 10, 'Main image, t='+time,/DEVICE, COLOR=txtcol
 	ENDELSE
@@ -7379,6 +7499,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       wwidth = key.wwidth
       twave = key.twave
       tarr_main = key.tarr_sel
+      tarr_raster_main = key.tarr_raster
       xyrastersji = key.xyrastersji
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.imtype = datatype         &  hdr_out.imendian = endian
@@ -7388,7 +7509,11 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.imstokes = stokes         &  hdr_out.imnt = nt
       ndiagnostics = N_ELEMENTS(diagnostics)
       CRISPEX_IO_PARSE_SINGLE_CUBE, single_cube, HDR_IN=hdr_out, HDR_OUT=hdr_out,/MAIN
-      tarr_main = FINDGEN(hdr_out.nt) * hdr_out.dt
+      IF (hdr_out.dt EQ 0) THEN $
+        tarr_main = FINDGEN(hdr_out.nt) $
+      ELSE $
+        tarr_main = FINDGEN(hdr_out.nt) * hdr_out.dt
+      tarr_raster_main = tarr_main
       IF (ndiagnostics GT 0) THEN BEGIN
         diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,strlen(diagnostics)-2),',',$
                                 /EXTRACT),2)
@@ -7405,8 +7530,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       twave = 0
     ENDELSE
     hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics, 'diag_start', wstart, $
-      'diag_width', wwidth, 'tarr_main', tarr_main, 'xyrastersji', xyrastersji, $
-      'twave', twave)
+      'diag_width', wwidth, 'tarr_main', tarr_main, 'tarr_raster_main', tarr_raster_main, $
+      'xyrastersji', xyrastersji, 'twave', twave)
   ENDIF ELSE IF KEYWORD_SET(SPCUBE) THEN BEGIN                  ; Fill hdr parameters for SPCUBE
     hdr_out.spoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -7438,6 +7563,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       wwidth = key.wwidth
       twave = key.twave
       tarr_ref = key.tarr_sel
+      tarr_raster_ref = key.tarr_raster
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.refimtype = datatype      &  hdr_out.refimendian = endian
       hdr_out.refnx = nx                &  hdr_out.refny = ny
@@ -7446,7 +7572,11 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         hdr_out.refnt = hdr_out.nt ELSE hdr_out.refnt = 1L
       hdr_out.refnlp = LONG(hdr_out.refimnt/FLOAT(hdr_out.refnt))
       CRISPEX_IO_PARSE_SINGLE_CUBE, single_cube, HDR_IN=hdr_out, HDR_OUT=hdr_out,/REFERENCE
-      tarr_ref = FINDGEN(hdr_out.refnt) * hdr_out.dt
+      IF (hdr_out.dt EQ 0) THEN $
+        tarr_ref = FINDGEN(hdr_out.refnt) $
+      ELSE $
+        tarr_ref = FINDGEN(hdr_out.refnt) * hdr_out.dt
+      tarr_raster_ref = tarr_ref
       ndiagnostics = N_ELEMENTS(diagnostics)
       IF (ndiagnostics GT 0) THEN BEGIN
         diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,strlen(diagnostics)-2),',',$
@@ -7463,7 +7593,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       twave = 0
     ENDELSE
     hdr_out = CREATE_STRUCT(hdr_out, 'refdiagnostics', diagnostics, 'refdiag_start', wstart, $
-      'refdiag_width', wwidth, 'tarr_ref', tarr_ref, 'twave_ref', twave)
+      'refdiag_width', wwidth, 'tarr_ref', tarr_ref, 'tarr_raster_ref', tarr_raster_ref, $
+    'twave_ref', twave)
   ENDIF ELSE IF KEYWORD_SET(REFSPCUBE) THEN BEGIN               ; Fill hdr parameters for REFSPCUBE
     hdr_out.refspoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -7556,15 +7687,23 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     dt = cdelt[sortorder[3]]
     tlab = STRTRIM(ctype[sortorder[3]],2)
     tunit = STRTRIM(cunit[sortorder[3]],2)
+    common_tunit = [(tunit EQ 's'),(tunit EQ 'ms'),(tunit EQ 'hs')]
+    where_common_tunit = WHERE(common_tunit EQ 1)
+    IF (where_common_tunit NE -1) THEN $
+      tfactor = ([1,0.001,100.])[where_common_tunit] $
+    ELSE $
+      tfactor = 1.
   ENDIF ELSE BEGIN
     dt = 0
     tlab = 't'
-    tunit = '[s]'
+;    tunit = '[s]'
   ENDELSE
+  tunit = 's'
   IF ~KEYWORD_SET(SJICUBE) THEN BEGIN
     ; Get time array (assuming each raster is co-temporal)
     IF (nt GT 1) THEN BEGIN
       tarr = READFITS(filename, hdr_tmp, EXTEN_NO=2, /SILENT)
+      tarr_raster = tarr
       tval = SXPAR(header, 'CRVAL4')
       dum=min(abs(tarr-tval),wheretval)
 ;      wheretval = (WHERE(tarr EQ tval))[0]
@@ -7576,24 +7715,28 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
         tarr_sel = REFORM(tarr[tini_col,*]) $
       ELSE $
         tarr_sel = tarr
-    ENDIF ELSE tarr_sel = [0] 
+    ENDIF ELSE BEGIN
+      tarr_sel = [0] 
+      tarr_raster = 0
+    ENDELSE
     sjixoff = 0
     sjiyoff = 0
     sjix0 = 0
     sjiy0 = 0
   ENDIF ELSE BEGIN
     offsetarray = READFITS(filename, EXTEN_NO=1, /SILENT)
-;    tarr_sel = REFORM(offsetarray[*,0]) ; TIME
-;    sjixoff = REFORM(offsetarray[*,1])  ; PZTX
-;    sjiyoff = REFORM(offsetarray[*,2])  ; PZTY
-    ; Assuming the ordering has indeed changed
     tarr_sel = REFORM(offsetarray[0,*]) ; TIME
+    tarr_raster = tarr_sel
     sjixoff = REFORM(offsetarray[1,*])  ; PZTX
     sjiyoff = REFORM(offsetarray[2,*])  ; PZTY
     sjix0 = SXPAR(header, 'ROWSTAR')
     sjiy0 = SXPAR(header, 'COLSTAR')
     nt = naxis[sortorder[2]]
+    ; Currently hardcoded assumption of millisec since there is no keyword value
+    tfactor = 0.001 
   ENDELSE
+  tarr_sel *= REPLICATE(tfactor,nt)
+  tarr_raster *= REPLICATE(tfactor,(SIZE(tarr_raster))[1],nt)
   ; Determine plot labels
   xlab = STRTRIM(ctype[sortorder[0]],2)
   ylab = STRTRIM(ctype[sortorder[1]],2)
@@ -7616,18 +7759,19 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     wstart = SXPAR(header,'WSTART*')
     wwidth = SXPAR(header,'WWIDTH*')
     wdesc = SXPAR(header,'WDESC*')
-    twave = SXPAR(header,'TWAVE*')
-    wstart = wstart[WHERE(wdesc NE '')]
-    wwidth = wwidth[WHERE(wdesc NE '')]
-    diagnostics = wdesc[WHERE(wdesc NE '')]
-    twave  = twave[WHERE(wdesc NE '')]
+    whereselect = WHERE(wdesc NE '')
+    wstart = wstart[whereselect]
+    wwidth = wwidth[whereselect]
+    diagnostics = wdesc[whereselect]
   ENDIF ELSE BEGIN
     wstart = 0
     wwidth = nlp
+    whereselect = 0
     ndiagnostics = 1
     diagnostics = btype
-    twave = SXPAR(header,'TWAVE*')
   ENDELSE
+  twave = SXPAR(header,'TWAVE*')
+  twave  = twave[whereselect]
   ; Get slit coordinates on SJI image if raster
   IF ((SIZE(SXPAR(header,'SJIFIL*'),/TYPE) EQ 7) AND $
     (~KEYWORD_SET(SPCUBE) AND ~KEYWORD_SET(REFSPCUBE))) THEN BEGIN
@@ -7638,7 +7782,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ;
   key = {nx:nx,ny:ny,nlp:nlp,nt:nt,ns:ns,cslab:cslab, $
        datatype:datatype,dx:dx,dy:dy,dt:dt,lam:lam,lc:lc, $
-       tarr_sel:tarr_sel, xyrastersji:xyrastersji, $
+       tarr_sel:tarr_sel, tarr_raster:tarr_raster, xyrastersji:xyrastersji, $
        sjixoff:sjixoff, sjiyoff:sjiyoff, sjix0:sjix0, sjiy0:sjiy0, $
        xlab:xlab,ylab:ylab,lplab:lplab,tlab:tlab, $
        btype:btype,bunit:bunit, $ 
@@ -9479,11 +9623,11 @@ PRO CRISPEX_SESSION_RESTORE, event
 			IF (*(*info).meas).spatial_measurement THEN CRISPEX_MEASURE_CALC, event
 			; Open windows for replotting and replot
 			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Opening windows and refreshing displays...'
-			IF (*(*info).winswitch).showparam THEN BEGIN
-				(*(*info).winswitch).showparam = 0
-				CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDIF
+;			IF (*(*info).winswitch).showparam THEN BEGIN
+;				(*(*info).winswitch).showparam = 0
+;				CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event
+;				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+;			ENDIF
 			IF (*(*info).winswitch).showref THEN BEGIN
 				(*(*info).winswitch).showref = 0
 				CRISPEX_DISPLAYS_REF_TOGGLE, event, /NO_DRAW
@@ -10939,12 +11083,12 @@ PRO CRISPEX_UPDATE_T, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_T'
-	x_low = (*(*info).zooming).xpos
-	y_low = (*(*info).zooming).ypos
-  d_nx = (*(*info).dataparams).d_nx
-  d_ny = (*(*info).dataparams).d_ny
-  x_upp = (*(*info).zooming).xpos + d_nx
-  y_upp = (*(*info).zooming).ypos + d_ny
+;	x_low = (*(*info).zooming).xpos
+;	y_low = (*(*info).zooming).ypos
+;  d_nx = (*(*info).dataparams).d_nx
+;  d_ny = (*(*info).dataparams).d_ny
+;  x_upp = (*(*info).zooming).xpos + d_nx
+;  y_upp = (*(*info).zooming).ypos + d_ny
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, $
     [x_low,x_upp,(*(*info).dataparams).d_nx,(*(*info).dataparams).nx,$
      y_low,y_upp,(*(*info).dataparams).d_ny,(*(*info).dataparams).ny],$
@@ -10960,18 +11104,18 @@ PRO CRISPEX_UPDATE_T, event
     basecubeidx = (*(*info).dataparams).t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
 			            (*(*info).dataparams).s * (*(*info).dataparams).nlp
 		*(*(*info).data).xyslice = REFORM( ((*(*(*info).data).imagedata)[$
-      basecubeidx + (*(*info).dataparams).lp])[x_low:x_upp, y_low:y_upp])
+      basecubeidx + (*(*info).dataparams).lp]));[x_low:x_upp, y_low:y_upp])
 		IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
 			temp_xyslice = REFORM( ((*(*(*info).data).imagedata)[$
-        basecubeidx + (*(*info).dataparams).lp_dop])[x_low:x_upp, y_low:y_upp])
+        basecubeidx + (*(*info).dataparams).lp_dop]));[x_low:x_upp, y_low:y_upp])
   ; Determine main image, in case the cube has no spectral dimension
 	ENDIF ELSE BEGIN
     basecubeidx = (*(*info).dataparams).s * (*(*info).dataparams).nlp 
 		*(*(*info).data).xyslice = REFORM( ((*(*(*info).data).imagedata)[basecubeidx + $
-      (*(*info).dataparams).lp])[x_low:x_upp, y_low:y_upp])
+      (*(*info).dataparams).lp]));[x_low:x_upp, y_low:y_upp])
 		IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
       temp_xyslice = REFORM( ((*(*(*info).data).imagedata)[basecubeidx + $
-      (*(*info).dataparams).lp_dop])[x_low:x_upp, y_low:y_upp])
+      (*(*info).dataparams).lp_dop]));[x_low:x_upp, y_low:y_upp])
 	ENDELSE
   ; Determine Doppler image
 	IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN BEGIN
@@ -10984,33 +11128,33 @@ PRO CRISPEX_UPDATE_T, event
 	IF ((*(*info).winswitch).showref OR (*(*info).winswitch).showimref) THEN BEGIN
 		IF (((*(*info).dataparams).refnlp GT 1) AND ((*(*info).dataparams).refnt GT 1)) THEN BEGIN
       refidx = (*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref
-      *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[refidx])[x_low:x_upp, y_low:y_upp])
+      *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[refidx]));[x_low:x_upp, y_low:y_upp])
 		ENDIF ELSE BEGIN
 			IF ((*(*info).dataparams).refnt EQ 0) THEN $
-        *(*(*info).data).refslice = (*(*(*info).data).refdata)[x_low:x_upp, y_low:y_upp] $
+        *(*(*info).data).refslice = (*(*(*info).data).refdata) $;[x_low:x_upp, y_low:y_upp] $
 			ELSE IF ((*(*info).dataparams).refnt EQ 1) THEN BEGIN
 				IF ((*(*info).dataparams).refnlp NE 1) THEN $
           *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[$
-            (*(*info).dataparams).lp_ref])[x_low:x_upp, y_low:y_upp]) $
+            (*(*info).dataparams).lp_ref])) $;[x_low:x_upp, y_low:y_upp]) $
 				ELSE $
-          *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[0])[x_low:x_upp, y_low:y_upp])
+          *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[0]));[x_low:x_upp, y_low:y_upp])
 			ENDIF ELSE IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN BEGIN
         *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[$
-          (*(*info).dataparams).t])[x_low:x_upp, y_low:y_upp])
+          (*(*info).dataparams).t]));[x_low:x_upp, y_low:y_upp])
 			ENDIF ELSE $
         *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[$
           (*(*info).dataparams).t * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref])$
-          [x_low:x_upp, y_low:y_upp])
+          );[x_low:x_upp, y_low:y_upp])
 		ENDELSE
 	ENDIF
   ; Determine mask image
 	IF (*(*info).dataswitch).maskfile THEN BEGIN
 		IF ((*(*info).dataparams).masknt GT 1) THEN BEGIN
       *(*(*info).data).maskslice = REFORM( ((*(*(*info).data).maskdata)[$
-        (*(*info).dataparams).t])[x_low:x_upp, y_low:y_upp])
+        (*(*info).dataparams).t]));[x_low:x_upp, y_low:y_upp])
 		ENDIF ELSE BEGIN
       *(*(*info).data).maskslice = REFORM( ((*(*(*info).data).maskdata)[0])$
-        [x_low:x_upp, y_low:y_upp])
+        );[x_low:x_upp, y_low:y_upp])
 		ENDELSE
 	ENDIF
   ; Determine sji image
@@ -11453,7 +11597,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '612'
+	revision_number = '615'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -11626,7 +11770,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   ; extension, where FITS cubes are assumed to have a *.fits extension (case insensitive).
   IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Reading input files... '
   IF ((BYTE(1L,0,1))[0] EQ 1) THEN endian = 'l' ELSE endian = 'b' ; Check endianness of machine
-  IF (N_ELEMENTS(DT) NE 1) THEN dt = 1.
+  IF (N_ELEMENTS(DT) NE 1) THEN dt = 0.
   
   ; Handle input file headers by parsing them into the hdr structure; first initialise hdr
   hdr = {$
@@ -11672,7 +11816,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   IF ((io_failsafe_ref_error EQ 1) OR (io_failsafe_main_ref_error EQ 1)) THEN RETURN
   IF (N_ELEMENTS(REFCUBE) LT 1) THEN $
     hdr = CREATE_STRUCT(hdr, 'refdiagnostics', 'N/A', 'refdiag_start', 0, 'refdiag_width', 1, $
-            'tarr_ref', 0)
+            'tarr_ref', 0, 'tarr_raster_ref', 0)
 
   CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr, HDR_OUT=hdr, $  
                             STARTUPTLB=startuptlb, $
@@ -11788,7 +11932,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	;nt		= FLOAT(hdr.nt)												; Convert the number of timesteps to float
 	t_start = t_first
 
-	IF (N_ELEMENTS(hdr.dt) EQ 1) THEN BEGIN
+	IF (hdr.dt EQ 1) THEN BEGIN
 		IF (hdr.spfile OR hdr.onecube) THEN BEGIN
 			dt_set = 1
 			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = hdr.spytitle ;'Time (s)'
@@ -12090,6 +12234,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 	spwidth 	= (1. - (spmargin + spwall))
 	IF hdr.spfile THEN spwiny = windowy ELSE spwiny = imwiny
+  spwiny = imwiny - lswiny
 	IF ((hdr.v_dop_set[0] EQ 1) OR (hdr.ns GT 1)) THEN BEGIN
 		spheight = (1. - (spmargin * 2.) * spwinx/spwiny)
 		phisheight = (1. - (spmargin * 2.) * phiswinx/phiswiny)
@@ -12157,6 +12302,22 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	y_start		= FLOAT(FLOOR(hdr.ny/2))												; Determine the middle y-coordinate
 	sy_start	= y_start * imwiny / FLOAT(hdr.ny)										; Convert that to device
   arcsecpix	= hdr.dx
+  IF hdr.sjifile THEN BEGIN
+    xsji_start = $
+      hdr.xyrastersji[x_start,0] + (x_start * hdr.dx / hdr.sjidx - $
+      (hdr.xyrastersji[x_start,0] - hdr.xyrastersji[0,0]))
+    ysji_start = $
+      hdr.xyrastersji[x_start,1] + (y_start * hdr.dy / hdr.sjidy - $
+      (hdr.xyrastersji[x_start,1] - hdr.xyrastersji[0,1])) 
+    sxsji_start = xsji_start * sjiwinx / hdr.sjinx
+    sysji_start = ysji_start * sjiwiny / hdr.sjiny
+  ENDIF ELSE BEGIN
+    xsji_start = 0L
+    ysji_start = 0L
+    sxsji_start = 0.
+    sysji_start = 0.
+  ENDELSE
+
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(initial spatial parameters)', /OPT, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial spatial parameters... done!']
@@ -12399,23 +12560,31 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                                         '(initialising control panel)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Initializing control panel... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	control_panel		    = WIDGET_BASE(TITLE = 'CRISPEX'+instance_label+': Control Panel', $
-  TLB_FRAME_ATTR = 1, /COLUMN, /FRAME, KILL_NOTIFY = 'CRISPEX_CLOSE_CLEANUP', APP_MBAR = menubar, TLB_SIZE_EVENTS = 1)
+	cpanel		    = WIDGET_BASE(TITLE = 'CRISPEX'+instance_label+': Control Panel', $
+;	cpanel		    = WIDGET_BASE(TITLE = 'CRISPEX: CRIsp SPectral EXplorer'+instance_label, $
+    TLB_FRAME_ATTR = 1, /ROW, /FRAME, KILL_NOTIFY = 'CRISPEX_CLOSE_CLEANUP', $
+    APP_MBAR = menubar, TLB_SIZE_EVENTS = 1)
+  control_panel       = WIDGET_BASE(cpanel, /COLUMN)
 	filemenu		        = WIDGET_BUTTON(menubar, VALUE = 'File', /MENU, UVALUE = 'file')
-	about			          = WIDGET_BUTTON(filemenu, VALUE = 'About', EVENT_PRO = 'CRISPEX_ABOUT_WINDOW', ACCELERATOR = 'Ctrl+A')
+	about			          = WIDGET_BUTTON(filemenu, VALUE = 'About', $
+    EVENT_PRO = 'CRISPEX_ABOUT_WINDOW', ACCELERATOR = 'Ctrl+A')
 	preferences		      = WIDGET_BUTTON(filemenu, VALUE = 'Preferences', $
-                                      EVENT_PRO = 'CRISPEX_PREFERENCES_WINDOW', ACCELERATOR = 'Ctrl+P')
+    EVENT_PRO = 'CRISPEX_PREFERENCES_WINDOW', ACCELERATOR = 'Ctrl+P')
 	dispwid			        = WIDGET_BUTTON(filemenu, VALUE = 'Display window IDs', $
-                                      EVENT_PRO = 'CRISPEX_DISPWIDS', ACCELERATOR = 'Ctrl+I', /CHECKED_MENU)
+    EVENT_PRO = 'CRISPEX_DISPWIDS', ACCELERATOR = 'Ctrl+I', /CHECKED_MENU)
 ;  openmenu            = WIDGET_BUTTON(filemenu, VALUE = 'Open', /SEPARATOR, /MENU)
 ;  openref             = WIDGET_BUTTON(openmenu, VALUE = 'Reference cube(s)...', $
 ;                                      EVENT_PRO = 'CRISPEX_IO_OPEN_REFCUBE')
 	pathmenu		        = WIDGET_BUTTON(filemenu, VALUE = 'Set path', /SEPARATOR, /MENU)
-	setipath		        = WIDGET_BUTTON(pathmenu, VALUE = 'Set input path', EVENT_PRO = 'CRISPEX_SAVE_SET_IPATH')
-	setopath		        = WIDGET_BUTTON(pathmenu, VALUE = 'Set output path', EVENT_PRO = 'CRISPEX_SAVE_SET_OPATH')
+	setipath		        = WIDGET_BUTTON(pathmenu, VALUE = 'Set input path', $
+    EVENT_PRO = 'CRISPEX_SAVE_SET_IPATH')
+	setopath		        = WIDGET_BUTTON(pathmenu, VALUE = 'Set output path', $
+    EVENT_PRO = 'CRISPEX_SAVE_SET_OPATH')
 	savemenu		        = WIDGET_BUTTON(filemenu, VALUE = 'Save current', /MENU)
-	timeslicemenu		    = WIDGET_BUTTON(savemenu, VALUE = 'Time slice(s)', /MENU, SENSITIVE = 0)
-	save_loop_pts		    = WIDGET_BUTTON(savemenu, VALUE = 'Loop for later retrieval', EVENT_PRO = 'CRISPEX_SAVE_LOOP_PTS', SENSITIVE = 0)
+	timeslicemenu		    = WIDGET_BUTTON(savemenu, VALUE = 'Time slice(s)', /MENU, $
+    SENSITIVE = 0)
+	save_loop_pts		    = WIDGET_BUTTON(savemenu, VALUE = 'Loop for later retrieval', $
+    EVENT_PRO = 'CRISPEX_SAVE_LOOP_PTS', SENSITIVE = 0)
 	approxmenu		      = WIDGET_BUTTON(timeslicemenu, VALUE = 'Approximated loop', /MENU)
 	save_app_slab_but	  = WIDGET_BUTTON(approxmenu, VALUE = 'All '+STRLOWCASE(sp_h[heightset])+' positions', EVENT_PRO = 'CRISPEX_SAVE_APPROX_LOOPSLAB')
 	save_app_slice_but	= WIDGET_BUTTON(approxmenu, VALUE = 'Current '+STRLOWCASE(sp_h[heightset])+' position', EVENT_PRO = 'CRISPEX_SAVE_APPROX_LOOPSLICE')
@@ -12482,21 +12651,31 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	sh_verb_8		= WIDGET_BUTTON(sh_runtime_verb_menu, VALUE = 'Extended runtime verbosity', EVENT_PRO = 'CRISPEX_VERBOSE_SET', UVALUE = 3, /NO_RELEASE, /CHECKED_MENU, ACCELERATOR = 'Shift+8')
 	sh_verb_16		= WIDGET_BUTTON(sh_runtime_verb_menu, VALUE = 'Enable playback statistics', EVENT_PRO = 'CRISPEX_VERBOSE_SET', UVALUE = 4, /NO_RELEASE, /CHECKED_MENU, ACCELERATOR = 'Shift+P')
 
-	tab_tlb			= WIDGET_TAB(control_panel,LOCATION=0, MULTILINE=5)
+	tab_tlb			= WIDGET_TAB(control_panel, LOCATION=0, MULTILINE=5)
 
+  ; Playback controls
 	playback_tab		= WIDGET_BASE(tab_tlb, TITLE = 'Temporal', /COLUMN)
 	playback_contr		= WIDGET_BASE(control_panel, /ROW)
 	playback_field_basic	= WIDGET_BASE(playback_contr, /FRAME, /GRID_LAYOUT, COLUMN=5)
-	playback_field_add	= WIDGET_BASE(playback_contr, /FRAME, GRID_LAYOUT = (bmpbut_count EQ 16), COLUMN=3, EXCLUSIVE = (bmpbut_count NE 16))
-	fbwd_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fbwd_idle, EVENT_PRO = 'CRISPEX_PB_FASTBACKWARD', TOOLTIP = 'Move one frame backward')
-	backward_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_bwd_idle, EVENT_PRO = 'CRISPEX_PB_BACKWARD', TOOLTIP = 'Play backward')
-	pause_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_pause_pressed, EVENT_PRO = 'CRISPEX_PB_PAUSE', TOOLTIP = 'Pause')
-	forward_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fwd_idle, EVENT_PRO = 'CRISPEX_PB_FORWARD', TOOLTIP = 'Play forward')
-	ffwd_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_ffwd_idle, EVENT_PRO = 'CRISPEX_PB_FASTFORWARD', TOOLTIP = 'Move one frame forward')
-	loop_button		= WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_loop_pressed, EVENT_PRO = 'CRISPEX_PB_LOOP', TOOLTIP = 'Loop')
+	playback_field_add	= WIDGET_BASE(playback_contr, /FRAME, $
+    GRID_LAYOUT = (bmpbut_count EQ 16), COLUMN=3, EXCLUSIVE = (bmpbut_count NE 16))
+	fbwd_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fbwd_idle, $
+    EVENT_PRO = 'CRISPEX_PB_FASTBACKWARD', TOOLTIP = 'Move one frame backward')
+	backward_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_bwd_idle, $
+    EVENT_PRO = 'CRISPEX_PB_BACKWARD', TOOLTIP = 'Play backward')
+	pause_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_pause_pressed, $
+    EVENT_PRO = 'CRISPEX_PB_PAUSE', TOOLTIP = 'Pause')
+	forward_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fwd_idle, $
+    EVENT_PRO = 'CRISPEX_PB_FORWARD', TOOLTIP = 'Play forward')
+	ffwd_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_ffwd_idle, $
+    EVENT_PRO = 'CRISPEX_PB_FASTFORWARD', TOOLTIP = 'Move one frame forward')
+	loop_button		= WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_loop_pressed, $
+    EVENT_PRO = 'CRISPEX_PB_LOOP', TOOLTIP = 'Loop')
 	WIDGET_CONTROL, loop_button, SET_BUTTON = (bmpbut_count NE 16)
-	cycle_button		= WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_cycle_idle, EVENT_PRO = 'CRISPEX_PB_CYCLE', TOOLTIP = 'Cycle')
-	blink_button		= WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_blink_idle, EVENT_PRO = 'CRISPEX_PB_BLINK', TOOLTIP = 'Blink')
+	cycle_button		= WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_cycle_idle, $
+    EVENT_PRO = 'CRISPEX_PB_CYCLE', TOOLTIP = 'Cycle')
+	blink_button		= WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_blink_idle, $
+    EVENT_PRO = 'CRISPEX_PB_BLINK', TOOLTIP = 'Blink')
 
 	t_slid			= WIDGET_SLIDER(playback_tab, TITLE = 'Frame number', MIN = t_first, MAX = t_last, VALUE = t_start, EVENT_PRO = 'CRISPEX_SLIDER_T', /DRAG, SENSITIVE = t_slid_sens)
 	t_ranges		= WIDGET_BASE(playback_tab, /COLUMN, /FRAME)
@@ -12514,6 +12693,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	imref_blink_but		= WIDGET_BUTTON(imref_blink_field, $
     VALUE = 'Blink between main and reference image', EVENT_PRO = 'CRISPEX_DISPLAYS_IMREFBLINK_TOGGLE', SENSITIVE = hdr.showref)
 
+  ; Spectral controls
 	spectral_tab		= WIDGET_BASE(tab_tlb, TITLE = sp_h[heightset], /COLUMN)
 	lp_ranges		= WIDGET_BASE(spectral_tab, /COLUMN, /FRAME)
 	lp_range_field		= WIDGET_BASE(lp_ranges, /ROW)
@@ -12655,9 +12835,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   sji_but       = WIDGET_BUTTON(images_buts, VALUE = 'Slit-jaw', EVENT_PRO = $
     'CRISPEX_DISPLAYS_SJI_TOGGLE', SENSITIVE = hdr.sjifile, TOOLTIP='Toggle display slit-jaw image')
   WIDGET_CONTROL, sji_but, SET_BUTTON = hdr.sjifile
-	param_but_field		= WIDGET_BASE(all_other_disp, /ROW, /NONEXCLUSIVE)
-	param_but		= WIDGET_BUTTON(param_but_field, VALUE = 'Parameters overview', EVENT_PRO = 'CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE', TOOLTIP = 'Toggle display parameters overview window')
-	WIDGET_CONTROL, param_but, /SET_BUTTON
+;	param_but_field		= WIDGET_BASE(all_other_disp, /ROW, /NONEXCLUSIVE)
+;	param_but		= WIDGET_BUTTON(param_but_field, VALUE = 'Parameters overview', EVENT_PRO = 'CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE', TOOLTIP = 'Toggle display parameters overview window')
+;	WIDGET_CONTROL, param_but, /SET_BUTTON
 
 	scaling_tab 		= WIDGET_BASE(tab_tlb, TITLE = 'Scaling', /COLUMN)
 	xy_scaling		  = WIDGET_BASE(scaling_tab, /FRAME, /COLUMN)
@@ -12793,7 +12973,300 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	measure_km_lab		= WIDGET_LABEL(measure_km, VALUE = 'Distance [km]:', /ALIGN_LEFT, SENSITIVE = 0)
 	measure_km_text		= WIDGET_LABEL(measure_km, VALUE = '0.00', /DYNAMIC_RESIZE, SENSITIVE = 0)
 
-	bg = WIDGET_BASE(control_panel, EVENT_PRO = 'CRISPEX_PB_BG')
+  ; Parameters overview
+		x_coord_val=0
+    y_coord_val=0
+    t_coord_val=0
+    lp_coord_val=0
+    zoom_val=0
+    act_t_val=0
+    act_lp_val=0
+    v_dop_val=0
+		lp_ref_coord_val=0
+    v_dop_ref_val=0
+    act_lp_ref_val=0
+		img_val=0
+    imgsc_val=0
+    ref_val=0
+    refsc_val=0
+    stokes_val=0
+    ; Position parameters
+    params_position_base = WIDGET_BASE(control_panel, /ROW,/FRAME, /GRID_LAYOUT)
+    verlabel_base = WIDGET_BASE(params_position_base, /COLUMN)
+      no_label    = WIDGET_LABEL(verlabel_base, VALUE='Position', /ALIGN_LEFT)
+      pixel_label = WIDGET_LABEL(verlabel_base, VALUE='Index [px]', /ALIGN_RIGHT)
+      real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value ["]', /ALIGN_RIGHT)
+    params_main_base = WIDGET_BASE(params_position_base, /COLUMN)
+      main_label  = WIDGET_LABEL(params_main_base, VALUE='Main', /ALIGN_RIGHT)
+        xcoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.nx))+1,2)+')'
+        ycoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.ny))+1,2)+')'
+        coord_txt = '    ('+STRING(LONG(x_start),FORMAT=xcoord_format)+$
+          ','+STRING(LONG(y_start),FORMAT=ycoord_format)+')'
+		    xycoord_val = WIDGET_LABEL(params_main_base, VALUE=coord_txt, $
+          /ALIGN_RIGHT)
+        xcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.nx*hdr.dx))+3,2)+'.1)'
+        ycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.ny*hdr.dy))+3,2)+'.1)'
+        real_coord_txt = '('+STRING(FLOAT(x_start*hdr.dx),FORMAT=xcoord_real_format)+$
+          ','+STRING(FLOAT(y_start*hdr.dy),FORMAT=ycoord_real_format)+')'
+		    xycoord_real_val = WIDGET_LABEL(params_main_base, VALUE=real_coord_txt, $
+          /ALIGN_RIGHT)
+    params_ref_base = WIDGET_BASE(params_position_base, /COLUMN, /ALIGN_RIGHT)
+      ref_label   = WIDGET_LABEL(params_ref_base, VALUE='Reference', /ALIGN_RIGHT)
+      IF hdr.showref THEN BEGIN
+        refxcoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.refnx))+1,2)+')'
+        refycoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.refny))+1,2)+')'
+        refcoord_txt = '    ('+STRING(LONG(x_start),FORMAT=refxcoord_format)+$
+          ','+STRING(LONG(y_start),FORMAT=refycoord_format)+')'
+      ENDIF ELSE BEGIN
+        refcoord_txt = 'N/A'
+        refxcoord_format = ''
+        refycoord_format = ''
+      ENDELSE
+		    refxycoord_val = WIDGET_LABEL(params_ref_base, VALUE=refcoord_txt, $
+          /ALIGN_RIGHT)
+      IF hdr.showref THEN BEGIN
+        refxcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refnx*hdr.dx))+3,2)+'.1)'
+        refycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refny*hdr.dy))+3,2)+'.1)'
+        refcoord_real_txt = '('+STRING(FLOAT(x_start*hdr.dx),FORMAT=refxcoord_real_format)+$
+          '",'+STRING(FLOAT(y_start*hdr.dy),FORMAT=refycoord_real_format)+'")'
+      ENDIF ELSE BEGIN
+        refcoord_real_txt = 'N/A'
+        refxcoord_real_format = ''
+        refycoord_real_format = ''
+      ENDELSE
+		    refxycoord_real_val = WIDGET_LABEL(params_ref_base, VALUE=refcoord_real_txt, $
+          /ALIGN_RIGHT)
+    params_sji_base = WIDGET_BASE(params_position_base, /COLUMN, /ALIGN_RIGHT)
+      sji_label   = WIDGET_LABEL(params_sji_base, VALUE='Slit-jaw', /ALIGN_RIGHT)
+      IF hdr.sjifile THEN BEGIN
+        sjixcoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.sjinx))+1,2)+')'
+        sjiycoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.sjiny))+1,2)+')'
+        sjicoord_txt = '    ('+STRING(LONG(xsji_start),FORMAT=sjixcoord_format)+$
+          ','+STRING(LONG(ysji_start),FORMAT=sjiycoord_format)+')'
+      ENDIF ELSE BEGIN
+        sjicoord_txt = 'N/A'
+        sjixcoord_format = ''
+        sjiycoord_format = ''
+      ENDELSE
+		    sjixycoord_val = WIDGET_LABEL(params_sji_base, VALUE=sjicoord_txt, $
+          /ALIGN_RIGHT)
+      IF hdr.sjifile THEN BEGIN
+        sjixcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.sjinx*hdr.sjidx))+3,2)+'.1)'
+        sjiycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.sjiny*hdr.sjidy))+3,2)+'.1)'
+        sjicoord_real_txt = '('+STRING(FLOAT(xsji_start*hdr.dx),$
+          FORMAT=sjixcoord_real_format)+'",'+STRING(FLOAT(ysji_start*hdr.dy),$
+          FORMAT=sjiycoord_real_format)+'")'
+      ENDIF ELSE BEGIN
+        sjicoord_real_txt = 'N/A'
+        sjixcoord_real_format = ''
+        sjiycoord_real_format = ''
+      ENDELSE
+		    sjixycoord_real_val = WIDGET_LABEL(params_sji_base, VALUE=sjicoord_real_txt, $
+          /ALIGN_RIGHT)
+
+    ; Spectral parameters
+;      divider_label = WIDGET_LABEL(verlabel_base, VALUE=' ')
+      no_label    = WIDGET_LABEL(verlabel_base, VALUE=wav_h[heightset[0]], /ALIGN_LEFT)
+      pixel_label = WIDGET_LABEL(verlabel_base, VALUE='Index [px]', /ALIGN_RIGHT)
+		  IF ((TOTAL(heightset) GE 1) OR (TOTAL(hdr.v_dop_set) GE 1)) THEN $
+        real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value', /ALIGN_RIGHT)
+      IF ((heightset[0] EQ 0) AND (TOTAL(hdr.v_dop_set) GE 1)) THEN $
+        vdop_label  = WIDGET_LABEL(verlabel_base, VALUE='Doppler [km/s]', /ALIGN_RIGHT)
+      main_label  = WIDGET_LABEL(params_main_base, VALUE=' ', /ALIGN_RIGHT)
+      lp_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.nlp))+1,2)+')'
+      IF hdr.v_dop_set[0] THEN BEGIN
+        lp_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.lps[lp_last]))+3,2)+'.1)'
+        lp_vdop_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.lps[lp_last]))+4,2)+'.2)'
+        lp_real_txt = STRING(hdr.lps[lp_start], FORMAT=lp_real_format)
+        lp_vdop_txt = STRING((*hdr.v_dop[0])[lp_start-hdr.diag_start[0]],$
+          FORMAT=lp_vdop_format)
+      ENDIF ELSE BEGIN
+        lp_real_format = ''
+        lp_vdop_format = ''
+        lp_real_val = 0
+        lp_vdop_val = 0
+        lp_real_txt = 'N/A'
+        lp_vdop_txt = 'N/A'
+      ENDELSE
+		  lp_idx_val = WIDGET_LABEL(params_main_base, VALUE=STRING(LONG(lp_start),$
+        FORMAT=lp_idx_format), /ALIGN_RIGHT)
+		  IF ((TOTAL(heightset) GE 1) OR (TOTAL(hdr.v_dop_set) GE 1)) THEN $
+		    lp_real_val = WIDGET_LABEL(params_main_base, VALUE=lp_real_txt, /ALIGN_RIGHT)
+		  IF (TOTAL(hdr.v_dop_set) GE 1) THEN $
+        lp_vdop_val = WIDGET_LABEL(params_main_base, VALUE=lp_vdop_txt, /ALIGN_RIGHT)
+      ref_label   = WIDGET_LABEL(params_ref_base, VALUE=' ', /ALIGN_RIGHT)
+      IF (hdr.refnlp GT 1) THEN BEGIN
+        lp_ref_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.refnlp))+1,2)+')'
+        lp_ref_idx_txt = STRING(LONG(lp_ref_start), FORMAT=lp_ref_idx_format)
+      ENDIF ELSE BEGIN
+        lp_ref_idx_format = ''
+        lp_ref_idx_txt = 'N/A'
+      ENDELSE
+      IF ((hdr.refnlp GT 1) AND hdr.v_dop_set[1]) THEN BEGIN
+        lp_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.reflps[lp_ref_last]))+3,2)+'.1)'
+        lp_ref_vdop_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.reflps[lp_ref_last]))+4,2)+'.2)'
+        lp_ref_real_txt = STRING(hdr.reflps[lp_ref_start], FORMAT=lp_ref_real_format)
+        lp_ref_vdop_txt = STRING((*hdr.v_dop_ref[0])[lp_ref_start-hdr.diag_start[0]],$
+          FORMAT=lp_ref_vdop_format)
+      ENDIF ELSE BEGIN
+        lp_ref_real_format = ''
+        lp_ref_vdop_format = ''
+        lp_ref_real_val = 0
+        lp_ref_vdop_val = 0
+        lp_ref_real_txt = 'N/A'
+        lp_ref_vdop_txt = 'N/A'
+      ENDELSE
+		  lp_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_idx_txt, /ALIGN_RIGHT)
+		  IF ((TOTAL(heightset) GE 1) OR (TOTAL(hdr.v_dop_set) GE 1)) THEN $
+        lp_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_real_txt, $
+          /ALIGN_RIGHT)
+		  IF (TOTAL(hdr.v_dop_set) GE 1) THEN $
+        lp_ref_vdop_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_vdop_txt, $
+          /ALIGN_RIGHT)
+      ; SJI placeholders
+      sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
+		  lp_sji_idx_val = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
+		  IF ((TOTAL(heightset) GE 1) OR (TOTAL(hdr.v_dop_set) GE 1)) THEN $
+        lp_sji_real_val = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
+		  IF (TOTAL(hdr.v_dop_set) GE 1) THEN $
+        lp_sji_vdop_val = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
+    
+    ; Time parameters
+;    params_time_base = WIDGET_BASE(control_panel, /ROW,/FRAME)
+;    verlabel_base = WIDGET_BASE(params_time_base, /COLUMN)
+      no_label    = WIDGET_LABEL(verlabel_base, VALUE='Time', /ALIGN_LEFT)
+      pixel_label = WIDGET_LABEL(verlabel_base, VALUE='Index [px]', /ALIGN_RIGHT)
+      IF dt_set THEN $
+        real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value [s]', /ALIGN_RIGHT)
+      raster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_main) NE N_ELEMENTS(hdr.tarr_main)) OR $ 
+        (N_ELEMENTS(hdr.tarr_raster_ref) NE N_ELEMENTS(hdr.tarr_ref)))
+      IF raster_time_fb THEN $
+        raster_label = WIDGET_LABEL(verlabel_base, VALUE='Raster [s]', /ALIGN_RIGHT)
+;    params_main_base = WIDGET_BASE(params_time_base, /COLUMN)
+      main_label  = WIDGET_LABEL(params_main_base, VALUE=' ', /ALIGN_RIGHT)
+      t_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.nt))+1,2)+')'
+		  t_idx_val = WIDGET_LABEL(params_main_base, VALUE=STRING(LONG(t_start),$
+        FORMAT=t_idx_format), /ALIGN_RIGHT)
+      IF dt_set THEN BEGIN
+        t_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_main[t_last]))+3,2)+'.1)'
+        t_real_txt = STRING(hdr.tarr_main[t_start], FORMAT=t_real_format)
+		    t_real_val = WIDGET_LABEL(params_main_base, VALUE=t_real_txt, /ALIGN_RIGHT)
+      ENDIF ELSE BEGIN
+        t_real_format = ''
+        t_real_txt = 'N/A'
+        t_real_val = 0
+      ENDELSE
+      IF raster_time_fb THEN BEGIN
+        t_raster_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_main[x_start,t_last]))+3,2)+'.1)'
+        t_raster_real_txt = STRING(hdr.tarr_raster_main[x_start,t_start], $
+          FORMAT=t_raster_real_format)
+        t_raster_real_val = WIDGET_LABEL(params_main_base, VALUE=t_raster_real_txt, $
+          /ALIGN_RIGHT)
+      ENDIF ELSE BEGIN
+        t_raster_real_format = ''
+        t_raster_real_txt = 'N/A'
+        t_raster_real_val = 0
+      ENDELSE
+      ref_label   = WIDGET_LABEL(params_ref_base, VALUE=' ', /ALIGN_RIGHT)
+      IF (hdr.refnt GT 1) THEN BEGIN
+        t_ref_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.refnt))+1,2)+')'
+        t_ref_idx_txt = STRING(LONG(t_start), FORMAT=t_ref_idx_format)
+      ENDIF ELSE BEGIN
+        t_ref_idx_format = ''
+        t_ref_idx_txt = 'N/A'
+;		    t_ref_idx_val = 0
+      ENDELSE
+		  t_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_idx_txt, /ALIGN_RIGHT)
+      IF ((hdr.refnt GT 1) AND dt_set) THEN BEGIN
+        t_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_ref[t_last]))+3,2)+'.1)'
+        t_ref_real_txt = STRING(hdr.tarr_ref[t_start], FORMAT=t_ref_real_format)
+      ENDIF ELSE BEGIN
+        t_ref_real_format = ''
+        t_ref_real_txt = 'N/A'
+        t_ref_real_val = 0
+      ENDELSE
+      IF dt_set THEN $
+        t_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_real_txt, $
+          /ALIGN_RIGHT)
+      IF ((hdr.refnt GT 1) AND raster_time_fb) THEN BEGIN
+        t_raster_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_ref[$
+          x_start,t_last]))+3,2)+'.1)'
+        t_raster_ref_real_txt = STRING(hdr.tarr_raster_ref[x_start,t_start], $
+          FORMAT=t_raster_ref_real_format)
+      ENDIF ELSE BEGIN
+        t_raster_ref_real_format = ''
+        t_raster_ref_real_txt = 'N/A'
+        t_raster_ref_real_val = 0
+      ENDELSE
+      IF dt_set THEN $
+        t_raster_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=t_raster_ref_real_txt, $
+          /ALIGN_RIGHT)
+      sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
+      IF (hdr.sjint GT 1) THEN BEGIN
+        t_sji_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.sjint))+1,2)+')'
+        t_sji_idx_txt = STRING(LONG(t_start), FORMAT=t_sji_idx_format)
+      ENDIF ELSE BEGIN
+        t_sji_idx_format = ''
+        t_sji_idx_txt = 'N/A'
+      ENDELSE
+      IF ((hdr.sjint GT 1) AND dt_set) THEN BEGIN
+        t_sji_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_sji[$
+          hdr.tsel_sji[t_last]]))+3,2)+'.1)'
+        t_sji_real_txt = STRING(hdr.tarr_sji[hdr.tsel_sji[t_start]], $
+          FORMAT=t_sji_real_format)
+      ENDIF ELSE BEGIN
+        t_sji_real_format = ''
+        t_sji_real_val = 0
+        t_sji_real_txt = 'N/A'
+      ENDELSE
+		  t_sji_idx_val = WIDGET_LABEL(params_sji_base, VALUE=t_sji_idx_txt, /ALIGN_RIGHT)
+		  IF dt_set THEN $
+        t_sji_real_val = WIDGET_LABEL(params_sji_base, VALUE=t_sji_real_txt, $
+          /ALIGN_RIGHT)
+      IF raster_time_fb THEN $
+        t_sji_raster_real_val = WIDGET_LABEL(params_sji_base, VALUE='N/A', $
+          /ALIGN_RIGHT)
+
+  ; Data value parameters
+      no_label    = WIDGET_LABEL(verlabel_base, VALUE='Data values', /ALIGN_LEFT)
+      real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value', /ALIGN_RIGHT)
+      main_label  = WIDGET_LABEL(params_main_base, VALUE=' ', /ALIGN_RIGHT)
+      dataval_real_txt = STRING(((*hdr.imdata)[lp_start])[x_start,y_start], $
+        FORMAT='(E10.4)')
+		  dataval_real_val = WIDGET_LABEL(params_main_base, VALUE=dataval_real_txt, $
+        /ALIGN_RIGHT)
+      ref_label   = WIDGET_LABEL(params_ref_base, VALUE=' ', /ALIGN_RIGHT)
+      IF hdr.showref THEN BEGIN
+        dataval_ref_real_txt = STRING(((*hdr.refdata)[lp_ref_start])[x_start,y_start], $
+          FORMAT='(E10.4)')
+      ENDIF ELSE BEGIN
+        dataval_ref_real_format = ''
+        dataval_ref_real_txt = 'N/A'
+      ENDELSE
+		  dataval_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=dataval_ref_real_txt, $
+        /ALIGN_RIGHT)
+      sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
+      IF hdr.sjifile THEN BEGIN
+        dataval_sji_real_txt = STRING(((*hdr.sjidata)[0])[x_start,y_start], $
+          FORMAT='(E10.4)')
+      ENDIF ELSE BEGIN
+        dataval_sji_real_format = ''
+        dataval_sji_real_txt = 'N/A'
+      ENDELSE
+      dataval_sji_real_val = WIDGET_LABEL(params_sji_base, VALUE=dataval_sji_real_txt, $
+        /ALIGN_RIGHT)
+
+   param_base = WIDGET_BASE(control_panel, /COLUMN)
+    ; Column 1 of parameters overview containing cursor x,y and zoomfactor
+;		disp = WIDGET_BASE(param_base, /COLUMN, /FRAME)
+    ; Zommfactor info
+		zoom_base = WIDGET_BASE(param_base, /ROW, /FRAME)
+		zoom_txt = WIDGET_LABEL(zoom_base, VALUE = 'Zoom:')
+		zoom_val = WIDGET_LABEL(zoom_base, $
+      VALUE = STRING(zoomfactors[0]*100.,FORMAT='(I4)')+'%', /DYNAMIC_RESIZE)
+;      VALUE = STRTRIM(LONG(zoomfactors[0]),2), /DYNAMIC_RESIZE)
+
+	bg = WIDGET_BASE(cpanel, EVENT_PRO = 'CRISPEX_PB_BG')
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(initialising control panel)', /WIDGET, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initializing control panel... done!']
@@ -12816,19 +13289,13 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	indexmap= PTR_NEW(index, /NO_COPY)
 	indices = PTR_NEW(INTARR(hdr.nx,hdr.ny,2))
 
-;	imdata	= PTR_NEW(hdr.imagefile, /NO_COPY)
-;	imdata	= hdr.imagefile
 	xyslice	= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
 	sel_xyslice	= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
 	dopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
 	sel_dopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
 	emptydopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
 	maskslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
-;	maskdata = PTR_NEW(mask, /NO_COPY)
 
-;	IF (spfile EQ 1) THEN spdata = PTR_NEW(hdr.spectra, /NO_COPY) ELSE spdata = 0
-;	IF (hdr.refspfile EQ 1) THEN refspdata = PTR_NEW(referencespectra, /NO_COPY) ELSE refspdata = 0
-;	scan	= PTR_NEW(hdr.scanfile, /NO_COPY)
   phiscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp, TYPE=hdr.imtype))
   sspscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp*hdr.ns, TYPE=hdr.imtype))
 	phislice= PTR_NEW(BYTARR(hdr.nlp,nphi))
@@ -12866,36 +13333,36 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	sxp = PTR_NEW(FLTARR(1))
 	syp = PTR_NEW(FLTARR(1))
 	
-;	refscan = 0
-;	refsspscan = 0
 	IF hdr.showref THEN $
 		sel_refslice= PTR_NEW(BYTARR(hdr.refnx,hdr.refny)) $
   ELSE $
     sel_refslice = 0
-;		refdata	= PTR_NEW(referencefile, /NO_COPY)
-;		IF ((hdr.refnlp GT 1) AND (hdr.refspfile EQ 0)) THEN BEGIN
-;			refscan = PTR_NEW(refscanfile, /NO_COPY)
-;			IF (hdr.refimtype EQ 1) THEN $
-;        refsspscan = PTR_NEW(BYTARR(hdr.nx,hdr.ny,hdr.refnlp*hdr.refns)) ELSE $
-;      IF (hdr.refimtype EQ 2) THEN $
-;        refsspscan = PTR_NEW(INTARR(hdr.nx,hdr.ny,hdr.refnlp*hdr.refns)) ELSE $
-;			IF (hdr.refimtype EQ 4) THEN $
-;        refsspscan = PTR_NEW(FLTARR(hdr.nx,hdr.ny,hdr.refnlp*hdr.refns))
-;		ENDIF
-;	ENDIF ELSE BEGIN
-;		refdata = 0	&	refslice = 0	&	refcube = ''	
-;	ENDELSE
   IF hdr.sjifile THEN $
 		sel_sjislice= PTR_NEW(BYTARR(hdr.sjinx,hdr.sjiny)) $
   ELSE $
     sel_sjislice = 0
 	
   imwintitle = 'CRISPEX'+instance_label+': Main image'
-	CRISPEX_WINDOW, imwinx, imwiny, control_panel, imwintitle, imwin, xywid, DRAWID = xydrawid, $
-		DRAWBASE = drawbase, 0, 0, /SCROLL, XSCROLL=xpos_slider, YSCROLL=ypos_slider;XSCROLL=imwinx, YSCROLL=imwiny
+;	CRISPEX_WINDOW, imwinx, imwiny, control_panel, imwintitle, imwin, xywid, DRAWID = xydrawid, $
+;		DRAWBASE = drawbase, 0, 0, /SCROLL, XSCROLL=xpos_slider, YSCROLL=ypos_slider;XSCROLL=imwinx, YSCROLL=imwiny
     ;, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_XYREF_RESIZE'
-	WIDGET_CONTROL, xydrawid, EVENT_PRO = 'CRISPEX_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, /TRACKING_EVENTS,$
-		/DRAW_BUTTON_EVENTS
+  ; Create location for main image including scroll bars
+  main = WIDGET_BASE(cpanel,/COLUMN)
+  draw_verslid_base = WIDGET_BASE(main,/ROW)
+  draw_horslid_base = WIDGET_BASE(main,/ROW)
+	xydraw = WIDGET_DRAW(draw_verslid_base, XSIZE=imwinx, YSIZE=imwiny, RETAIN = 2)
+  ypos_slider = WIDGET_SLIDER(draw_verslid_base,VALUE=0,MIN=0,MAX=1,/SUPPRESS,/DRAG,$
+                          EVENT_PRO='CRISPEX_SLIDER_YPOS',/VERTICAL, YSIZE=imwiny)
+  xpos_slider = WIDGET_SLIDER(draw_horslid_base,VALUE=0,MIN=0,MAX=1,/SUPPRESS,/DRAG,$
+                          EVENT_PRO='CRISPEX_SLIDER_XPOS', XSIZE=imwinx)
+	WIDGET_CONTROL, cpanel, /REALIZE, TLB_GET_SIZE=cpanel_size
+  spxoffset = cpanel_size[0]+xdelta
+  spyoffset = lswiny + ydelta
+  lsxoffset = cpanel_size[0]+xdelta
+  WIDGET_CONTROL, xydraw, GET_VALUE=xydrawid
+
+	WIDGET_CONTROL, xydraw, EVENT_PRO = 'CRISPEX_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, $
+    /TRACKING_EVENTS, /DRAW_BUTTON_EVENTS
 	
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(setting up data pointers)', /WIDGET, /OVER, /DONE
@@ -12935,7 +13402,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		ls_toggle_but:ls_toggle_but, subtract_but:subtract_but, $		
 		lower_y_text:lower_y_text, upper_y_text:upper_y_text, $	
 		sp_toggle_but:sp_toggle_but, refsp_toggle_but:refsp_toggle_but, int_toggle_but:int_toggle_but, $
-		phis_toggle_but:phis_toggle_but, param_but:param_but, reference_but:reference_but, doppler_but:doppler_but, $						
+		phis_toggle_but:phis_toggle_but, reference_but:reference_but, doppler_but:doppler_but, $						
     scaling_cbox:scaling_cbox, imagescale_cbox:imagescale_cbox, $
     histo_opt_txt:histo_opt_txt, $
     gamma_label:gamma_label, gamma_slider:gamma_slider, scalemin_slider:scalemin_slider, $
@@ -12989,10 +13456,22 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- PARAMETER WINDOW REFERENCES
 	ctrlsparam = { $
-		x_coord_val:0, y_coord_val:0, t_coord_val:0, lp_coord_val:0, $					
-		zoom_val:0, act_t_val:0, act_lp_val:0, v_dop_val:0, $						
-		lp_ref_coord_val:0, v_dop_ref_val:0, act_lp_ref_val:0, $
-		img_val:0, imgsc_val:0, ref_val:0, refsc_val:0, stokes_val:0 $			
+    xycoord_val:xycoord_val, xycoord_real_val:xycoord_real_val,  $
+    refxycoord_val:refxycoord_val, refxycoord_real_val:refxycoord_real_val,  $
+    sjixycoord_val:sjixycoord_val, sjixycoord_real_val:sjixycoord_real_val,  $
+    lp_idx_val:lp_idx_val, lp_real_val:lp_real_val, lp_vdop_val:lp_vdop_val, $
+    lp_ref_idx_val:lp_ref_idx_val, lp_ref_real_val:lp_ref_real_val, $
+    lp_ref_vdop_val:lp_ref_vdop_val, $
+    t_idx_val:t_idx_val, t_real_val:t_real_val, $ 
+    t_raster_real_val:t_raster_real_val, $
+    t_ref_idx_val:t_ref_idx_val, t_ref_real_val:t_ref_real_val, $
+    t_raster_ref_real_val:t_raster_ref_real_val, $
+    t_sji_idx_val:t_sji_idx_val, t_sji_real_val:t_sji_real_val, $
+    dataval_real_val:dataval_real_val, dataval_ref_real_val:dataval_ref_real_val, $
+    dataval_sji_real_val:dataval_sji_real_val, $
+    zoom_val:zoom_val, $
+		img_val:img_val, imgsc_val:imgsc_val, ref_val:ref_val, refsc_val:refsc_val $
+;    stokes_val:stokes_val $			
 	}
 ;--------------------------------------------------------------------------------- PREFERENCE BUTTONS
 	ctrlspref = { $
@@ -13019,7 +13498,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;--------------------------------------------------------------------------------- CURSOR 
 	curs = { $
 		sx:sx_start, sy:sy_start, sxlock:sx_start, sylock:sx_start, $		
-    sxsji:sx_start, sysji:sy_start, $
+    sxsji:sxsji_start, sysji:sysji_start, $
 		xlock:x_start, ylock:y_start, lockset:0 $				
 	}
 ;--------------------------------------------------------------------------------- DATA 
@@ -13039,7 +13518,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     refspfilename:hdr.refspfilename, maskfilename:hdr.maskfilename, $	
 		x:x_start, y:y_start, d_nx:hdr.nx, d_ny:hdr.ny, nx:hdr.nx, ny:hdr.ny, $							
     sjinx:hdr.sjinx, sjiny:hdr.sjiny, sjidx:hdr.sjidx, sjidy:hdr.sjidy, sjint:hdr.sjint,$
-    xsji:x_start, ysji:y_start, tarr_sji:hdr.tarr_sji, tarr_main:hdr.tarr_main, tarr_ref:hdr.tarr_ref, $
+    xsji:xsji_start, ysji:ysji_start, tarr_sji:hdr.tarr_sji, tarr_main:hdr.tarr_main, tarr_ref:hdr.tarr_ref, $
+    tarr_raster_main:hdr.tarr_raster_main, tarr_raster_ref:hdr.tarr_raster_ref, $
 		lc:hdr.lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp, refnlp:hdr.refnlp,$	
     ns:hdr.ns, s:0L, $					
 		lps:hdr.lps, ms:hdr.ms, spec:hdr.mainspec, $
@@ -13151,12 +13631,30 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- PARAMETER WINDOW CONTROLS 
 	paramparams = { $
-		wav_h:wav_h, scale_cubes:scale_cubes_vals, img_get_val:0., $
-    imgsc_get_val:0., ref_get_val:0., refsc_get_val:0. $ 
+		wav_h:wav_h, scale_cubes:scale_cubes_vals, $;img_get_val:0., $
+;    imgsc_get_val:0., ref_get_val:0., refsc_get_val:0., $ 
+    xcoord_format:xcoord_format, ycoord_format:ycoord_format, $
+    xcoord_real_format:xcoord_real_format, ycoord_real_format:ycoord_real_format, $
+    refxcoord_format:refxcoord_format, refycoord_format:refycoord_format, $
+    refxcoord_real_format:refxcoord_real_format, $
+    refycoord_real_format:refycoord_real_format, $
+    sjixcoord_format:sjixcoord_format, sjiycoord_format:sjiycoord_format, $
+    sjixcoord_real_format:sjixcoord_real_format, $
+    sjiycoord_real_format:sjiycoord_real_format, $
+    lp_idx_format:lp_idx_format, lp_real_format:lp_real_format, $
+    lp_vdop_format:lp_vdop_format, $
+    lp_ref_idx_format:lp_ref_idx_format, lp_ref_real_format:lp_ref_real_format, $
+    lp_ref_vdop_format:lp_ref_vdop_format, $
+    t_idx_format:t_idx_format, t_real_format:t_real_format, $
+    t_raster_real_format:t_raster_real_format, $
+    t_ref_idx_format:t_ref_idx_format, t_ref_real_format:t_ref_real_format, $
+    t_raster_ref_real_format:t_raster_ref_real_format, $
+    t_sji_idx_format:t_sji_idx_format, t_sji_real_format:t_sji_real_format $
 	}
 ;--------------------------------------------------------------------------------- PARAM SWITCHES
 	paramswitch = { $
-		img_get:KEYWORD_SET(vals_img), ref_get:KEYWORD_SET(vals_ref), dt_set:dt_set $ 
+;		img_get:KEYWORD_SET(vals_img), ref_get:KEYWORD_SET(vals_ref), 
+    dt_set:dt_set, t_raster:raster_time_fb $ 
 	}
 ;--------------------------------------------------------------------------------- PATHS AND DIRECTORIES
 	paths = { $
@@ -13320,7 +13818,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- WINDOW IDs
 	winids = { $
-		root:control_panel, imtlb:imwin, imwid:xywid, $		
+;		root:control_panel, imtlb:imwin, imwid:xywid, $		
+		root:cpanel, imwid:xydrawid, $		
 		reftlb:0, refwid:0, refdrawid:0, refdrawbase:0, $				
 		doptlb:0, dopwid:0, dopdrawid:0, dopdrawbase:0, $
 		imrefdisp:0, imreftlb:0, imrefwid:0, imrefdrawid:0, imrefdrawbase:0, $					
@@ -13350,7 +13849,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		loopxres:spwinx, loopyres:spwiny, restloopxres:spwinx, restloopyres:spwiny, $			
 		retrdetxres:spwinx, retrdetyres:spwiny, intxres:lswinx, intyres:intwiny, $							
     sjiwinx:sjiwinx, sjiwiny:sjiwiny, $
-		xdelta:xdelta, ydelta:ydelta, spxoffset:spxoffset, lsxoffset:lsxoffset, $
+		xdelta:xdelta, ydelta:ydelta,  $
+    spxoffset:spxoffset, spyoffset:spyoffset, $
+    lsxoffset:lsxoffset, lsyoffset:0, $
     refxoffset:refxoffset, refyoffset:refyoffset, aboutxoffset:startup_xpos, $
     aboutyoffset:startup_ypos $
 		}
@@ -13420,11 +13921,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		zooming:PTR_NEW(zooming, /NO_COPY) $
 	}
 	info = PTR_NEW(info, /NO_COPY)
-	WIDGET_CONTROL, control_panel, SET_UVALUE = info
+	WIDGET_CONTROL, cpanel, SET_UVALUE = info
 
-	WIDGET_CONTROL, imwin, SET_UVALUE = info
+;	WIDGET_CONTROL, imwin, SET_UVALUE = info
 
-	pseudoevent = { WIDGET_BUTTON, id:control_panel, top:control_panel, handler:0L, select:1 }
+	pseudoevent = { WIDGET_BUTTON, id:cpanel, top:cpanel, handler:0L, select:1 }
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(defining main pointer)', /WIDGET, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Defining main pointer... done!']
@@ -13559,7 +14060,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ENDIF
 
 	CRISPEX_UPDATE_T, pseudoevent
-	CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, pseudoevent
+;	CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, pseudoevent
 	IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN $
     CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW
 	IF showrefls THEN BEGIN
@@ -13583,10 +14084,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     (*(*info).winsizes).ydelta) + (*(*info).dataswitch).refspfile * (*(*info).winsizes).ydelta $
    ELSE $
 		lsoffset = (*(*info).winswitch).showrefls * (reflswiny + (*(*info).winsizes).ydelta)
-	WIDGET_CONTROL, control_panel, /REALIZE, $
-    TLB_SET_XOFFSET = (*(*info).winsizes).xywinx + (*(*info).winsizes).refxoffset + $
-    2*(*(*info).winsizes).xdelta + spwset * ((*(*info).winsizes).xdelta + (*(*info).winsizes).spwinx), $
-		TLB_SET_YOFFSET = lsoffset
+;	WIDGET_CONTROL, cpanel, /REALIZE;, $
+;    TLB_SET_XOFFSET = (*(*info).winsizes).xywinx + (*(*info).winsizes).refxoffset + $
+;    2*(*(*info).winsizes).xdelta + spwset * ((*(*info).winsizes).xdelta + (*(*info).winsizes).spwinx), $
+;		TLB_SET_YOFFSET = lsoffset
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(realising widget)', /WIDGET, /OVER, /DONE
 	IF startupwin THEN BEGIN
@@ -13600,8 +14101,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                                         '(start mangaing)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Start managing... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	XMANAGER, 'CRISPEX', control_panel, /NO_BLOCK
-	XMANAGER, 'CRISPEX', imwin, /NO_BLOCK
+	XMANAGER, 'CRISPEX', cpanel, /NO_BLOCK
+;	XMANAGER, 'CRISPEX', imwin, /NO_BLOCK
+	WSHOW, (*(*info).winids).imwid
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(start mangaing)', /WIDGET, /OVER, /DONE
 	feedback_text = [feedback_text[0]+'done!',feedback_text[1:N_ELEMENTS(feedback_text)-2],$
