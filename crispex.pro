@@ -7091,100 +7091,192 @@ PRO CRISPEX_PHISLIT_MOVE_SET_COORDS, event
 		labels=['sx','sy','xlock','ylock','sxlock','sylock']
 END
 
-;================================================================================= PREFERENCES ROUTINES
+;========================= PREFERENCES ROUTINES
 PRO CRISPEX_PREFERENCES_WINDOW, event
 ; Opens up the preferences window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_WINDOW'
-	base 		= WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Preferences', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_WINDOW'
+	base 		= WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+$
+    ': Preferences', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, $
+    /TLB_KILL_REQUEST_EVENTS)
 	main		= WIDGET_BASE(base, /COLUMN)
-	startup_base	= WIDGET_BASE(main, /COLUMN, /FRAME)
-	startup_lab 	= WIDGET_LABEL(startup_base, VALUE = 'At start-up:', /ALIGN_LEFT)
+ 
+  ; Start-up preferences
+  startup_base   = WIDGET_BASE(main, /COLUMN, /FRAME)
+	startup_lab 	= WIDGET_LABEL(startup_base, VALUE = 'Start-up and Playback', /ALIGN_LEFT)
 	startup_buts 	= WIDGET_BASE(startup_base, /COLUMN, /NONEXCLUSIVE)
-	(*(*info).ctrlspref).startup_win	= WIDGET_BUTTON(startup_buts, VALUE = 'Show start-up window', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_STARTUPWIN')
-	WIDGET_CONTROL, (*(*info).ctrlspref).startup_win, SET_BUTTON = (*(*info).prefs).startupwin
-	(*(*info).ctrlspref).startup_autopl	= WIDGET_BUTTON(startup_buts, VALUE = 'Start playing automatically', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_AUTOPLAY')
-	WIDGET_CONTROL, (*(*info).ctrlspref).startup_autopl, SET_BUTTON = (*(*info).prefs).autoplay
-	displays_base	= WIDGET_BASE(main,/COLUMN, /FRAME)
-	displays_lab 	= WIDGET_LABEL(displays_base, VALUE = 'Display options:', /ALIGN_LEFT)
-	displays_buts 	= WIDGET_BASE(displays_base, /GRID_LAYOUT, COLUMN=2)
+	(*(*info).ctrlspref).startup_win = $
+                  WIDGET_BUTTON(startup_buts, VALUE = 'Show start-up window', $
+                    EVENT_PRO='CRISPEX_PREFERENCES_SET_STARTUPWIN')
+	(*(*info).ctrlspref).startup_autopl	= $
+                  WIDGET_BUTTON(startup_buts, VALUE='Start playing automatically', $
+                  EVENT_PRO='CRISPEX_PREFERENCES_SET_AUTOPLAY')
+	(*(*info).ctrlspref).displays_phislice = $
+                    WIDGET_BUTTON(startup_buts, $
+                      VALUE='Automatically update spectral Phi-slice', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_PHISLICE_UPDATE')
+  ; Set buttons according to preferences	
+  WIDGET_CONTROL, (*(*info).ctrlspref).startup_win, SET_BUTTON=(*(*info).prefs).startupwin
+	WIDGET_CONTROL, (*(*info).ctrlspref).startup_autopl, SET_BUTTON=(*(*info).prefs).autoplay
+	WIDGET_CONTROL, (*(*info).ctrlspref).displays_phislice, $
+    SET_BUTTON=(*(*info).dispparams).phislice_update
+
+  ; Displays preferences
+	layout_base   	= WIDGET_BASE(main,/COLUMN, /FRAME)
+	layout_lab 	    = WIDGET_LABEL(layout_base, VALUE='Layout', /ALIGN_LEFT)
+	displays_buts 	= WIDGET_BASE(layout_base, /GRID_LAYOUT, COLUMN=2)
 	(*(*info).prefs).bgplotcol_old = (*(*info).plotparams).bgplotcol
-	(*(*info).ctrlspref).displays_bgcols = WIDGET_SLIDER(displays_buts, TITLE = 'Default background plot color', MIN = 0, MAX = 255, VALUE = (*(*info).plotparams).bgplotcol, /DRAG, $
-		EVENT_PRO = 'CRISPEX_PREFERENCES_SET_BGPLOTCOL')
+	(*(*info).ctrlspref).displays_bgcols = $
+                    WIDGET_SLIDER(displays_buts, TITLE='Default background plot color', $
+                      MIN=0, MAX=255, VALUE=(*(*info).plotparams).bgplotcol, /DRAG, $
+		                  EVENT_PRO='CRISPEX_PREFERENCES_SET_BGPLOTCOL')
+	(*(*info).ctrlspref).displays_plcols = $
+                    WIDGET_SLIDER(displays_buts, TITLE='Default line plot color', $
+                      MIN=0, MAX=55, VALUE=(*(*info).plotparams).plotcol, /DRAG, $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_PLOTCOL')
+	displays_int_base = WIDGET_BASE(layout_base, /ROW, /NONEXCLUSIVE)
+	(*(*info).ctrlspref).displays_interp = $
+                    WIDGET_BUTTON(displays_int_base, VALUE='Interpolate spectral slices',$
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_INTERPOLATE')
+	displays_preview= WIDGET_BUTTON(displays_int_base, VALUE='Preview', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_PREVIEW')
+
+  scaling_base    = WIDGET_BASE(main, /COLUMN, /FRAME)
+	scaling_lab 	  = WIDGET_LABEL(scaling_base, VALUE='Scaling', /ALIGN_LEFT)
+  histo_base      = WIDGET_BASE(scaling_base, /ROW)
+  histo_opt_lab   = WIDGET_LABEL(histo_base, VALUE='Default histogram optimisation value:', /ALIGN_LEFT)
+  (*(*info).ctrlspref).histo_opt_txt = $
+                    WIDGET_TEXT(histo_base, VALUE=STRTRIM((*(*info).prefs).histo_opt_val,2), $
+                      /EDITABLE, XSIZE=11, EVENT_PRO='CRISPEX_PREFERENCES_SET_SCALING_HISTO_OPT')
+  (*(*info).ctrlspref).gamma_label = $
+                    WIDGET_LABEL(scaling_base, VALUE=STRING((*(*info).prefs).gamma_val, $
+                      FORMAT='(F6.3)'), /ALIGN_CENTER)
+  (*(*info).ctrlspref).gamma_slid = $
+                    WIDGET_SLIDER(scaling_base, TITLE='Default gamma', MIN=0, MAX=1000, $
+                      VALUE=500*(ALOG10((*(*info).prefs).gamma_val)+1), $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_SCALING_GAMMA', /SUPPRESS, /DRAG)
+	displays_opts	  = WIDGET_BASE(scaling_base, /COLUMN, /NONEXCLUSIVE)
+	(*(*info).ctrlspref).displays_slices = $
+                    WIDGET_BUTTON(displays_opts, $
+                      VALUE='Scale slices according main/reference image', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_SLICES_IMSCALE')
+  ; Set buttons according to settings
 	(*(*info).prefs).plotcol_old = (*(*info).plotparams).plotcol
-	(*(*info).ctrlspref).displays_plcols= WIDGET_SLIDER(displays_buts, TITLE = 'Default line plot color', MIN = 0, MAX =255, VALUE = (*(*info).plotparams).plotcol, /DRAG, EVENT_PRO = 'CRISPEX_PREFERENCES_SET_PLOTCOL')
-	displays_int_base= WIDGET_BASE(displays_base, /ROW, /NONEXCLUSIVE)
 	(*(*info).prefs).interpspslice_old = (*(*info).dispparams).interpspslice
-	(*(*info).ctrlspref).displays_interp = WIDGET_BUTTON(displays_int_base, VALUE = 'Interpolate spectral slices', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_INTERPOLATE')
-	WIDGET_CONTROL, (*(*info).ctrlspref).displays_interp, SET_BUTTON = (*(*info).dispparams).interpspslice
-	displays_preview= WIDGET_BUTTON(displays_int_base, VALUE = 'Preview', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_PREVIEW')
-	WIDGET_CONTROL, displays_preview, SET_BUTTON = (*(*info).prefs).preview
-	displays_opts	= WIDGET_BASE(displays_base, /COLUMN, /NONEXCLUSIVE)
-	(*(*info).ctrlspref).displays_slices = WIDGET_BUTTON(displays_opts, VALUE = 'Scale slices according main/reference image', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_SLICES_IMSCALE')
-	WIDGET_CONTROL, (*(*info).ctrlspref).displays_slices, SET_BUTTON = (*(*info).dispparams).slices_imscale
-	(*(*info).ctrlspref).displays_phislice = WIDGET_BUTTON(displays_opts, VALUE = 'Automatically update spectral Phi-slice', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_PHISLICE_UPDATE')
-	WIDGET_CONTROL, (*(*info).ctrlspref).displays_phislice, SET_BUTTON = (*(*info).dispparams).phislice_update
-	paths_base	= WIDGET_BASE(main, /COLUMN, /FRAME)
-	paths_lab	= WIDGET_LABEL(paths_base, VALUE = 'Paths:', /ALIGN_LEFT)
-	paths_i_base	= WIDGET_BASE(paths_base, /COLUMN)
-	paths_i_labbuts= WIDGET_BASE(paths_i_base, /ROW)
-	paths_i_lab	= WIDGET_LABEL(paths_i_labbuts, VALUE = 'Default input path:')
-	paths_i_buts	= WIDGET_BASE(paths_i_labbuts, /ROW, /EXCLUSIVE)
-	(*(*info).ctrlspref).paths_i_def_but = WIDGET_BUTTON(paths_i_buts, VALUE = 'Local working directory', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_IPATH_SEL_DEFAULT', /NO_RELEASE)
-	WIDGET_CONTROL, (*(*info).ctrlspref).paths_i_def_but, SET_BUTTON = ABS((*(*info).prefs).defipath-1)
-	(*(*info).ctrlspref).paths_i_sav_but = WIDGET_BUTTON(paths_i_buts, VALUE = 'Other directory', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_IPATH_SEL_OTHER', /NO_RELEASE)
-	WIDGET_CONTROL, (*(*info).ctrlspref).paths_i_sav_but, SET_BUTTON = (*(*info).prefs).defipath
-	(*(*info).ctrlspref).paths_ipath_text = WIDGET_TEXT(paths_i_base, VALUE = (*(*info).prefs).prefipath, /EDITABLE, EVENT_PRO = 'CRISPEX_PREFERENCES_SET_IPATH_OTHER', SENSITIVE = (*(*info).prefs).defipath)
-	paths_o_base	= WIDGET_BASE(paths_base, /COLUMN)
-	paths_o_labbuts= WIDGET_BASE(paths_o_base, /ROW)
-	paths_o_lab	= WIDGET_LABEL(paths_o_labbuts, VALUE = 'Default output path:')
-	paths_o_buts	= WIDGET_BASE(paths_o_labbuts, /ROW, /EXCLUSIVE)
-	(*(*info).ctrlspref).paths_o_def_but = WIDGET_BUTTON(paths_o_buts, VALUE = 'Local working directory', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_OPATH_SEL_DEFAULT', /NO_RELEASE)
-	WIDGET_CONTROL, (*(*info).ctrlspref).paths_o_def_but, SET_BUTTON = ABS((*(*info).prefs).defopath-1)
-	(*(*info).ctrlspref).paths_o_sav_but = WIDGET_BUTTON(paths_o_buts, VALUE = 'Other directory', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_OPATH_SEL_OTHER', /NO_RELEASE)
-	WIDGET_CONTROL, (*(*info).ctrlspref).paths_o_sav_but, SET_BUTTON = (*(*info).prefs).defopath
-	(*(*info).ctrlspref).paths_opath_text = WIDGET_TEXT(paths_o_base, VALUE = (*(*info).prefs).prefopath, /EDITABLE, EVENT_PRO = 'CRISPEX_PREFERENCES_SET_OPATH_OTHER', SENSITIVE = (*(*info).prefs).defopath)
-	(*(*info).ctrlspref).paths_iopath = WIDGET_BUTTON(paths_base, VALUE = 'Set output path to input path', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_IOPATH', SENSITIVE = ((*(*info).prefs).prefipath NE (*(*info).prefs).prefopath))
-	save_base	= WIDGET_BASE(main, /COLUMN, /FRAME)
-	save_lab	= WIDGET_LABEL(save_base, VALUE = 'Saving:', /ALIGN_LEFT)
-	saveid_buts 	= WIDGET_BASE(save_base, /ROW)
-	saveid_lab	= WIDGET_LABEL(saveid_buts, VALUE = 'Default unique file ID:', /ALIGN_LEFT)
-	saveids		= ['YYYYMMMDD_hhmmss (default)','DDMMMYYYY_hhmmss', 'YYYYMMDD_hhmmss','DDMMYYYY_hhmmss']
-	(*(*info).ctrlspref).save_defsaveid= WIDGET_COMBOBOX(saveid_buts, VALUE = saveids, /DYNAMIC_RESIZE, EVENT_PRO = 'CRISPEX_PREFERENCES_SET_SAVEID')
+	WIDGET_CONTROL, (*(*info).ctrlspref).displays_interp, $
+    SET_BUTTON=(*(*info).dispparams).interpspslice
+	WIDGET_CONTROL, displays_preview, SET_BUTTON=(*(*info).prefs).preview
+	WIDGET_CONTROL, (*(*info).ctrlspref).displays_slices, $
+    SET_BUTTON=(*(*info).dispparams).slices_imscale
+
+  ; IO preferences: inputs
+  paths_base      = WIDGET_BASE(main, /COLUMN, /FRAME)
+	paths_lab	      = WIDGET_LABEL(paths_base, VALUE = 'Input/Output paths', /ALIGN_LEFT)
+	paths_io_base	  = WIDGET_BASE(paths_base, /COLUMN)
+	paths_i_labbuts = WIDGET_BASE(paths_io_base, /ROW)
+	paths_i_lab	    = WIDGET_LABEL(paths_i_labbuts, VALUE = 'Default input path:')
+	paths_i_buts	  = WIDGET_BASE(paths_i_labbuts, /ROW, /EXCLUSIVE)
+	(*(*info).ctrlspref).paths_i_def_but = $
+                    WIDGET_BUTTON(paths_i_buts, VALUE='Local working directory', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_IPATH_SEL_DEFAULT', /NO_RELEASE)
+	(*(*info).ctrlspref).paths_i_sav_but = $
+                    WIDGET_BUTTON(paths_i_buts, VALUE='Other directory', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_IPATH_SEL_OTHER', /NO_RELEASE)
+	(*(*info).ctrlspref).paths_ipath_text = $
+                    WIDGET_TEXT(paths_io_base, VALUE=(*(*info).prefs).prefipath, /EDITABLE,$
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_IPATH_OTHER', $
+                      SENSITIVE=(*(*info).prefs).defipath)
+  ; Set buttons according to settings
+	WIDGET_CONTROL, (*(*info).ctrlspref).paths_i_def_but, $
+    SET_BUTTON=ABS((*(*info).prefs).defipath-1)
+	WIDGET_CONTROL, (*(*info).ctrlspref).paths_i_sav_but, $
+    SET_BUTTON=(*(*info).prefs).defipath
+  ; IO preferences: outputs
+	paths_o_labbuts = WIDGET_BASE(paths_io_base, /ROW)
+	paths_o_lab	    = WIDGET_LABEL(paths_o_labbuts, VALUE = 'Default output path:')
+	paths_o_buts	  = WIDGET_BASE(paths_o_labbuts, /ROW, /EXCLUSIVE)
+	(*(*info).ctrlspref).paths_o_def_but = $
+                    WIDGET_BUTTON(paths_o_buts, VALUE='Local working directory', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_OPATH_SEL_DEFAULT', /NO_RELEASE)
+	(*(*info).ctrlspref).paths_o_sav_but = $
+                    WIDGET_BUTTON(paths_o_buts, VALUE='Other directory', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_OPATH_SEL_OTHER', /NO_RELEASE)
+	(*(*info).ctrlspref).paths_opath_text = $
+                    WIDGET_TEXT(paths_io_base, VALUE=(*(*info).prefs).prefopath, /EDITABLE,$
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_OPATH_OTHER', $
+                      SENSITIVE=(*(*info).prefs).defopath)
+	(*(*info).ctrlspref).paths_iopath = $
+                    WIDGET_BUTTON(paths_base, VALUE='Set output path to input path', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_IOPATH', $
+                      SENSITIVE=((*(*info).prefs).prefipath NE (*(*info).prefs).prefopath))
+  ; Set buttons according to settings
+	WIDGET_CONTROL, (*(*info).ctrlspref).paths_o_def_but, $
+    SET_BUTTON=ABS((*(*info).prefs).defopath-1)
+	WIDGET_CONTROL, (*(*info).ctrlspref).paths_o_sav_but, $
+    SET_BUTTON=(*(*info).prefs).defopath
+  ; File-ID
+	save_base	      = WIDGET_BASE(main, /COLUMN, /FRAME)
+	save_lab	      = WIDGET_LABEL(save_base, VALUE='Filenaming', /ALIGN_LEFT)
+	saveid_buts 	  = WIDGET_BASE(save_base, /ROW)
+	saveid_lab	    = WIDGET_LABEL(saveid_buts, VALUE='Default unique file ID:', /ALIGN_LEFT)
+	saveids	= ['YYYYMMMDD_hhmmss (default)','DDMMMYYYY_hhmmss', $
+              'YYYYMMDD_hhmmss','DDMMYYYY_hhmmss']
+	(*(*info).ctrlspref).save_defsaveid = $
+                    WIDGET_COMBOBOX(saveid_buts, VALUE=saveids, /DYNAMIC_RESIZE, $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_SAVEID')
 	CRISPEX_SAVE_DETERMINE_SAVEID, event, defsaveid_sample, /PREF
-	saveid_sample	= WIDGET_BASE(save_base, /ROW)
+	saveid_sample	  = WIDGET_BASE(save_base, /ROW)
 	saveid_sample_lab = WIDGET_LABEL(saveid_sample, VALUE = 'Example:')
-	(*(*info).ctrlspref).save_defsaveid_sample = WIDGET_LABEL(saveid_sample, VALUE = defsaveid_sample, /DYNAMIC_RESIZE)
-	WIDGET_CONTROL, (*(*info).ctrlspref).save_defsaveid, SET_COMBOBOX_SELECT = (*(*info).prefs).defsaveid
-	dec_buts 	= WIDGET_BASE(main, /ALIGN_CENTER, /GRID_LAYOUT, COLUMN=3)
-	(*(*info).ctrlspref).set_defaults 	= WIDGET_BUTTON(dec_buts, VALUE = 'Default settings', EVENT_PRO = 'CRISPEX_PREFERENCES_SET_DEFAULTS', SENSITIVE = nondefault)
+	(*(*info).ctrlspref).save_defsaveid_sample = $
+                    WIDGET_LABEL(saveid_sample, VALUE=defsaveid_sample, /DYNAMIC_RESIZE)
+	WIDGET_CONTROL, (*(*info).ctrlspref).save_defsaveid, $
+    SET_COMBOBOX_SELECT=(*(*info).prefs).defsaveid
+
+  ; Defaults / Cancel / Accept settings buttons
+	dec_buts 	      = WIDGET_BASE(main, /ALIGN_CENTER, /GRID_LAYOUT, COLUMN=3)
+	(*(*info).ctrlspref).set_defaults	= $
+                    WIDGET_BUTTON(dec_buts, VALUE='Default settings', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_DEFAULTS', SENSITIVE=nondefault)
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
-	cancel 		= WIDGET_BUTTON(dec_buts, VALUE = 'Cancel', EVENT_PRO = 'CRISPEX_PREFERENCES_CANCEL')
-	save_settings 	= WIDGET_BUTTON(dec_buts, VALUE = 'Save settings', EVENT_PRO = 'CRISPEX_PREFERENCES_SAVE_SETTINGS')
-	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = (*(*info).winsizes).spxoffset, TLB_SET_YOFFSET = 0
-	WIDGET_CONTROL, base, SET_UVALUE = info
+	cancel 		      = WIDGET_BUTTON(dec_buts, VALUE='Cancel', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_CANCEL')
+	save_settings 	= WIDGET_BUTTON(dec_buts, VALUE='Save settings', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SAVE_SETTINGS')
+
+  ; Realize widget window
+	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET=(*(*info).winsizes).spxoffset, $
+    TLB_SET_YOFFSET=0
+	WIDGET_CONTROL, base, SET_UVALUE=info
 	XMANAGER, 'CRISPEX', base, /NO_BLOCK
 	(*(*info).winids).preftlb = base
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).preftlb], labels=['preftlb']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).preftlb], labels=['preftlb']
 END
 
 PRO CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 ; Handles the checking whether preference buttons and values are in their default position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON'
 	IF (((*(*info).prefs).tmp_autoplay NE (*(*info).prefs).default_autoplay) OR $
 		((*(*info).prefs).tmp_startupwin NE (*(*info).prefs).default_startupwin) OR $
 		((*(*info).prefs).tmp_bgplotcol NE (*(*info).prefs).default_bgplotcol) OR $
 		((*(*info).prefs).tmp_plotcol NE (*(*info).prefs).default_plotcol) OR $
 		((*(*info).prefs).tmp_interpspslice NE (*(*info).prefs).default_interpspslice) OR $
 		((*(*info).prefs).tmp_slices_imscale NE (*(*info).prefs).default_slices_imscale) OR $			
+		((*(*info).prefs).tmp_histo_opt_val NE (*(*info).prefs).default_histo_opt_val) OR $			
+		((*(*info).prefs).tmp_gamma_val NE (*(*info).prefs).default_gamma_val) OR $			
 		((*(*info).prefs).tmp_phislice_update NE (*(*info).prefs).default_phislice_update) OR $			
 		((*(*info).prefs).tmp_defipath NE (*(*info).prefs).default_defipath) OR $
 		((*(*info).prefs).tmp_prefipath NE (*(*info).prefs).default_prefipath) OR $
 		((*(*info).prefs).tmp_defopath NE (*(*info).prefs).default_defopath) OR $
 		((*(*info).prefs).tmp_prefopath NE (*(*info).prefs).default_prefopath) OR $
-		((*(*info).prefs).tmp_defsaveid NE (*(*info).prefs).default_defsaveid)) THEN nondefault = 1 ELSE nondefault = 0
-	WIDGET_CONTROL, (*(*info).ctrlspref).set_defaults, SENSITIVE = nondefault
+		((*(*info).prefs).tmp_defsaveid NE (*(*info).prefs).default_defsaveid)) THEN $
+      nondefault = 1 $
+    ELSE $
+      nondefault = 0
+	WIDGET_CONTROL, (*(*info).ctrlspref).set_defaults, SENSITIVE=nondefault
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [ABS(nondefault-1)], labels=['Buttons on default']
 END
 
@@ -7244,9 +7336,39 @@ END
 PRO CRISPEX_PREFERENCES_SET_SLICES_IMSCALE, event									
 ; Handles the toggle on/off scaling of slices according to main/reference image scaling
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_SLICES_IMSCALE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_SLICES_IMSCALE'
 	(*(*info).prefs).tmp_slices_imscale = event.SELECT
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_slices_imscale], labels=['Scale slices with main/reference image']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_slices_imscale], $
+      labels=['Scale slices with main/reference image']
+	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
+END
+
+PRO CRISPEX_PREFERENCES_SET_SCALING_HISTO_OPT, event
+; Handles setting the default histrogram optimisation value
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_SCALING_HISTO_OPT'
+	WIDGET_CONTROL, (*(*info).ctrlspref).histo_opt_txt, GET_VALUE = textvalue
+	(*(*info).prefs).tmp_histo_opt_val = textvalue[0]
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_histo_opt_val], $
+      labels=['Histogram optimisation value']
+	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
+END
+
+PRO CRISPEX_PREFERENCES_SET_SCALING_GAMMA, event
+; Handles setting the default histrogram optimisation value
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_SCALING_GAMMA'
+  (*(*info).prefs).tmp_gamma_val = 10.^((FLOAT(event.VALUE)/500.) - 1.)
+  WIDGET_CONTROL, (*(*info).ctrlspref).gamma_label, $
+    SET_VALUE=STRING((*(*info).prefs).tmp_gamma_val,FORMAT='(F6.3)')
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_gamma_val], $
+      labels=['Gamma']
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 END
 
@@ -7387,12 +7509,20 @@ PRO CRISPEX_PREFERENCES_SET_DEFAULTS, event
 ; Handles the setting of all defaults
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_DEFAULTS'
-	(*(*info).prefs).tmp_startupwin = (*(*info).prefs).default_startupwin		&	(*(*info).prefs).tmp_interpspslice = (*(*info).prefs).default_interpspslice
-	(*(*info).prefs).tmp_autoplay = (*(*info).prefs).default_autoplay		&	(*(*info).prefs).tmp_defsaveid = (*(*info).prefs).default_defsaveid
-	(*(*info).prefs).tmp_defipath = (*(*info).prefs).default_defipath		&	(*(*info).prefs).tmp_prefipath = (*(*info).prefs).default_prefipath
-	(*(*info).prefs).tmp_defopath = (*(*info).prefs).default_defopath		&	(*(*info).prefs).tmp_prefopath = (*(*info).prefs).default_prefopath
-	(*(*info).prefs).tmp_bgplotcol = (*(*info).prefs).default_bgplotcol		&	(*(*info).prefs).tmp_plotcol = (*(*info).prefs).default_plotcol
-	(*(*info).prefs).tmp_phislice_update = (*(*info).prefs).default_phislice_update	&	(*(*info).prefs).tmp_slices_imscale = (*(*info).prefs).default_slices_imscale		
+	(*(*info).prefs).tmp_startupwin = (*(*info).prefs).default_startupwin
+  (*(*info).prefs).tmp_interpspslice = (*(*info).prefs).default_interpspslice
+	(*(*info).prefs).tmp_autoplay = (*(*info).prefs).default_autoplay
+  (*(*info).prefs).tmp_defsaveid = (*(*info).prefs).default_defsaveid
+	(*(*info).prefs).tmp_defipath = (*(*info).prefs).default_defipath
+  (*(*info).prefs).tmp_prefipath = (*(*info).prefs).default_prefipath
+	(*(*info).prefs).tmp_defopath = (*(*info).prefs).default_defopath
+  (*(*info).prefs).tmp_prefopath = (*(*info).prefs).default_prefopath
+	(*(*info).prefs).tmp_bgplotcol = (*(*info).prefs).default_bgplotcol
+  (*(*info).prefs).tmp_plotcol = (*(*info).prefs).default_plotcol
+	(*(*info).prefs).tmp_phislice_update = (*(*info).prefs).default_phislice_update
+  (*(*info).prefs).tmp_slices_imscale = (*(*info).prefs).default_slices_imscale		
+  (*(*info).prefs).tmp_histo_opt_val = (*(*info).prefs).default_histo_opt_val
+  (*(*info).prefs).tmp_gamma_val = (*(*info).prefs).default_gamma_val
 	WIDGET_CONTROL, (*(*info).ctrlspref).startup_win, SET_BUTTON = (*(*info).prefs).tmp_startupwin
 	WIDGET_CONTROL, (*(*info).ctrlspref).startup_autopl, SET_BUTTON = (*(*info).prefs).tmp_autoplay
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_bgcols, SET_VALUE = (*(*info).prefs).tmp_bgplotcol
@@ -7400,6 +7530,12 @@ PRO CRISPEX_PREFERENCES_SET_DEFAULTS, event
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_interp, SET_BUTTON = (*(*info).prefs).tmp_interpspslice
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_phislice, SET_BUTTON = (*(*info).prefs).tmp_phislice_update		
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_slices, SET_BUTTON = (*(*info).prefs).tmp_slices_imscale
+	WIDGET_CONTROL, (*(*info).ctrlspref).histo_opt_txt, $
+    SET_VALUE=STRTRIM((*(*info).prefs).tmp_histo_opt_val,2)
+	WIDGET_CONTROL, (*(*info).ctrlspref).gamma_label, $
+    SET_VALUE=STRING((*(*info).prefs).tmp_gamma_val, FORMAT='(F6.3)') 
+	WIDGET_CONTROL, (*(*info).ctrlspref).gamma_slid, $
+    SET_VALUE=(500*(ALOG10((*(*info).prefs).tmp_gamma_val)+1))
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_i_def_but, SET_BUTTON = ABS((*(*info).prefs).tmp_defipath-1)
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_i_sav_but, SET_BUTTON = (*(*info).prefs).tmp_defipath
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_ipath_text, SET_VALUE = (*(*info).prefs).tmp_prefipath, SENSITIVE = (*(*info).prefs).tmp_defipath
@@ -7442,8 +7578,12 @@ PRO CRISPEX_PREFERENCES_SAVE_SETTINGS, event, RESAVE=resave
 	defopath = (*(*info).prefs).tmp_defopath		&	prefopath = (*(*info).prefs).tmp_prefopath
 	bgplotcol = (*(*info).prefs).tmp_bgplotcol		&	plotcol = (*(*info).prefs).tmp_plotcol
 	phislice_update = (*(*info).prefs).tmp_phislice_update	&	slices_imscale = (*(*info).prefs).tmp_slices_imscale	
+  histo_opt_val = (*(*info).prefs).tmp_histo_opt_val
+  gamma_val = (*(*info).prefs).tmp_gamma_val
 	crispex_version = [(*(*info).versioninfo).version_number, (*(*info).versioninfo).revision_number]
-	SAVE, crispex_version, startupwin, interpspslice, phislice_update, slices_imscale, autoplay, defsaveid, defipath, defopath, bgplotcol, plotcol, prefipath, prefopath, FILENAME = (*(*info).paths).dir_settings+'crispex.cpref'
+	SAVE, crispex_version, startupwin, interpspslice, phislice_update, slices_imscale, histo_opt_val,$
+    gamma_val, autoplay, defsaveid, defipath, defopath, bgplotcol, plotcol, prefipath, prefopath, $
+    FILENAME = (*(*info).paths).dir_settings+'crispex.cpref'
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).paths).dir_settings+'crispex.cpref'],labels=['Written']
 	(*(*info).prefs).startupwin = startupwin		&	(*(*info).dispparams).interpspslice = interpspslice
 	(*(*info).prefs).autoplay = autoplay			&	(*(*info).prefs).defsaveid = defsaveid
@@ -7452,6 +7592,8 @@ PRO CRISPEX_PREFERENCES_SAVE_SETTINGS, event, RESAVE=resave
 	(*(*info).prefs).prefipath = prefipath			&	(*(*info).paths).ipath = prefipath
 	(*(*info).prefs).prefopath = prefopath			&	(*(*info).paths).opath = prefopath
 	(*(*info).dispparams).phislice_update = phislice_update	&	(*(*info).dispparams).slices_imscale = slices_imscale	
+  (*(*info).prefs).histo_opt_val = histo_opt_val
+  (*(*info).prefs).gamma_val = gamma_val
 	IF ~KEYWORD_SET(RESAVE) THEN BEGIN
 		CRISPEX_PREFERENCES_REDRAW, event
 		WIDGET_CONTROL, (*(*info).winids).preftlb, /DESTROY
@@ -11630,7 +11772,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '616'
+	revision_number = '617'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -11662,6 +11804,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	default_defipath = 0        &  default_defopath = 0			  ; 0 = local working directory, 1 = saved directory
 	default_bgplotcol = 255     &  default_plotcol = 0
 	default_phislice_update = 0 &  default_slices_imscale = 0
+  default_histo_opt_val = 0.0001  & default_gamma_val = 1.0
 	cpreffiles = FILE_SEARCH(dir_settings+'crispex.cpref', COUNT = cpreffilecount)
 	IF (cpreffilecount GE 1) THEN BEGIN     ; If preference file is present, load preference file
 		RESTORE, cpreffiles[0] 
@@ -11673,12 +11816,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		IF (N_ELEMENTS(phislice_update) NE 1) THEN phislice_update = default_phislice_update
     ; Scale slices with image scaling
 		IF (N_ELEMENTS(slices_imscale) NE 1) THEN slices_imscale = default_slices_imscale
+    ; HISTO_OPT value
+		IF (N_ELEMENTS(histo_opt_val) NE 1) THEN histo_opt_val = default_histo_opt_val
+    ; Gamma value
+		IF (N_ELEMENTS(gamma_val) NE 1) THEN gamma_val = default_gamma_val
 	ENDIF ELSE BEGIN                        ; If no preference file is present, set defaults
 		startupwin = default_startupwin           &  interpspslice = default_interpspslice
 		autoplay = default_autoplay               &  defsaveid = default_defsaveid
 		defipath = default_defipath               &  defopath = default_defopath
 		bgplotcol = default_bgplotcol             &  plotcol = default_plotcol
 		phislice_update = default_phislice_update &  slices_imscale = default_slices_imscale
+    histo_opt_val = default_histo_opt_val     &  gamma_val = default_gamma_val
 		resave_preferences = 0
 	ENDELSE
 
@@ -12490,26 +12638,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ENDELSE
 	ls_yrange_ref = ls_upp_y_ref - ls_low_y_ref 
 
-;  sjimin = FLTARR(ngamma)
-;  sjimax = FLTARR(ngamma)
-;  sjim = (*hdr.sjidata)[0]
-;  FOR g=0,ngamma-1 DO BEGIN
-;    gamma_val = 10.^((FLOAT(g)/500.) - 1.)  
-;    sjimgamma = sjim^gamma_val
-;    sjimin[g] = MIN((*hdr.sjidata)[0], MAX=sjimax_val)
-;    sjimax[g] = sjimax_val
-;  ENDFOR
   sjimin = MIN((*hdr.sjidata)[0], MAX=sjimax_val)
   sjimax = sjimax_val
-  histo_opt_val = 0.0001
-
-;	scale_range = [0.,0.]
-;	scale_minimum = [0.,0.]
-;	scale_max_val = [255.,255.]
-;	scale_min_val = [0., 0.]
-;	rel_scale_max_val = [100., 100.]
-;	rel_scale_min_val = [0.,0.]
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+	
+  IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(initial scaling parameters)', /OPT, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial scaling parameters... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
@@ -12873,9 +13005,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   sji_but       = WIDGET_BUTTON(images_buts, VALUE = 'Slit-jaw', EVENT_PRO = $
     'CRISPEX_DISPLAYS_SJI_TOGGLE', SENSITIVE = hdr.sjifile, TOOLTIP='Toggle display slit-jaw image')
   WIDGET_CONTROL, sji_but, SET_BUTTON = hdr.sjifile
-;	param_but_field		= WIDGET_BASE(all_other_disp, /ROW, /NONEXCLUSIVE)
-;	param_but		= WIDGET_BUTTON(param_but_field, VALUE = 'Parameters overview', EVENT_PRO = 'CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE', TOOLTIP = 'Toggle display parameters overview window')
-;	WIDGET_CONTROL, param_but, /SET_BUTTON
 
 	scaling_tab 		= WIDGET_BASE(tab_tlb, TITLE = 'Scaling', /COLUMN)
 	xy_scaling		  = WIDGET_BASE(scaling_tab, /FRAME, /COLUMN)
@@ -12899,11 +13028,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     VALUE=0, EVENT_PRO='CRISPEX_SCALING_SLIDER_MIN', /DRAG, XSIZE=131)
   scalemax_slider = WIDGET_SLIDER(minmax_sliders, TITLE='Image maximum [%]', MIN=1, MAX=100, $
     VALUE=100, EVENT_PRO='CRISPEX_SCALING_SLIDER_MAX', /DRAG, XSIZE=131)
-  gamma_init = 500
-  gamma_label = WIDGET_LABEL(xy_scaling, VALUE=STRING(10^((gamma_init/500.) - 1), FORMAT='(F6.3)'), $
+  gamma_label = WIDGET_LABEL(xy_scaling, VALUE=STRING(gamma_val, FORMAT='(F6.3)'), $
     /ALIGN_CENTER,XSIZE=250)
-  gamma_slider = WIDGET_SLIDER(xy_scaling, TITLE='Gamma', MIN=0, MAX=1000, VALUE=gamma_init, $
-    EVENT_PRO='CRISPEX_SCALING_GAMMA_SLIDER', /SUPPRESS, /DRAG,XSIZE=250)
+  gamma_slider = WIDGET_SLIDER(xy_scaling, TITLE='Gamma', MIN=0, MAX=1000, $
+    VALUE=500*(ALOG10(gamma_val)+1), EVENT_PRO='CRISPEX_SCALING_GAMMA_SLIDER', /SUPPRESS, $
+    /DRAG,XSIZE=250)
   reset_buts = WIDGET_BASE(xy_scaling, /ROW, /GRID, /ALIGN_CENTER)
   scaling_reset_but = WIDGET_BUTTON(reset_buts, VALUE='Reset current', $
     EVENT_PRO='CRISPEX_SCALING_RESET_DEFAULTS', TOOLTIP='Reset scaling of current diagnostic to '+$
@@ -13502,7 +13631,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;--------------------------------------------------------------------------------- PREFERENCE BUTTONS
 	ctrlspref = { $
 		startup_autopl:0, startup_win:0, displays_bgcols:0, displays_plcols:0, displays_interp:0, $
-		displays_phislice:0, displays_slices:0, $								
+		displays_phislice:0, displays_slices:0, histo_opt_txt:0, gamma_slid:0, gamma_label:0,  $	
 		paths_i_def_but:0, paths_i_sav_but:0, paths_ipath_text:0, $
 		paths_o_def_but:0, paths_o_sav_but:0, paths_opath_text:0, $
 		paths_iopath:0, save_defsaveid:0, save_defsaveid_sample:0, $
@@ -13764,17 +13893,19 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		autoplay:autoplay, startupwin:startupwin, defsaveid:defsaveid,  $
 		defipath:defipath, prefipath:prefipath, defopath:defopath, prefopath:prefopath, $
 		bgplotcol_old:bgplotcol, plotcol_old:plotcol, interpspslice_old:interpspslice, $
-		slices_imscale_old:slices_imscale, $
+		slices_imscale_old:slices_imscale, histo_opt_val:histo_opt_val, gamma_val:gamma_val, $
 		tmp_autoplay:autoplay, tmp_startupwin:startupwin, tmp_defsaveid:defsaveid, $
 		tmp_bgplotcol:bgplotcol, tmp_plotcol:plotcol, tmp_defipath:defipath, tmp_prefipath:prefipath, $
 		tmp_defopath:defopath, tmp_prefopath:prefopath, tmp_interpspslice:interpspslice, $
 		tmp_phislice_update:phislice_update, tmp_slices_imscale:slices_imscale, $								
+    tmp_histo_opt_val:histo_opt_val, tmp_gamma_val:gamma_val, $
 		default_autoplay:default_autoplay, default_startupwin:default_startupwin, $
 		default_bgplotcol:default_bgplotcol, default_plotcol:default_plotcol, $
 		default_defipath:default_defipath, default_prefipath:default_prefipath, $
 		default_defopath:default_defopath, default_prefopath:default_prefopath, $
 		default_defsaveid:default_defsaveid, default_interpspslice:default_interpspslice, $
 		default_phislice_update:default_phislice_update, default_slices_imscale:default_slices_imscale, $
+    default_histo_opt_val:default_histo_opt_val, default_gamma_val:default_gamma_val, $
 		preview:0 $					
 	}
 ;--------------------------------------------------------------------------------- RESTORED LOOPS PARAMS
@@ -13823,7 +13954,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		refmin_curr:refmin[hdr.reflc], refmax_curr:refmax[hdr.reflc], $
 		dopmin_curr:dopplermin[hdr.lc], dopmax_curr:dopplermax[hdr.lc], $
     sjimin_curr:sjimin, sjimax_curr:sjimax, $
-    gamma:REPLICATE(1.,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1), $
+    gamma:REPLICATE(gamma_val,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1), $
 ;    contrast:REPLICATE(0,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
     minimum:REPLICATE(0,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
     maximum:REPLICATE(100,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
@@ -14100,6 +14231,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		CRISPEX_DISPRANGE_LS_SCALE_MAIN, pseudoevent
 		CRISPEX_DISPRANGE_LS_RANGE, pseudoevent, /NO_DRAW
 	ENDIF
+  CRISPEX_SCALING_APPLY_SELECTED, pseudoevent
 	CRISPEX_DRAW, pseudoevent
 	
 ;	IF ((*(*info).winswitch).showsp OR (*(*info).winswitch).showphis OR (*(*info).winswitch).showrefsp) THEN spwset = 1 ELSE spwset = 0
