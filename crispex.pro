@@ -5276,11 +5276,17 @@ PRO CRISPEX_HELP_SHORTCUTS, event
                   {sh:'Shift+Spacebar', label:'Pause'}, $
                   {sh:'Shift+Tab', label:'Play forwards'}, $
                   {sh:'Shift+F', label:'Step to next frame'}, $
-                  {sh:'Shift+A', label:'Decrease '+$
+                  {sh:'Shift+A', label:'Decrease main '+$
                     STRLOWCASE((*(*info).paramparams).sp_h[(*(*info).plotswitch).heightset])+$
                     ' position'}, $
-                  {sh:'Shift+S', label:'Increase '+$
+                  {sh:'Shift+S', label:'Increase main '+$
                     STRLOWCASE((*(*info).paramparams).sp_h[(*(*info).plotswitch).heightset])+$
+                    ' position'}, $
+                  {sh:'Ctrl+A', label:'Decrease reference '+$
+                    STRLOWCASE((*(*info).paramparams).sp_h[(*(*info).plotswitch).refheightset])+$
+                    ' position'}, $
+                  {sh:'Ctrl+S', label:'Increase reference '+$
+                    STRLOWCASE((*(*info).paramparams).sp_h[(*(*info).plotswitch).refheightset])+$
                     ' position'} ]
   ms_shortcuts = [{sh:'Left click', label:'Lock cursor to current position /'}, $
                   {sh:' ', label:'Add current position to path'}, $
@@ -11019,27 +11025,54 @@ END
 PRO CRISPEX_SLIDER_LP_DECR, event
 ; Handles increase of spectral position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_DECR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_DECR'
 	(*(*info).dataparams).lp -= 1L 
-	IF ((*(*info).dataparams).lp LT (*(*info).dispparams).lp_low) THEN (*(*info).dataparams).lp = (*(*info).dispparams).lp_upp
+	IF ((*(*info).dataparams).lp LT (*(*info).dispparams).lp_low) THEN $
+    (*(*info).dataparams).lp = (*(*info).dispparams).lp_upp
 	CRISPEX_SLIDER_LP_UPDATE, event, /OVERRIDE_DIAGNOSTIC
 END
 
 PRO CRISPEX_SLIDER_LP_INCR, event
 ; Handles increase of spectral position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_INCR'
-	(*(*info).dataparams).lp = (((*(*info).dataparams).lp - (*(*info).dispparams).lp_low + 1L) $
-    MOD ((*(*info).dispparams).lp_upp - (*(*info).dispparams).lp_low + 1)) + (*(*info).dispparams).lp_low
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_INCR'
+	(*(*info).dataparams).lp += 1L
+	IF ((*(*info).dataparams).lp GT (*(*info).dispparams).lp_upp) THEN $
+    (*(*info).dataparams).lp = (*(*info).dispparams).lp_low
 	CRISPEX_SLIDER_LP_UPDATE, event, /OVERRIDE_DIAGNOSTIC
 END
 
 PRO CRISPEX_SLIDER_LP_REF, event
 ; Handles change in reference spectral position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_REF'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_REF'
 	(*(*info).dataparams).lp_ref = event.VALUE
 	CRISPEX_SLIDER_LP_UPDATE, event
+END
+
+PRO CRISPEX_SLIDER_LP_REF_DECR, event
+; Handles increase of spectral position
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_REF_DECR'
+	(*(*info).dataparams).lp_ref -= 1L 
+	IF ((*(*info).dataparams).lp_ref LT (*(*info).dispparams).lp_ref_low) THEN $
+    (*(*info).dataparams).lp_ref = (*(*info).dispparams).lp_ref_upp
+	CRISPEX_SLIDER_LP_UPDATE, event, /OVERRIDE_DIAGNOSTIC
+END
+
+PRO CRISPEX_SLIDER_LP_REF_INCR, event
+; Handles increase of spectral position
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_REF_INCR'
+	(*(*info).dataparams).lp_ref += 1L
+	IF ((*(*info).dataparams).lp_ref GT (*(*info).dispparams).lp_ref_upp) THEN $
+    (*(*info).dataparams).lp_ref = (*(*info).dispparams).lp_ref_low
+	CRISPEX_SLIDER_LP_UPDATE, event, /OVERRIDE_DIAGNOSTIC
 END
 
 PRO CRISPEX_SLIDER_LP_REF_LOCK, event, UNLOCK=unlock, NO_DRAW=no_draw
@@ -11829,7 +11862,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '618'
+	revision_number = '619'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -12790,12 +12823,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
   ; CRISPEX
   crispex_menu        = WIDGET_BUTTON(menubar, VALUE='CRISPEX', /MENU, UVALUE='crispex')
-	about			          = WIDGET_BUTTON(crispex_menu, VALUE='About', $
-    EVENT_PRO='CRISPEX_ABOUT_WINDOW', ACCELERATOR='Ctrl+A')
+	about			          = WIDGET_BUTTON(crispex_menu, VALUE='About CRISPEX', $
+                          EVENT_PRO='CRISPEX_ABOUT_WINDOW')
 	preferences		      = WIDGET_BUTTON(crispex_menu, VALUE='Preferences', /SEPARATOR, $
-    EVENT_PRO='CRISPEX_PREFERENCES_WINDOW', ACCELERATOR='Ctrl+P')
+                          EVENT_PRO='CRISPEX_PREFERENCES_WINDOW', ACCELERATOR='Ctrl+P')
 	exitmenu		        = WIDGET_BUTTON(crispex_menu, VALUE='Quit', /SEPARATOR, $
-    EVENT_PRO='CRISPEX_CLOSE', ACCELERATOR='Ctrl+Q')
+                          EVENT_PRO='CRISPEX_CLOSE', ACCELERATOR='Ctrl+Q')
   ; Submenus in menu bar
   ; File
 	filemenu		        = WIDGET_BUTTON(menubar, VALUE='File', /MENU, UVALUE='file')
@@ -12843,10 +12876,20 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                           EVENT_PRO='CRISPEX_PB_FORWARD', ACCELERATOR='Shift+Tab')
 	sh_ffwd_button		  = WIDGET_BUTTON(moviemenu, VALUE='Step to next frame', $
                           EVENT_PRO='CRISPEX_PB_FASTFORWARD', ACCELERATOR='Shift+F')
-	sh_lp_incr_button 	= WIDGET_BUTTON(moviemenu, VALUE=sp_h[heightset]+' position +', $
+	sh_lp_incr_button 	= WIDGET_BUTTON(moviemenu, VALUE='Main '+$
+                          STRLOWCASE(sp_h[heightset])+' position +', $
                           EVENT_PRO='CRISPEX_SLIDER_LP_INCR', ACCELERATOR='Shift+S', /SEPARATOR)
-	sh_lp_decr_button 	= WIDGET_BUTTON(moviemenu, VALUE=sp_h[heightset]+' position -', $
+	sh_lp_decr_button 	= WIDGET_BUTTON(moviemenu, VALUE='Main '+$
+                          STRLOWCASE(sp_h[heightset])+' position -', $
                           EVENT_PRO='CRISPEX_SLIDER_LP_DECR', ACCELERATOR='Shift+A')
+	sh_lp_ref_incr_button= WIDGET_BUTTON(moviemenu, VALUE='Reference '+$
+                          STRLOWCASE(sp_h[refheightset])+' position +', $
+                          EVENT_PRO='CRISPEX_SLIDER_LP_REF_INCR', ACCELERATOR='Ctrl+S', $
+                          SENSITIVE=hdr.showref)
+	sh_lp_ref_decr_button= WIDGET_BUTTON(moviemenu, VALUE='Reference '+$
+                          STRLOWCASE(sp_h[refheightset])+' position -', $
+                          EVENT_PRO='CRISPEX_SLIDER_LP_REF_DECR', ACCELERATOR='Ctrl+A', $
+                          SENSITIVE=hdr.showref)
   ; Analysis                       
   analysismenu        = WIDGET_BUTTON(menubar, VALUE='Analysis', /MENU)
   timeslicemenu		    = WIDGET_BUTTON(analysismenu, VALUE = 'Save current space-time diagram', $
