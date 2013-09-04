@@ -674,6 +674,7 @@ PRO CRISPEX_CLOSE_EVENT_WINDOW, event
 	IF (event.TOP EQ (*(*info).winids).abouttlb) THEN (*(*info).winids).abouttlb = 0
 	IF (event.TOP EQ (*(*info).winids).errtlb) THEN (*(*info).winids).errtlb = 0
 	IF (event.TOP EQ (*(*info).winids).warntlb) THEN (*(*info).winids).warntlb = 0
+  IF (event.TOP EQ (*(*info).winids).shorttlb) THEN (*(*info).winids).shorttlb = 0
 	WIDGET_CONTROL, event.TOP, /DESTROY
 END
 
@@ -5230,7 +5231,7 @@ PRO CRISPEX_HELP, event
 	FILE_DELETE, tempfile
 END
 
-PRO CRISPEX_MAIL_BUG, event
+PRO CRISPEX_HELP_MAIL_BUG, event
 ; Opens a new message for bug reporting
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MAIL_BUG'
@@ -5246,7 +5247,7 @@ PRO CRISPEX_MAIL_BUG, event
 	FILE_DELETE, tempfile
 END
 
-PRO CRISPEX_MAIL_SUGGESTION, event
+PRO CRISPEX_HELP_MAIL_SUGGESTION, event
 ; Opens a new message for suggestion reporting
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MAIL_SUGGESTION'
@@ -5260,6 +5261,62 @@ PRO CRISPEX_MAIL_SUGGESTION, event
 	ONLINE_HELP, BOOK=tempfile
 	WAIT, 10.0
 	FILE_DELETE, tempfile
+END
+
+PRO CRISPEX_HELP_SHORTCUTS, event
+; Opens a window with an overview over the shortcuts
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MAIL_SUGGESTION'
+  ; Populate shortcut elements
+  kb_shortcuts = [{sh:'Ctrl+Shift+I', label:'Zoom in'}, $
+                  {sh:'Ctrl+Shift+O', label:'Zoom out'}, $
+                  {sh:'Shift+B', label:'Step to previous frame'}, $
+                  {sh:'Shift+Backspace', label:'Play backwards'}, $
+                  {sh:'Shift+Spacebar', label:'Pause'}, $
+                  {sh:'Shift+Tab', label:'Play forwards'}, $
+                  {sh:'Shift+F', label:'Step to next frame'}, $
+                  {sh:'Shift+A', label:'Decrease '+$
+                    STRLOWCASE((*(*info).paramparams).sp_h[(*(*info).plotswitch).heightset])+$
+                    ' position'}, $
+                  {sh:'Shift+S', label:'Increase '+$
+                    STRLOWCASE((*(*info).paramparams).sp_h[(*(*info).plotswitch).heightset])+$
+                    ' position'} ]
+  ms_shortcuts = [{sh:'Left click', label:'Lock cursor to current position /'}, $
+                  {sh:' ', label:'Add current position to path'}, $
+                  {sh:'Middle click', label:'Fix cursor position for measurement'}, $
+                  {sh:'Right click', label:'Unlock cursor'} ]
+	title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Shortcuts'
+  base  = WIDGET_BASE(TITLE=title, GROUP_LEADER=(*(*info).winids).root, $
+;            XSIZE=(*(*info).winsizes).aboutwinx*1.5, YSIZE=(*(*info).winsizes).aboutwiny, $
+            /TLB_FRAME_ATTR, /TLB_KILL_REQUEST_EVENTS)
+  disp  = WIDGET_BASE(base, /COLUMN)
+  cols  = WIDGET_BASE(disp, /GRID_LAYOUT, COLUMN=2)
+  col1  = WIDGET_BASE(cols, /COLUMN);, /FRAME)
+  kb_lab= WIDGET_LABEL(col1, VALUE='Keyboard shortcuts:', /ALIGN_LEFT)
+  bases1 = WIDGET_BASE(col1, /ROW)
+  sh_base1 = WIDGET_BASE(bases1, /COLUMN)
+  lb_base1 = WIDGET_BASE(bases1, /COLUMN)
+  FOR i=0,N_ELEMENTS(kb_shortcuts.sh)-1 DO BEGIN
+    kb_label= WIDGET_LABEL(sh_base1, VALUE=(kb_shortcuts.sh)[i], /ALIGN_LEFT)
+    lb_label= WIDGET_LABEL(lb_base1, VALUE=(kb_shortcuts.label)[i], /ALIGN_LEFT)
+  ENDFOR
+  col2  = WIDGET_BASE(cols, /COLUMN);, /FRAME)
+  ms_lab= WIDGET_LABEL(col2, VALUE='Mouse shortcuts:', /ALIGN_LEFT)
+  bases2 = WIDGET_BASE(col2, /ROW)
+  sh_base2 = WIDGET_BASE(bases2, /COLUMN)
+  lb_base2 = WIDGET_BASE(bases2, /COLUMN)
+  FOR i=0,N_ELEMENTS(ms_shortcuts.sh)-1 DO BEGIN
+    ms_label= WIDGET_LABEL(sh_base2, VALUE=(ms_shortcuts.sh)[i], /ALIGN_LEFT)
+    lb_label= WIDGET_LABEL(lb_base2, VALUE=(ms_shortcuts.label)[i], /ALIGN_LEFT)
+  ENDFOR
+  close_base = WIDGET_BASE(disp, /ALIGN_CENTER)
+  close_button = WIDGET_BUTTON(close_base, VALUE='Close', EVENT_PRO='CRISPEX_CLOSE_EVENT_WINDOW')
+  WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET=(*(*info).winsizes).aboutxoffset, $
+    TLB_SET_YOFFSET=(*(*info).winsizes).aboutyoffset
+  (*(*info).winids).shorttlb = base
+  WIDGET_CONTROL, base, SET_UVALUE=info
+  XMANAGER, 'CRISPEX', base, /NO_BLOCK
 END
 
 ;================================================================================= INTENSITY-TIME SAVE PROCEDURES
@@ -11772,7 +11829,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '617'
+	revision_number = '618'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -12730,91 +12787,129 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     TLB_FRAME_ATTR = 1, /ROW, /FRAME, KILL_NOTIFY = 'CRISPEX_CLOSE_CLEANUP', $
     APP_MBAR = menubar, TLB_SIZE_EVENTS = 1)
   control_panel       = WIDGET_BASE(cpanel, /COLUMN)
-	filemenu		        = WIDGET_BUTTON(menubar, VALUE = 'File', /MENU, UVALUE = 'file')
-	about			          = WIDGET_BUTTON(filemenu, VALUE = 'About', $
-    EVENT_PRO = 'CRISPEX_ABOUT_WINDOW', ACCELERATOR = 'Ctrl+A')
-	preferences		      = WIDGET_BUTTON(filemenu, VALUE = 'Preferences', $
-    EVENT_PRO = 'CRISPEX_PREFERENCES_WINDOW', ACCELERATOR = 'Ctrl+P')
-	dispwid			        = WIDGET_BUTTON(filemenu, VALUE = 'Display window IDs', $
-    EVENT_PRO = 'CRISPEX_DISPWIDS', ACCELERATOR = 'Ctrl+I', /CHECKED_MENU)
-;  openmenu            = WIDGET_BUTTON(filemenu, VALUE = 'Open', /SEPARATOR, /MENU)
+
+  ; CRISPEX
+  crispex_menu        = WIDGET_BUTTON(menubar, VALUE='CRISPEX', /MENU, UVALUE='crispex')
+	about			          = WIDGET_BUTTON(crispex_menu, VALUE='About', $
+    EVENT_PRO='CRISPEX_ABOUT_WINDOW', ACCELERATOR='Ctrl+A')
+	preferences		      = WIDGET_BUTTON(crispex_menu, VALUE='Preferences', /SEPARATOR, $
+    EVENT_PRO='CRISPEX_PREFERENCES_WINDOW', ACCELERATOR='Ctrl+P')
+	exitmenu		        = WIDGET_BUTTON(crispex_menu, VALUE='Quit', /SEPARATOR, $
+    EVENT_PRO='CRISPEX_CLOSE', ACCELERATOR='Ctrl+Q')
+  ; Submenus in menu bar
+  ; File
+	filemenu		        = WIDGET_BUTTON(menubar, VALUE='File', /MENU, UVALUE='file')
+;  openmenu            = WIDGET_BUTTON(filemenu, VALUE = 'Open', /MENU)
 ;  openref             = WIDGET_BUTTON(openmenu, VALUE = 'Reference cube(s)...', $
 ;                                      EVENT_PRO = 'CRISPEX_IO_OPEN_REFCUBE')
-	pathmenu		        = WIDGET_BUTTON(filemenu, VALUE = 'Set path', /SEPARATOR, /MENU)
-	setipath		        = WIDGET_BUTTON(pathmenu, VALUE = 'Set input path', $
-    EVENT_PRO = 'CRISPEX_SAVE_SET_IPATH')
-	setopath		        = WIDGET_BUTTON(pathmenu, VALUE = 'Set output path', $
-    EVENT_PRO = 'CRISPEX_SAVE_SET_OPATH')
-	savemenu		        = WIDGET_BUTTON(filemenu, VALUE = 'Save current', /MENU)
-	timeslicemenu		    = WIDGET_BUTTON(savemenu, VALUE = 'Time slice(s)', /MENU, $
-    SENSITIVE = 0)
-	save_loop_pts		    = WIDGET_BUTTON(savemenu, VALUE = 'Loop for later retrieval', $
-    EVENT_PRO = 'CRISPEX_SAVE_LOOP_PTS', SENSITIVE = 0)
+	restore_session		  = WIDGET_BUTTON(filemenu, VALUE='Load session...', $
+                          EVENT_PRO='CRISPEX_SESSION_RESTORE_WINDOW')
+	save_session		    = WIDGET_BUTTON(filemenu, VALUE='Save current...', $
+                          EVENT_PRO='CRISPEX_SESSION_SAVE_WINDOW')
+	save_as_menu		    = WIDGET_BUTTON(filemenu, VALUE='Save as', /SEPARATOR, /MENU)
+	save_as_png_menu	  = WIDGET_BUTTON(save_as_menu, VALUE='PNG', /MENU)
+	save_as_png_sns		  = WIDGET_BUTTON(save_as_png_menu, VALUE='Snapshot', $
+                          EVENT_PRO='CRISPEX_SAVE_PNG_SNAPSHOT')
+	save_as_png_all		  = WIDGET_BUTTON(save_as_png_menu, VALUE='All frames', $
+                          EVENT_PRO='CRISPEX_SAVE_PNG_ALL_FRAMES', SENSITIVE=(hdr.nt GT 1))
+	save_as_png_linescan= WIDGET_BUTTON(save_as_png_menu, VALUE='Line scan', $
+                          EVENT_PRO='CRISPEX_SAVE_PNG_LINESCAN', SENSITIVE=(hdr.nlp GT 1))
+	save_as_jpg_menu	  = WIDGET_BUTTON(save_as_menu, VALUE='JPEG', /MENU)
+	save_as_jpg_sns 	  = WIDGET_BUTTON(save_as_jpg_menu, VALUE='Snapshot', $
+                          EVENT_PRO='CRISPEX_SAVE_JPEG_SNAPSHOT')
+	save_as_jpg_all		  = WIDGET_BUTTON(save_as_jpg_menu, VALUE='All frames', $
+                          EVENT_PRO='CRISPEX_SAVE_JPEG_ALL_FRAMES', SENSITIVE=(hdr.nt GT 1))
+	save_as_jpg_linescan= WIDGET_BUTTON(save_as_jpg_menu, VALUE='Linescan', $
+                          EVENT_PRO='CRISPEX_SAVE_JPEG_LINESCAN', SENSITIVE=(hdr.nlp GT 1))
+	save_as_mpeg		    = WIDGET_BUTTON(filemenu, VALUE='Save movie...', $
+                          EVENT_PRO='CRISPEX_SAVE_MPEG', SENSITIVE=(hdr.nt GT 1))
+  ; View
+  viewmenu            = WIDGET_BUTTON(menubar, VALUE='View', /MENU)
+	sh_zoom_in		      = WIDGET_BUTTON(viewmenu, VALUE='Zoom in', EVENT_PRO='CRISPEX_ZOOMFAC_INCR',$
+                          ACCELERATOR='Ctrl+Shift+I')
+	sh_zoom_out		      = WIDGET_BUTTON(viewmenu, VALUE='Zoom out', EVENT_PRO='CRISPEX_ZOOMFAC_DECR',$
+                          ACCELERATOR='Ctrl+Shift+O')
+	focus_session_windows= WIDGET_BUTTON(viewmenu, VALUE='Bring all to front', /SEPARATOR, $
+                          EVENT_PRO='CRISPEX_DISPLAYS_ALL_TO_FRONT', ACCELERATOR = 'Ctrl+F')
+  ; Movie
+  moviemenu           = WIDGET_BUTTON(menubar, VALUE='Movie', /MENU)
+	sh_fbwd_button		  = WIDGET_BUTTON(moviemenu, VALUE='Step to previous frame', $
+                          EVENT_PRO='CRISPEX_PB_FASTBACKWARD', ACCELERATOR='Shift+B')
+	sh_backward_button	= WIDGET_BUTTON(moviemenu, VALUE='Play backwards', $
+                          EVENT_PRO='CRISPEX_PB_BACKWARD', ACCELERATOR='Shift+Backspace')
+	sh_pause_button		  = WIDGET_BUTTON(moviemenu, VALUE='Pause', $
+                          EVENT_PRO='CRISPEX_PB_PAUSE', ACCELERATOR='Shift+Space')
+	sh_forward_button	  = WIDGET_BUTTON(moviemenu, VALUE='Play forwards', $
+                          EVENT_PRO='CRISPEX_PB_FORWARD', ACCELERATOR='Shift+Tab')
+	sh_ffwd_button		  = WIDGET_BUTTON(moviemenu, VALUE='Step to next frame', $
+                          EVENT_PRO='CRISPEX_PB_FASTFORWARD', ACCELERATOR='Shift+F')
+	sh_lp_incr_button 	= WIDGET_BUTTON(moviemenu, VALUE=sp_h[heightset]+' position +', $
+                          EVENT_PRO='CRISPEX_SLIDER_LP_INCR', ACCELERATOR='Shift+S', /SEPARATOR)
+	sh_lp_decr_button 	= WIDGET_BUTTON(moviemenu, VALUE=sp_h[heightset]+' position -', $
+                          EVENT_PRO='CRISPEX_SLIDER_LP_DECR', ACCELERATOR='Shift+A')
+  ; Analysis                       
+  analysismenu        = WIDGET_BUTTON(menubar, VALUE='Analysis', /MENU)
+  timeslicemenu		    = WIDGET_BUTTON(analysismenu, VALUE = 'Save current space-time diagram', $
+                          /MENU, SENSITIVE=0)
 	approxmenu		      = WIDGET_BUTTON(timeslicemenu, VALUE = 'Approximated loop', /MENU)
-	save_app_slab_but	  = WIDGET_BUTTON(approxmenu, VALUE = 'All '+STRLOWCASE(sp_h[heightset])+' positions', EVENT_PRO = 'CRISPEX_SAVE_APPROX_LOOPSLAB')
-	save_app_slice_but	= WIDGET_BUTTON(approxmenu, VALUE = 'Current '+STRLOWCASE(sp_h[heightset])+' position', EVENT_PRO = 'CRISPEX_SAVE_APPROX_LOOPSLICE')
-	interpolmenu		= WIDGET_BUTTON(timeslicemenu, VALUE = 'Interpolated loop', /MENU)
-	save_ex_slab_but	= WIDGET_BUTTON(interpolmenu, VALUE = 'All '+STRLOWCASE(sp_h[heightset])+' positions', EVENT_PRO = 'CRISPEX_SAVE_EXACT_LOOPSLAB_CHECK')
-	save_ex_slice_but	= WIDGET_BUTTON(interpolmenu, VALUE = 'Current '+STRLOWCASE(sp_h[heightset])+' position', EVENT_PRO = 'CRISPEX_SAVE_EXACT_LOOPSLICE')
-	retrievemenu		= WIDGET_BUTTON(filemenu, VALUE = 'Retrieve and save', /MENU)
-	sel_saved_loop		= WIDGET_BUTTON(retrievemenu, VALUE = 'From selected saved loop(s)', SENSITIVE = 0, EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_MENU')
-	all_saved_loop		= WIDGET_BUTTON(retrievemenu, VALUE = 'From all saved loops', /MENU, SENSITIVE = 0)
-	all_saved_all_pos	= WIDGET_BUTTON(all_saved_loop, VALUE = 'At all '+STRLOWCASE(sp_h[heightset])+' positions', EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLAB')
-	all_saved_sel_pos	= WIDGET_BUTTON(all_saved_loop, VALUE = 'At saved '+STRLOWCASE(sp_h[heightset])+' position', EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLICE')
-	det_file_loop		= WIDGET_BUTTON(retrievemenu, VALUE = 'From detection file', EVENT_PRO = 'CRISPEX_RETRIEVE_DET_FILE_MENU')
-	save_as_menu		= WIDGET_BUTTON(filemenu, VALUE = 'Save as', /MENU)
-	save_as_png_menu	= WIDGET_BUTTON(save_as_menu, VALUE = 'PNG', /MENU)
-	save_as_png_sns		= WIDGET_BUTTON(save_as_png_menu, VALUE = 'Snapshot', EVENT_PRO = 'CRISPEX_SAVE_PNG_SNAPSHOT')
-	save_as_png_all		= WIDGET_BUTTON(save_as_png_menu, VALUE = 'All frames', EVENT_PRO = $
-  'CRISPEX_SAVE_PNG_ALL_FRAMES', SENSITIVE = (hdr.nt GT 1))
-	save_as_png_linescan	= WIDGET_BUTTON(save_as_png_menu, VALUE = 'Line scan', EVENT_PRO = $
-  'CRISPEX_SAVE_PNG_LINESCAN', SENSITIVE = (hdr.nlp GT 1))
-	save_as_jpg_menu	= WIDGET_BUTTON(save_as_menu, VALUE = 'JPEG', /MENU)
-	save_as_jpg_sns 	= WIDGET_BUTTON(save_as_jpg_menu, VALUE = 'Snapshot', EVENT_PRO = 'CRISPEX_SAVE_JPEG_SNAPSHOT')
-	save_as_jpg_all		= WIDGET_BUTTON(save_as_jpg_menu, VALUE = 'All frames', EVENT_PRO = $
-  'CRISPEX_SAVE_JPEG_ALL_FRAMES', SENSITIVE = (hdr.nt GT 1))
-	save_as_jpg_linescan 	= WIDGET_BUTTON(save_as_jpg_menu, VALUE = 'Linescan', EVENT_PRO = $
-  'CRISPEX_SAVE_JPEG_LINESCAN', SENSITIVE = (hdr.nlp GT 1))
-	save_as_mpeg		= WIDGET_BUTTON(save_as_menu, VALUE = 'MPEG', EVENT_PRO = 'CRISPEX_SAVE_MPEG',$
-  SENSITIVE = (hdr.nt GT 1))
-	session			= WIDGET_BUTTON(filemenu, VALUE = 'Session', /MENU)
-	save_session		= WIDGET_BUTTON(session, VALUE = 'Save current', EVENT_PRO = 'CRISPEX_SESSION_SAVE_WINDOW')
-	restore_session		= WIDGET_BUTTON(session, VALUE = 'Restore other', EVENT_PRO = 'CRISPEX_SESSION_RESTORE_WINDOW')
-	clear_menu		= WIDGET_BUTTON(filemenu, VALUE = 'Clear', /MENU)
-	clear_current_estimate	= WIDGET_BUTTON(clear_menu, VALUE = 'Current time estimate', EVENT_PRO = 'CRISPEX_CLEAR_CURRENT_ESTIMATE', SENSITIVE = estimate_run)
-	clear_current_cpft	= WIDGET_BUTTON(clear_menu, VALUE = 'CPFT file for current machine', EVENT_PRO = 'CRISPEX_CLEAR_CURRENT_CPFT', SENSITIVE = (cpftfilecount EQ 1))
-	clear_current_inst	= WIDGET_BUTTON(clear_menu, VALUE = 'Instance file for current machine', EVENT_PRO = 'CRISPEX_CLEAR_CURRENT_INST', SENSITIVE = (instfilecount EQ 1))
-	focus_session_windows	= WIDGET_BUTTON(filemenu, VALUE = 'Bring all to front', EVENT_PRO = 'CRISPEX_DISPLAYS_ALL_TO_FRONT', ACCELERATOR = 'Ctrl+F')
-	helpmenu		= WIDGET_BUTTON(filemenu, VALUE = 'Help', EVENT_PRO = 'CRISPEX_HELP', /SEPARATOR, ACCELERATOR = 'Ctrl+H')
-	mailmenu		= WIDGET_BUTTON(filemenu, VALUE = 'E-mail', /MENU)
-	mailbugmenu		= WIDGET_BUTTON(mailmenu, VALUE = 'A bug report', EVENT_PRO = 'CRISPEX_MAIL_BUG')
-	mailsugmenu		= WIDGET_BUTTON(mailmenu, VALUE = 'A suggestion', EVENT_PRO = 'CRISPEX_MAIL_SUGGESTION')
-	exitmenu		= WIDGET_BUTTON(filemenu, VALUE = 'Quit', EVENT_PRO = 'CRISPEX_CLOSE', /SEPARATOR, ACCELERATOR = 'Ctrl+Q')
-
-	shortcutmenu		= WIDGET_BUTTON(menubar, VALUE = 'Control shortcuts', /MENU, UVALUE = 'shortcut')
-	sh_playbackmenu 	= WIDGET_BUTTON(shortcutmenu, VALUE = 'Playback options', /MENU, UVALUE = $
-  'playback', SENSITIVE = (hdr.nt GT 1))
-	sh_fbwd_button		= WIDGET_BUTTON(sh_playbackmenu, VALUE = 'One frame backward', EVENT_PRO = 'CRISPEX_PB_FASTBACKWARD', ACCELERATOR = 'Shift+B')
-	sh_backward_button	= WIDGET_BUTTON(sh_playbackmenu, VALUE = 'Play backwards', EVENT_PRO = 'CRISPEX_PB_BACKWARD', ACCELERATOR = 'Shift+Backspace')
-	sh_pause_button		= WIDGET_BUTTON(sh_playbackmenu, VALUE = 'Pause', EVENT_PRO = 'CRISPEX_PB_PAUSE', ACCELERATOR = 'Shift+Space')
-	sh_forward_button	= WIDGET_BUTTON(sh_playbackmenu, VALUE = 'Play forwards', EVENT_PRO = 'CRISPEX_PB_FORWARD', ACCELERATOR = 'Shift+Tab')
-	sh_ffwd_button		= WIDGET_BUTTON(sh_playbackmenu, VALUE = 'One frame forward', EVENT_PRO = 'CRISPEX_PB_FASTFORWARD', ACCELERATOR = 'Shift+F')
-	sh_spectralmenu 	= WIDGET_BUTTON(shortcutmenu, VALUE = sp_h[heightset]+' options', /MENU, $
-  UVALUE = 'spectral', SENSITIVE = (hdr.nlp GT 1))
-	sh_lp_incr_button 	= WIDGET_BUTTON(sh_spectralmenu, VALUE = sp_h[heightset]+' position +', EVENT_PRO = 'CRISPEX_SLIDER_LP_INCR', ACCELERATOR = 'Shift+S')
-	sh_lp_decr_button 	= WIDGET_BUTTON(sh_spectralmenu, VALUE = sp_h[heightset]+' position -', EVENT_PRO = 'CRISPEX_SLIDER_LP_DECR', ACCELERATOR = 'Shift+A')
-	sh_zoommenu		= WIDGET_BUTTON(shortcutmenu, VALUE = 'Zoom options',/MENU)
-	sh_zoom_in		= WIDGET_BUTTON(sh_zoommenu, VALUE='Zoom in', EVENT_PRO='CRISPEX_ZOOMFAC_INCR',$
-                                ACCELERATOR='Ctrl+Shift+I')
-	sh_zoom_out		= WIDGET_BUTTON(sh_zoommenu, VALUE='Zoom out', EVENT_PRO='CRISPEX_ZOOMFAC_DECR',$
-                                ACCELERATOR='Ctrl+Shift+O')
-	sh_runtime_menu		= WIDGET_BUTTON(shortcutmenu, VALUE = 'Runtime options', /MENU, UVALUE = 'runtime')
-	sh_runtime_interrupt	= WIDGET_BUTTON(sh_runtime_menu, VALUE = 'Interrupt', EVENT_PRO = 'CRISPEX_INTERRUPT', ACCELERATOR = 'Ctrl+Shift+C')
-	sh_runtime_verb_menu	= WIDGET_BUTTON(sh_runtime_menu, VALUE = 'Verbosity', /MENU, UVALUE = 'verbosity')
-	sh_verb_0		= WIDGET_BUTTON(sh_runtime_verb_menu, VALUE = 'No verbosity', EVENT_PRO = 'CRISPEX_VERBOSE_SET', UVALUE = -1, /NO_RELEASE, /CHECKED_MENU, ACCELERATOR = 'Shift+0')
-	sh_verb_4		= WIDGET_BUTTON(sh_runtime_verb_menu, VALUE = 'Basic runtime verbosity', EVENT_PRO = 'CRISPEX_VERBOSE_SET', UVALUE = 2, /NO_RELEASE, /CHECKED_MENU, ACCELERATOR = 'Shift+4')
-	sh_verb_8		= WIDGET_BUTTON(sh_runtime_verb_menu, VALUE = 'Extended runtime verbosity', EVENT_PRO = 'CRISPEX_VERBOSE_SET', UVALUE = 3, /NO_RELEASE, /CHECKED_MENU, ACCELERATOR = 'Shift+8')
-	sh_verb_16		= WIDGET_BUTTON(sh_runtime_verb_menu, VALUE = 'Enable playback statistics', EVENT_PRO = 'CRISPEX_VERBOSE_SET', UVALUE = 4, /NO_RELEASE, /CHECKED_MENU, ACCELERATOR = 'Shift+P')
+	save_app_slab_but	  = WIDGET_BUTTON(approxmenu, VALUE='All '+STRLOWCASE(sp_h[heightset])+$
+                          ' positions', EVENT_PRO='CRISPEX_SAVE_APPROX_LOOPSLAB')
+	save_app_slice_but	= WIDGET_BUTTON(approxmenu, VALUE='Current '+STRLOWCASE(sp_h[heightset])+$
+                          ' position', EVENT_PRO='CRISPEX_SAVE_APPROX_LOOPSLICE')
+	interpolmenu		    = WIDGET_BUTTON(timeslicemenu, VALUE='Interpolated loop', /MENU)
+	save_ex_slab_but	  = WIDGET_BUTTON(interpolmenu, VALUE='All '+STRLOWCASE(sp_h[heightset])+$
+                          ' positions', EVENT_PRO='CRISPEX_SAVE_EXACT_LOOPSLAB_CHECK')
+	save_ex_slice_but	  = WIDGET_BUTTON(interpolmenu, VALUE='Current '+STRLOWCASE(sp_h[heightset])+$
+                          ' position', EVENT_PRO='CRISPEX_SAVE_EXACT_LOOPSLICE')
+	save_loop_pts		    = WIDGET_BUTTON(analysismenu, VALUE='Save current path for later retrieval', $
+                          EVENT_PRO='CRISPEX_SAVE_LOOP_PTS', SENSITIVE=0)
+	sel_saved_loop		  = WIDGET_BUTTON(analysismenu, VALUE='Save from selected path(s)', /SEPARATOR, $
+                          EVENT_PRO='CRISPEX_RETRIEVE_LOOP_MENU', SENSITIVE=0)
+	all_saved_loop		  = WIDGET_BUTTON(analysismenu, VALUE='Save from all paths', /MENU, SENSITIVE=0)
+	all_saved_all_pos	  = WIDGET_BUTTON(all_saved_loop, VALUE='At all '+STRLOWCASE(sp_h[heightset])+$
+                          ' positions', EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLAB')
+	all_saved_sel_pos	  = WIDGET_BUTTON(all_saved_loop, VALUE = 'At saved '+$
+                          STRLOWCASE(sp_h[heightset])+' position', $
+                          EVENT_PRO='CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLICE')
+	det_file_loop		    = WIDGET_BUTTON(analysismenu, VALUE='From detection file...', $
+                          EVENT_PRO='CRISPEX_RETRIEVE_DET_FILE_MENU')
+  ; Help
+  helpmenu            = WIDGET_BUTTON(menubar, VALUE='Help', /MENU)
+	open_help		        = WIDGET_BUTTON(helpmenu, VALUE='Open online help', $
+                          EVENT_PRO='CRISPEX_HELP', ACCELERATOR='Ctrl+H')
+	mailbugmenu		      = WIDGET_BUTTON(helpmenu, VALUE='Submit a bug report', $
+                          EVENT_PRO='CRISPEX_HELP_MAIL_BUG')
+	mailsugmenu		      = WIDGET_BUTTON(helpmenu, VALUE='Submit a suggestion', $
+                          EVENT_PRO='CRISPEX_HELP_MAIL_SUGGESTION')
+  shortcuts           = WIDGET_BUTTON(helpmenu, VALUE='Show shortcuts', /SEPARATOR, $
+                          EVENT_PRO='CRISPEX_HELP_SHORTCUTS')
+  ; Help: Developer
+	developermenu   		= WIDGET_BUTTON(helpmenu, VALUE = 'Developer', /MENU, /SEPARATOR, $
+                          UVALUE='developer')
+	sh_runtime_interrupt= WIDGET_BUTTON(developermenu, VALUE='Interrupt', $
+                          EVENT_PRO='CRISPEX_INTERRUPT', ACCELERATOR='Ctrl+Shift+C')
+	sh_runtime_verb_menu= WIDGET_BUTTON(developermenu, VALUE='Verbosity', /MENU, UVALUE='verbosity')
+	sh_verb_0		        = WIDGET_BUTTON(sh_runtime_verb_menu, VALUE='No verbosity', $
+                          EVENT_PRO='CRISPEX_VERBOSE_SET', UVALUE=-1, /NO_RELEASE, /CHECKED_MENU, $
+                          ACCELERATOR='Shift+0')
+	sh_verb_4		        = WIDGET_BUTTON(sh_runtime_verb_menu, VALUE='Basic runtime verbosity', $
+                          EVENT_PRO='CRISPEX_VERBOSE_SET', UVALUE=2, /NO_RELEASE, /CHECKED_MENU, $
+                          ACCELERATOR='Shift+4')
+	sh_verb_8		        = WIDGET_BUTTON(sh_runtime_verb_menu, VALUE='Extended runtime verbosity', $
+                          EVENT_PRO='CRISPEX_VERBOSE_SET', UVALUE=3, /NO_RELEASE, /CHECKED_MENU, $
+                          ACCELERATOR='Shift+8')
+	sh_verb_16		      = WIDGET_BUTTON(sh_runtime_verb_menu, VALUE='Enable playback statistics', $
+                          EVENT_PRO='CRISPEX_VERBOSE_SET', UVALUE=4, /NO_RELEASE, /CHECKED_MENU, $
+                          ACCELERATOR='Shift+P')
+  clear_menu		      = WIDGET_BUTTON(developermenu, VALUE='Clear', /MENU)
+	clear_current_estimate= WIDGET_BUTTON(clear_menu, VALUE='Current time estimate', $
+                          EVENT_PRO='CRISPEX_CLEAR_CURRENT_ESTIMATE', SENSITIVE=estimate_run)
+	clear_current_cpft	= WIDGET_BUTTON(clear_menu, VALUE='CPFT file for current machine', $
+                          EVENT_PRO='CRISPEX_CLEAR_CURRENT_CPFT', SENSITIVE=(cpftfilecount EQ 1))
+	clear_current_inst	= WIDGET_BUTTON(clear_menu, VALUE='Instance file for current machine', $
+                          EVENT_PRO='CRISPEX_CLEAR_CURRENT_INST', SENSITIVE=(instfilecount EQ 1))
+	dispwid			        = WIDGET_BUTTON(developermenu, VALUE='Display window IDs', $
+                          EVENT_PRO='CRISPEX_DISPWIDS', ACCELERATOR='Ctrl+I', /CHECKED_MENU)
 
 	tab_tlb			= WIDGET_TAB(control_panel, LOCATION=0, MULTILINE=5)
 
@@ -13786,8 +13881,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- PARAMETER WINDOW CONTROLS 
 	paramparams = { $
-		wav_h:wav_h, scale_cubes:scale_cubes_vals, $;img_get_val:0., $
-;    imgsc_get_val:0., ref_get_val:0., refsc_get_val:0., $ 
+		wav_h:wav_h, sp_h:sp_h, scale_cubes:scale_cubes_vals, $
     xcoord_format:xcoord_format, ycoord_format:ycoord_format, $
     xcoord_real_format:xcoord_real_format, ycoord_real_format:ycoord_real_format, $
     refxcoord_format:refxcoord_format, refycoord_format:refycoord_format, $
@@ -13808,7 +13902,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- PARAM SWITCHES
 	paramswitch = { $
-;		img_get:KEYWORD_SET(vals_img), ref_get:KEYWORD_SET(vals_ref), 
     dt_set:dt_set, t_raster:raster_time_fb $ 
 	}
 ;--------------------------------------------------------------------------------- PATHS AND DIRECTORIES
@@ -13992,6 +14085,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		savetlb:0, detsavetlb:0, restoretlb:0, preftlb:0, $							
 		estimatetlb:0, savewintlb:0, saveoptwintlb:0, restsestlb:0, paramtlb:0, $					
 		feedbacktlb:0, abouttlb:0, errtlb:0, warntlb:0, restsesfeedbtlb:0, $
+    shorttlb:0, $
 		imwintitle:imwintitle, spwintitle:'',lswintitle:'',refwintitle:'',refspwintitle:'',reflswintitle:'', $
 		imrefwintitle:'',dopwintitle:'',phiswintitle:'',restloopwintitle:PTR_NEW(''),retrdetwintitle:'',$
 		loopwintitle:'',refloopwintitle:'',intwintitle:'', sjiwintitle:'' $
@@ -14136,15 +14230,22 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 			WIDGET_CONTROL, upper_t_text, SET_VALUE = '0', SENSITIVE = 0
 			WIDGET_CONTROL, lower_t_text, SET_VALUE = '0', SENSITIVE = 0
 			WIDGET_CONTROL, save_as_jpg_all, SENSITIVE = 0
+			WIDGET_CONTROL, save_as_png_all, SENSITIVE = 0
 			WIDGET_CONTROL, save_as_mpeg, SENSITIVE = 0
-			WIDGET_CONTROL, retrievemenu, SENSITIVE = 0
+			WIDGET_CONTROL, sh_fbwd_button, SENSITIVE = 0
+			WIDGET_CONTROL, sh_backward_button, SENSITIVE = 0
+			WIDGET_CONTROL, sh_pause_button, SENSITIVE = 0
+			WIDGET_CONTROL, sh_forward_button, SENSITIVE = 0
+			WIDGET_CONTROL, sh_ffwd_button, SENSITIVE = 0
+			WIDGET_CONTROL, timeslicemenu, SENSITIVE = 0
+      WIDGET_CONTROL, det_file_loop, SENSITIVE=0
 			*(*(*info).data).scan = (*(*(*info).data).scan)[0]
 			*(*(*info).data).phiscan = *(*(*info).data).scan
 		ENDIF 
 		WIDGET_CONTROL, loop_slit_but, SENSITIVE = exts_set
 		WIDGET_CONTROL, loop_feedb_but, SENSITIVE = exts_set
-		WIDGET_CONTROL, savemenu, SENSITIVE = exts_set
-		WIDGET_CONTROL, retrievemenu, SENSITIVE = exts_set
+;		WIDGET_CONTROL, save_as_menu, SENSITIVE = exts_set
+		WIDGET_CONTROL, timeslicemenu, SENSITIVE = 0 ;exts_set
 	ENDELSE
 	IF (N_ELEMENTS(hdr.single_cube[0]) EQ 1) THEN BEGIN
 		WIDGET_CONTROL, ls_toggle_but, SET_BUTTON = (hdr.single_cube[0] NE 1) 
