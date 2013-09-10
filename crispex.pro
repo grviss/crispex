@@ -5304,7 +5304,7 @@ PRO CRISPEX_DRAW_REST_LOOP, event
 		PLOTS, [(*(*info).plotpos).restloopx0, (*(*info).plotpos).restloopx1], $
       ;[1,1] * ( ((*(*info).dispparams).t-(*(*info).dispparams).t_low) / $
       ;FLOAT((*(*info).dispparams).t_range-1) * $
-      [1,1]*( (tarr[(*(*info).dispparams).t]-lower_t_val / FLOAT(upper_t_val-lower_t_val) * $
+      [1,1]*( (tarr[(*(*info).dispparams).t]-lower_t_val) / FLOAT(upper_t_val-lower_t_val) * $
 			(*(*info).plotpos).restloopyplspw + (*(*info).plotpos).restloopy0), /NORMAL, COLOR = 100
 		FOR i=0,(SIZE(*(*(*(*info).loopsdata).rest_crossloc[k])))[1]-1 DO BEGIN
 			PLOTS, [1,1] * ( FLOAT((*(*(*(*info).loopsdata).rest_crossloc[k]))[i]) / FLOAT((*(*(*info).loopsdata).rest_loopsize)[k]-1) * (*(*info).plotpos).restloopxplspw + (*(*info).plotpos).restloopx0 ),$
@@ -12182,7 +12182,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '620'
+	revision_number = '621'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
