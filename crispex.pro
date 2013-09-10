@@ -362,8 +362,7 @@ END
 FUNCTION CRISPEX_BGROUP_MASTER_TIME, event
 ; Handles the change mask overlay window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_BGROUP_MASTER_TIME'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Get old time 
   CASE (*(*info).dispparams).master_time OF
     0:  t_old = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_main]
@@ -386,8 +385,7 @@ END
 
 FUNCTION CRISPEX_BGROUP_STOKES_SELECT_SP, event, NO_DRAW=no_draw
   WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_BGROUP_STOKES_SELECT_SP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).stokesparams).prev_select_sp = (*(*info).stokesparams).select_sp
 		(*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ $
                                       (*(*info).stokesparams).button_labels[event.VALUE])] = $
@@ -408,8 +406,7 @@ END
 
 FUNCTION CRISPEX_BGROUP_STOKES_SELECT_XY, event, NO_DRAW=no_draw;, SET_STOKES=set_stokes
   WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_BGROUP_STOKES_SELECT_XY'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 ;  IF (N_ELEMENTS(SET_STOKES) NE 1) THEN idx = event.VALUE ELSE idx = set_stokes
   (*(*info).dataparams).s = $
     WHERE((*(*info).stokesparams).labels EQ (*(*info).stokesparams).button_labels[event.VALUE])
@@ -432,8 +429,7 @@ FUNCTION CRISPEX_BGROUP_ZOOMFAC_SET, event, NO_DRAW=no_draw, NO_UPDATE_SLIDERS=n
                               SET_FACTOR_IDX=set_factor_idx, UNSET_FACTOR_IDX=unset_factor_idx
 ; Sets the zoomfactor and changes options and paramters accordingly
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_BGROUP_ZOOMFAC_SET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (N_ELEMENTS(SET_FACTOR_IDX) EQ 1) THEN BEGIN
     idx = set_factor_idx   & select = 1B
     IF (N_ELEMENTS(UNSET_FACTOR_IDX) EQ 1) THEN (*(*info).zooming).factorswitch[unset_factor_idx]= 0B
@@ -464,8 +460,7 @@ END
 FUNCTION CRISPEX_BGROUP_MASK_OVERLAY, event
 ; Handles the change mask overlay window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_BGROUP_MASK_OVERLAY'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	maskim = (*(*info).overlayswitch).maskim
 	maskim[event.value] = event.select
 	(*(*info).overlayswitch).maskim = maskim
@@ -521,7 +516,7 @@ END
 PRO CRISPEX_ABOUT_WINDOW, event 							
 ; Creates an about-window displaying code name, version and revision number
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ABOUT_WINDOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	title = 'CRISPEX'+(*(*info).sesparams).instance_label+': ABOUT'
 	CRISPEX_WINDOW, (*(*info).winsizes).aboutwinx, (*(*info).winsizes).aboutwiny, (*(*info).winids).root, title, abouttlb, aboutwid, (*(*info).winsizes).aboutxoffset, (*(*info).winsizes).aboutyoffset, $
 		DRAWID = aboutdrawid, DRAWBASE = aboutdrawbase
@@ -541,7 +536,7 @@ END
 PRO CRISPEX_ABOUT_CURSOR, event
 ; Handles cursor actions on the about window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ABOUT_CURSOR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_DRAW' THEN BEGIN
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [event.TYPE,event.PRESS], labels=['WIDGET_DRAW: event.TYPE','WIDGET_DRAW: event.PRESS']
 		CASE event.TYPE OF
@@ -561,7 +556,7 @@ END
 PRO CRISPEX_CLEAR_CURRENT_ESTIMATE, event								
 ; Clears current saving time estimate
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CLEAR_CURRENT_ESTIMATE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).feedbparams).estimate_run THEN BEGIN
 		(*(*info).feedbparams).estimate_lx = 0
 		(*(*info).feedbparams).estimate_time = 0.
@@ -573,7 +568,7 @@ END
 PRO CRISPEX_CLEAR_CURRENT_CPFT, event								
 ; Clears current saving time estimate
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CLEAR_CURRENT_ESTIMATE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	pftfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'.cpft', COUNT = pftfilecount)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, ['crispex.'+(*(*info).paths).hostname+'.cpft',pftfilecount], labels=['File to be deleted','Filecount']
 	IF pftfilecount THEN BEGIN
@@ -593,7 +588,7 @@ END
 PRO CRISPEX_CLEAR_CURRENT_INST, event								
 ; Clears current saving time estimate
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CLEAR_CURRENT_ESTIMATE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	instfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'.inst', COUNT = instfilecount)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, ['crispex.'+(*(*info).paths).hostname+'.inst',instfilecount], labels=['File to be deleted','Filecount']
 	IF instfilecount THEN BEGIN
@@ -613,8 +608,7 @@ END
 PRO CRISPEX_CLOSE, event								
 ; Called upon closing program, checks for existence of performance test file; if not present it is written
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CLOSE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).paths).dir_settings_write EQ 1) THEN BEGIN
 		pftfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+$
       (*(*info).paths).hostname+'.cpft', COUNT = pftfilecount)
@@ -686,7 +680,7 @@ END
 PRO CRISPEX_CLOSE_EVENT_WINDOW, event
 ; Called upon closing window when no extra processes need to be run
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CLOSE_EVENT_WINDOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (event.TOP EQ (*(*info).winids).restsestlb) THEN (*(*info).winids).restsestlb = 0
 	IF (event.TOP EQ (*(*info).winids).savewintlb) THEN BEGIN
 		(*(*info).winids).savewintlb = 0
@@ -708,7 +702,7 @@ PRO CRISPEX_CURSOR, event
 ; Cursor handling procedure, tracks and handles events from the cursor on the main image
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CURSOR', /IGNORE_LAST
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_TRACKING' THEN BEGIN
 		IF event.ENTER THEN BEGIN
 			WIDGET_CONTROL, event.HANDLER, get_value = wid
@@ -750,17 +744,10 @@ PRO CRISPEX_CURSOR, event
 					(*(*info).curs).sylock = event.Y
 					(*(*info).curs).sx = (*(*info).curs).sxlock
 					(*(*info).curs).sy = (*(*info).curs).sylock
-;					IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
-;						(*(*info).curs).xlock = FLOAT((*(*info).curs).sxlock * (*(*info).dataparams).nx) / $
-;                                    (*(*info).winsizes).xywinx
-;						(*(*info).curs).ylock = FLOAT((*(*info).curs).sylock * (*(*info).dataparams).ny) / $
-;                                    (*(*info).winsizes).xywiny
-;					ENDIF ELSE BEGIN
-						(*(*info).curs).xlock = FLOAT((*(*info).curs).sxlock * ((*(*info).dataparams).d_nx+1)) $
-                                    / (*(*info).winsizes).xywinx + (*(*info).zooming).xpos
-						(*(*info).curs).ylock = FLOAT((*(*info).curs).sylock * ((*(*info).dataparams).d_ny+1)) $
-                                    / (*(*info).winsizes).xywiny + (*(*info).zooming).ypos
-;					ENDELSE
+					(*(*info).curs).xlock = FLOAT((*(*info).curs).sxlock * ((*(*info).dataparams).d_nx+1)) $
+                                  / (*(*info).winsizes).xywinx + (*(*info).zooming).xpos
+					(*(*info).curs).ylock = FLOAT((*(*info).curs).sylock * ((*(*info).dataparams).d_ny+1)) $
+                                  / (*(*info).winsizes).xywiny + (*(*info).zooming).ypos
 					(*(*info).dataparams).x = (*(*info).curs).xlock
 					(*(*info).dataparams).y = (*(*info).curs).ylock
 					IF (*(*info).overlayswitch).loopslit THEN BEGIN
@@ -778,12 +765,10 @@ PRO CRISPEX_CURSOR, event
                 WIDGET_CONTROL, (*(*info).ctrlscp).rem_loop_pt_but, SENSITIVE = 1
 							CRISPEX_LOOP_GET, event
 							CRISPEX_UPDATE_LP, event
-;							IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-								*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - $
-                  (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-								*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - $
-                  (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-;							ENDIF
+							*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - $
+                (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
+							*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - $
+                (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
 						ENDIF ELSE BEGIN
 							(*(*(*info).loopparams).xp)[0] = (*(*info).curs).xlock
 							(*(*(*info).loopparams).yp)[0] = (*(*info).curs).ylock
@@ -885,17 +870,11 @@ END
 PRO CRISPEX_CURSOR_GET_XY, event
 ; Converts the window x and y coordinates to data x and y coordinates
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CURSOR_GET_XY'
-;	IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
-;		(*(*info).dataparams).x = (*(*info).curs).sx * (*(*info).dataparams).nx / (*(*info).winsizes).xywinx
-;		(*(*info).dataparams).y = (*(*info).curs).sy * (*(*info).dataparams).ny / (*(*info).winsizes).xywiny
-;	ENDIF ELSE BEGIN
-		(*(*info).dataparams).x = (*(*info).curs).sx * ((*(*info).dataparams).d_nx+1) / $
-                              (*(*info).winsizes).xywinx + (*(*info).zooming).xpos
-		(*(*info).dataparams).y = (*(*info).curs).sy * ((*(*info).dataparams).d_ny+1) / $
-                              (*(*info).winsizes).xywiny + (*(*info).zooming).ypos
-;	ENDELSE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	(*(*info).dataparams).x = (*(*info).curs).sx * ((*(*info).dataparams).d_nx+1) / $
+                            (*(*info).winsizes).xywinx + (*(*info).zooming).xpos
+	(*(*info).dataparams).y = (*(*info).curs).sy * ((*(*info).dataparams).d_ny+1) / $
+                            (*(*info).winsizes).xywiny + (*(*info).zooming).ypos
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, $
     [(*(*info).dataparams).x,(*(*info).dataparams).y], labels=['x','y']
 END
@@ -903,7 +882,7 @@ END
 PRO CRISPEX_CURSOR_LOCK, event								
 ; Called upon locking/unlocking cursor with 'lock cursor' or 'unlock cursor' button, handles cursor (un)locking
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_CURSOR_LOCK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).curs).lockset = event.SELECT
 	IF (*(*info).curs).lockset THEN BEGIN
 		(*(*info).curs).xlock = (*(*info).dataparams).x	&	(*(*info).curs).ylock = (*(*info).dataparams).y
@@ -917,7 +896,7 @@ END
 PRO CRISPEX_COORDSLIDERS_SET, xsensitive, ysensitive, event				
 ; Adjusts sliders according to change in cursor position or locked/unlocked state
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_COORDSLIDERS_SET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).x_slider, SET_VALUE = (*(*info).dataparams).x, $
     SENSITIVE = (xsensitive AND ((*(*info).dispparams).x_first NE (*(*info).dispparams).x_last))
 	WIDGET_CONTROL, (*(*info).ctrlscp).y_slider, SET_VALUE = (*(*info).dataparams).y, $
@@ -929,8 +908,7 @@ END
 PRO CRISPEX_COORDS_TRANSFORM_XY, event, MAIN2SJI=main2sji
 ; Handles transformation of x/y-coordinates in case of unequal spatial dimensions
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_COORDS_TRANSFORM_XY'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF KEYWORD_SET(MAIN2SJI) THEN BEGIN
     (*(*info).dataparams).xsji = $
       (*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,0] + $
@@ -954,8 +932,7 @@ END
 PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old
 ; Handles transformation of t-coordinates in case of unequal temporal dimensions
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_COORDS_TRANSFORM_T'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
     ; Select temporal array for main and reference depending on dimensions and offset
     IF (SIZE((*(*info).dataparams).tarr_raster_main,/N_DIMENSIONS) EQ 2) THEN $
       tarr_main = REFORM((*(*info).dataparams).tarr_raster_main[$
@@ -1029,8 +1006,7 @@ END
 PRO CRISPEX_DIAGNOSTICS_SELECT, event
 ; Handles selection of diagnostics and calls necessary replot procedures
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DIAGNOSTICS_SELECT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   WIDGET_CONTROL, (*(*info).ctrlscp).specwin_cbox, GET_VALUE = list_values
   redraw = 1
   IF (event.INDEX EQ 0) THEN BEGIN
@@ -1088,8 +1064,7 @@ END
 PRO CRISPEX_REFDIAGNOSTICS_SELECT, event
 ; Handles selection of reference diagnostics and calls necessary replot procedures
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_REFDIAGNOSTICS_SELECT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   redraw = 1
   WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_cbox, GET_VALUE = list_values
   IF (event.INDEX EQ 0) THEN BEGIN
@@ -1148,7 +1123,8 @@ END
 PRO CRISPEX_DISPLAYS_ALL_TO_FRONT, event
 ; Brings all opened session windows to front
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_ALL_TO_FRONT', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	; Data windows
 	IF ((*(*info).winids).sjitlb NE 0) THEN WSHOW, (*(*info).winids).sjiwid
 ;	WSHOW, (*(*info).winids).imwid
@@ -1188,7 +1164,7 @@ END
 PRO CRISPEX_DISPWIDS, event
 ; Brings all opened session windows to front
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPWIDS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).winswitch).dispwids = ABS((*(*info).winswitch).dispwids-1)
 	WIDGET_CONTROL,(*(*info).ctrlscp).dispwid, SET_BUTTON = (*(*info).winswitch).dispwids
 	tlbarr = [(*(*info).winids).imtlb,(*(*info).winids).sptlb,(*(*info).winids).lstlb,(*(*info).winids).reftlb,(*(*info).winids).refsptlb,(*(*info).winids).reflstlb,(*(*info).winids).imreftlb,(*(*info).winids).doptlb, $
@@ -1209,7 +1185,7 @@ END
 PRO CRISPEX_DISPLAYS_DETSPECT_IM_SELECT, event
 ; Handles the selection of detspect options for the main image
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_DETSPECT_IM_SELECT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).ctrlsswitch).imrefdetspect = 0
 	CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
 END
@@ -1217,7 +1193,7 @@ END
 PRO CRISPEX_DISPLAYS_DETSPECT_REF_SELECT, event
 ; Handles the selection of detspect options for the reference image
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_DETSPECT_REF_SELECT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).ctrlsswitch).imrefdetspect = 1
 	CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
 END
@@ -1225,7 +1201,7 @@ END
 PRO CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
 ; Handles the setting of scaling buttons
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN		; If selected options for reference
 		WIDGET_CONTROL, (*(*info).ctrlscp).ls_toggle_but, SET_BUTTON = (*(*info).winswitch).showrefls, SET_VALUE = 'Display '+STRLOWCASE(((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).refheightset])
 		WIDGET_CONTROL, (*(*info).ctrlscp).subtract_but, SET_BUTTON = (*(*info).plotswitch).ref_subtract
@@ -1249,7 +1225,8 @@ END
 PRO CRISPEX_DISPLAYS_DOPPLER_TOGGLE, event, NO_DRAW=no_draw
 ; Reference image window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_DOPPLER_TOGGLE', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	(*(*info).winswitch).showdop = event.SELECT
 	IF (*(*info).winswitch).showdop THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Doppler image'
@@ -1284,7 +1261,7 @@ END
 PRO CRISPEX_DISPLAYS_INT_MENU, event, set_but_array
 ; Sets up the intensity-time plot options menu
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_INT_MENU'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL,/HOURGLASS
 	eventval = INDGEN((*(*info).dataparams).nlp)
 	base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Intensity-time plot options', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
@@ -1347,7 +1324,7 @@ END
 PRO CRISPEX_DISPLAYS_INT_MENU_EVENT, event
 ; Handles the selection of diagnostics to be shown in the intensity-time plot
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_INT_MENU_EVENT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	(*(*(*info).intparams).sel_diagnostics)[eventval] = ( (*(*(*info).intparams).sel_diagnostics)[eventval] EQ 0) 
 	lname = 'int_sel_line_'+STRTRIM(eventval,2)
@@ -1362,7 +1339,7 @@ END
 PRO CRISPEX_DISPLAYS_INT_BUTTON_CONDITION, event
 ; Handles the update of buttons after selection
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_INT_BUTTON_CONDITION'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1)
 	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, SENSITIVE = ((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))
 	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_none, SET_BUTTON = ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1)
@@ -1374,7 +1351,7 @@ END
 PRO CRISPEX_DISPLAYS_INT_MENU_CLOSE, event
 ; Handles the closing of the intensity versus time plot options menu and clean-up of display afterwards
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_INT_MENU_CLOSE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).intmenutlb,(*(*info).winids).inttlb], labels=['intmenutlb was','inttlb was']
 	WIDGET_CONTROL, (*(*info).winids).intmenutlb, /DESTROY
 	WIDGET_CONTROL, (*(*info).winids).inttlb, /DESTROY
@@ -1387,7 +1364,7 @@ END
 PRO CRISPEX_DISPLAYS_INT_SEL_ALL, event
 ; Handles selection of all intensity versus time plots
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_INT_SEL_ALL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	*(*(*info).intparams).sel_diagnostics = REPLICATE(1,(*(*info).dataparams).nlp)
 	FOR i=0,(*(*info).dataparams).nlp-1 DO BEGIN
 		name = 'int_sel_but_'+STRTRIM(i,2)
@@ -1404,7 +1381,7 @@ END
 PRO CRISPEX_DISPLAYS_INT_SEL_COLS, event
 ; Handles selection of linestyle of intensity versus time plot
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_INT_SEL_COLS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	IF ( (*(*(*info).intparams).sel_diagnostics)[eventval] EQ 1) THEN (*(*(*info).intparams).selcol_diagnostics)[eventval] = event.INDEX
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).intparams).selcol_diagnostics)[eventval]], labels=['Diagnostic ID','Color index selected']
@@ -1414,7 +1391,7 @@ END
 PRO CRISPEX_DISPLAYS_INT_SEL_LINE, event
 ; Handles selection of linestyle of intensity versus time plot
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_INT_SEL_LINE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	IF ( (*(*(*info).intparams).sel_diagnostics)[eventval] EQ 1) THEN (*(*(*info).intparams).lines_diagnostics)[eventval] = event.INDEX
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).intparams).lines_diagnostics)[eventval]], labels=['Diagnostic ID','Linestyle selected']
@@ -1424,7 +1401,7 @@ END
 PRO CRISPEX_DISPLAYS_INT_SEL_NONE, event
 ; Handles selection of none intensity versus time plots
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_INT_SEL_NONE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	*(*(*info).intparams).sel_diagnostics = REPLICATE(0,(*(*info).dataparams).nlp)
 	FOR i=0,(*(*info).dataparams).nlp-1 DO BEGIN
 		name = 'int_sel_but_'+STRTRIM(i,2)
@@ -1441,7 +1418,7 @@ END
 PRO CRISPEX_DISPLAYS_INT_RESIZE, event						
 ; Intensity versus time window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_INT_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).intxres, (*(*info).winsizes).intyres, (*(*info).plotpos).intxmargin_init, (*(*info).plotpos).intxwall_init, $
 		intxres, intyres, intwidth, intheight, intx0, intx1, inty0, inty1, ERROR=error, /GOLDEN
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
@@ -1461,7 +1438,7 @@ END
 PRO CRISPEX_DISPLAYS_INT_TOGGLE, event, NO_DRAW=no_draw
 ; Intensity versus time window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_INT_TOGGLE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).winswitch).showint = event.SELECT
 	IF (*(*info).winswitch).showint THEN BEGIN
 		CRISPEX_DISPLAYS_INT_MENU, event
@@ -1479,7 +1456,7 @@ END
 PRO CRISPEX_DISPLAYS_LOOPSLAB_GET, event
 ; Loopslab window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_LOOPSLAB_GET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN
 		CRISPEX_DISPLAYS_LOOPSLAB, event,/NO_DRAW
 		CRISPEX_DISPLAYS_REFLOOPSLAB, event
@@ -1489,8 +1466,7 @@ END
 PRO CRISPEX_DISPLAYS_LOOPSLAB_REPLOT_AXES, event					
 ; Updates loopslab display window plot axes range according to set parameters
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_LOOPSLAB_REPLOT_AXES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).loopwid
 ;  t_low_y = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_low]
 ;  tarr_main_sel = (*(*(*info).dispparams).tarr_main)[$
@@ -1510,7 +1486,7 @@ END
 PRO CRISPEX_DISPLAYS_LOOPSLAB_RESIZE, event
 ; Loopslab window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_LOOPSLAB_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).loopxres, (*(*info).winsizes).loopyres, (*(*info).plotpos).loopxmargin_init, (*(*info).plotpos).loopxwall_init, $
 		loopxres, loopyres, loopwidth, loopheight, loopx0, loopx1, loopy0, loopy1, ERROR=error, /ACTUAL_RESIZE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
@@ -1534,8 +1510,7 @@ END
 PRO CRISPEX_DISPLAYS_LOOPSLAB, event, NO_DRAW=no_draw
 ; Loopslab window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_LOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).winswitch).showloop = 1
 	WIDGET_CONTROL,/HOURGLASS
 	CRISPEX_LOOP_GET_PATH, event
@@ -1570,8 +1545,7 @@ END
 PRO CRISPEX_DISPLAYS_REFLOOPSLAB_REPLOT_AXES, event					
 ; Updates reference loopslab display window plot axes range according to set parameters
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_REFLOOPSLAB_REPLOT_AXES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).refloopwid
 	PLOT, FINDGEN((*(*info).loopsdata).loopsize), *(*(*info).dispparams).tarr_ref, $
     /NODATA, /YS, POS=[(*(*info).plotpos).refloopx0,(*(*info).plotpos).refloopy0, $
@@ -1584,7 +1558,7 @@ END
 PRO CRISPEX_DISPLAYS_REFLOOPSLAB_RESIZE, event
 ; Reference loopslab window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_REFLOOPSLAB_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).refloopxres, (*(*info).winsizes).refloopyres, (*(*info).plotpos).refloopxmargin_init, (*(*info).plotpos).refloopxwall_init, $
 		refloopxres, refloopyres, refloopwidth, refloopheight, refloopx0, refloopx1, refloopy0, refloopy1, ERROR=error, /ACTUAL_RESIZE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
@@ -1608,7 +1582,7 @@ END
 PRO CRISPEX_DISPLAYS_REFLOOPSLAB, event, NO_DRAW=no_draw
 ; Reference, loopslab window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_REFLOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).winswitch).showrefloop = 1
 	WIDGET_CONTROL,/HOURGLASS
 	CRISPEX_LOOP_GET_REFSLAB, event		
@@ -1632,188 +1606,11 @@ PRO CRISPEX_DISPLAYS_REFLOOPSLAB, event, NO_DRAW=no_draw
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).reflooptlb,(*(*info).winids).refloopwid,(*(*info).winids).refloopdrawid], labels=['reflooptlb','refloopwid','refloopdrawid']
 END
 
-;PRO CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE, event 
-;; Sets up the parameter overview window
-;	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-;	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-;    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_PARAM_OVERVIEW_TOGGLE', /IGNORE_LAST
-;	(*(*info).winswitch).showparam = event.SELECT
-;	IF ((*(*info).winswitch).showparam EQ 1) THEN BEGIN
-;		base = WIDGET_BASE(TITLE='CRISPEX'+(*(*info).sesparams).instance_label+': Parameters overview',$
-;           GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
-;		disp_base = WIDGET_BASE(base, /ROW)
-;    ; Column 1 of parameters overview containing cursor x,y and zoomfactor
-;		disp = WIDGET_BASE(disp_base, /COLUMN)
-;    ; Cursor x info
-;		x_coord_base = WIDGET_BASE(disp, /ROW)
-;		x_coord_txt = WIDGET_LABEL(x_coord_base, VALUE = 'Cursor x:')
-;		(*(*info).ctrlsparam).x_coord_val = WIDGET_LABEL(x_coord_base, $
-;      VALUE = STRTRIM((*(*info).dataparams).x,2), /DYNAMIC_RESIZE)
-;    ; Cursor y info
-;		y_coord_base = WIDGET_BASE(disp, /ROW)
-;		y_coord_txt = WIDGET_LABEL(y_coord_base, VALUE = 'Cursor y:')
-;		(*(*info).ctrlsparam).y_coord_val = WIDGET_LABEL(y_coord_base, $
-;      VALUE = STRTRIM((*(*info).dataparams).y,2), /DYNAMIC_RESIZE)
-;    ; Zommfactor info
-;		zoom_base = WIDGET_BASE(disp, /ROW)
-;		zoom_txt = WIDGET_LABEL(zoom_base, VALUE = 'Zoomfactor:')
-;		(*(*info).ctrlsparam).zoom_val = WIDGET_LABEL(zoom_base, $
-;      VALUE = STRTRIM(LONG((*(*info).zooming).factor),2), /DYNAMIC_RESIZE)
-;    ; Column 2 containing main spectral/height info, including Doppler
-;		disp2 = WIDGET_BASE(disp_base, /COLUMN)
-;    ; Main spectral info
-;		lp_coord_base = WIDGET_BASE(disp2, /ROW)
-;		lp_coord_txt = WIDGET_LABEL(lp_coord_base, $
-;      VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' index:')
-;		(*(*info).ctrlsparam).lp_coord_val = WIDGET_LABEL(lp_coord_base, $
-;      VALUE = STRTRIM(LONG((*(*info).dataparams).lp),2), /DYNAMIC_RESIZE)
-;		act_lp_base = WIDGET_BASE(disp2, /ROW)
-;		act_lp_txt = WIDGET_LABEL(act_lp_base, $
-;      VALUE = ((*(*info).paramparams).wav_h)[(*(*info).plotswitch).heightset]+' ['+$
-;              ((*(*info).dataparams).lpunit)[0]+']:')
-;    ; Main Doppler info
-;  	IF ((*(*info).plotswitch).v_dop_set OR (*(*info).plotswitch).heightset) THEN $
-;      (*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, $
-;        VALUE = STRTRIM(STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp],$
-;        FORMAT = '(3(F9.1,x))'),2),/DYNAMIC_RESIZE) $
-;    ELSE (*(*info).ctrlsparam).act_lp_val = WIDGET_LABEL(act_lp_base, VALUE = 'N/A')
-;    IF ((*(*info).plotswitch).heightset EQ 0) THEN BEGIN
-;  		v_dop_base = WIDGET_BASE(disp2, /ROW)
-;  		v_dop_txt = WIDGET_LABEL(v_dop_base, VALUE = 'Doppler velocity (km/s):')
-;  		IF (*(*info).plotswitch).v_dop_set THEN BEGIN
-;  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, $
-;          VALUE = STRTRIM(STRING((*(*(*info).plotaxes).v_dop[$
-;            (*(*info).intparams).lp_diag_all])[(*(*info).dataparams).lp-(*(*info).intparams).diag_start[(*(*info).intparams).lp_diag_all]],$
-;                  FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
-;  		ENDIF ELSE IF (*(*info).plotswitch).heightset THEN BEGIN
-;  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
-;  		ENDIF ELSE BEGIN
-;  			(*(*info).ctrlsparam).v_dop_val = WIDGET_LABEL(v_dop_base, VALUE = 'N/A')
-;  		ENDELSE
-;    ENDIF
-;    ; Column 3 (if reference present) containing reference spectral/height info, including Doppler
-;		IF ((*(*info).dataparams).refnlp GT 1) THEN BEGIN
-;			dispref = WIDGET_BASE(disp_base, /COLUMN)
-;      ; Reference spectral info
-;			lp_ref_coord_base = WIDGET_BASE(dispref, /ROW)
-;			lp_ref_coord_txt = WIDGET_LABEL(lp_ref_coord_base, VALUE = 'Reference '+$
-;        STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' index:')
-;			(*(*info).ctrlsparam).lp_ref_coord_val = WIDGET_LABEL(lp_ref_coord_base, $
-;        VALUE = STRTRIM(LONG((*(*info).dataparams).lp_ref),2), /DYNAMIC_RESIZE)
-;			act_lp_ref_base = WIDGET_BASE(dispref, /ROW)
-;			act_lp_ref_txt = WIDGET_LABEL(act_lp_ref_base, VALUE = 'Reference '+$
-;        STRLOWCASE(((*(*info).paramparams).wav_h)[(*(*info).plotswitch).refheightset])+' ['+$
-;        ((*(*info).dataparams).lpunit)[1]+']:')
-;      ; Reference Doppler info
-;    	IF ((*(*info).plotswitch).v_dop_set_ref OR (*(*info).plotswitch).refheightset) THEN $
-;        (*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, $
-;          VALUE = STRTRIM(STRING((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref],$
-;          FORMAT = '(3(F9.1,x))'),2),/DYNAMIC_RESIZE) $
-;      ELSE (*(*info).ctrlsparam).act_lp_ref_val = WIDGET_LABEL(act_lp_ref_base, VALUE = 'N/A')
-;      IF ((*(*info).plotswitch).heightset EQ 0) THEN BEGIN
-;  			v_dop_ref_base = WIDGET_BASE(dispref, /ROW)
-;  			v_dop_ref_txt = WIDGET_LABEL(v_dop_ref_base, VALUE = 'Reference Doppler velocity (km/s):')
-;  			IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
-;  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, $
-;          VALUE = STRTRIM(STRING((*(*(*info).plotaxes).v_dop_ref[$
-;            (*(*info).intparams).lp_ref_diag_all])[(*(*info).dataparams).lp-$
-;            (*(*info).intparams).refdiag_start[(*(*info).intparams).lp_ref_diag_all]],$
-;                    FORMAT='(3(F9.2,x))'),2), /DYNAMIC_RESIZE)
-;  			ENDIF ELSE IF (*(*info).plotswitch).refheightset THEN BEGIN
-;  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
-;  			ENDIF ELSE BEGIN
-;  				(*(*info).ctrlsparam).v_dop_ref_val = WIDGET_LABEL(v_dop_ref_base, VALUE = 'N/A')
-;  			ENDELSE
-;      ENDIF
-;		ENDIF
-;    ; Column 4 (if reference present, else column 3) containing channel and time info
-;		disp3 = WIDGET_BASE(disp_base, /COLUMN)
-;    ; Channel info
-;		stokes_base = WIDGET_BASE(disp3, /ROW)
-;		stokes_txt = WIDGET_LABEL(stokes_base, VALUE = 'Stokes:')
-;		(*(*info).ctrlsparam).stokes_val = WIDGET_LABEL(stokes_base, $
-;      VALUE = STRTRIM(((*(*info).stokesparams).labels)[(*(*info).dataparams).s],2), /DYNAMIC_RESIZE)
-;    ; Time info
-;		t_coord_base = WIDGET_BASE(disp3, /ROW)
-;		t_coord_txt = WIDGET_LABEL(t_coord_base, VALUE = 'Time index:')
-;		(*(*info).ctrlsparam).t_coord_val = WIDGET_LABEL(t_coord_base, $
-;      VALUE = STRTRIM((*(*info).dataparams).t,2), /DYNAMIC_RESIZE)
-;		act_t_base = WIDGET_BASE(disp3, /ROW)
-;		act_t_txt = WIDGET_LABEL(act_t_base, VALUE = 'Actual '+(*(*info).plottitles).spytitle+':')
-;		IF (*(*info).paramswitch).dt_set THEN $
-;      (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = $
-;        STRTRIM(STRING((*(*info).dataparams).t * (*(*info).plotaxes).dt, FORMAT='(3(F9.2,x))'),2), $
-;			  /DYNAMIC_RESIZE) $
-;    ELSE $
-;      (*(*info).ctrlsparam).act_t_val = WIDGET_LABEL(act_t_base, VALUE = 'N/A')
-;    ; Column 5 (if reference present, else column 4) containing image values below cursor
-;    ; Main image value info
-;		IF (*(*info).paramswitch).img_get THEN BEGIN
-;			disp4 = WIDGET_BASE(disp_base, /COLUMN)
-;			img_base = WIDGET_BASE(disp4, /ROW)
-;			img_label = WIDGET_LABEL(img_base, VALUE = 'Main cube value ['+$
-;        ((*(*info).dataparams).bunit)[0]+'] :')
-;			(*(*info).ctrlsparam).img_val = WIDGET_LABEL(img_base, VALUE = $
-;        STRTRIM(STRING((*(*info).paramparams).img_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
-;		ENDIF
-;    ; Reference image value info
-;		IF (*(*info).paramswitch).ref_get THEN BEGIN
-;			IF ((*(*info).paramswitch).img_get EQ 0) THEN disp4 = WIDGET_BASE(disp_base, /COLUMN)
-;			ref_base = WIDGET_BASE(disp4, /ROW)
-;			ref_label = WIDGET_LABEL(ref_base, VALUE = 'Reference cube value ['+$
-;        ((*(*info).dataparams).bunit)[1]+'] :')
-;      (*(*info).ctrlsparam).ref_val = WIDGET_LABEL(ref_base, VALUE = $
-;        STRTRIM(STRING((*(*info).paramparams).ref_get_val,FORMAT='(3(F9.2,x))'),2),/DYNAMIC_RESIZE)
-;		ENDIF
-;		IF ((*(*info).paramswitch).img_get OR (*(*info).paramswitch).ref_get) THEN BEGIN
-;			IF ((*(*info).paramswitch).ref_get EQ 0) THEN BEGIN
-;				mainlabel = 'main cube value:' 
-;				extra_label = ''
-;			ENDIF ELSE BEGIN
-;				mainlabel = 'cube values, main:'
-;				extra_label = ','
-;			ENDELSE
-;			IF ((*(*info).paramswitch).img_get EQ 0) THEN $
-;        mainlabel = 'reference cube value:'  $
-;      ELSE $
-;        label = 'reference:'
-;			sc_base = WIDGET_BASE(disp4, /ROW)
-;			sc_label = WIDGET_LABEL(sc_base, VALUE = 'Scaled '+mainlabel)
-;			IF (*(*info).paramswitch).img_get THEN $
-;        (*(*info).ctrlsparam).imgsc_val = WIDGET_LABEL(sc_base, VALUE = $
-;          STRTRIM(STRING((*(*info).paramparams).imgsc_get_val,FORMAT='(3(F9.2,x))'),2)+extra_label,$
-;				  /DYNAMIC_RESIZE)
-;			IF (*(*info).paramswitch).ref_get THEN BEGIN
-;				IF (*(*info).paramswitch).img_get THEN refsc_label = WIDGET_LABEL(sc_base, VALUE = label)
-;				(*(*info).ctrlsparam).refsc_val = WIDGET_LABEL(sc_base, VALUE = $
-;          STRTRIM(STRING((*(*info).paramparams).refsc_get_val,FORMAT='(3(F9.2,x))'),2),$
-;          /DYNAMIC_RESIZE)
-;			ENDIF
-;		ENDIF
-;    ; Window realisation
-;    IF ((*(*info).winsizes).xywiny GT (*(*info).winsizes).spwiny) THEN $
-;      y_off = (*(*info).winsizes).xywiny $
-;    ELSE $
-;      y_off = (*(*info).winsizes).spwiny
-;		WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = 0, TLB_SET_YOFFSET = $
-;                    y_off + 2*(*(*info).winsizes).ydelta
-;		WIDGET_CONTROL, base, SET_UVALUE = info
-;		XMANAGER, 'CRISPEX', base, /NO_BLOCK
-;		(*(*info).winids).paramtlb = base
-;	ENDIF ELSE BEGIN
-;		WIDGET_CONTROL, (*(*info).winids).paramtlb, /DESTROY
-;		(*(*info).winids).paramtlb = 0
-;		(*(*info).winswitch).showparam = 0
-;	ENDELSE
-;	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-;    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).looptlb], labels=['looptlb']
-;END
-
 PRO CRISPEX_DISPLAYS_PLOT_RESIZE, event, new_xres_tmp, new_yres_tmp, init_xres, init_yres, init_xmargin, init_xwall, new_xres, new_yres, new_width, new_height, $
 	x0, x1, y0, y1, v_dop_set, INX0=inx0, INX1=inx1, INY0=iny0, INY1=iny1, ERROR=error, GOLDEN=golden, ACTUAL_RESIZE=actual_resize, DETSPECT=detspect, STOKES_SELECT=stokes_select
 ; Handles the display plot resizing
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_PLOT_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (N_ELEMENTS(v_dop_set) NE 1) THEN v_dop_set = 0
 	IF KEYWORD_SET(ACTUAL_RESIZE) THEN BEGIN												; Used for display of loopslices
 		new_xres = new_xres_tmp
@@ -1913,7 +1710,7 @@ END
 PRO CRISPEX_DISPLAYS_LS_RESIZE, event, STOKES_SELECT=stokes_select
 ; Detailed spectrum window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_LS_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF KEYWORD_SET(STOKES_SELECT) THEN BEGIN
 		newlsxres = (*(*info).winsizes).lsxres	&	newlsyres = (*(*info).winsizes).lsyres
 	ENDIF ELSE BEGIN
@@ -1942,7 +1739,8 @@ END
 PRO CRISPEX_DISPLAYS_IMREFBLINK_TOGGLE, event
 ; Sets the playback mode to blink of main and reference image
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_IMREFBLINK_TOGGLE', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	(*(*info).winswitch).showimref = event.SELECT
 	(*(*info).pbparams).imrefmode = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, SENSITIVE=ABS((*(*info).pbparams).imrefmode-1)
@@ -1972,7 +1770,8 @@ END
 PRO CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, NO_DRAW=no_draw
 ; Detailed spectrum window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_IMREF_LS_TOGGLE', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN	; For reference detailed spectrum window
 		IF ((*(*info).winswitch).showrefls EQ 0) THEN BEGIN
 			title = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+((*(*info).plottitles).reflswintitle)[(*(*info).plotswitch).refheightset]
@@ -2009,7 +1808,7 @@ END
 PRO CRISPEX_DISPLAYS_PHIS_RESIZE, event							
 ; Spectral phi slice window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_PHIS_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).phisxres, (*(*info).winsizes).phisyres, (*(*info).plotpos).phisxmargin_init, (*(*info).plotpos).phisxwall_init, $
 		phisxres, phisyres, phiswidth, phisheight, phisx0, phisx1, phisy0, phisy1, (*(*info).plotswitch).v_dop_set, ERROR=error, /ACTUAL_RESIZE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
@@ -2032,7 +1831,8 @@ END
 PRO CRISPEX_DISPLAYS_PHIS_TOGGLE, event, NO_DRAW=no_draw
 ; Spectral phi slice window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_PHIS_TOGGLE', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	IF ((*(*info).winswitch).showphis EQ 0) THEN BEGIN
 		WIDGET_CONTROL,/HOURGLASS
 		IF (*(*info).winswitch).showsp THEN BEGIN
@@ -2080,7 +1880,7 @@ PRO CRISPEX_DISPLAYS_REF_TOGGLE, event, NO_DRAW=no_draw
 ; Reference image window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_REF_TOGGLE', /IGNORE_LAST
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	(*(*info).winswitch).showref = event.SELECT
 	IF (*(*info).winswitch).showref THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Reference image'
@@ -2127,7 +1927,7 @@ END
 PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_REPLOT_AXES, event				
 ; Updates restored loopslab display window plot axes range according to set parameters
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_REPLOT_AXES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	FOR i=0,N_ELEMENTS(*(*(*info).winids).restloopwid)-1 DO BEGIN
 		WSET, (*(*(*info).winids).restloopwid)[i]
 		PLOT, FINDGEN((*(*(*info).loopsdata).rest_loopsize)[i]), *(*(*info).dispparams).tarr_main, $
@@ -2143,7 +1943,7 @@ END
 PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_RESIZE, event				
 ; Restored loopslab window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).restloopxres, (*(*info).winsizes).restloopyres, (*(*info).plotpos).restloopxmargin_init, (*(*info).plotpos).restloopxwall_init, $
 		restloopxres, restloopyres, restloopwidth, restloopheight, restloopx0, restloopx1, restloopy0, restloopy1, ERROR=error, /ACTUAL_RESIZE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
@@ -2167,7 +1967,7 @@ END
 PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_SELECT, event						
 ; Restored loopslab display window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_SELECT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsrestore).disp_list, GET_VALUE = list_values
 ;	print,event.INDEX,(*(*info).winswitch).showrestloop
 	IF (event.INDEX GT 0) THEN BEGIN
@@ -2269,8 +2069,7 @@ END
 PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB, event, NO_DRAW=no_draw, INDEX=index
 ; Restored loopslab display window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_RESTORE_LOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 		update_t_range = 0
 		update_lp_range = 0
 		restricted_t_range = 0
@@ -2473,7 +2272,7 @@ END
 PRO CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB_REPLOT_AXES, event
 ; Updates retrieved detection loopslab display window plot axes range according to set parameters
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB_REPLOT_AXES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).retrdetwid
 	PLOT, FINDGEN((*(*info).loopsdata).det_loopsize), *(*(*info).dispparams).tarr_main, $
     /NODATA, YR=[(*(*info).dispparams).t_low_main, (*(*info).dispparams).t_upp_main], $
@@ -2487,7 +2286,7 @@ END
 PRO CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB_RESIZE, event	
 ; Retrieved detection loopslab window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).retrdetxres, (*(*info).winsizes).retrdetyres, (*(*info).plotpos).retrdetxmargin_init, (*(*info).plotpos).retrdetxwall_init, $
 		retrdetxres, retrdetyres, retrdetwidth, retrdetheight, retrdetx0, retrdetx1, retrdety0, retrdety1, ERROR=error, /ACTUAL_RESIZE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
@@ -2511,7 +2310,7 @@ END
 PRO CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB, event, NO_DRAW=no_draw
 ; Retrieved detection loopslab display window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ~KEYWORD_SET(NO_DRAW) THEN (*(*info).detparams).idx = event.INDEX-1
 	IF ((*(*info).detparams).idx GE 0) THEN BEGIN
 		IF ((*(*info).winids).retrdettlb GT 0) THEN WIDGET_CONTROL, (*(*info).winids).retrdettlb, /DESTROY
@@ -2551,7 +2350,7 @@ END
 PRO CRISPEX_DISPLAYS_REFLS_RESIZE, event							
 ; Detailed spectrum window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_REFLS_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).reflsxres, (*(*info).winsizes).reflsyres, (*(*info).plotpos).reflsxmargin_init, (*(*info).plotpos).reflsxwall_init, $
 		reflsxres, reflsyres, reflswidth, reflsheight, reflsx0, reflsx1, reflsy0, reflsy1, (*(*info).plotswitch).v_dop_set_ref, ERROR=error, /GOLDEN
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
@@ -2571,8 +2370,7 @@ END
 PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
 ; Updates reference temporal spectrum display window plot axes range according to set parameters
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_REFSP_REPLOT_AXES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).refspwid
   ; Set axes parameters depending on # of diagnostics
   IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
@@ -2676,7 +2474,7 @@ END
 PRO CRISPEX_DISPLAYS_REFSP_RESIZE, event
 ; Reference temporal spectrum window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_REFSP_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).refspxres, (*(*info).winsizes).refspyres, (*(*info).plotpos).refspxmargin_init, (*(*info).plotpos).refspxwall_init, $
 		refspxres, refspyres, refspwidth, refspheight, refspx0, refspx1, refspy0, refspy1, (*(*info).plotswitch).v_dop_set_ref, ERROR=error, /ACTUAL_RESIZE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
@@ -2701,7 +2499,7 @@ PRO CRISPEX_DISPLAYS_REFSP_TOGGLE, event, NO_DRAW=no_draw
 ; Reference temporal spectrum display window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_REFSP_TOGGLE', /IGNORE_LAST
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
   ; If window doesn't exist, create it
 	IF ((*(*info).winswitch).showrefsp EQ 0) THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+$
@@ -2733,7 +2531,7 @@ PRO CRISPEX_DISPLAYS_SJI_TOGGLE, event, NO_DRAW=no_draw
 ; Reference image window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_SJI_TOGGLE', /IGNORE_LAST
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	(*(*info).winswitch).showsji = event.SELECT
 	IF (*(*info).winswitch).showsji THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Slit-jaw image'
@@ -2769,8 +2567,7 @@ END
 PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
 ; Updates temporal spectrum display window plot axes range according to set parameters
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_SP_REPLOT_AXES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).spwid
 	IF (*(*info).plotswitch).v_dop_set THEN extratitle = '!C' ELSE extratitle = ''
 	IF (*(*info).plotswitch).multichannel THEN $
@@ -2887,7 +2684,7 @@ END
 PRO CRISPEX_DISPLAYS_SP_RESIZE, event
 ; Temporal spectrum window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_SP_RESIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).spxres, (*(*info).winsizes).spyres, (*(*info).plotpos).spxmargin_init, (*(*info).plotpos).spxwall_init, $
 		spxres, spyres, spwidth, spheight, spx0, spx1, spy0, spy1, (*(*info).plotswitch).v_dop_set, ERROR=error, /ACTUAL_RESIZE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
@@ -2912,7 +2709,7 @@ PRO CRISPEX_DISPLAYS_SP_TOGGLE, event, NO_DRAW=no_draw
 ; Temporal spectrum display window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_SP_TOGGLE', /IGNORE_LAST
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
   ; If window doesn't exist, create it
 	IF ((*(*info).winswitch).showsp EQ 0) THEN BEGIN
 		wintitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+$
@@ -2943,8 +2740,7 @@ END
 PRO CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE, event
 ; Restores lower/upper y-values of specific Stokes component detailed spectrum plot for input
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, $
     SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],2)
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, $
@@ -2969,7 +2765,7 @@ END
 PRO CRISPEX_DISPRANGE_INT_LOW, event
 ; Handles change in lower y-value of intensity versus time display window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_INT_LOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsint).lower_y_int_text, GET_VALUE = textvalue
 	(*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s] = FLOAT(textvalue[0])
 	IF ((*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s] GE (*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s]) THEN $
@@ -2983,7 +2779,7 @@ END
 PRO CRISPEX_DISPRANGE_INT_UPP, event
 ; Handles change in upper y-value of intensity versus time display window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_INT_UPP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsint).upper_y_int_text, GET_VALUE = textvalue
 	(*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s] = FLOAT(textvalue[0]) 
 	IF ((*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s] LE (*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s]) THEN $
@@ -2997,7 +2793,7 @@ END
 PRO CRISPEX_DISPRANGE_INT_T_LOW, event
 ; Handles change in lower t-value of intensity versus time display window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_INT_T_LOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsint).lower_t_int_text, GET_VALUE = textvalue
 	(*(*info).plotaxes).int_low_t = FLOAT(textvalue[0])
 	IF ((*(*info).plotaxes).int_low_t GE (*(*info).plotaxes).int_upp_t) THEN (*(*info).plotaxes).int_low_t = (*(*info).plotaxes).int_upp_t - 1
@@ -3010,7 +2806,7 @@ END
 PRO CRISPEX_DISPRANGE_INT_T_UPP, event
 ; Handles change in upper t-value of intensity versus time display window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_INT_T_UPP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsint).upper_t_int_text, GET_VALUE = textvalue
 	(*(*info).plotaxes).int_upp_t = FLOAT(textvalue[0]) 
 	IF ((*(*info).plotaxes).int_upp_t LE (*(*info).plotaxes).int_low_t) THEN (*(*info).plotaxes).int_upp_t = (*(*info).plotaxes).int_low_t + 1
@@ -3023,7 +2819,7 @@ END
 PRO CRISPEX_DISPRANGE_INT_LOCK_T, event
 ; Locks main temporal range to intensity versus time display temporal range
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_INT_LOCK_T'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).intparams).lock_t = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).intparams).lock_t], labels=['Lock main to int temporal range']
 	CRISPEX_DISPRANGE_INT_T_RANGE, event
@@ -3032,7 +2828,7 @@ END
 PRO CRISPEX_DISPRANGE_INT_T_RANGE, event
 ; Locks main temporal range to intensity versus time display temporal range
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_INT_T_RANGE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).intparams).lock_t THEN BEGIN
 		(*(*info).dispparams).t_low = (*(*info).plotaxes).int_low_t
 		(*(*info).dispparams).t_upp = (*(*info).plotaxes).int_upp_t
@@ -3051,7 +2847,7 @@ END
 PRO CRISPEX_DISPRANGE_INT_T_RESET, event
 ; Handles reset of temporal boundaries and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_INT_T_RESET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).plotaxes).int_upp_t = (*(*info).dispparams).t_last
 	(*(*info).plotaxes).int_low_t = (*(*info).dispparams).t_first
 	CRISPEX_DISPRANGE_INT_T_RANGE, event
@@ -3063,7 +2859,7 @@ END
 PRO CRISPEX_DISPRANGE_LS_LOW, event
 ; Handles change in lower y-value of detailed spectrum display window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LS_LOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, GET_VALUE = textvalue
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN
 		(*(*info).plotaxes).ls_low_y_ref = FLOAT(textvalue[0]) 
@@ -3081,7 +2877,7 @@ END
 PRO CRISPEX_DISPRANGE_LS_UPP, event
 ; Handles change in upper y-value of detailed spectrum display window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LS_UPP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, GET_VALUE = textvalue
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN
 		(*(*info).plotaxes).ls_upp_y_ref = FLOAT(textvalue[0])
@@ -3099,7 +2895,7 @@ END
 PRO CRISPEX_DISPRANGE_LS_RANGE, event, NO_DRAW=no_draw
 ; Determines range from change in lower or upper y-value of detailed spectrum display window and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LS_RANGE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN (*(*info).plotaxes).ls_yrange_ref = (*(*info).plotaxes).ls_upp_y_ref - (*(*info).plotaxes).ls_low_y_ref ELSE $
 		(*(*(*info).plotaxes).ls_yrange)[(*(*info).dataparams).s] = (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] - (*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] 
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],(*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],$
@@ -3110,7 +2906,7 @@ END
 PRO CRISPEX_DISPRANGE_LS_SCALE_SELECT, event
 ; Handles the selection of scaling (or not) of the detailed spectrum to the maximum of the average spectrum
 	WIDGET_CONTROL, event.TOP, GET_UVALUE=info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LS_SCALE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN (*(*info).dispswitch).ref_detspect_scale = event.SELECT ELSE (*(*info).dispswitch).detspect_scale = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dispswitch).detspect_scale,(*(*info).dispswitch).ref_detspect_scale], labels=['Scale main detspect','Scale ref detspect']
 	CRISPEX_DISPRANGE_LS_SCALE, event
@@ -3120,7 +2916,7 @@ END
 PRO CRISPEX_DISPRANGE_LS_SCALE, event
 ; Handles the scaling (or not) of the detailed spectrum to the maximum of the average spectrum
 	WIDGET_CONTROL, event.TOP, GET_UVALUE=info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LS_SCALE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN CRISPEX_DISPRANGE_LS_SCALE_REF, event ELSE CRISPEX_DISPRANGE_LS_SCALE_MAIN, event
 	CRISPEX_DISPRANGE_LS_RANGE, event
 END
@@ -3128,7 +2924,7 @@ END
 PRO CRISPEX_DISPRANGE_LS_SCALE_MAIN, event
 ; Handles the scaling (or not) of the main detailed spectrum to the maximum of the average spectrum
 	WIDGET_CONTROL, event.TOP, GET_UVALUE=info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LS_SCALE_MAIN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).detspect_scale THEN BEGIN
 		IF (*(*info).plotswitch).scalestokes THEN ms = (*(*info).dataparams).ms * ((*(*info).paramparams).scale_cubes)[0] ELSE ms = ((*(*info).dataparams).ms) * ((*(*info).paramparams).scale_cubes)[0]
 		(*(*(*info).plotaxes).ls_low_y) /= ms 
@@ -3145,7 +2941,7 @@ END
 PRO CRISPEX_DISPRANGE_LS_SCALE_REF, event
 ; Handles the scaling (or not) of the reference detailed spectrum to the maximum of the average spectrum
 	WIDGET_CONTROL, event.TOP, GET_UVALUE=info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LS_SCALE_REF'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).ref_detspect_scale THEN BEGIN
 		(*(*info).plotaxes).ls_low_y_ref /= ((*(*info).dataparams).refms * ((*(*info).paramparams).scale_cubes)[1]) 
 		(*(*info).plotaxes).ls_upp_y_ref /= ((*(*info).dataparams).refms * ((*(*info).paramparams).scale_cubes)[1])
@@ -3160,7 +2956,7 @@ END
 PRO CRISPEX_DISPRANGE_LS_SUBTRACT, event
 ; Handles display of average subtracted spectrum in detailed spectrum window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LS_SUBTRACT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN (*(*info).plotswitch).ref_subtract = event.SELECT ELSE (*(*info).plotswitch).subtract = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).plotswitch).subtract,(*(*info).plotswitch).ref_subtract], labels=['Subtract from main','Subtract from ref']
 	CRISPEX_DRAW, event
@@ -3169,7 +2965,7 @@ END
 PRO CRISPEX_DISPRANGE_T_LOW, event
 ; Handles change in lower t-value of accessed data cube
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_T_LOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).lower_t_text, GET_VALUE = textvalue
 	(*(*info).dispparams).t_low = FLOAT(textvalue[0])
 	IF ((*(*info).dispparams).t_low GE (*(*info).dispparams).t_upp) THEN (*(*info).dispparams).t_low = (*(*info).dispparams).t_upp - 1
@@ -3185,7 +2981,7 @@ END
 PRO CRISPEX_DISPRANGE_T_UPP, event
 ; Handles change in upper t-value of accessed data cube
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_T_UPP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_t_text, GET_VALUE = textvalue
 	(*(*info).dispparams).t_upp = FLOAT(textvalue[0])
 	IF ((*(*info).dispparams).t_upp LE (*(*info).dispparams).t_low) THEN (*(*info).dispparams).t_upp = (*(*info).dispparams).t_low + 1
@@ -3201,8 +2997,7 @@ END
 PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set
 ; Determines range from change in lower or upper t-value and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_T_RANGE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).winswitch).showretrdet THEN BEGIN
 		(*(*info).dispparams).t_low = (*(*(*info).detparams).t_restored)[(*(*info).detparams).idx] - $
       (*(*info).detparams).delta_t_dn > (*(*info).dispparams).t_first
@@ -3265,8 +3060,7 @@ END
 PRO CRISPEX_DISPRANGE_T_RESET, event, NO_DRAW=no_draw, T_SET=t_set
 ; Handles reset of temporal boundaries and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_T_RESET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispparams).t_upp = (*(*info).dispparams).t_last
 	(*(*info).dispparams).t_low = (*(*info).dispparams).t_first
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_t_text, $
@@ -3283,8 +3077,7 @@ END
 PRO CRISPEX_DISPRANGE_GET_WARP, event, PHIS=phis
 ; Handles determining warping tie points
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_GET_WARP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   lps_sel = ((*(*info).dataparams).lps)[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp]
   min_lps = MIN(lps_sel)
   IF KEYWORD_SET(PHIS) THEN $
@@ -3332,8 +3125,7 @@ END
 PRO CRISPEX_DISPRANGE_LP_LOW, event, LP_SET=lp_set, NO_DRAW=no_draw
 ; Handles change in lower s-value of accessed data cube
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_LOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (N_ELEMENTS(LP_SET) EQ 1) THEN $
     textvalue = lp_set $
   ELSE $
@@ -3350,8 +3142,7 @@ END
 PRO CRISPEX_DISPRANGE_LP_UPP, event, LP_SET=lp_set, NO_DRAW=no_draw
 ; Handles change in upper s-value of accessed data cube
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_UPP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (N_ELEMENTS(LP_SET) EQ 1) THEN $
     textvalue = lp_set $
   ELSE $
@@ -3368,8 +3159,7 @@ END
 PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
 ; Determines range from change in lower or upper s-value and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_RANGE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispparams).lp_range = (*(*info).dispparams).lp_upp - (*(*info).dispparams).lp_low + 1
 	IF (((*(*info).intparams).ndiagnostics EQ 1) AND $
     ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp)) THEN $
@@ -3417,8 +3207,7 @@ END
 PRO CRISPEX_DISPRANGE_LP_RESET, event, NO_DRAW=no_draw
 ; Handles reset of spectral boundaries and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_RESET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_last
 	(*(*info).dispparams).lp_low = (*(*info).dispparams).lp_first
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, $
@@ -3434,8 +3223,7 @@ PRO CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw, LP_LOW_SET=lp_low_se
   LP_UPP_SET=lp_upp_set
 ; Determines range from change in lower or upper s-value and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_REF_RANGE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (N_ELEMENTS(LP_LOW_SET) EQ 1) THEN (*(*info).dispparams).lp_ref_low = lp_low_set
   IF (N_ELEMENTS(LP_UPP_SET) EQ 1) THEN (*(*info).dispparams).lp_ref_upp = lp_upp_set
 	(*(*info).dispparams).lp_ref_range = (*(*info).dispparams).lp_ref_upp - (*(*info).dispparams).lp_ref_low + 1
@@ -3460,7 +3248,7 @@ END
 PRO CRISPEX_DISPRANGE_LP_REF_RESET, event, NO_DRAW=no_draw
 ; Handles reset of reference spectral boundaries and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DISPRANGE_LP_REF_RESET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispparams).lp_ref_upp = (*(*info).dispparams).lp_ref_last
 	(*(*info).dispparams).lp_ref_low = (*(*info).dispparams).lp_ref_first
 	CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw
@@ -3470,8 +3258,7 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, no_numbe
       thick=thick, no_endpoints=no_endpoints, symsize=symsize, draw_mask=draw_mask, SJI=sji
   ; Handles overplotting of the cursor, slits and loop paths
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_CURSCROSS_PLOT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).phiparams).d_nphi_set = (*(*info).zooming).factor * (*(*info).phiparams).nphi_set
   IF KEYWORD_SET(SJI) THEN BEGIN
     sx_loc = (*(*info).curs).sxsji
@@ -3529,7 +3316,7 @@ END
 PRO CRISPEX_DRAW_LOOP_LINESTYLE_0, event
 ; Handles setting of loop path linestyle to solid
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_LOOP_LINESTYLE_0'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).overlayparams).loop_linestyle = 0
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).overlayparams).loop_linestyle], labels=['Loop linestyle']
 	CRISPEX_DRAW, event
@@ -3538,7 +3325,7 @@ END
 PRO CRISPEX_DRAW_LOOP_LINESTYLE_1, event
 ; Handles setting of loop path linestyle to dotted (i.e. actual loop points, not dots between the vertices)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_LOOP_LINESTYLE_1'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).overlayparams).loop_linestyle = 1
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).overlayparams).loop_linestyle], labels=['Loop linestyle']
 	CRISPEX_DRAW, event
@@ -3547,7 +3334,7 @@ END
 PRO CRISPEX_DRAW_LOOP_LINESTYLE_2, event
 ; Handles setting of loop path linestyle to dashed
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_LOOP_LINESTYLE_2'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).overlayparams).loop_linestyle = 2
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).overlayparams).loop_linestyle], labels=['Loop linestyle']
 	CRISPEX_DRAW, event
@@ -3557,8 +3344,7 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS, event, no_number=no_number, thick=thick, $
   no_endpoints=no_endpoints, symsize=symsize
 ; Handles overplotting of loop paths from the restored and retrieved loops as well as from the retrieved detections
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_LOOP_OVERLAYS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (((*(*info).loopswitch).restore_loops EQ 1) AND $
       ((*(*info).restoreparams).cfilecount GT 0)) THEN BEGIN
 		drawrestore = 0
@@ -3575,21 +3361,14 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS, event, no_number=no_number, thick=thick, $
           (0+(*(*(*info).restoreparams).rsizes)[i]):((*(*(*info).restoreparams).rsizes)[i+1]-1)]
 				yr_orig = (*(*(*info).restoreparams).yr_restored)[$
           (0+(*(*(*info).restoreparams).rsizes)[i]):((*(*(*info).restoreparams).rsizes)[i+1]-1)]
-;				IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-					sxp = (xp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
-            ((*(*info).dataparams).d_nx+1)
-					syp = (yp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
-            ((*(*info).dataparams).d_ny+1)
-					sxr = (xr_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
-            ((*(*info).dataparams).d_nx+1)
-					syr = (yr_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
-            ((*(*info).dataparams).d_ny+1)
-;				ENDIF ELSE BEGIN
-;					sxp = xp_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-;					syp = yp_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-;					sxr = xr_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx	
-;					syr = yr_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-;				ENDELSE
+				sxp = (xp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+          ((*(*info).dataparams).d_nx+1)
+				syp = (yp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+          ((*(*info).dataparams).d_ny+1)
+				sxr = (xr_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+          ((*(*info).dataparams).d_nx+1)
+				syr = (yr_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+          ((*(*info).dataparams).d_ny+1)
 				sxp_last = sxp[(SIZE(sxp))[1]-1]-1.5*(*(*info).zooming).factor
 				syp_last = syp[(SIZE(sxp))[1]-1]+1.5*(*(*info).zooming).factor
 				IF ~KEYWORD_SET(NO_ENDPOINTS) THEN BEGIN
@@ -3622,21 +3401,14 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS, event, no_number=no_number, thick=thick, $
           (0+(*(*(*info).retrparams).lrsizes)[k]):((*(*(*info).retrparams).lrsizes)[k+1]-1)]
 				ylr_orig = (*(*(*info).retrparams).ylr_restored)[$
           (0+(*(*(*info).retrparams).lrsizes)[k]):((*(*(*info).retrparams).lrsizes)[k+1]-1)]
-;				IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-					sxlp = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
-            ((*(*info).dataparams).d_nx+1)
-					sylp = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
-            ((*(*info).dataparams).d_ny+1)
-					sxlr = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
-            ((*(*info).dataparams).d_nx+1)
-					sylr = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
-            ((*(*info).dataparams).d_ny+1)
-;				ENDIF ELSE BEGIN
-;					sxlp = xlp_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-;					sylp = ylp_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-;				sxlr = xlr_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-;					sylr = ylr_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-;				ENDELSE
+				sxlp = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+          ((*(*info).dataparams).d_nx+1)
+				sylp = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+          ((*(*info).dataparams).d_ny+1)
+				sxlr = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+          ((*(*info).dataparams).d_nx+1)
+				sylr = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+          ((*(*info).dataparams).d_ny+1)
 				sxlp_last = sxlp[(SIZE(sxlp))[1]-1]-1.5*(*(*info).zooming).factor
 				sylp_last = sylp[(SIZE(sxlp))[1]-1]+1.5*(*(*info).zooming).factor
 				IF ~KEYWORD_SET(NO_ENDPOINTS) THEN BEGIN
@@ -3683,16 +3455,11 @@ END
 PRO CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS, event, j, low, upp, no_number=no_number, thick=thick, no_endpoints=no_endpoints, symsize=symsize
 ; Handles the actual overplotting of loop paths from the retrieved detections
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	xlp_orig = (*(*(*info).detparams).xlp_restored)[(0+(*(*(*info).detparams).lpsizes)[j]):((*(*(*info).detparams).lpsizes)[j+1]-1)]
 	ylp_orig = (*(*(*info).detparams).ylp_restored)[(0+(*(*(*info).detparams).lpsizes)[j]):((*(*(*info).detparams).lpsizes)[j+1]-1)]
-;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		sxlp = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-		sylp = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-;	ENDIF ELSE BEGIN
-;		sxlp = xlp_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-;		sylp = ylp_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-;	ENDELSE
+	sxlp = (xlp_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
+	sylp = (ylp_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
 	sxlp_last = sxlp[(SIZE(sxlp))[1]-1]-1.5*(*(*info).zooming).factor
 	sylp_last = sylp[(SIZE(sxlp))[1]-1]+1.5*(*(*info).zooming).factor
 	IF ~KEYWORD_SET(NO_ENDPOINTS) THEN BEGIN
@@ -3703,13 +3470,8 @@ PRO CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS, event, j, low, upp, no_number=no_n
 	FOR i=low,upp DO BEGIN
 		xlr_orig = (*(*(*info).detparams).xlr_restored)[(0+(*(*(*info).detparams).lrsizes)[j]):((*(*(*info).detparams).lrsizes)[j+1]-1),i]
 		ylr_orig = (*(*(*info).detparams).ylr_restored)[(0+(*(*(*info).detparams).lrsizes)[j]):((*(*(*info).detparams).lrsizes)[j+1]-1),i]
-;		IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-			sxlr = (xlr_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-			sylr = (ylr_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-;		ENDIF ELSE BEGIN
-;			sxlr = xlr_orig * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-;			sylr = ylr_orig * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-;		ENDELSE
+		sxlr = (xlr_orig - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
+		sylr = (ylr_orig - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
 		IF ((*(*info).overlayparams).loop_linestyle EQ 1) THEN PLOTS, sxlr, sylr, PSYM = 3, COLOR = !P.COLOR, /DEVICE, THICK=thick $
 		ELSE PLOTS, sxlr, sylr, LINESTYLE = (*(*info).overlayparams).loop_linestyle, COLOR = !P.COLOR,/DEVICE, THICK=thick
 	ENDFOR
@@ -3718,8 +3480,7 @@ END
 PRO CRISPEX_DRAW_MASK_OVERLAYS, event
 ; Handles the overlay of a mask
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_MASK_OVERLAYS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	x_low = (*(*info).zooming).xpos
 	x_upp = (*(*info).zooming).xpos + (*(*info).dataparams).d_nx
 	y_low = (*(*info).zooming).ypos
@@ -3733,8 +3494,7 @@ END
 PRO CRISPEX_DRAW_RASTER_OVERLAYS, event
 ; Handles the overlay of raster contours on SJI
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_RASTER_OVERLAYS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	LOADCT, (*(*info).overlayparams).maskct, /SILENT
   FOR i=0,N_ELEMENTS((*(*info).dispparams).rastercont[*,0])-1 DO BEGIN
     xlow = (*(*info).dispparams).rastercont[i,0] * (*(*info).winsizes).sjiwinx / $
@@ -3762,8 +3522,7 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
   ; should be called whenever changing the number of displayed diagnostics
   ; AND on startup
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_GET_SPECTRAL_AXES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Write current variables to dummy variables depending on case
   IF KEYWORD_SET(MAIN) THEN BEGIN
     disp_diagnostics = (*(*info).intparams).disp_diagnostics
@@ -3819,8 +3578,7 @@ END
 PRO CRISPEX_DRAW, event
 ; Handles the actual drawing of the data into the respective open display windows
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 ;	IF (*(*info).winswitch).showparam THEN BEGIN
 	IF ((*(*info).curs).lockset AND ((*(*info).overlayswitch).loopslit NE 1)) THEN BEGIN
 		(*(*info).curs).sx = (*(*info).curs).sxlock	
@@ -3837,8 +3595,7 @@ END
 PRO CRISPEX_DRAW_FEEDBPARAMS, event
 ; Prints all feedback parameters to appropriate fields
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_FEEDBPARAMS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Position parameters
   ; Main
   xycoord_txt = '('+STRING(LONG((*(*info).dataparams).x),$
@@ -4019,7 +3776,7 @@ END
 PRO CRISPEX_DRAW_IMREF, event
 ; (Re)draw main and reference image window procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_IMREF'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DRAW_XY, event
 	IF (*(*info).winswitch).showref THEN CRISPEX_DRAW_REF, event
 	IF (*(*info).winswitch).showimref THEN CRISPEX_DRAW_IMREF_BLINK, event
@@ -4030,7 +3787,7 @@ END
 PRO CRISPEX_DRAW_SPECTRAL, event
 ; (Re)draw spectral windows procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SPECTRAL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).winswitch).showls THEN CRISPEX_DRAW_LS, event
 	IF (*(*info).winswitch).showrefls THEN CRISPEX_DRAW_REFLS, event
 	IF (*(*info).winswitch).showphis AND (((*(*info).pbparams).mode EQ 'PAUSE') OR (*(*info).dispparams).phislice_update) THEN CRISPEX_DRAW_PHIS, event		
@@ -4039,7 +3796,7 @@ END
 PRO CRISPEX_DRAW_TIMESLICES, event
 ; (Re)draw timeslices procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_TIMESLICES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).winswitch).showsp THEN CRISPEX_DRAW_SP, event
 	IF (*(*info).winswitch).showrefsp THEN CRISPEX_DRAW_REFSP, event
 	IF (*(*info).winswitch).showloop THEN CRISPEX_DRAW_LOOPSLAB, event 
@@ -4051,7 +3808,7 @@ END
 PRO CRISPEX_DRAW_OTHER, event
 ; (Re)draw other windows procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_OTHER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).winswitch).showint THEN CRISPEX_DRAW_INT, event
 END
 
@@ -4059,7 +3816,7 @@ PRO CRISPEX_DRAW_SUBCOLOR, event, imref, subcolor, minimum, maximum, XYRANGE=xyr
       MAIN2SJI=main2sji
 ; Determines the color beneath the cursor to get the cursor color
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SUBCOLOR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (N_ELEMENTS(XYRANGE) EQ 0) THEN BEGIN
     IF KEYWORD_SET(MAIN2SJI) THEN BEGIN
       CRISPEX_COORDS_TRANSFORM_XY, event, /MAIN2SJI
@@ -4110,8 +3867,7 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
   SELECTED_DATA=selected_data
 ; Determines the minimum and maximum value for the image scaling
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SCALING'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	x_low = (*(*info).zooming).xpos
 	y_low = (*(*info).zooming).ypos
   d_nx = (*(*info).dataparams).d_nx
@@ -4217,8 +3973,7 @@ END
 PRO CRISPEX_DRAW_XY, event, no_cursor=no_cursor, no_number=no_number, thick=thick, no_endpoints=no_endpoints, symsize=symsize, asecbar=asecbar
 ; (Re)draw main image procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_XY'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).imwid
 	CRISPEX_DRAW_SCALING, event, imdisp, minimum, maximum, /MAIN
   TV, CONGRID(imdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
@@ -4247,8 +4002,7 @@ END
 PRO CRISPEX_DRAW_DOPPLER, event
 ; (Re)draw Doppler-image procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_DOPPLER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).dopwid
 	IF (*(*info).dispswitch).drawdop THEN BEGIN
 		CRISPEX_DRAW_SCALING, event, dopdisp, dopminimum, dopmaximum, /DOPPLER
@@ -4288,7 +4042,7 @@ END
 PRO CRISPEX_DRAW_REF, event
 ; (Re)draw reference image procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_REF'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).refwid
 	CRISPEX_DRAW_SCALING, event, refdisp, refmin, refmax, /REFERENCE
   TV, CONGRID(refdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny) 
@@ -4301,8 +4055,7 @@ END
 PRO CRISPEX_DRAW_IMREF_BLINK, event
 ; Handles the blinking of the main and reference image
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_IMREF_BLINK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET,(*(*info).winids).imrefwid
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).imrefwid], labels=['Window ID for draw']
@@ -4339,8 +4092,7 @@ END
 PRO CRISPEX_DRAW_REFLS, event
 ; (Re)draw reference detailed spectrum procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_REFLS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	order_corr = 0.
 	WSET, (*(*info).winids).reflswid
 	refspec = ((*(*info).dataparams).refspec)
@@ -4473,8 +4225,7 @@ END
 PRO CRISPEX_DRAW_REFSP, event	
 ; (Re)draw reference temporal spectrum procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_REFSP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET,(*(*info).winids).refspwid
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).refspwid], labels=['Window ID for draw']
@@ -4593,8 +4344,7 @@ END
 PRO CRISPEX_DRAW_SJI, event
 ; (Re)draw reference image procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SJI'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).sjiwid
 ;	sjimin = MIN( *(*(*info).data).sjislice, MAX=sjimax) 
 	CRISPEX_DRAW_SCALING, event, sjidisp, minimum, maximum, /SJI
@@ -4612,8 +4362,7 @@ END
 PRO CRISPEX_DRAW_INT, event
 ; (Re)draw intensity versus time plot procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_INT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).intwid
 ;	title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]
 	int_low_y = (*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s] 
@@ -4671,8 +4420,7 @@ END
 PRO CRISPEX_DRAW_LS, event
 ; (Re)draw detailed spectrum procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_LS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).lswid
   ; Loop over all Stokes parameters for detailed spectrum plots
 	FOR i=0,TOTAL((*(*info).stokesparams).select_sp)-1 DO BEGIN
@@ -4834,8 +4582,7 @@ END
 PRO CRISPEX_DRAW_SP, event	
 ; (Re)draw temporal spectrum procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_SP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET,(*(*info).winids).spwid
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).spwid], labels=['Window ID for draw']
@@ -4966,8 +4713,7 @@ END
 PRO CRISPEX_DRAW_PHIS, event
 ; (Re)draw spectral slice along a slit procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_PHIS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).phiswid
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).phiswid], labels=['Window ID for draw']
@@ -5164,8 +4910,7 @@ END
 PRO CRISPEX_DRAW_LOOPSLAB, event
 ; (Re)draw loop timeslice procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_LOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((SIZE(*(*(*info).loopsdata).crossloc))[1] NE (*(*info).loopparams).np) THEN BEGIN
 		CRISPEX_LOOP_GET, event
 		CRISPEX_UPDATE_LP, event
@@ -5216,8 +4961,7 @@ END
 PRO CRISPEX_DRAW_REFLOOPSLAB, event
 ; (Re)draw reference loop timeslice procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_REFLOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).refloopwid
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).refloopwid], labels=['Window ID for draw']
@@ -5261,8 +5005,7 @@ END
 PRO CRISPEX_DRAW_REST_LOOP, event
 ; (Re)draw restored loop timeslice procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_REST_LOOP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	FOR k=0,N_ELEMENTS(*(*(*info).winids).restlooptlb)-1 DO BEGIN
 		WSET, (*(*(*info).winids).restloopwid)[k]
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
@@ -5316,8 +5059,7 @@ END
 PRO CRISPEX_DRAW_RETR_DET, event
 ; (Re)draw restreived detection procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_RETR_DET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).retrdetwid
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).retrdetwid], labels=['Window ID for draw']
@@ -5340,7 +5082,7 @@ END
 PRO CRISPEX_ESTIMATE_TIME_WINDOW, event
 ; Opens the calculating saving time estimate window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_ESTIMATE_TIME_WINDOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': CALCULATING...', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
 	disp = WIDGET_BASE(base, /COLUMN)
 	message_base = WIDGET_BASE(disp, /COLUMN)
@@ -5357,7 +5099,7 @@ END
 PRO CRISPEX_ESTIMATE_TIME_CALCULATION, event
 ; Performs the actual saving time estimate calculation
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_DRAW_ESTIMATE_TIME_CALCULATION'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).loopswitch).retrieve_loops THEN BEGIN
 		RESTORE,(*(*(*info).retrparams).retrieve_files)[0]
 		*(*(*info).loopparams).xr = x_loop_pts		&	*(*(*info).loopparams).yr = y_loop_pts
@@ -5432,14 +5174,14 @@ PRO CRISPEX_EVENT, event
 ; Handles tab events
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_EVENT', /IGNORE_LAST
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 END
 
 ;================================================================================= FIND CRISPEX OUTPUT FILE PROCEDURES
 PRO CRISPEX_FIND_CLSAV, event
 ; Finds CLSAV output files (i.e. saved loop points files)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_FIND_CLSAV'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	imagefilename = STRMID((*(*info).dataparams).imfilename,STRPOS((*(*info).dataparams).imfilename,PATH_SEP(),/REVERSE_SEARCH)+1,STRLEN((*(*info).dataparams).imfilename))
 	firstsplit = STRMID(imagefilename,0,STRPOS(imagefilename,'.',/REVERSE_SEARCH))
 	fstr = STRSPLIT(firstsplit[0],'_',/EXTRACT)
@@ -5453,7 +5195,7 @@ END
 PRO CRISPEX_FIND_CSAV, event
 ; Finds CSAV output files (i.e. saved loopslice/slab files)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_FIND_CSAV'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	imagefilename = STRMID((*(*info).dataparams).imfilename,STRPOS((*(*info).dataparams).imfilename,PATH_SEP(),/REVERSE_SEARCH)+1,STRLEN((*(*info).dataparams).imfilename))
 	firstsplit = STRMID(imagefilename,0,STRPOS(imagefilename,'.',/REVERSE_SEARCH))
 	fstr = STRSPLIT(firstsplit[0],'_',/EXTRACT)
@@ -5480,7 +5222,7 @@ END
 PRO CRISPEX_HELP, event
 ; Opens the CRISPEX Reference Pages
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_HELP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	tempfile = FILEPATH('temp_crispex_redirect.html', /TMP)
 	OPENW, lun, tempfile, /GET_LUN
 	PRINTF, lun, '<HTML><HEADER><TITLE>CRISPEX help pages</TITLE><META HTTP-EQUIV="REFRESH" CONTENT="0;URL=http://folk.uio.no/gregal/crispex">'+$
@@ -5494,7 +5236,7 @@ END
 PRO CRISPEX_HELP_MAIL_BUG, event
 ; Opens a new message for bug reporting
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MAIL_BUG'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	tempfile = FILEPATH('temp_crispex_report_bug.html', /TMP)
 	subject = 'CRISPEX:%20Reporting%20bug%20in%20v'+(*(*info).versioninfo).version_number+'%20(rev%20'+(*(*info).versioninfo).revision_number+')'
 	OPENW, lun, tempfile, /GET_LUN
@@ -5510,7 +5252,7 @@ END
 PRO CRISPEX_HELP_MAIL_SUGGESTION, event
 ; Opens a new message for suggestion reporting
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MAIL_SUGGESTION'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	tempfile = FILEPATH('temp_crispex_report_suggestion.html', /TMP)
 	subject = 'CRISPEX:%20Suggestion%20after%20v'+(*(*info).versioninfo).version_number+'%20(rev%20'+(*(*info).versioninfo).revision_number+')'
 	OPENW, lun, tempfile, /GET_LUN
@@ -5526,8 +5268,7 @@ END
 PRO CRISPEX_HELP_SHORTCUTS, event
 ; Opens a window with an overview over the shortcuts
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MAIL_SUGGESTION'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Populate shortcut elements
   kb_shortcuts = [{sh:'Ctrl+Shift+I', label:'Zoom in'}, $
                   {sh:'Ctrl+Shift+O', label:'Zoom out'}, $
@@ -5589,7 +5330,7 @@ END
 PRO CRISPEX_INT_SAVE, event
 ; Handles the actual saving of the intensity-time plots
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_INT_SAVE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	CRISPEX_SAVE_DETERMINE_FILENAME, event, outfilename=intfilename, /tlab, ext='cint'
 	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1)
@@ -5615,7 +5356,7 @@ PRO CRISPEX_INTERRUPT, event
 ; Handles interrupting at runtime
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_INTERRUPT', /IGNORE_LAST
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	PRINT,'Interrupted CRISPEX at runtime. Type [.c] to continue...'
 	STOP
 END
@@ -6790,7 +6531,7 @@ END
 PRO CRISPEX_LOOP_DEFINE, event
 ; Handles the start of loop definition procedures
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_DEFINE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).overlayswitch).loopslit = event.SELECT
 	IF ((*(*info).overlayswitch).loopslit EQ 0) THEN BEGIN
 		IF ((*(*info).winids).looptlb GT 0) THEN WIDGET_CONTROL, (*(*info).winids).looptlb, /DESTROY
@@ -6821,7 +6562,8 @@ END
 PRO CRISPEX_LOOP_FEEDBACK, event
 ; Loop path feedback selection procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_FEEDBACK', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	(*(*info).overlayswitch).looppath_feedback = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).overlayswitch).looppath_feedback], labels=['Loop path feedback']
 END
@@ -6829,7 +6571,7 @@ END
 PRO CRISPEX_LOOP_GET, event
 ; Gets the loop path and (if the loop display window is open) also the loopslab for display
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_GET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_LOOP_GET_PATH, event
 	IF (*(*info).winswitch).showloop THEN BEGIN
 		CRISPEX_LOOP_GET_SLAB, event
@@ -6840,7 +6582,7 @@ END
 PRO CRISPEX_LOOP_GET_PATH, event
 ; Gets the actual loop path from spline interpolation
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_GET_PATH'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	np_local = (SIZE(*(*(*info).loopparams).xp))[1] 
 	IF (np_local GE 2) THEN BEGIN
 		IF ((*(*(*info).loopparams).xp)[np_local-1] EQ (*(*(*info).loopparams).xp)[np_local-2]) AND ((*(*(*info).loopparams).yp)[np_local-1] EQ (*(*(*info).loopparams).yp)[np_local-2]) THEN RETURN
@@ -6857,7 +6599,7 @@ END
 PRO CRISPEX_LOOP_GET_SLAB, event
 ; Handles the extraction of the loopslab for display
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_GET_SLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).exts THEN BEGIN
 		WIDGET_CONTROL, /HOURGLASS
 		lp_orig = (*(*info).dataparams).lp
@@ -6881,7 +6623,7 @@ END
 PRO CRISPEX_LOOP_GET_REFSLAB, event
 ; Handles the extraction of the reference loopslab for display
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_GET_REFSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).refexts THEN BEGIN
 		WIDGET_CONTROL, /HOURGLASS
 		lp_orig = (*(*info).dataparams).lp_ref
@@ -6903,7 +6645,7 @@ END
 PRO CRISPEX_LOOP_GET_APPROX_SLAB, event, xrs, yrs, xps, yps, ap_loopslab, ap_crossloc, ap_loopsize, REFERENCE=reference
 ; Gets the approximated loopslab for in-pragram display
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_GET_APPROX_SLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF KEYWORD_SET(REFERENCE) THEN BEGIN
 		FOR i=0,(SIZE(xrs))[1]-1 DO BEGIN
 			IF (i EQ 0) THEN tmp = ((*(*(*info).data).refspdata)[ROUND(yrs[i]) * (*(*info).dataparams).nx + ROUND(xrs[i])]) ELSE $
@@ -6929,8 +6671,7 @@ END
 PRO CRISPEX_LOOP_GET_EXACT_SLICE, event, extractdata, xrs, yrs, xps, yps, w_lpts, ex_loopslice, ex_crossloc, ex_loopsize, NO_NLP=no_nlp, im=im
 ; Gets the exact loopslice for in-program display
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info			
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_GET_EXACT_SLICE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF KEYWORD_SET(IM) THEN BEGIN
     tlow = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).tlow]
     tupp = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).tupp]
@@ -6987,7 +6728,7 @@ END
 PRO CRISPEX_LOOP_REMOVE_POINT, event
 ; Handles the removal of a loop point
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_LOOP_REMOVE_POINT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).loopparams).np -= 1
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).loopparams).np], labels=['np']
 	*(*(*info).loopparams).xp = (*(*(*info).loopparams).xp)[0:(*(*info).loopparams).np-1]
@@ -7017,7 +6758,7 @@ END
 PRO CRISPEX_MASK_OVERLAY_COLOR_SLIDER, event
 ; Handles the change mask overlay window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MASK_OVERLAY_COLOR_SLIDER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).overlayparams).maskcolor = event.VALUE
 	CRISPEX_DRAW, event
 END
@@ -7025,7 +6766,7 @@ END
 PRO CRISPEX_MASK_OVERLAY_SELECT_COLOR_TABLE, event
 ; Handles the change mask overlay window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MASK_OVERLAY_SELECT_COLOR_TABLE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).overlayparams).maskct = event.index
 	CRISPEX_DRAW, event
 END
@@ -7033,7 +6774,7 @@ END
 PRO CRISPEX_MASK_BUTTONS_SET, event
 ; Handles the setting of mask buttons
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MASK_BUTTONS_SET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[0],SET_BUTTON = ((*(*info).overlayswitch).maskim)[0], SENSITIVE = (*(*info).overlayswitch).mask
 	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[1],SET_BUTTON = ((*(*info).overlayswitch).maskim)[1], SENSITIVE = ((*(*info).overlayswitch).mask AND (*(*info).dataswitch).reffile)
 	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[2],SET_BUTTON = ((*(*info).overlayswitch).maskim)[2], SENSITIVE = ((*(*info).overlayswitch).mask AND (*(*info).winswitch).showdop)
@@ -7042,8 +6783,7 @@ END
 PRO CRISPEX_MASK_OVERLAY_RASTER_TOGGLE, event
 ; Updates reference loopslab display window plot axes range according to set parameters
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MASK_OVERLAY_RASTER_TOGGLE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   (*(*info).overlayswitch).sjiraster = event.SELECT
   CRISPEX_DRAW_SJI, event
 END
@@ -7053,7 +6793,7 @@ PRO CRISPEX_MEASURE_ARCSEC, event
 ; Handles the change of arcseconds per pixel resolution
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_ARCSEC', /IGNORE_LAST
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, GET_VALUE = textvalue
 	(*(*info).meas).arcsecpix = FLOAT(textvalue[0])
 	IF ((*(*info).meas).np GT 0) THEN CRISPEX_MEASURE_CALC, event
@@ -7065,7 +6805,7 @@ PRO CRISPEX_MEASURE_ENABLE, event
 ; Enables the spatial measurement tool
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_ENABLE', /IGNORE_LAST
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, SENSITIVE = event.SELECT
@@ -7097,8 +6837,7 @@ END
 PRO CRISPEX_MEASURE_CALC, event
 ; Computes the actual distance from the measurement line length and resolution
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_MEASURE_CALC'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   au = 149697870. 
 	delta_x = FLOAT((*(*(*info).meas).xp)[1]-(*(*(*info).meas).xp)[0]) * (*(*info).dataparams).dx
 	delta_y = FLOAT((*(*(*info).meas).yp)[1]-(*(*(*info).meas).yp)[0]) * (*(*info).dataparams).dy
@@ -7126,7 +6865,7 @@ END
 PRO CRISPEX_PB_BG, event
 ; Handles the actual playback, given the mode of playback
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_BG'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CASE (*(*info).pbparams).mode OF
 		'PAUSE'	: BEGIN
 				IF (*(*info).pbparams).spmode THEN BEGIN
@@ -7202,7 +6941,7 @@ END
 PRO CRISPEX_PB_BUTTONS_SET, event, fbwd_set=fbwd_set, bwd_set=bwd_set, pause_set=pause_set, fwd_set=fwd_set, ffwd_set=ffwd_set, loop_set=loop_set, cycle_set=cycle_set, blink_set=blink_set
 ; Sets playback buttons according to actions
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_BUTTONS_SET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (KEYWORD_SET(LOOP_SET) OR KEYWORD_SET(CYCLE_SET) OR KEYWORD_SET(BLINK_SET)) THEN BEGIN
 		IF KEYWORD_SET(LOOP_SET) THEN WIDGET_CONTROL, (*(*info).ctrlscp).loop_button, SET_VALUE = (*(*info).ctrlspbbut).loop_pressed, /SET_BUTTON ELSE $
 			WIDGET_CONTROL, (*(*info).ctrlscp).loop_button, SET_VALUE = (*(*info).ctrlspbbut).loop_idle
@@ -7227,7 +6966,7 @@ END
 PRO CRISPEX_PB_BACKWARD, event
 ; Sets the playback mode to backward play
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_BACKWARD'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).pbparams).mode EQ 'PLAY' AND (*(*info).pbparams).direction EQ -1 THEN RETURN
 	(*(*info).pbparams).direction = -1			&	(*(*info).pbparams).mode = 'PLAY'
 	WIDGET_CONTROL, (*(*info).pbparams).bg, TIMER = 0.0
@@ -7238,7 +6977,7 @@ END
 PRO CRISPEX_PB_FORWARD, event
 ; Sets the playback mode to forward play
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_FORWARD'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).pbparams).mode EQ 'PLAY' AND (*(*info).pbparams).direction EQ 1 THEN RETURN
 	(*(*info).pbparams).direction = 1			&	(*(*info).pbparams).mode = 'PLAY'
 	WIDGET_CONTROL, (*(*info).pbparams).bg, TIMER = 0.0
@@ -7249,7 +6988,7 @@ END
 PRO CRISPEX_PB_FASTBACKWARD, event
 ; Sets the playback mode to single step backward
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_FASTBACKWARD'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).pbparams).mode EQ 'PAUSE' OR (*(*info).pbparams).lmode EQ 'BLINK' THEN BEGIN
 		CRISPEX_PB_BUTTONS_SET, event, /FBWD_SET
 		(*(*info).dispparams).t -= (*(*info).pbparams).t_step
@@ -7266,7 +7005,7 @@ END
 PRO CRISPEX_PB_FASTFORWARD, event
 ; Sets the playback mode to single step forward
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_FASTFORWARD'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).pbparams).mode EQ 'PAUSE' OR (*(*info).pbparams).lmode EQ 'BLINK' THEN BEGIN
 		CRISPEX_PB_BUTTONS_SET, event, /FFWD_SET
 		(*(*info).dispparams).t = (((*(*info).dispparams).t - (*(*info).dispparams).t_low + (*(*info).pbparams).t_step) MOD ((*(*info).dispparams).t_upp - (*(*info).dispparams).t_low + 1)) + (*(*info).dispparams).t_low
@@ -7282,7 +7021,7 @@ END
 PRO CRISPEX_PB_PAUSE, event
 ; Sets the playback mode pause
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_PAUSE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).pbparams).mode EQ 'PAUSE' THEN RETURN
 	(*(*info).pbparams).mode = 'PAUSE'
 	IF ((*(*info).winids).feedbacktlb NE 0) THEN BEGIN
@@ -7297,7 +7036,7 @@ END
 PRO CRISPEX_PB_BLINK, event
 ; Sets the playback mode to temporal blink
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_BLINK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lmode = 'BLINK'
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
 	CRISPEX_PB_BUTTONS_SET, event, /BLINK_SET
@@ -7306,7 +7045,7 @@ END
 PRO CRISPEX_PB_CYCLE, event
 ; Sets the playback mode to cycle
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_CYCLE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lmode = 'CYCLE'
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
 	CRISPEX_PB_BUTTONS_SET, event, /CYCLE_SET
@@ -7315,7 +7054,7 @@ END
 PRO CRISPEX_PB_LOOP, event
 ; Sets the playback mode to loop
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_LOOP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lmode = 'LOOP'
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
 	CRISPEX_PB_BUTTONS_SET, event, /LOOP_SET
@@ -7324,7 +7063,7 @@ END
 PRO CRISPEX_PB_SPECTBLINK, event
 ; Sets the playback mode to spectral blink
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PB_SPECTBLINK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).spmode = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).imref_blink_but, SENSITIVE=ABS((*(*info).pbparams).spmode-1)
 	IF (*(*info).pbparams).spmode THEN BEGIN
@@ -7348,8 +7087,7 @@ END
 PRO CRISPEX_PHISLIT_GET_SLICE, event
 ; Gets the spectral phi slit slice
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PHISLIT_GET_SLICE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	x_pts = COS(!DTOR * (*(*info).phiparams).angle) * (FINDGEN( 2*(*(*info).phiparams).nphi_set/2) - $
               (*(*info).phiparams).nphi_set/2) + FIX((*(*info).dataparams).x)
 	y_pts = SIN(!DTOR * (*(*info).phiparams).angle) * (FINDGEN( 2*(*(*info).phiparams).nphi_set/2) - $
@@ -7372,7 +7110,7 @@ END
 PRO CRISPEX_PHISLIT_DIRECTION, event
 ; Determines the direction of the spectral phi slit
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PHISLIT_DIRECTION'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	x_maxpts = COS(!DTOR * (*(*info).phiparams).angle) * (FINDGEN( 2 * (*(*info).phiparams).nphi/2) - (*(*info).phiparams).nphi/2) + FIX((*(*info).dataparams).x)
 	y_maxpts = SIN(!DTOR * (*(*info).phiparams).angle) * (FINDGEN( 2 * (*(*info).phiparams).nphi/2) - (*(*info).phiparams).nphi/2) + FIX((*(*info).dataparams).y)
 	wmax = WHERE((x_maxpts GE 0 ) AND (x_maxpts LE (*(*info).dispparams).x_last) AND (y_maxpts GE 0) AND (y_maxpts LE (*(*info).dispparams).y_last), nwmax)
@@ -7397,7 +7135,7 @@ END
 PRO CRISPEX_PHISLIT_MOVE_BWD, event
 ; Handles the movement of the spectral phi slit backward along the slit
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PHISLIT_MOVE_BWD'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	newindex = (*(*info).phiparams).curindex-1
 	(*(*info).phiparams).curindex = newindex
 	(*(*info).dataparams).x = ((*(*(*info).data).indices)[newindex,*])[0]
@@ -7416,7 +7154,7 @@ END
 PRO CRISPEX_PHISLIT_MOVE_FWD, event
 ; Handles the movement of the spectral phi slit forward along the slit
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PHISLIT_MOVE_FWD'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	newindex = (*(*info).phiparams).curindex+1
 	(*(*info).phiparams).curindex = newindex
 	(*(*info).dataparams).x = ((*(*(*info).data).indices)[newindex,*])[0]
@@ -7435,7 +7173,7 @@ END
 PRO CRISPEX_PHISLIT_MOVE_SET_COORDS, event
 ; Handles the coordinate update after the movement of the spectral phi slit along the slit
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PHISLIT_MOVE_SET_COORDS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
 		(*(*info).curs).sx = (*(*info).dataparams).x * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
 		(*(*info).curs).sy = (*(*info).dataparams).y * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
@@ -7455,8 +7193,7 @@ END
 PRO CRISPEX_PREFERENCES_WINDOW, event
 ; Opens up the preferences window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_WINDOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	base 		= WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+$
     ': Preferences', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, $
     /TLB_KILL_REQUEST_EVENTS)
@@ -7617,8 +7354,7 @@ END
 PRO CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 ; Handles the checking whether preference buttons and values are in their default position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (((*(*info).prefs).tmp_autoplay NE (*(*info).prefs).default_autoplay) OR $
 		((*(*info).prefs).tmp_startupwin NE (*(*info).prefs).default_startupwin) OR $
 		((*(*info).prefs).tmp_bgplotcol NE (*(*info).prefs).default_bgplotcol) OR $
@@ -7643,7 +7379,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_STARTUPWIN, event
 ; Handles the toggle on/off setting of start-up window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_STARTUPWIN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_startupwin = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_startupwin], labels=['Startup window']
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
@@ -7652,7 +7388,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_AUTOPLAY, event
 ; Handles the toggle on/off setting of autoplay at start-up
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_AUTOPLAY'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_autoplay = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_autoplay], labels=['Autoplay']
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
@@ -7661,7 +7397,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_BGPLOTCOL, event
 ; Handles the setting of the background plot color
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_BGPLOTCOL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_bgplotcol = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_bgplotcol], labels=['Background color']
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
@@ -7674,7 +7410,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_PHISLICE_UPDATE, event									
 ; Handles the toggle on/off live update of spectral phi-slice
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_PHISLICE_UPDATE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_phislice_update = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_phislice_update], labels=['Live update spectral Phi-slice']
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
@@ -7683,7 +7419,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_PLOTCOL, event
 ; Handles the setting of the line plot color
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_PLOTCOL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_plotcol = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_plotcol], labels=['Plot color']
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
@@ -7696,8 +7432,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_SLICES_IMSCALE, event									
 ; Handles the toggle on/off scaling of slices according to main/reference image scaling
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_SLICES_IMSCALE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_slices_imscale = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_slices_imscale], $
@@ -7708,8 +7443,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_SCALING_HISTO_OPT, event
 ; Handles setting the default histrogram optimisation value
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_SCALING_HISTO_OPT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlspref).histo_opt_txt, GET_VALUE = textvalue
 	(*(*info).prefs).tmp_histo_opt_val = textvalue[0]
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
@@ -7721,8 +7455,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_SCALING_GAMMA, event
 ; Handles setting the default histrogram optimisation value
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_SCALING_GAMMA'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   (*(*info).prefs).tmp_gamma_val = 10.^((FLOAT(event.VALUE)/500.) - 1.)
   WIDGET_CONTROL, (*(*info).ctrlspref).gamma_label, $
     SET_VALUE=STRING((*(*info).prefs).tmp_gamma_val,FORMAT='(F6.3)')
@@ -7735,7 +7468,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_INTERPOLATE, event
 ; Handles the toggle on/off setting of interpolating the spectral slices
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_INTERPOLATE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_interpspslice = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_interpspslice], labels=['Interpolate']
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
@@ -7748,7 +7481,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_IPATH_SEL_DEFAULT, event
 ; Handles the toggle on/off selection of the default input path
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_IPATH_SEL_DEFAULT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_defipath = ABS(event.SELECT-1)
 	(*(*info).prefs).tmp_prefipath = (*(*info).prefs).default_prefipath
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_ipath_text, SET_VALUE = (*(*info).prefs).default_prefipath, SENSITIVE = (*(*info).prefs).tmp_defipath
@@ -7760,7 +7493,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_IPATH_SEL_OTHER, event
 ; Handles the toggle on/off selection of different input path
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_IPATH_SEL_OTHER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_defipath = event.SELECT
 	IF (*(*info).prefs).tmp_defipath THEN BEGIN
 		IF ((*(*info).prefs).tmp_prefipath NE (*(*info).paths).ipath) THEN (*(*info).prefs).tmp_prefipath = (*(*info).paths).ipath
@@ -7776,7 +7509,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_IPATH_OTHER, event
 ; Handles the setting of the input path
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_IPATH_OTHER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_ipath_text, GET_VALUE = textvalue
 	(*(*info).prefs).tmp_prefipath = textvalue[0]
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_iopath, SENSITIVE = ((*(*info).prefs).tmp_prefopath NE (*(*info).prefs).tmp_prefipath)
@@ -7787,7 +7520,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_OPATH_SEL_DEFAULT, event
 ; Handles the toggle on/off selection of the default output path
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_OPATH_SEL_DEFAULT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_defopath = ABS(event.SELECT-1)
 	(*(*info).prefs).tmp_prefopath = (*(*info).prefs).default_prefopath
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_opath_text, SET_VALUE = (*(*info).prefs).default_prefopath, SENSITIVE = (*(*info).prefs).tmp_defopath
@@ -7799,7 +7532,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_OPATH_SEL_OTHER, event
 ; Handles the toggle on/off selection of different output path
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_OPATH_SEL_OTHER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_defopath = event.SELECT
 	IF (*(*info).prefs).tmp_defopath THEN BEGIN
 		IF ((*(*info).prefs).tmp_prefopath NE (*(*info).paths).opath) THEN (*(*info).prefs).tmp_prefopath = (*(*info).paths).opath
@@ -7815,7 +7548,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_OPATH_OTHER, event
 ; Handles the setting of the output path
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_OPATH_OTHER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_opath_text, GET_VALUE = textvalue
 	(*(*info).prefs).tmp_prefopath = textvalue[0]
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_iopath, SENSITIVE = ((*(*info).prefs).tmp_prefopath NE (*(*info).prefs).tmp_prefipath)
@@ -7826,7 +7559,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_IOPATH, event
 ; Handles the setting of the output path to the input path
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_IOPATH'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_prefopath = (*(*info).prefs).tmp_prefipath
 	(*(*info).prefs).tmp_defopath = (*(*info).prefs).tmp_defipath
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_o_def_but, SET_BUTTON = ABS((*(*info).prefs).tmp_defopath-1)
@@ -7841,7 +7574,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_PREVIEW, event
 ; Handles the enabling of preview mode
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_PREVIEW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).preview = event.SELECT
 	IF (*(*info).prefs).preview THEN BEGIN
 		(*(*info).plotparams).plotcol = (*(*info).prefs).tmp_plotcol		&	(*(*info).plotparams).bgplotcol = (*(*info).prefs).tmp_bgplotcol
@@ -7857,7 +7590,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_SAVEID, event
 ; Handles the setting of unique save ID
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_SAVEID'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_defsaveid = event.INDEX
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_defsaveid], labels=['Default save ID']
 	CRISPEX_SAVE_DETERMINE_SAVEID, event, defsaveid_sample, /PREF
@@ -7868,7 +7601,7 @@ END
 PRO CRISPEX_PREFERENCES_SET_DEFAULTS, event
 ; Handles the setting of all defaults
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SET_DEFAULTS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).prefs).tmp_startupwin = (*(*info).prefs).default_startupwin
   (*(*info).prefs).tmp_interpspslice = (*(*info).prefs).default_interpspslice
 	(*(*info).prefs).tmp_autoplay = (*(*info).prefs).default_autoplay
@@ -7923,7 +7656,7 @@ END
 PRO CRISPEX_PREFERENCES_SAVE_SETTINGS, event, RESAVE=resave
 ; Handles the saving of settings
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_SAVE_SETTINGS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CD, CURRENT=curpath
 	IF (*(*info).prefs).tmp_defipath THEN BEGIN
 		IF ((*(*info).prefs).tmp_prefipath EQ curpath) THEN (*(*info).prefs).tmp_defipath = 0
@@ -7964,7 +7697,7 @@ END
 PRO CRISPEX_PREFERENCES_CANCEL, event
 ; Handles the exiting from the preferences window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_CANCEL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).prefs).preview THEN BEGIN
 		(*(*info).plotparams).plotcol = (*(*info).prefs).plotcol_old		& 	(*(*info).plotparams).bgplotcol = (*(*info).prefs).bgplotcol_old
 		(*(*info).dispparams).interpspslice = (*(*info).prefs).interpspslice_old
@@ -7977,7 +7710,7 @@ END
 PRO CRISPEX_PREFERENCES_REDRAW, event
 ; Handles the redrawing of plot windows in case the preview mode is set
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_PREFERENCES_REDRAW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).winids).sptlb NE 0) THEN CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
 	IF (TOTAL(*(*(*info).winids).restlooptlb) NE 0) THEN CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_REPLOT_AXES, event
 	IF ((*(*info).winids).retrdettlb NE 0) THEN CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB_REPLOT_AXES, event
@@ -8402,7 +8135,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_MAIN, event
 ; Start the restore loops procedures, opens the menu if CLSAV files are present or otherwise returns an error message
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_MAIN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).loopswitch).restore_loops = event.SELECT
 	CRISPEX_FIND_CSAV, event
 	IF ((*(*info).restoreparams).cfilecount GT 0) THEN BEGIN
@@ -8423,7 +8156,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_MENU, event, set_but_array
 ; Sets up the restored loops menu and reads in the loop points
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_MENU'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL,/HOURGLASS
 	filenames = *(*(*info).restoreparams).cfiles
 	filecount = (*(*info).restoreparams).cfilecount
@@ -8494,7 +8227,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_MENU_EVENT, event
 ; Handles the selection of loops to be restored
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_MENU_EVENT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	(*(*(*info).restoreparams).sel_loops)[eventval] = ( (*(*(*info).restoreparams).sel_loops)[eventval] EQ 0) 
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).restoreparams).sel_loops)[eventval]], labels=['Loop ID','Loop selected']
@@ -8505,7 +8238,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_BUTTON_CONDITION, event
 ; Handles the update of buttons after selection
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_BUTTON_CONDITION'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	condition = WHERE(*(*(*info).restoreparams).sel_loops EQ 1)
 	WIDGET_CONTROL, (*(*info).ctrlsrestore).sel_none, SET_BUTTON = ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1)
 	WIDGET_CONTROL, (*(*info).ctrlsrestore).sel_all, SET_BUTTON = (((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) AND (N_ELEMENTS(condition) EQ (*(*info).restoreparams).cfilecount))
@@ -8516,7 +8249,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_MENU_CLOSE, event
 ; Handles the closing of the restored loops menu and clean-up of display afterwards
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_MENU_CLOSE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).dispparams).t_range NE (*(*info).dataparams).nt) THEN CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW
 	IF ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp) THEN CRISPEX_DISPRANGE_LP_RESET, event, /NO_DRAW
 	IF ((*(*info).dispparams).lp_ref_range NE (*(*info).dataparams).refnlp) THEN CRISPEX_DISPRANGE_LP_REF_RESET, event, /NO_DRAW
@@ -8546,7 +8279,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_SEL_ALL, event
 ; Handles selection of all restored loops
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_SEL_ALL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	*(*(*info).restoreparams).sel_loops = REPLICATE(1,(*(*info).restoreparams).cfilecount)
 	FOR i=0,(*(*info).restoreparams).cfilecount-1 DO BEGIN
 		name = 'sel_restore_but_'+STRTRIM(i,2)
@@ -8558,7 +8291,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_SEL_NONE, event
 ; Handles selection of none restored loops
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_SEL_NONE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	*(*(*info).restoreparams).sel_loops = REPLICATE(0,(*(*info).restoreparams).cfilecount)
 	FOR i=0,(*(*info).restoreparams).cfilecount-1 DO BEGIN
 		name = 'sel_restore_but_'+STRTRIM(i,2)
@@ -8570,7 +8303,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_UPDATE_FILELIST, event
 ; Handles the update of the restored file list
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_UPDATE_FILELIST'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).dispparams).t_range NE (*(*info).dataparams).nt) THEN CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW
 	IF ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp) THEN CRISPEX_DISPRANGE_LP_RESET, event, /NO_DRAW
 	IF ((*(*info).dispparams).lp_ref_range NE (*(*info).dataparams).refnlp) THEN CRISPEX_DISPRANGE_LP_REF_RESET, event, /NO_DRAW
@@ -8597,7 +8330,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_ALWAYS, event
 ; Sets the display of restored loops to always (i.e. at all spectral positions) or selected (i.e. at saved positions)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_ALWAYS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).overlayswitch).overlalways = event.SELECT
 	IF ((*(*info).loopswitch).restore_loops EQ 0) THEN CRISPEX_RESTORE_LOOPS_MAIN, event ELSE CRISPEX_DRAW, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).overlayswitch).overlalways], labels=['Overlay loops always']
@@ -8606,7 +8339,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_OPEN_TANAT, event			
 ; Handles all prior to loading TANAT to analyse the selected loop slice/slab
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_OPEN_TANAT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	path_tanat = (ROUTINE_INFO('TANAT',/SOURCE)).PATH								; CHeck whether TANAT has already been compiled
 	tanat_file = FILE_SEARCH((*(*info).paths).dir_aux,'tanat.pro', /FULLY_QUALIFY_PATH, COUNT=tanat_count)	; Try to find TANAT where it should be
 	IF (tanat_count EQ 1) THEN (*(*info).paths).dir_tanat = (*(*info).paths).dir_aux
@@ -8642,7 +8375,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_OPEN_TANAT_REPOINT, event				
 ; Handles (re)pointing CRISPEX to the correct copy of TANAT
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_OPEN_TANAT_REPOINT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	file_tanat = DIALOG_PICKFILE(PATH='~/', FILTER='*.pro', /FIX_FILTER, /MUST_EXIST, TITLE='CRISPEX'+(*(*info).sesparams).instance_label+': Choose copy of TANAT to compile')
 	(*(*info).paths).dir_tanat = STRMID(file_tanat,0,STRPOS(file_tanat,'/',/REVERSE_SEARCH))
 	!PATH = (*(*info).paths).dir_tanat+':'+!PATH
@@ -8658,7 +8391,7 @@ END
 PRO CRISPEX_RESTORE_LOOPS_OPEN_TANAT_OPEN, event
 ; Handles the actual loading TANAT to analyse the selected loop slice/slab
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RESTORE_LOOPS_OPEN_TANAT_OPEN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).winids).errtlb GT 0) THEN BEGIN
 		WIDGET_CONTROL, (*(*info).winids).root, SET_UVALUE = info
 		WIDGET_CONTROL, (*(*info).winids).errtlb,/DESTROY
@@ -8674,7 +8407,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_FILE_MENU, event, set_but_array, DETFILENAME=detfilename, NO_DRAW=no_draw
 ; Opens the retrieved detections menu and reads in the data from the detection file
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_FILE_MENU'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (N_ELEMENTS(detfilename) NE 1) THEN (*(*info).detparams).detfilename = DIALOG_PICKFILE(/READ, /MUST_EXIST, TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Select detection file')
 	IF ((*(*info).detparams).detfilename EQ '') THEN BEGIN
 		(*(*info).loopswitch).retrieve_detfile = 0
@@ -8801,7 +8534,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_SEL_ALL, event
 ; Handles the selection of all detections
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_SEL_ALL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	*(*(*info).detparams).sel_dets = REPLICATE(1,(*(*info).detparams).nr_dets)
 	WIDGET_CONTROL, (*(*info).ctrlsdet).get_dets, SENSITIVE = 1
 	FOR i=0,(*(*info).detparams).nr_dets-1 DO BEGIN
@@ -8814,7 +8547,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_SEL_NONE, event
 ; Handles the selection of no detections
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_SEL_NONE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	*(*(*info).detparams).sel_dets = REPLICATE(0,(*(*info).detparams).nr_dets)
 	WIDGET_CONTROL, (*(*info).ctrlsdet).get_dets, SENSITIVE = 0
 	FOR i=0,(*(*info).detparams).nr_dets-1 DO BEGIN
@@ -8827,7 +8560,8 @@ END
 PRO CRISPEX_RETRIEVE_DET_MENU_EVENT, event
 ; Handles the selection of a certain detection
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_MENU_EVENT', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	(*(*(*info).detparams).sel_dets)[eventval] = ( (*(*(*info).detparams).sel_dets)[eventval] EQ 0) 
 	condition = WHERE(*(*(*info).detparams).sel_dets EQ 1)
@@ -8844,7 +8578,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_OVERLAY_ALL, event
 ; Enables the overlay of all or no detections
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_OVERLAY_ALL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).overlayswitch).det_overlay_all = event.SELECT
 	CRISPEX_DRAW, event
 END
@@ -8852,7 +8586,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_WIDTH, event
 ; Handles the width of the retrieved detection
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_WIDTH'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	prev_width = (*(*info).detparams).width
 	set_width = event.VALUE
 	IF (set_width NE prev_width) THEN BEGIN
@@ -8876,7 +8610,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_ALL_POS, event
 ; Enables the retreival of detections at all spectral positions
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_ALL_POS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).pos_dets = 1
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmin_text, SENSITIVE = 0
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmax_text, SENSITIVE = 0
@@ -8890,7 +8624,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_CUR_POS, event
 ; Enables the retreival of detections at the current spectral position only
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_CUR_POS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).pos_dets = 2
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmin_text, SENSITIVE = 0
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmax_text, SENSITIVE = 0
@@ -8904,7 +8638,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_SEL_RANGE_POS, event
 ; Enables the retreival of detections at a selected range of spectral positions
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_SEL_RANGE_POS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).pos_dets = 3
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmin_text, SENSITIVE = ((*(*info).savswitch).det_imref_only NE 2)
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmax_text, SENSITIVE = ((*(*info).savswitch).det_imref_only NE 2)
@@ -8920,7 +8654,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_IMCUBE_ONLY, event
 ; Enables the retreival of detections from the image cube only
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_IMCUBE_ONLY'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).det_imref_only = 1
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmin_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3) 
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmax_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3) 
@@ -8932,7 +8666,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_REFCUBE_ONLY, event
 ; Enables the retreival of detections from the reference cube only
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_REFCUBE_ONLY'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).det_imref_only = 2
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmin_text, SENSITIVE = 0
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmax_text, SENSITIVE = 0
@@ -8944,7 +8678,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_IMREF, event
 ; Enables the retreival of detections from both the image and the reference cube
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_IMREF'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).det_imref_only = 3
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmin_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3) 
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmax_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3) 
@@ -8956,7 +8690,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_SEL_LOOPS, event
 ; Opens the warning windows giving the saving time estimates of the chosen saving procedure, intermediate step towards saving detection loopslabs
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_SEL_LOOPS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	IF ((*(*info).paths).opath_write EQ 1) THEN BEGIN
 		*(*(*info).detparams).sel_loops = WHERE(*(*(*info).detparams).sel_dets EQ 1)
@@ -9036,7 +8770,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_DELTA_T_DN, event
 ; Handles the change in delta_t down from the detection framenumber
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_DELTA_T_DN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dtmin_text, GET_VALUE = textvalue
 	(*(*info).detparams).delta_t_dn = FLOAT(LONG(FLOAT(textvalue[0])))
 	IF (((*(*info).detparams).delta_t_dn GE 0) AND ((*(*info).detparams).delta_t_dn LT 1)) THEN (*(*info).detparams).delta_t_dn = 1 
@@ -9049,7 +8783,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_DELTA_T_UP, event
 ; Handles the change in delta_t up from the detection framenumber
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_DELTA_T_UP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dtmax_text, GET_VALUE = textvalue
 	(*(*info).detparams).delta_t_up = FLOAT(LONG(FLOAT(textvalue[0])))
 	IF (((*(*info).detparams).delta_t_up GE 0) AND ((*(*info).detparams).delta_t_up LT 1)) THEN (*(*info).detparams).delta_t_up = 1 
@@ -9062,7 +8796,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_LP_DN, event
 ; Handles the change in lower spectral boundary for the detection extraction
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_LP_DN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmin_text, GET_VALUE = textvalue
 	(*(*info).detparams).lp_dn = FLOAT(textvalue[0])
 	IF ((*(*info).detparams).lp_dn LT (*(*info).dispparams).lp_first) THEN (*(*info).detparams).lp_dn = (*(*info).dispparams).lp_first ELSE IF ((*(*info).detparams).lp_dn GE (*(*info).detparams).lp_up) THEN $
@@ -9076,7 +8810,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_LP_UP, event
 ; Handles the change in upper spectral boundary for the detection extraction
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_LP_UP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmax_text, GET_VALUE = textvalue
 	(*(*info).detparams).lp_up = FLOAT(textvalue[0])
 	IF ((*(*info).detparams).lp_up GT (*(*info).dispparams).lp_last) THEN (*(*info).detparams).lp_up = (*(*info).dispparams).lp_last ELSE IF ((*(*info).detparams).lp_up LE (*(*info).detparams).lp_dn) THEN $
@@ -9090,7 +8824,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_LP_REF_DN, event
 ; Handles the change in lower spectral boundary for the detection extraction
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_LP_REF_DN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsdet).refdlpmin_text, GET_VALUE = textvalue
 	(*(*info).detparams).lp_ref_dn = FLOAT(textvalue[0])
 	IF ((*(*info).detparams).lp_ref_dn LT (*(*info).dispparams).lp_ref_first) THEN (*(*info).detparams).lp_ref_dn = (*(*info).dispparams).lp_ref_first ELSE $
@@ -9102,7 +8836,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_LP_REF_UP, event
 ; Handles the change in upper spectral boundary for the detection extraction
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_LP_REF_UP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsdet).refdlpmax_text, GET_VALUE = textvalue
 	(*(*info).detparams).lp_ref_up = FLOAT(textvalue[0])
 	IF ((*(*info).detparams).lp_ref_up GT (*(*info).dispparams).lp_ref_last) THEN (*(*info).detparams).lp_ref_up = (*(*info).dispparams).lp_ref_last ELSE $
@@ -9114,7 +8848,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_GET_SLICE, event
 ; Handles the in-program display of the detection loopslab
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_GET_SLICE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	tmp_loopslab = 0
 	delta = FLOOR((*(*info).detparams).width/2.)
 	FOR k=((*(*info).detparams).mid-delta),((*(*info).detparams).mid+delta) DO BEGIN
@@ -9158,7 +8892,7 @@ END
 PRO CRISPEX_RETRIEVE_DET_CANCEL, event
 ; Handles the closing of the detection file menu
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_DET_CANCEL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).loopswitch).retrieve_detfile = 0
 	(*(*info).winswitch).showretrdet = 0
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).loopswitch).retrieve_detfile,(*(*info).winids).detsavetlb], labels=['Retrieving detections','retrdettlb was']
@@ -9182,7 +8916,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_MENU, event, set_but_array
 ; Sets up the retrieved loop points menu and reads in the data from the respective files
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_MENU'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_FIND_CLSAV, event
 	IF ((*(*info).retrparams).clfilecount GT 0) THEN BEGIN
 		WIDGET_CONTROL,/HOURGLASS
@@ -9268,7 +9002,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_MENU_EVENT, event
 ; Handles the selection of a certain retrieved loop point file
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_MENU_EVENT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	(*(*(*info).retrparams).sel_loops)[eventval] = ( (*(*(*info).retrparams).sel_loops)[eventval] EQ 0)
 	condition = WHERE(*(*(*info).retrparams).sel_loops EQ 1)
@@ -9284,7 +9018,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_MENU_CANCEL, event
 ; Handles the closing of the retrieved loop menu
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_MENU_CANCEL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).sel_saved_loop, SENSITIVE = 1
 	(*(*info).loopswitch).retrieve_loops = 0
 	(*(*info).loopswitch).restore_loops = (*(*info).loopswitch).was_restore_loops
@@ -9299,7 +9033,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_MENU_CONTINUE, event
 ; Opens the warning windows giving the saving time estimates of the chosen saving procedure, intermediate step towards saving selected retrieved loopslabs
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_MENU_CONTINUE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	IF ((*(*info).paths).opath_write EQ 1) THEN BEGIN
 		*(*(*info).retrparams).retrieve_files = (*(*(*info).retrparams).clfiles)[WHERE(*(*(*info).retrparams).sel_loops EQ 1)]
@@ -9357,7 +9091,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_SEL_ALL, event
 ; Handles the selection of all retrieved loop files
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_SEL_ALL'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	*(*(*info).retrparams).sel_loops = REPLICATE(1,(*(*info).retrparams).clfilecount)
 	WIDGET_CONTROL, (*(*info).ctrlsloop).get_loops, SENSITIVE = 1
 	FOR i=0,(*(*info).retrparams).clfilecount-1 DO BEGIN
@@ -9370,7 +9104,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_SEL_NONE, event
 ; Handles the selection of no retrieved loop files
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_SEL_NONE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	*(*(*info).retrparams).sel_loops = REPLICATE(0,(*(*info).retrparams).clfilecount)
 	WIDGET_CONTROL, (*(*info).ctrlsloop).get_loops, SENSITIVE = 0
 	FOR i=0,(*(*info).retrparams).clfilecount-1 DO BEGIN
@@ -9383,7 +9117,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_UPDATE_FILELIST, event
 ; Handles the update of the retrieved file list
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_UPDATE_FILELIST'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).winids).root, SET_UVALUE = info
 	WIDGET_CONTROL, event.TOP, /DESTROY
 	event.TOP = (*(*info).winids).root
@@ -9394,7 +9128,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_DELETE_CLSAV, event
 ; Enables or disables the deletion of CLSAV files after saving the respective loopslabs
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_DELETE_CLSAV'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).delete_clsav = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savswitch).delete_clsav],labels=['Delete loop path file']
 END
@@ -9402,7 +9136,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_ALL_POS, event
 ; Enables the extraction of the retrieved loop at all or only the saved spectral positions
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_ALL_POS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).all_pos_loops = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savswitch).all_pos_loops],labels=['Saving spectral position setting']
 END
@@ -9410,7 +9144,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_IMCUBE_ONLY, event
 ; Enables the retreival of loop paths from the image cube only
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_IMCUBE_ONLY'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).imref_only = 1
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savswitch).imref_only],labels=['Saving from cube setting']
 END
@@ -9418,7 +9152,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_REFCUBE_ONLY, event
 ; Enables the retreival of loop paths from the reference cube only
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_REFCUBE_ONLY'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).imref_only = 2
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savswitch).imref_only],labels=['Saving from cube setting']
 END
@@ -9426,7 +9160,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_IMREF, event
 ; Enables the retreival of loop paths from both the image and reference cube
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_IMREF'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).imref_only = 3
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savswitch).imref_only],labels=['Saving from cube setting']
 END
@@ -9434,7 +9168,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLAB, event
 ; Opens the warning windows giving the saving time estimate of the procedure, intermediate step towards saving all retrieved loopslabs (i.e. at all spectral positions)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).retrparams).clfilecount GT 0) THEN BEGIN
 		CRISPEX_SAVE_CHECK_PATH_WRITE, event
 		IF ((*(*info).paths).opath_write EQ 1) THEN BEGIN
@@ -9470,7 +9204,7 @@ END
 PRO CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLICE, event
 ; Opens the warning windows giving the saving time estimate of the procedure, intermediate step towards saving all retrieved loopslices (i.e. at saved spectral positions)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLICE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_FIND_CLSAV, event
 	IF ((*(*info).retrparams).clfilecount GT 0) THEN BEGIN
 		CRISPEX_SAVE_CHECK_PATH_WRITE, event
@@ -9506,8 +9240,7 @@ END
 PRO CRISPEX_SCALING_SELECT_DATA, event
 ; Handles the selection of scaling 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SELECT_DATA'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ;index = {0,1,2,3} -> Main, reference, Doppler, slit-jaw
   (*(*info).scaling).imrefscaling = event.INDEX
   (*(*info).scaling).idx = $
@@ -9527,8 +9260,7 @@ END
 PRO CRISPEX_SCALING_SELECT_TYPE, event
 ; Handles the selection of scaling 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SELECT_TYPE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ;index = {0,1,2} -> Based on first, based on current, per time step
   (*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] = event.INDEX
 ;  IF (event.INDEX EQ 0) THEN $
@@ -9545,8 +9277,7 @@ END
 
 PRO CRISPEX_SCALING_APPLY_SELECTED, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_APPLY_SELECTED'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Main image
   idx = (*(*info).intparams).lp_diag_all
   IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN BEGIN
@@ -9621,8 +9352,7 @@ END
 PRO CRISPEX_SCALING_HISTO_OPT_VALUE, event
 ; Handles the setting of the HISTO_OPT parameter
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_HISTO_OPT_VALUE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).histo_opt_txt, GET_VALUE = textvalue
   textvalue = FLOAT(textvalue[0])
 	(*(*info).scaling).histo_opt_val[(*(*info).scaling).idx] = FLOAT(textvalue[0])
@@ -9633,8 +9363,7 @@ END
 PRO CRISPEX_SCALING_SLIDER_MIN, event
 ; Handles events from the minimum scaling value slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SLIDER_MIN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   idx = (*(*info).scaling).idx
   (*(*info).scaling).minimum[idx] = event.VALUE
   IF ((*(*info).scaling).minimum[idx] GE (*(*info).scaling).maximum[idx]) THEN BEGIN
@@ -9647,8 +9376,7 @@ END
 PRO CRISPEX_SCALING_SLIDER_MAX, event
 ; Handles events from the minimum scaling value slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SLIDER_MAX'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   idx = (*(*info).scaling).idx
   (*(*info).scaling).maximum[idx] = event.VALUE
   IF ((*(*info).scaling).maximum[idx] LE (*(*info).scaling).minimum[idx]) THEN BEGIN
@@ -9661,8 +9389,7 @@ END
 PRO CRISPEX_SCALING_GAMMA_SLIDER, event
 ; Handles events from the minimum scaling value slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_GAMMA_SLIDER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   (*(*info).scaling).gamma[(*(*info).scaling).idx] = 10.^((FLOAT(event.VALUE)/500.) - 1.)
   WIDGET_CONTROL, (*(*info).ctrlscp).gamma_label, $
     SET_VALUE=STRING((*(*info).scaling).gamma[(*(*info).scaling).idx],FORMAT='(F6.3)')
@@ -9673,8 +9400,7 @@ END
 PRO CRISPEX_SCALING_RESET_DEFAULTS, event, IDX=idx, NO_DRAW=no_draw
 ; Handles events from the minimum scaling value slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_RESET_DEFAULTS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (N_ELEMENTS(IDX) NE 1) THEN idx = (*(*info).scaling).idx
   ; Reset contrast value
   (*(*info).scaling).minimum[idx] = 0
@@ -9692,8 +9418,7 @@ END
 PRO CRISPEX_SCALING_RESET_ALL_DEFAULTS, event
 ; Handles events from the minimum scaling value slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_RESET_ALL_DEFAULTS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   FOR i=0,N_ELEMENTS((*(*info).scaling).gamma)-1 DO $
     CRISPEX_SCALING_RESET_DEFAULTS, event, IDX=i, $
     NO_DRAW=(i NE (N_ELEMENTS((*(*info).scaling).gamma)-1))
@@ -9702,8 +9427,7 @@ END
 PRO CRISPEX_SCALING_REDRAW, event
 ; Handles the redrawing of window contents after adjustment of scaling
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_REDRAW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).scaling).imrefscaling EQ 0) THEN BEGIN
 		CRISPEX_DRAW_XY, event 
 		IF (*(*info).winswitch).showsp THEN CRISPEX_DRAW_SP, event 
@@ -9724,8 +9448,7 @@ END
 PRO CRISPEX_SCALING_SET_BOXBUTTONS, event, SENSITIVITY_OVERRIDE=sensitivity_override
 ; Handles the setting of scaling buttons
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SET_BOXBUTTONS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 ;  IF (N_ELEMENTS(SENSITIVITY_OVERRIDE) NE 1) THEN BEGIN
   showarr = [1,(*(*info).winswitch).showref,(*(*info).dispswitch).drawdop,$
     (*(*info).winswitch).showsji]
@@ -9758,8 +9481,7 @@ PRO CRISPEX_SCALING_SET_SLIDERS, event, GAMMA_ONLY=gamma_only, SET_GAMMA=set_gam
   SENSITIVITY_OVERRIDE=sensitivity_override
 ; Handles the setting of scaling sliders
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_SET_SLIDERS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   showarr = [1,(*(*info).winswitch).showref,(*(*info).dispswitch).drawdop,$
     (*(*info).winswitch).showsji]
   IF ~KEYWORD_SET(GAMMA_ONLY) THEN BEGIN
@@ -9786,8 +9508,7 @@ END
 PRO CRISPEX_SCALING_MULTIPLY_LS_SELECT, event
 ; Handles the selection of diagnostic for multiplying detailed spectrum
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_MULTIPLY_LS_SELECT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   (*(*info).scaling).mult_diag = event.INDEX
   WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_txt, $
     SET_VALUE=STRTRIM((*(*info).scaling).mult_val[(*(*info).scaling).mult_diag],2)
@@ -9796,8 +9517,7 @@ END
 PRO CRISPEX_SCALING_MULTIPLY_LS_VALUE, event
 ; Handles the selection of diagnostic for multiplying detailed spectrum
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SCALING_MULTIPLY_LS_VALUE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_txt, GET_VALUE = textvalue
   textvalue = FLOAT(textvalue[0])
   IF (textvalue EQ 0) THEN BEGIN
@@ -9813,8 +9533,7 @@ END
 PRO CRISPEX_SESSION_SAVE_WINDOW, event
 ; Gets the filename for the session save routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SESSION_SAVE_WINDOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	CRISPEX_SAVE_GET_FILENAME, event, 'Save session', 'crispex_session',$
     'CRISPEX_SESSION_SAVE_CONTINUE', /SESSION_SAVE
@@ -9823,8 +9542,7 @@ END
 PRO CRISPEX_SESSION_SAVE_CONTINUE, event
 ; Checks the session save filename for validity and overwrite problems
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SESSION_SAVE_CONTINUE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).savpro = 'SESSION'
 	CRISPEX_SAVE_CHECK_FILENAME, event, 'cses', 'CRISPEX_SESSION_SAVE_OVER_CONTINUE'
 END
@@ -9832,8 +9550,7 @@ END
 PRO CRISPEX_SESSION_SAVE_OVER_CONTINUE, event
 ; Handles the overwriting and activates the subsequent saving of the session
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SESSION_SAVE_OVER_CONTINUE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).savparams).filename_text, GET_VALUE = session_filename
 	CRISPEX_SESSION_SAVE, event, session_filename
 	WIDGET_CONTROL, event.TOP, /DESTROY
@@ -9843,8 +9560,7 @@ PRO CRISPEX_SESSION_SAVE, event, sesfilename
 ; Handles the actual saving of the session
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	WIDGET_CONTROL, /HOURGLASS
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SESSION_SAVE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	ctrlsswitch = *(*info).ctrlsswitch	    &	curs = *(*info).curs
 	dataparams = *(*info).dataparams	      &	dataswitch = *(*info).dataswitch		
   detparams = *(*info).detparams          & dispparams = *(*info).dispparams	
@@ -9874,7 +9590,7 @@ END
 PRO CRISPEX_SESSION_RESTORE_WINDOW, event
 ; Opens the session restore window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SESSION_RESTORE_WINDOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	*(*(*info).sesparams).csesfiles = FILE_SEARCH((*(*info).paths).ipath+"*cses", COUNT = csesfilecount)
 	IF (csesfilecount GT 0) THEN BEGIN
 		eventval = INDGEN(csesfilecount)
@@ -9906,7 +9622,7 @@ END
 PRO CRISPEX_SESSION_RESTORE_EVENT, event
 ; Handles the selection of a session to be restored
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SESSION_RESTORE_EVENT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	(*(*(*info).sesparams).sessions)[eventval] = ( (*(*(*info).sesparams).sessions)[eventval] EQ 0) 
 	condition = WHERE(*(*(*info).sesparams).sessions EQ 1)
@@ -9917,8 +9633,7 @@ END
 PRO CRISPEX_SESSION_RESTORE_READ_POINTER, event, currpointer, restpointer, NO_RESTORE=no_restore
 ; Handles the actual restoration of the session
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SESSION_RESTORE_READ_POINTER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	currtags = TAG_NAMES(currpointer)	&	resttags = TAG_NAMES(restpointer)
 	ncurr = N_ELEMENTS(currtags)		  &	nrest = N_ELEMENTS(resttags)
 	no_rest = N_ELEMENTS(NO_RESTORE)
@@ -9952,7 +9667,7 @@ END
 PRO CRISPEX_SESSION_RESTORE, event
 ; Handles the actual restoration of the session
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SESSION_RESTORE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, /HOURGLASS
 	CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=0, feedback_text='Restoring session file and checking version...', /SESSION
 	restore_session = (*(*(*info).sesparams).csesfiles)[WHERE(*(*(*info).sesparams).sessions EQ 1)]
@@ -10313,7 +10028,7 @@ END
 PRO CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=infilename, outfilename=outfilename, tlab=tlab, ext=ext, exch_ext=exch_ext, export_id=export_id, import_id=import_id
 ; Handles the creation of an output filename
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_DETERMINE_FILENAME'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (N_ELEMENTS(INFILENAME) NE 1) THEN infilename = (*(*info).dataparams).imfilename
 	infilename = (STRSPLIT(infilename,PATH_SEP(),/EXTRACT))[N_ELEMENTS(STRSPLIT(infilename,PATH_SEP(),/EXTRACT))-1]
 	basefstr = STRMID(infilename,0,STRPOS(infilename,'.',/REVERSE_SEARCH))
@@ -10331,7 +10046,7 @@ END
 
 PRO CRISPEX_SAVE_DETERMINE_SAVEID, event, saveid, PREF=pref
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_DETERMINE_SAVEID'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	monthstrarr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 	curt = SYSTIME()
 	tstr = STRSPLIT(curt,/EXTRACT)
@@ -10350,7 +10065,7 @@ END
 PRO CRISPEX_SAVE_LOOP_PTS, event
 ; Handles the saving of loop points of a defined path
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_LOOP_PTS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	IF ((*(*info).paths).opath_write EQ 1) THEN BEGIN
 		WIDGET_CONTROl,/HOURGLASS
@@ -10377,7 +10092,7 @@ END
 PRO CRISPEX_SAVE_APPROX_LOOPSLAB, event, SAVE_SLICE=save_slice
 ; Handles the saving of an approximate (i.e. nearest neighbour interpolated) timeslab along a loop
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_APPROX_LOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	save_message1 = REPLICATE('Saving current approximate loop ',2)+['slab...','slice...']
 	CRISPEX_SAVE_DETERMINE_FILENAME, event, outfilename=filename, /tlab, ext='csav', export_id=expid
 	CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=filename, outfilename=filename2, ext='clsav', /exch_ext
@@ -10408,14 +10123,14 @@ END
 PRO CRISPEX_SAVE_EXACT_LOOPSLICE, event
 ; Handles the saving of an exact (i.e. linearly interpolated) timeslice along a loop
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_EXACT_LOOPSLICE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_EXACT_LOOPSLAB, event, /SAVE_SLICE
 END
 
 PRO CRISPEX_SAVE_EXACT_LOOPSLAB_CHECK, event, SAVE_SLICE=save_slice
 ; Opens a time estimate warning window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_EXACT_LOOPSLAB_CHECK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	IF ((*(*info).paths).opath_write EQ 1) THEN BEGIN
 		IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
@@ -10437,7 +10152,7 @@ END
 PRO CRISPEX_SAVE_EXACT_LOOPSLAB, event, SAVE_SLICE=save_slice
 ; Handles the saving of an exact (i.e. linearly interpolated) timeslab along a loop
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_EXACT_LOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL,/HOURGLASS
 	save_message1 = ['slab','slice']
 	IF KEYWORD_SET(SAVE_SLICE) THEN BEGIN
@@ -10494,7 +10209,7 @@ END
 PRO CRISPEX_SAVE_LOOPSL_CONTINUE, event
 ; Handles continue events from the loopslice/slab warning window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_LOOPSL_CONTINUE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).savswitch).cont EQ 1) THEN CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, /SAVE_SLICE		; Save diagram from saved path at single spectral position
 	IF ((*(*info).savswitch).cont EQ 2) THEN CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event 				; Save diagram from saved path for all spectral positions
 	IF ((*(*info).savswitch).cont EQ 3) THEN CRISPEX_SAVE_EXACT_LOOPSLAB, event 				; Save diagram for all spectral positions
@@ -10506,7 +10221,7 @@ END
 PRO CRISPEX_SAVE_LOOPSL_ABORT, event
 ; Handles abort event from the loopslice/slab warning window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_EXACT_LOOPSL_ABORT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).cont = 0
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savswitch).cont],labels=['Saving procedure']
 	WIDGET_CONTROL, event.TOP, /DESTROY
@@ -10515,7 +10230,7 @@ END
 PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
 ; Handles the saving of an exact (i.e. linearly interpolated) timeslab along a retrieved loop
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_RETRIEVE_LOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).lp_orig = (*(*info).dataparams).lp
 	(*(*info).savparams).lp_ref_orig = (*(*info).dataparams).lp_ref
 	nfiles = (*(*info).retrparams).retrieve_filecount * CEIL((*(*info).savswitch).imref_only/2.)
@@ -10657,7 +10372,7 @@ END
 PRO CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB, event, SAVE_SLICE=save_slice
 ; Handles the saving of an exact (i.e. linearly interpolated) timeslab along a retrieved detection
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	nfiles = (*(*info).detparams).nr_sel_loops * CEIL((*(*info).savswitch).det_imref_only/2.)
 	pass = 0
 	loopdet = ([4,3])[KEYWORD_SET(SAVE_SLICE)]
@@ -10779,7 +10494,7 @@ END
 PRO CRISPEX_SAVE_CHECK_PATH_WRITE, event
 ; Checks whether the user has write permissions in the current opath
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_CHECK_PATH_WRITE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).paths).opath_write = FILE_TEST((*(*info).paths).opath, /WRITE)
 	IF ((*(*info).paths).opath_write EQ 0) THEN BEGIN
 		CRISPEX_WINDOW_OK, event, 'ERROR!','You appear not to have write permissions to the current','output directory ('+(*(*info).paths).opath+').',$
@@ -10792,7 +10507,7 @@ END
 PRO CRISPEX_SAVE_SET_IPATH, event 
 ; Sets the output path for all saving procedures
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_SET_IPATH'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	thispath = DIALOG_PICKFILE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Set input path', /DIRECTORY, PATH = (*(*info).paths).ipath)
 	IF (thispath EQ '') THEN RETURN ELSE (*(*info).paths).ipath = thispath
 	IF ((*(*info).winids).savewintlb GT 0) THEN WIDGET_CONTROL, (*(*info).ctrlssav).path_textlab, SET_VALUE = STRTRIM((*(*info).paths).ipath,2)
@@ -10803,7 +10518,7 @@ END
 PRO CRISPEX_SAVE_SET_OPATH, event 
 ; Sets the output path for all saving procedures
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_SET_OPATH'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	thispath = DIALOG_PICKFILE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Set output path', /DIRECTORY, PATH = (*(*info).paths).opath)
 	IF (thispath EQ '') THEN RETURN ELSE (*(*info).paths).opath = thispath
 	IF ((*(*info).winids).savewintlb GT 0) THEN WIDGET_CONTROL, (*(*info).ctrlssav).path_textlab, SET_VALUE = STRTRIM((*(*info).paths).opath,2)
@@ -10815,7 +10530,7 @@ END
 PRO CRISPEX_SAVE_GET_FILENAME, event, title, standard_filename, ok_event, session_save=session_save, SNAPSHOT=snapshot
 ; Gets the filename for save routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_GET_FILENAME'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).winids).savewintlb NE 0) THEN BEGIN
 		CRISPEX_WINDOW_OK, event, 'WARNING!','You are currently already saving output. Please finish','saving or discard the current saving procedure first,',$
 			'before starting a new saving procedure.', OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
@@ -10848,7 +10563,7 @@ END
 PRO CRISPEX_SAVE_CHECK_FILENAME, event, extension, ok_event, midtension=midtension
 ; Checks the save filename for validity and overwrite problems
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_CHECK_FILENAME'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	csesfiles = FILE_SEARCH((*(*info).paths).opath+"*"+extension, COUNT = csesfilecount)
 	WIDGET_CONTROL, (*(*info).savparams).filename_text, GET_VALUE = session_filename
 	IF (N_ELEMENTS(midtension) GT 0) THEN midtension = midtension ELSE midtension = ''
@@ -10867,7 +10582,7 @@ END
 PRO CRISPEX_SAVE_CONTINUE, event, session_filename
 ; Selects the continuation of saving session, JPEG or MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_CONTINUE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).savparams).savpro EQ 'SESSION') THEN CRISPEX_SESSION_SAVE, event, session_filename
 	IF ((STRPOS((*(*info).savparams).savpro,'FRAMES') NE -1) OR STRCMP((*(*info).savparams).savpro,'MPEG')) THEN CRISPEX_SAVE_FRAMES_SAVE, event, session_filename ELSE $
 		IF (STRPOS((*(*info).savparams).savpro,'LINESCAN') NE -1) THEN CRISPEX_SAVE_LINESCAN_SAVE, event, session_filename
@@ -10876,7 +10591,7 @@ END
 PRO CRISPEX_SAVE_WARNING_YESNO, event, warningmessage1, warningmessage2, warningmessage3, ok_event=ok_event, cancel_event=cancel_event
 ; Creates the loopslice/slab warning window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_WARNING_YESNO'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': WARNING!', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
 	disp = WIDGET_BASE(base, /COLUMN)
 	message_base = WIDGET_BASE(disp, /COLUMN)
@@ -10895,7 +10610,7 @@ END
 PRO CRISPEX_SAVE_JPEG_SNAPSHOT, event
 ; Handles the saving of a single main image (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_JPEG_SNAPSHOT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).savpro = 'JPEG_FRAMES'
 	(*(*info).savparams).snapshot = 1
 	CRISPEX_SAVE_FRAMES, event
@@ -10904,7 +10619,7 @@ END
 PRO CRISPEX_SAVE_JPEG_ALL_FRAMES, event
 ; Handles the saving of a series of main images (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_JPEG_ALL_FRAMES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).savpro = 'JPEG_FRAMES'
 	(*(*info).savparams).snapshot = 0
 	CRISPEX_SAVE_FRAMES, event
@@ -10913,7 +10628,7 @@ END
 PRO CRISPEX_SAVE_JPEG_LINESCAN, event
 ; Handles the saving of a single main image (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_JPEG_LINESCAN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).savpro = 'JPEG_LINESCAN'
 	CRISPEX_SAVE_LINESCAN, event
 END	
@@ -10921,7 +10636,7 @@ END
 PRO CRISPEX_SAVE_PNG_SNAPSHOT, event
 ; Handles the saving of a single main image (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_PNG_SNAPSHOT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).savpro = 'PNG_FRAMES'
 	(*(*info).savparams).snapshot = 1
 	CRISPEX_SAVE_FRAMES, event
@@ -10930,7 +10645,7 @@ END
 PRO CRISPEX_SAVE_PNG_ALL_FRAMES, event
 ; Handles the saving of a series of main images (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_PNG_ALL_FRAMES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).savpro = 'PNG_FRAMES'
 	(*(*info).savparams).snapshot = 0
 	CRISPEX_SAVE_FRAMES, event
@@ -10939,7 +10654,7 @@ END
 PRO CRISPEX_SAVE_PNG_LINESCAN, event
 ; Handles the saving of a single main image (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_PNG_LINESCAN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).savpro = 'PNG_LINESCAN'
 	CRISPEX_SAVE_LINESCAN, event
 END	
@@ -10947,7 +10662,7 @@ END
 PRO CRISPEX_SAVE_CHECK, event
 ; Checks the jpeg series save filename for validity and overwrite problems
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_CHECK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).savparams).savpro EQ 'MPEG') THEN BEGIN
 		extension = 'mpg'	&	midtension = ''
 	ENDIF ELSE IF (STRPOS((*(*info).savparams).savpro,'FRAMES') NE -1) THEN BEGIN		; Check whether saving procedure contains 'FRAMES' (test = 1) or 'LINESCAN' (test = 0)
@@ -10973,7 +10688,7 @@ END
 PRO CRISPEX_SAVE_OVER, event
 ; Handles the overwriting and activates the subsequent saving of the jpeg frames
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OVER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).savparams).filename_text, GET_VALUE = filename
 	IF ((*(*info).savparams).savpro EQ 'MPEG') THEN CRISPEX_SAVE_MPEG_SAVE, event, filename ELSE $
 		IF (STRPOS((*(*info).savparams).savpro,'FRAMES') NE -1) THEN CRISPEX_SAVE_FRAMES_SAVE, event, filename ELSE CRISPEX_SAVE_LINESCAN_SAVE, event, filename
@@ -10987,7 +10702,7 @@ END
 PRO CRISPEX_SAVE_FRAMES, event
 ; Handles the saving of a series of main images (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_FRAMES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	label = ['series','snapshot']
 	IF (*(*info).savparams).snapshot THEN BEGIN
@@ -11005,7 +10720,7 @@ END
 PRO CRISPEX_SAVE_FRAMES_SAVE, event, supplied_filename
 ; Handles the saving of a series (between temporal boundaries) of main images (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_FRAMES_SAVE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	ntpos = CEIL(ALOG10((*(*info).dataparams).nt))
 	nlpos = CEIL(ALOG10((*(*info).dataparams).nlp))
 	t_before = (*(*info).dispparams).t
@@ -11066,7 +10781,7 @@ END
 PRO CRISPEX_SAVE_LINESCAN, event
 ; Handles the saving of a series of main images (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_LINESCAN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	CRISPEX_SAVE_DETERMINE_FILENAME, event, outfilename=standardfilename
 	IF ((*(*info).savparams).savpro EQ 'JPEG_LINESCAN') THEN CRISPEX_SAVE_GET_FILENAME, event, 'Save JPEG line scan', standardfilename, 'CRISPEX_SAVE_CHECK'
@@ -11076,7 +10791,7 @@ END
 PRO CRISPEX_SAVE_LINESCAN_SAVE, event, supplied_filename
 ; Handles the saving of a series (between temporal boundaries) of main images (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_LINESCAN_SAVE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	nlpos = CEIL(ALOG10((*(*info).dataparams).nlp))
 	ntpos = CEIL(ALOG10((*(*info).dataparams).nt))
 	lp_before = (*(*info).dataparams).lp
@@ -11137,7 +10852,7 @@ END
 PRO CRISPEX_SAVE_MPEG, event
 ; Handles the saving of a series of main images (as in display) as JPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_MPEG'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).savpro = 'MPEG'
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	CRISPEX_SAVE_DETERMINE_FILENAME, event, outfilename=standardfilename, import_id='lp'+STRTRIM(LONG((*(*info).dataparams).lp),2)
@@ -11147,7 +10862,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Saving options', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
 	disp = WIDGET_BASE(base, /COLUMN)
 	path_base = WIDGET_BASE(disp, /COLUMN, /FRAME)
@@ -11198,7 +10913,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).overlays_incl = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlssav).overlays_num_but, SENSITIVE = (*(*info).savparams).overlays_incl
 	WIDGET_CONTROL, (*(*info).ctrlssav).overlays_curs_but, SENSITIVE = (*(*info).savparams).overlays_incl
@@ -11213,7 +10928,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE_UPDATE_DISPLAY, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE_UPDATE_DISPLAY'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).savparams).overlays_incl THEN BEGIN
 		CRISPEX_DRAW_XY, event, NO_CURSOR=ABS((*(*info).savparams).overlays_curs-1), NO_NUMBER=ABS((*(*info).savparams).overlays_num-1), THICK=(*(*info).savparams).overlays_thick, $
 			NO_ENDPOINTS=ABS((*(*info).savparams).overlays_pts-1), SYMSIZE=(*(*info).savparams).overlays_symsize, ASECBAR=(*(*info).savparams).overlays_asecbar
@@ -11223,7 +10938,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS_OVERLAYS_NUMBER, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS_OVERLAYS_NUMBER'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).overlays_num = event.SELECT
 	CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE_UPDATE_DISPLAY, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savparams).overlays_num],labels=['Number overlays']
@@ -11232,7 +10947,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS_OVERLAYS_CURSOR, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS_OVERLAYS_CURSOR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).overlays_curs = event.SELECT
 	CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE_UPDATE_DISPLAY, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savparams).overlays_curs],labels=['Include cursor']
@@ -11241,7 +10956,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS_OVERLAYS_THICK, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS_OVERLAYS_THICK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).overlays_thick = event.VALUE
 	CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE_UPDATE_DISPLAY, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savparams).overlays_thick],labels=['Overlay thickness']
@@ -11250,7 +10965,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS_OVERLAYS_SYMSIZE, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS_OVERLAYS_SYMSIZE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).overlays_symsize = event.VALUE
 	CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE_UPDATE_DISPLAY, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savparams).overlays_symsize],labels=['Overlay symbol size']
@@ -11259,7 +10974,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS_OVERLAYS_ENDPOINTS, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS_OVERLAYS_ENDPOINTS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).overlays_pts = event.SELECT
 	CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE_UPDATE_DISPLAY, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savparams).overlays_pts],labels=['Include endpoints']
@@ -11268,7 +10983,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS_OVERLAYS_ASECBAR, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS_OVERLAYS_ASECBAR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).overlays_asecbar = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlssav).overlays_asecbar_slider, SENSITIVE = (*(*info).savparams).overlays_asecbar
 	CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE_UPDATE_DISPLAY, event
@@ -11278,7 +10993,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS_OVERLAYS_ASECBAR_LENGTH, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS_OVERLAYS_ASECBAR_LENGTH'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).overlays_asecbar_length = event.VALUE
 	(*(*info).savparams).overlays_asecbar_pix = (*(*info).savparams).overlays_asecbar_length / FLOAT((*(*info).meas).arcsecpix) * (*(*info).zooming).factor
 	CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE_UPDATE_DISPLAY, event
@@ -11289,7 +11004,7 @@ END
 PRO CRISPEX_SAVE_OPTIONS_INCLUDE_DETSPECT, event
 ; Handles the extra saving options for save as PNG/JPEG/MPEG
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SAVE_OPTIONS_INCLUDE_DETSPECT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).linescan_ls = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savparams).linescan_ls],labels=['Save detailed spectrum']
 END
@@ -11298,7 +11013,7 @@ END
 PRO CRISPEX_SLIDER_NPHI, event
 ; Handles the change in spectral slit length slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_NPHI'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).phiparams).nphi_set = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).phiparams).nphi_set],labels=['Phi-slit length']
 	CRISPEX_UPDATE_PHIS, event
@@ -11307,8 +11022,7 @@ END
 PRO CRISPEX_SLIDER_PHI, event
 ; Handles the change in spectral slit angle slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_PHI'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).phiparams).angle = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).phiparams).angle],labels=['Phi-slit angle']
@@ -11319,7 +11033,7 @@ END
 PRO CRISPEX_SLIDER_LP, event
 ; Handles the change in spectral position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp = event.VALUE
   WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
     SENSITIVE=((*(*info).pbparams).lp_blink NE (*(*info).dataparams).lp)
@@ -11329,8 +11043,7 @@ END
 PRO CRISPEX_SLIDER_LP_DECR, event
 ; Handles increase of spectral position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_DECR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp -= 1L 
 	IF ((*(*info).dataparams).lp LT (*(*info).dispparams).lp_low) THEN $
     (*(*info).dataparams).lp = (*(*info).dispparams).lp_upp
@@ -11340,8 +11053,7 @@ END
 PRO CRISPEX_SLIDER_LP_INCR, event
 ; Handles increase of spectral position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_INCR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp += 1L
 	IF ((*(*info).dataparams).lp GT (*(*info).dispparams).lp_upp) THEN $
     (*(*info).dataparams).lp = (*(*info).dispparams).lp_low
@@ -11351,8 +11063,7 @@ END
 PRO CRISPEX_SLIDER_LP_REF, event
 ; Handles change in reference spectral position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_REF'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp_ref = event.VALUE
 	CRISPEX_SLIDER_LP_UPDATE, event
 END
@@ -11360,8 +11071,7 @@ END
 PRO CRISPEX_SLIDER_LP_REF_DECR, event
 ; Handles increase of spectral position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_REF_DECR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp_ref -= 1L 
 	IF ((*(*info).dataparams).lp_ref LT (*(*info).dispparams).lp_ref_low) THEN $
     (*(*info).dataparams).lp_ref = (*(*info).dispparams).lp_ref_upp
@@ -11371,8 +11081,7 @@ END
 PRO CRISPEX_SLIDER_LP_REF_INCR, event
 ; Handles increase of spectral position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_REF_INCR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp_ref += 1L
 	IF ((*(*info).dataparams).lp_ref GT (*(*info).dispparams).lp_ref_upp) THEN $
     (*(*info).dataparams).lp_ref = (*(*info).dispparams).lp_ref_low
@@ -11382,8 +11091,7 @@ END
 PRO CRISPEX_SLIDER_LP_REF_LOCK, event, UNLOCK=unlock, NO_DRAW=no_draw
 ; Handles (un)locking the reference reference to (from) the main spectral position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_REF_LOCK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF KEYWORD_SET(UNLOCK) THEN BEGIN
 	  (*(*info).ctrlsswitch).lp_ref_lock = 0
     WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SET_BUTTON=0
@@ -11405,8 +11113,7 @@ PRO CRISPEX_SLIDER_LP_UPDATE, event, OVERRIDE_DIAGNOSTIC=override_diagnostic, $
   NO_DRAW=no_draw
 ; Handles the the update after change in the spectral position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_LP_UPDATE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Determine whether lp falls in not displayed diagnostic window, act accordingly
   lp_diag_all = TOTAL((*(*info).dataparams).lp GE (*(*info).intparams).diag_start)-1
   IF ((*(*info).intparams).disp_diagnostics[lp_diag_all] EQ 0) THEN BEGIN
@@ -11469,8 +11176,7 @@ END
 PRO CRISPEX_SLIDER_SPECTBLINK, event
 ; Handles the change in spectral step (for spectral blink) slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_SPECTBLINK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lp_blink = event.VALUE
   WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
     SENSITIVE=((*(*info).pbparams).lp_blink NE (*(*info).dataparams).lp)
@@ -11483,7 +11189,8 @@ END
 PRO CRISPEX_SLIDER_SPEED, event
 ; Handles the change in playback speed slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_SPEED', /IGNORE_LAST
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	(*(*info).pbparams).t_speed = event.VALUE
 	IF (*(*info).pbparams).spmode THEN WIDGET_CONTROL, (*(*info).ctrlscp).t_speed_slider, SET_VALUE = (*(*info).pbparams).t_speed ELSE $
 		WIDGET_CONTROL, (*(*info).ctrlscp).lp_speed_slider, SET_VALUE = (*(*info).pbparams).t_speed
@@ -11493,7 +11200,7 @@ END
 PRO CRISPEX_SLIDER_STEP, event
 ; Handles the change in temporal step slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_STEP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).t_step = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).t_step], labels=['t_step']
 END
@@ -11501,7 +11208,7 @@ END
 PRO CRISPEX_SLIDER_T, event
 ; Handles the change in temporal slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_T'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispparams).t = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).t], labels=['t']
 	CRISPEX_UPDATE_T, event
@@ -11516,8 +11223,7 @@ END
 PRO CRISPEX_SLIDER_TIME_OFFSET, event
 ; Handles the change in temporal slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_T'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   CASE (*(*info).dispparams).master_time OF
     0:  (*(*info).dispparams).toffset_main = event.VALUE
     1:  (*(*info).dispparams).toffset_ref = event.VALUE
@@ -11539,7 +11245,7 @@ END
 PRO CRISPEX_SLIDER_X, event
 ; Handles the change in cursor x-position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_X'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).x = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).x], labels=['x']
 	CRISPEX_UPDATE_SX, event
@@ -11552,8 +11258,7 @@ END
 PRO CRISPEX_SLIDER_XPOS, event
 ; Handles change in x-slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_XPOS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).zooming).xpos = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).xpos], labels=['xpos']
@@ -11565,7 +11270,7 @@ END
 PRO CRISPEX_SLIDER_Y, event
 ; Handles the change in cursor y-position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_Y'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).y = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).y], labels=['y']
 	CRISPEX_UPDATE_SY, event
@@ -11578,8 +11283,7 @@ END
 PRO CRISPEX_SLIDER_YPOS, event
 ; Handles change in y-slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_SLIDER_YPOS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).zooming).ypos = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).ypos], labels=['ypos']
@@ -11592,8 +11296,7 @@ END
 PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw
 ; Gets the new spectral phi slit scan for update of the spectral phi slit slice after change in framenumber
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_SLICES'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).winswitch).showphis OR $
       ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls)) THEN BEGIN
 		WIDGET_CONTROL,/HOURGLASS
@@ -11616,8 +11319,7 @@ END
 PRO CRISPEX_UPDATE_PHIS, event, NO_DRAW=no_draw
 ; Handles the actual update of the spectral phi slit slice after change in framenumber
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_PHIS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_PHISLIT_GET_SLICE, event
 	IF ~KEYWORD_SET(NO_DRAW) THEN CRISPEX_DRAW, event
 END
@@ -11625,8 +11327,7 @@ END
 PRO CRISPEX_UPDATE_LP, event
 ; Handles the update of displayed data after change in spectral position
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_LP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).overlayswitch).loopslit AND ((*(*info).loopparams).np GT 0) THEN BEGIN
     CRISPEX_LOOP_GET, event
     IF (*(*info).winswitch).showloop THEN BEGIN
@@ -11673,8 +11374,7 @@ END
 PRO CRISPEX_UPDATE_T, event
 ; Handles the updated of displayed data after change in framenumber
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_T'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Update time indices
   (*(*info).dispparams).t_main = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).t]
   IF ((*(*info).dataparams).refnt GT 1) THEN $
@@ -11755,22 +11455,15 @@ END
 PRO CRISPEX_UPDATE_SX, event
 ; Handles the change in xy- and reference image x-position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_SX'
-;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		sx = ((*(*info).dataparams).x - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
-          ((*(*info).dataparams).d_nx+1)
-		sxp = (*(*(*info).loopparams).xp - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
-          ((*(*info).dataparams).d_nx+1)
-		sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
-          ((*(*info).dataparams).d_nx+1)
-		sxsji = (*(*info).dataparams).xsji * (*(*info).winsizes).sjiwinx / $
-          ((*(*info).dataparams).sjinx+1)
-;	ENDIF ELSE BEGIN
-;		sx = (*(*info).dataparams).x * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
-;		sxp = *(*(*info).loopparams).xp * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
-;		sxr = *(*(*info).loopparams).xr * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
-;	ENDELSE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	sx = ((*(*info).dataparams).x - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+        ((*(*info).dataparams).d_nx+1)
+	sxp = (*(*(*info).loopparams).xp - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+        ((*(*info).dataparams).d_nx+1)
+	sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
+        ((*(*info).dataparams).d_nx+1)
+	sxsji = (*(*info).dataparams).xsji * (*(*info).winsizes).sjiwinx / $
+        ((*(*info).dataparams).sjinx+1)
 	(*(*info).curs).sxlock = sx 
 	(*(*info).curs).sx = (*(*info).curs).sxlock
 	(*(*info).curs).sxsji = sxsji
@@ -11784,22 +11477,15 @@ END
 PRO CRISPEX_UPDATE_SY, event
 ; Handles the change in xy- and reference image y-position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_SY'
-;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		sy = ((*(*info).dataparams).y - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
-          ((*(*info).dataparams).d_ny+1)
-		syp = (*(*(*info).loopparams).yp - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
-          ((*(*info).dataparams).d_ny+1)
-		syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
-          ((*(*info).dataparams).d_ny+1)
-		sysji = (*(*info).dataparams).ysji * (*(*info).winsizes).sjiwiny / $
-          ((*(*info).dataparams).sjiny+1)
-;	ENDIF ELSE BEGIN
-;		sy = (*(*info).dataparams).y * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
-;		syp = *(*(*info).loopparams).yp * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
-;		syr = *(*(*info).loopparams).yr * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
-;	ENDELSE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	sy = ((*(*info).dataparams).y - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+        ((*(*info).dataparams).d_ny+1)
+	syp = (*(*(*info).loopparams).yp - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+        ((*(*info).dataparams).d_ny+1)
+	syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
+        ((*(*info).dataparams).d_ny+1)
+	sysji = (*(*info).dataparams).ysji * (*(*info).winsizes).sjiwiny / $
+        ((*(*info).dataparams).sjiny+1)
 	(*(*info).curs).sylock = sy 
 	(*(*info).curs).sy = (*(*info).curs).sylock
 	(*(*info).curs).sysji = sysji
@@ -11813,7 +11499,7 @@ END
 PRO CRISPEX_UPDATE_USER_FEEDBACK, event, title=title, var=var, minvar=minvar, maxvar=maxvar, feedback_text=feedback_text, destroy_top=destroy_top, close_button=close_button, session=session
 ; Handles the update of user feedback while saving timeslices
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_UPDATE_USER_FEEDBACK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ~KEYWORD_SET(MINVAR) THEN minvar = 0
 	IF (var EQ minvar) THEN BEGIN
 		CRISPEX_WINDOW_USER_FEEDBACK, event, title, feedback_text+'     ', close_button=close_button, session=session
@@ -11885,18 +11571,29 @@ END
 PRO CRISPEX_VERBOSE_GET_ROUTINE, event, rname, IGNORE_LAST=ignore_last
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	prespace = STRJOIN(REPLICATE('  ',SCOPE_LEVEL()-2))
+  rname = (SCOPE_TRACEBACK(/STRUCTURE))[-2].ROUTINE
 	IF KEYWORD_SET(IGNORE_LAST) THEN (*(*info).feedbparams).last_routine = ''
-	IF ((rname NE (*(*info).feedbparams).last_routine) AND ((*(*info).feedbparams).last_routine_count GT 0)) THEN PRINT,''
-	IF (rname EQ (*(*info).feedbparams).last_routine) THEN (*(*info).feedbparams).last_routine_count += 1 ELSE (*(*info).feedbparams).last_routine_count = 0
-	IF ((*(*info).feedbparams).last_routine_count GT 0) THEN rcount = ' x '+STRTRIM((*(*info).feedbparams).last_routine_count,2)+'.' ELSE rcount = '.'
-	IF (rname NE (*(*info).feedbparams).last_routine) THEN PRINT,prespace+'CRISPEX RUN: Called '+rname+'.' ELSE $
-		WRITEU,-1,STRING(FORMAT='(%"\r'+prespace+'CRISPEX RUN: Called ",a'+STRTRIM(STRLEN(rname),2)+',a'+STRTRIM(STRLEN(rcount),2)+')',rname,rcount) 
+	IF ((rname NE (*(*info).feedbparams).last_routine) AND $
+    ((*(*info).feedbparams).last_routine_count GT 0)) THEN PRINT,''
+	IF (rname EQ (*(*info).feedbparams).last_routine) THEN $
+    (*(*info).feedbparams).last_routine_count += 1 $
+  ELSE $
+    (*(*info).feedbparams).last_routine_count = 0
+	IF ((*(*info).feedbparams).last_routine_count GT 0) THEN $
+    rcount = ' x '+STRTRIM((*(*info).feedbparams).last_routine_count,2)+'.' $
+  ELSE $
+    rcount = '.'
+	IF (rname NE (*(*info).feedbparams).last_routine) THEN $
+    PRINT,prespace+'CRISPEX RUN: Called '+rname+'.' $
+  ELSE $
+		WRITEU,-1,STRING(FORMAT='(%"\r'+prespace+'CRISPEX RUN: Called ",a'+$
+      STRTRIM(STRLEN(rname),2)+',a'+STRTRIM(STRLEN(rcount),2)+')',rname,rcount) 
 	(*(*info).feedbparams).last_routine = rname
 END
 
 PRO CRISPEX_VERBOSE_SET, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_VERBOSE_SET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = add_verbosity
 	tmp_verbosity = (*(*info).feedbparams).verbosity
 	IF (add_verbosity EQ -1) THEN (*(*info).feedbparams).verbosity = INTARR(N_ELEMENTS((*(*info).feedbparams).verbosity)) ELSE BEGIN
@@ -11909,7 +11606,7 @@ END
 
 PRO CRISPEX_VERBOSE_SET_BUTTONS, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_VERBOSE_SET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL,(*(*(*info).ctrlscp).verbose_set)[0], SET_BUTTON = (TOTAL((*(*info).feedbparams).verbosity) EQ 0)
 	WIDGET_CONTROL,(*(*(*info).ctrlscp).verbose_set)[1], SET_BUTTON = ((*(*info).feedbparams).verbosity)[2]
 	WIDGET_CONTROL,(*(*(*info).ctrlscp).verbose_set)[2], SET_BUTTON = ((*(*info).feedbparams).verbosity)[3]
@@ -11949,7 +11646,7 @@ END
 PRO CRISPEX_WINDOW_OK, event, title, message1, message2, message3, message4, message5, OK_EVENT=ok_event, CANCEL_EVENT=cancel_event, CANCEL_LABEL=cancel_label, BASE=base, BLOCK=block
 ; Sets up the message windows with only an OK-button
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_WINDOW_OK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	fulltitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+STRTRIM(title,2)
 	base = WIDGET_BASE(TITLE = fulltitle, GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
 	disp = WIDGET_BASE(base, /COLUMN)
@@ -11974,7 +11671,7 @@ END
 PRO CRISPEX_WINDOW_USER_FEEDBACK, event, title, initial_feedback, close_button=close_button, session=session
 ; Sets up the message windows for user feedback 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_WINDOW_USER_FEEDBACK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	fulltitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+STRTRIM(title,2)
 	base = WIDGET_BASE(TITLE = fulltitle, GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
 	disp = WIDGET_BASE(base, /COLUMN)
@@ -11994,7 +11691,7 @@ END
 PRO CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, session=session
 ; Handles the closure of the user feedback window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_WINDOW_USER_FEEDBACK_CLOSE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF KEYWORD_SET(SESSION) THEN BEGIN
 		tlb = (*(*info).winids).restsesfeedbtlb 
 		WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /DESTROY
@@ -12012,8 +11709,7 @@ END
 PRO CRISPEX_ZOOM, event, NO_DRAW=no_draw
 ; Handles the zoom event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_UPDATE_SX, event
 	CRISPEX_UPDATE_SY, event
 	IF (*(*info).overlayswitch).loopslit THEN CRISPEX_ZOOM_LOOP, event
@@ -12034,8 +11730,7 @@ END
 PRO CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
 ; Handles cursor setting as a result of zoom
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_CURSORPOS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).curs).lockset THEN BEGIN
 		cursor_x = (*(*info).curs).xlock
 		cursor_y = (*(*info).curs).ylock
@@ -12050,8 +11745,7 @@ END
 PRO CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SENSITIVE=sensitive
 ; Handles the update of xpos and ypos sliders when changing zoomfactor
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_UPDATE_SLIDERS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (N_ELEMENTS(SENSITIVE) EQ 1) THEN $
     sensitive = REPLICATE(sensitive,2)  $
   ELSE IF (N_ELEMENTS(SENSITIVE) LT 1) THEN $
@@ -12093,8 +11787,7 @@ END
 PRO CRISPEX_ZOOMFAC_DECR, event
 ; Decreases the zoomfactor and calls CRISPEX_BGROUP_ZOOMFAC_SET
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_DECR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   old_factor_idx = WHERE((*(*info).zooming).factorswitch EQ 1)
   set_factor_idx = ( old_factor_idx - 1 ) > 0
   IF (set_factor_idx NE old_factor_idx) THEN $
@@ -12105,8 +11798,7 @@ END
 PRO CRISPEX_ZOOMFAC_INCR, event
 ; Increases the zoomfactor and calls CRISPEX_BGROUP_ZOOMFAC_SET
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOMFAC_INCR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   old_factor_idx = WHERE((*(*info).zooming).factorswitch EQ 1)
   set_factor_idx = ( old_factor_idx + 1 ) < (N_ELEMENTS((*(*info).zooming).factorswitch)-1)
   IF (set_factor_idx NE old_factor_idx) THEN $
@@ -12117,33 +11809,21 @@ END
 PRO CRISPEX_ZOOM_MEAS, event
 ; Handles the change in measurement position after a zoom event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_MEAS'
-;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		(*(*(*info).meas).sxp) = ((*(*(*info).meas).xp) - (*(*info).zooming).xpos ) * $
-                              (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-		(*(*(*info).meas).syp) = ((*(*(*info).meas).yp) - (*(*info).zooming).ypos ) * $
-                              (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-;	ENDIF ELSE BEGIN
-;		(*(*(*info).meas).sxp) = (*(*(*info).meas).xp) * (*(*info).winsizes).xywinx / FLOAT((*(*info).dataparams).nx)
-;		(*(*(*info).meas).syp) = (*(*(*info).meas).yp) * (*(*info).winsizes).xywiny / FLOAT((*(*info).dataparams).ny)
-;	ENDELSE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	(*(*(*info).meas).sxp) = ((*(*(*info).meas).xp) - (*(*info).zooming).xpos ) * $
+                            (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
+	(*(*(*info).meas).syp) = ((*(*(*info).meas).yp) - (*(*info).zooming).ypos ) * $
+                            (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
 END	
 
 PRO CRISPEX_ZOOM_LOOP, event
 ; Handles the change in loop positions after a zoom event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event, 'CRISPEX_ZOOM_LOOP'
-;	IF ((*(*info).zooming).factor NE 1) THEN BEGIN
-		*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * $
-                                    (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
-		*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * $
-                                    (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
-;	ENDIF ELSE BEGIN
-;		*(*(*info).overlayparams).sxr = *(*(*info).loopparams).xr * (*(*info).winsizes).xywinx / (*(*info).dataparams).nx
-;		*(*(*info).overlayparams).syr = *(*(*info).loopparams).yr * (*(*info).winsizes).xywiny / (*(*info).dataparams).ny
-;	ENDELSE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	*(*(*info).overlayparams).sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * $
+                                  (*(*info).winsizes).xywinx / ((*(*info).dataparams).d_nx+1)
+	*(*(*info).overlayparams).syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * $
+                                  (*(*info).winsizes).xywiny / ((*(*info).dataparams).d_ny+1)
 END
 
 ;===================================================================================================
@@ -12182,7 +11862,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '621'
+	revision_number = '622'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
