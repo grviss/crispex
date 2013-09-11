@@ -500,10 +500,10 @@ FUNCTION CRISPEX_SCALING_SLICES, dispim, gamma_val, histo_opt_val, $
       dispim = (TEMPORARY((dispim)))^gamma_val
   ENDIF
   IF ((histo_opt_val NE 0) OR KEYWORD_SET(FORCE_HISTO)) THEN BEGIN
-    IF (MIN(dispim, MAX=dispmax) NE dispmax) THEN $
+    IF (MIN(dispim, MAX=dispmax, /NAN) NE dispmax) THEN $
       dispim = HISTO_OPT(TEMPORARY(dispim), histo_opt_val)
   ENDIF
-  minimum = MIN(dispim,MAX=maximum)
+  minimum = MIN(dispim,MAX=maximum, /NAN)
   IF ((N_ELEMENTS(default_min) EQ 1) AND (N_ELEMENTS(default_max) EQ 1)) THEN $
     minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
       default_min, default_max) $
@@ -972,14 +972,14 @@ PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old
     ; Determine frame closest in time to master array
     FOR tt=0,(*(*info).dataparams).nt-1 DO BEGIN
       tdiff_main = ABS(tarr_main - tarr_master[tt])
-      tsel_main[tt] = (WHERE(tdiff_main EQ MIN(tdiff_main)))[0]
+      tsel_main[tt] = (WHERE(tdiff_main EQ MIN(tdiff_main, /NAN)))[0]
       IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN 
         tdiff_ref = ABS(tarr_ref - tarr_master[tt])
-        tsel_ref[tt] = (WHERE(tdiff_ref EQ MIN(tdiff_ref)))[0]
+        tsel_ref[tt] = (WHERE(tdiff_ref EQ MIN(tdiff_ref, /NAN)))[0]
       ENDIF
       IF ((*(*info).dataparams).sjint GT 1) THEN BEGIN 
         tdiff_sji = ABS((*(*info).dataparams).tarr_sji - tarr_master[tt])
-        tsel_sji[tt] = (WHERE(tdiff_sji EQ MIN(tdiff_sji)))[0]
+        tsel_sji[tt] = (WHERE(tdiff_sji EQ MIN(tdiff_sji, /NAN)))[0]
       ENDIF
     ENDFOR
     ; Populate variables with results
@@ -997,7 +997,7 @@ PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old
     (*(*info).dispparams).t_last = (*(*info).dataparams).nt-1
     IF (N_ELEMENTS(T_OLD) EQ 1) THEN BEGIN
       tdiff = ABS(tarr_master - t_old)
-      t_set = (WHERE(tdiff EQ MIN(tdiff)))[0]
+      t_set = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
     ENDIF
     CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW, T_SET=t_set
 END
@@ -2631,7 +2631,7 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
   diag_ratio = diag_widths / FLOAT(TOTAL(diag_widths))
   diag_range = diag_ratio * (*(*info).plotpos).xplspw 
   IF ~KEYWORD_SET(NO_AXES) THEN BEGIN
-    whererangemin = WHERE(diag_widths EQ MIN(diag_widths))
+    whererangemin = WHERE(diag_widths EQ MIN(diag_widths, /NAN))
     ; Plot xtitle(s)
     IF ((*(*info).intparams).ndiagnostics GT 1) THEN $
       XYOUTS,(*(*info).plotpos).xplspw/2.+(*(*info).plotpos).spx0,$
@@ -3079,13 +3079,13 @@ PRO CRISPEX_DISPRANGE_GET_WARP, event, PHIS=phis
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   lps_sel = ((*(*info).dataparams).lps)[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp]
-  min_lps = MIN(lps_sel)
+  min_lps = MIN(lps_sel, /NAN)
   IF KEYWORD_SET(PHIS) THEN $
     nt = (*(*info).phiparams).nphi $
   ELSE $
     nt = (*(*info).dataparams).nt
     xi = FINDGEN((*(*info).dispparams).lp_range) # REPLICATE(1,nt)
-    xo = ((lps_sel-min_lps) / FLOAT(MAX(lps_sel-min_lps)) * $
+    xo = ((lps_sel-min_lps) / FLOAT(MAX(lps_sel-min_lps, /NAN)) * $
           (*(*info).dispparams).lp_range) # REPLICATE(1,nt)
     yi = REPLICATE(1,(*(*info).dispparams).lp_range) # FINDGEN(nt)
   IF KEYWORD_SET(PHIS) THEN BEGIN
@@ -3553,12 +3553,12 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
     ENDFOR
     order = FLOOR(ALOG10(lambda_widths))
     int_widths = FLOOR(lambda_widths/10^FLOAT(order))*10^FLOAT(order)
-    wheremax = WHERE(int_widths EQ MAX(int_widths))
+    wheremax = WHERE(int_widths EQ MAX(int_widths, /NAN))
     ; Have at least two tickmarks per range for the biggest range
     xtickinterval = int_widths[wheremax]/2.
     doporder = FLOOR(ALOG10(dop_widths))
     int_dopwidths = FLOOR(dop_widths/10^FLOAT(doporder))*10^FLOAT(doporder)
-    wheredopmax = WHERE(int_dopwidths EQ MIN(int_dopwidths))
+    wheredopmax = WHERE(int_dopwidths EQ MIN(int_dopwidths, /NAN))
     ; Have at least two tickmarks per range for the smallest range
     xdoptickinterval = int_dopwidths[wheredopmax]/2.
   ENDIF ELSE BEGIN
@@ -3852,11 +3852,11 @@ PRO CRISPEX_DRAW_SUBCOLOR, event, imref, subcolor, minimum, maximum, XYRANGE=xyr
     selected_data = *(*(*info).data).dopslice $
   ELSE IF (imref EQ 3) THEN $
     selected_data = *(*(*info).data).sjislice 
-  minimum = MIN(selected_data, MAX=maximum)
+  minimum = MIN(selected_data, MAX=maximum, /NAN)
   minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
     (*(*info).scaling).minimum[scale_idx],(*(*info).scaling).maximum[scale_idx])
 	scaled_data = BYTSCL(selected_data[x_low:x_upp, y_low:y_upp], MIN=minmax[0], MAX=minmax[1])
-	subcolor = MEAN(scaled_data)
+	subcolor = MEAN(scaled_data, /NAN)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [x_low,x_upp,y_low,y_upp,subcolor], $
       labels=['x_low','x_upp','y_low','y_upp','subcolor']
@@ -3891,7 +3891,7 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
     (sel GT 1) * (*(*info).intparams).nrefdiagnostics ;+ $
 ;    (sel GT 2)
   IF KEYWORD_SET(MAIN) THEN BEGIN
-;    sel = 0
+   ; sel = 0
     datadims = SIZE(*(*(*info).data).xyslice,/N_DIMENSIONS)
     IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN BEGIN
       IF (datadims EQ 2) THEN $
@@ -3907,7 +3907,7 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
       maximum = (*(*info).scaling).imagemax_curr
     ENDIF
   ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
-;    sel = 1
+    ; sel = 1
     datadims = SIZE(*(*(*info).data).refslice,/N_DIMENSIONS)
     IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN BEGIN
       IF (datadims EQ 2) THEN $
@@ -3923,7 +3923,7 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
       maximum = (*(*info).scaling).refmax_curr
     ENDIF 
   ENDIF ELSE IF KEYWORD_SET(DOPPLER) THEN BEGIN
-;    sel = 2
+    ; sel = 2
     datadims = SIZE(*(*(*info).data).dopslice,/N_DIMENSIONS)
     IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN BEGIN
       IF (datadims EQ 2) THEN $
@@ -3939,7 +3939,7 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
       maximum = (*(*info).scaling).dopmax_curr
     ENDIF
   ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
-;    sel = 3
+   ; sel = 3
     IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN selected_data = *(*(*info).data).sjislice 
     IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
       minimum = (*(*info).scaling).sjimin
@@ -3961,7 +3961,7 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
   IF ((*(*(*info).scaling).imagescale)[sel] EQ 2) THEN BEGIN
     selected_data = HISTO_OPT(TEMPORARY(selected_data), $
       (*(*info).scaling).histo_opt_val[scale_idx])
-    minimum = MIN(selected_data, MAX=maximum)
+    minimum = MIN(selected_data, MAX=maximum, /NAN)
   ENDIF
   minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
     (*(*info).scaling).minimum[scale_idx],(*(*info).scaling).maximum[scale_idx])
@@ -4395,7 +4395,7 @@ PRO CRISPEX_DRAW_INT, event
 						(*(*info).dataparams).lp])[(*(*info).dataparams).x,(*(*info).dataparams).y]
 				ENDFOR
 			ENDELSE
-			avgdint = ssp / ABS(MEAN(ssp))
+			avgdint = ssp / ABS(MEAN(ssp, /NAN))
 			LOADCT, 12, /SILENT
 			plotcol = ((*(*info).intparams).colors_diagnostics)[selcol[i]]
 			OPLOT, FINDGEN((*(*info).dataparams).nt)*(*(*info).plotaxes).dt, avgdint, COLOR=plotcol, $
@@ -5032,12 +5032,12 @@ PRO CRISPEX_DRAW_REST_LOOP, event
 			IF (*(*info).dispparams).slices_imscale THEN $
         CRISPEX_DRAW_SCALING,event,refdisp,minimum,maximum, /REFERENCE $
       ELSE $
-        minimum = MIN(dispslice,MAX=maximum)
+        minimum = MIN(dispslice,MAX=maximum, /NAN)
 		ENDIF ELSE BEGIN
 			IF (*(*info).dispparams).slices_imscale THEN $
         CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum,/MAIN $
       ELSE $
-        minimum = MIN(dispslice,MAX=maximum)
+        minimum = MIN(dispslice,MAX=maximum, /NAN)
 		ENDELSE
     ; Display slice
 		TV, CONGRID( BYTSCL(dispslice, MIN=minimum, MAX=maximum), (*(*info).dispparams).restloopnlxreb,$
@@ -5339,7 +5339,7 @@ PRO CRISPEX_INT_SAVE, event
 	FOR i=0,N_ELEMENTS(condition)-1 DO BEGIN
 		intensities[0,i] = REFORM( ( ( *(*(*info).data).spdata)[ FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * (*(*info).dataparams).ns + FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns + $
 			(*(*info).dataparams).s ] )[condition[i],(*(*info).dispparams).t_low:(*(*info).dispparams).t_upp] )
-		avg_intensity[i] = MEAN(intensities[*,i])
+		avg_intensity[i] = MEAN(intensities[*,i], /NAN)
 	ENDFOR
 	diagnostics = ((*(*info).intparams).diagnostics)[condition]
 	x = (*(*info).dataparams).x		&	y = (*(*info).dataparams).y
@@ -5904,7 +5904,7 @@ PRO CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     tsel_ref = LONARR(hdr_out.mainnt)
     FOR tt=0,hdr_out.mainnt-1 DO BEGIN
       tdiff = ABS(hdr_out.tarr_ref - hdr_out.tarr_main[tt])
-      tsel_ref[tt] = (WHERE(tdiff EQ MIN(tdiff)))[0]
+      tsel_ref[tt] = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
     ENDFOR
     hdr_out = CREATE_STRUCT(hdr_out, 'tsel_ref', tsel_ref)
   ENDIF ELSE $
@@ -6006,7 +6006,7 @@ PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tsel_sji = LONARR(hdr_out.mainnt)
       FOR tt=0,hdr_out.mainnt-1 DO BEGIN
         tdiff = ABS(hdr_out.tarr_sji - hdr_out.tarr_main[tt])
-        tsel_sji[tt] = (WHERE(tdiff EQ MIN(tdiff)))[0]
+        tsel_sji[tt] = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
       ENDFOR
       hdr_out = CREATE_STRUCT(hdr_out, 'tsel_sji', tsel_sji)
     ENDIF ELSE $
@@ -6266,7 +6266,7 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
       lc = line_center[0,d] $
     ELSE BEGIN              ; Or determine from mean spectrum if line centre position is not supplied
       IF (WHERE(TAG_NAMES(hdr_out) EQ STRUPCASE(tag2)) EQ -1) THEN $          ; Check whether LPS exists
-        lc = ( WHERE( spec_select EQ MIN(spec_select) ) )[0] $
+        lc = ( WHERE( spec_select EQ MIN(spec_select, /NAN) ) )[0] $
       ELSE BEGIN
         IF (d EQ 0) THEN lc = hdr_out.lc ELSE lc = hdr_out.reflc
       ENDELSE
@@ -6446,19 +6446,19 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
       FOR lp=0,nlp_select-1 DO BEGIN    ; Loop over all "spectral" positions
         spect = 0.                      ; (Re-)define spect variable
         FOR t=t_lower,t_upper DO $      ; Loop over all time steps
-          spect += MEAN(datafile[t*nlp_select*ns_select + s*nlp_select + lp])
+          spect += MEAN(datafile[t*nlp_select*ns_select + s*nlp_select + lp], /NAN)
         spectrum[lp,s] = spect / FLOAT(t_upper - t_lower + 1)
       ENDFOR
       IF (ns_select GT 1) THEN BEGIN                                  
         IF (N_ELEMENTS(scale_stokes) NE 1) THEN BEGIN ; If ns>1 & not scale_stokes, find norm_factor
-          min_spectrum = MIN(spectrum[*,s], MAX=max_spectrum)
+          min_spectrum = MIN(spectrum[*,s], MAX=max_spectrum, /NAN)
           norm_factor[s] = (ABS([min_spectrum,max_spectrum]))[ABS(max_spectrum) GE ABS(min_spectrum)]
         ENDIF
         norm_spect[*,s] = spectrum[*,s] / norm_factor[s]              ; Determine norm_spect
       ENDIF 
     ENDFOR
     IF (ns_select EQ 1) THEN BEGIN      ; If ns=1, norm_factor and norm_spect follow easily
-      norm_factor = MAX(spectrum)
+      norm_factor = MAX(spectrum, /NAN)
       norm_spect = spectrum / FLOAT(norm_factor)
     ENDIF
   ENDIF
@@ -6499,9 +6499,9 @@ PRO CRISPEX_IO_PARSE_WARPSLICE, lps, nlp, nt, dlambda, dlambda_set, verbosity, N
     ; Check for non-equidistant spectral positions and allowed consequential warping
 		warpspslice = (((WHERE(equidist NE equidist[0]))[0] NE -1) AND ~KEYWORD_SET(NO_WARP))
     IF warpspslice THEN BEGIN
-		  min_lps = MIN(lps)
+		  min_lps = MIN(lps, /NAN)
 		  xi = FINDGEN(nlp) # REPLICATE(1,nt)
-		  xo = ((lps-min_lps) / FLOAT(MAX(lps-min_lps)) * nlp) # REPLICATE(1,nt)
+		  xo = ((lps-min_lps) / FLOAT(MAX(lps-min_lps, /NAN)) * nlp) # REPLICATE(1,nt)
 		  yi = REPLICATE(1,nlp) # FINDGEN(nt)
 		  yo = yi
 ;		  xi = FINDGEN(nlp) # REPLICATE(1,nt)
@@ -6931,7 +6931,10 @@ PRO CRISPEX_PB_BG, event
 		(*(*(*info).feedbparams).sum_pbstats)[(*(*info).feedbparams).count_pbstats MOD 10] = timediff
 		(*(*info).feedbparams).av_pbstats = (((*(*info).feedbparams).av_pbstats)*((*(*info).feedbparams).count_pbstats-1) + timediff)/FLOAT((*(*info).feedbparams).count_pbstats)
 		(*(*info).feedbparams).pbstats = newtime
-		IF ((*(*info).feedbparams).count_pbstats GE 10) THEN average = STRING(MEAN(*(*(*info).feedbparams).sum_pbstats),FORMAT='(F6.4)')+' s' ELSE average = 'N/A'
+		IF ((*(*info).feedbparams).count_pbstats GE 10) THEN $
+      average = STRING(MEAN(*(*(*info).feedbparams).sum_pbstats, /NAN),FORMAT='(F6.4)')+' s' $
+    ELSE $
+      average = 'N/A'
 		CRISPEX_UPDATE_USER_FEEDBACK, event, title='CRISPEX DEBUGGING: Playback statistics', var=((*(*info).feedbparams).count_pbstats+(*(*info).winids).feedbacktlb), minvar=1, /close_button, $
 			feedback_text='Time elapsed since last update: '+STRING(timediff,FORMAT='(F6.4)')+' s, average (over last 10): '+average+', (over last '+$
 			STRING((*(*info).feedbparams).count_pbstats,FORMAT='(I'+STRTRIM(FLOOR(ALOG10((*(*info).feedbparams).count_pbstats))+1,2)+')')+'): '+STRING((*(*info).feedbparams).av_pbstats,FORMAT='(F6.4)')+' s'
@@ -7976,7 +7979,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
       ntarrdims = SIZE(tarr,/N_DIMENSIONS)
       tarr_raster = tarr
       tval = SXPAR(header, 'CRVAL4')    ; tini_col = toffset_main/ref defaults to CRVAL4
-      dum=min(abs(tarr-tval),wheretval)
+      dum = MIN(ABS(tarr-tval),wheretval, /NAN)
 ;      wheretval = (WHERE(tarr EQ tval))[0]
       IF (wheretval EQ -1) THEN BEGIN
         nrasterpos = (SIZE(tarr))[ntarrdims-1]
@@ -11862,7 +11865,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '622'
+	revision_number = '623'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -11969,7 +11972,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		ENDELSE
 		IF (where_crispex[0] NE -1) THEN $
       set_instance_id = STRTRIM((instance_id[where_crispex])[WHERE(instance_id[where_crispex] EQ $
-                        MAX(instance_id[where_crispex]))] + 1,2) $
+                        MAX(instance_id[where_crispex], /NAN))] + 1,2) $
     ELSE $
       set_instance_id = STRTRIM(0,2)
 		PRINTF, unit2, 'CRISPEX	'+version_number+'	'+revision_number+'	'+set_instance_id
@@ -12616,9 +12619,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	FOR j=0,hdr.ns-1 DO BEGIN
 		FOR k=0,lp_last DO BEGIN
 			temp_image = (*hdr.imdata)[j*hdr.nlp + k]
-			immean[k,j] = MEAN(temp_image)
-			imsdev[k,j] = STDDEV(temp_image)
-  		immin[k,j] = MIN(temp_image, MAX=max_val)
+			immean[k,j] = MEAN(temp_image, /NAN)
+			imsdev[k,j] = STDDEV(temp_image, /NAN)
+  		immin[k,j] = MIN(temp_image, MAX=max_val, /NAN)
   		immax[k,j] = max_val
 			temp_k = 2*hdr.lc - k
 			IF ((temp_k EQ hdr.lc) OR (temp_k LT 0) OR (temp_k GT lp_last)) THEN BEGIN
@@ -12631,25 +12634,25 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   			ELSE $
           dopplerim = mirror_temp_image - temp_image
         dopplerscan[*,*,j*hdr.nlp+k] = dopplerim
-  			dopplermin[k,j] = MIN(dopplerim, MAX=max_val)
+  			dopplermin[k,j] = MIN(dopplerim, MAX=max_val, /NAN)
   			dopplermax[k,j] = max_val
       ENDELSE
 		ENDFOR
 		IF scalestokes THEN BEGIN
 ;			ls_low_y[j] = MIN(immin[*,j])/hdr.ms
 ;			ls_upp_y[j] = MAX(immax[*,j])/hdr.ms
-			ls_low_y[j] = MIN((immean[*,j]-3.*imsdev[*,j])/hdr.ms)
-			ls_upp_y[j] = MAX((immean[*,j]+3.*imsdev[*,j])/hdr.ms)
+			ls_low_y[j] = MIN((immean[*,j]-3.*imsdev[*,j])/hdr.ms, /NAN)
+			ls_upp_y[j] = MAX((immean[*,j]+3.*imsdev[*,j])/hdr.ms, /NAN)
 		ENDIF ELSE BEGIN
 ;			ls_low_y[j] = MIN(immin[*,j])/hdr.ms[j]
 ;			ls_upp_y[j] = MAX(immax[*,j])/hdr.ms[j]
-			ls_low_y[j] = MIN((immean[*,j]-3.*imsdev[*,j])/hdr.ms[j])
-			ls_upp_y[j] = MAX((immean[*,j]+3.*imsdev[*,j])/hdr.ms[j])
+			ls_low_y[j] = MIN((immean[*,j]-3.*imsdev[*,j])/hdr.ms[j], /NAN)
+			ls_upp_y[j] = MAX((immean[*,j]+3.*imsdev[*,j])/hdr.ms[j], /NAN)
 		ENDELSE
 		ls_yrange[j] = ls_upp_y[j] - ls_low_y[j]
-		max_imsdev = MAX(imsdev[*,j])
-		int_low_y[j] = (MEAN(immean[*,j])-3.*max_imsdev)/ABS(MEAN(immean[*,j]))
-		int_upp_y[j] = (MEAN(immean[*,j])+3.*max_imsdev)/ABS(MEAN(immean[*,j]))
+		max_imsdev = MAX(imsdev[*,j], /NAN)
+		int_low_y[j] = (MEAN(immean[*,j], /NAN)-3.*max_imsdev)/ABS(MEAN(immean[*,j], /NAN))
+		int_upp_y[j] = (MEAN(immean[*,j], /NAN)+3.*max_imsdev)/ABS(MEAN(immean[*,j], /NAN))
 	ENDFOR
 	ls_low_y_init = ls_low_y[0]
 	ls_upp_y_init = ls_upp_y[0]
@@ -12660,14 +12663,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
       FOR d=0,hdr.ndiagnostics-1 DO BEGIN
         ls_low_tmp=MIN((immin[hdr.diag_start[d]:(hdr.diag_start[d]+(hdr.diag_width[d]-1)),$
           j]-3.*imsdev[hdr.diag_start[d]:(hdr.diag_start[d]+(hdr.diag_width[d]-1)),j])/$
-          hdr.ms[j])
+          hdr.ms[j], /NAN)
         ls_upp_tmp=MAX((immax[hdr.diag_start[d]:(hdr.diag_start[d]+(hdr.diag_width[d]-1)),$
           j]+3.*imsdev[hdr.diag_start[d]:(hdr.diag_start[d]+(hdr.diag_width[d]-1)),j])/$
-          hdr.ms[j])
+          hdr.ms[j], /NAN)
         ls_range_tmp[d,j] = ls_upp_tmp - ls_low_tmp
       ENDFOR
     ENDFOR
-    main_mult_val = REPLICATE(ls_range_tmp[WHERE(ls_range_tmp EQ MAX(ls_range_tmp))],$
+    main_mult_val = REPLICATE(ls_range_tmp[WHERE(ls_range_tmp EQ MAX(ls_range_tmp, /NAN))],$
       hdr.ndiagnostics)/ls_range_tmp
   ENDIF ELSE main_mult_val = REPLICATE(1.,hdr.ns)
 	ls_low_y = PTR_NEW(ls_low_y,/NO_COPY)
@@ -12680,13 +12683,13 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ls_upp_y_ref = 0
 	IF hdr.showref THEN BEGIN
 		IF (hdr.refnt EQ 0) THEN BEGIN
-			refmin = MIN(*hdr.refdata, MAX=refmax)
-			refmean = MEAN(*hdr.refdata)
-			refdev = STDDEV(*hdr.refdata)
+			refmin = MIN(*hdr.refdata, MAX=refmax, /NAN)
+			refmean = MEAN(*hdr.refdata, /NAN)
+			refdev = STDDEV(*hdr.refdata, /NAN)
 		ENDIF ELSE IF (((hdr.refnt EQ 1) OR (hdr.refnt EQ hdr.mainnt)) AND (hdr.refnlp EQ 1)) THEN BEGIN
-			refmin = MIN((*hdr.refdata)[0], MAX=refmax)
-			refmean = MEAN((*hdr.refdata)[0])
-			refdev = STDDEV((*hdr.refdata)[0])
+			refmin = MIN((*hdr.refdata)[0], MAX=refmax, /NAN)
+			refmean = MEAN((*hdr.refdata)[0], /NAN)
+			refdev = STDDEV((*hdr.refdata)[0], /NAN)
 		ENDIF ELSE BEGIN
 			refmin = FLTARR(hdr.refnlp)
 			refmax = FLTARR(hdr.refnlp)
@@ -12694,15 +12697,15 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 			refdev = FLTARR(hdr.refnlp)
 			FOR k=0,hdr.refnlp-1 DO BEGIN
 				temp_referencefile = (*hdr.refdata)[k]
-				refmean[k] = MEAN(temp_referencefile)
-				refdev[k] = STDDEV(temp_referencefile)
-				refmin[k] = MIN(temp_referencefile, MAX=max_val)
+				refmean[k] = MEAN(temp_referencefile, /NAN)
+				refdev[k] = STDDEV(temp_referencefile, /NAN)
+				refmin[k] = MIN(temp_referencefile, MAX=max_val, /NAN)
 				refmax[k] = max_val
 			ENDFOR
 		ENDELSE
 		IF showrefls THEN BEGIN
-			ls_low_y_ref = MIN((refmean-3.*refdev)/hdr.refms)
-			ls_upp_y_ref = MAX((refmean+3.*refdev)/hdr.refms)
+			ls_low_y_ref = MIN((refmean-3.*refdev)/hdr.refms, /NAN)
+			ls_upp_y_ref = MAX((refmean+3.*refdev)/hdr.refms, /NAN)
 		ENDIF
     IF (hdr.nrefdiagnostics GT 1) THEN BEGIN
       ; Determine multiplicative factors
@@ -12711,14 +12714,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
         ls_low_tmp=MIN((refmin[hdr.refdiag_start[d]:$
           (hdr.refdiag_start[d]+(hdr.refdiag_width[d]-1))]-$
           3.*imsdev[hdr.refdiag_start[d]:(hdr.refdiag_start[d]+(hdr.refdiag_width[d]-1))])/$
-          hdr.refms)
+          hdr.refms, /NAN)
         ls_upp_tmp=MAX((immax[hdr.refdiag_start[d]:$
           (hdr.refdiag_start[d]+(hdr.refdiag_width[d]-1))]+$
           3.*imsdev[hdr.refdiag_start[d]:(hdr.refdiag_start[d]+(hdr.refdiag_width[d]-1))])/$
-          hdr.refms)
+          hdr.refms, /NAN)
         ls_range_tmp[d] = ls_upp_tmp - ls_low_tmp
       ENDFOR
-      ref_mult_val = REPLICATE(ls_range_tmp[WHERE(ls_range_tmp EQ MAX(ls_range_tmp))],$
+      ref_mult_val = REPLICATE(ls_range_tmp[WHERE(ls_range_tmp EQ MAX(ls_range_tmp, /NAN))],$
         hdr.nrefdiagnostics)/ls_range_tmp
     ENDIF ELSE ref_mult_val = 1.
 	ENDIF ELSE BEGIN
@@ -12728,7 +12731,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ENDELSE
 	ls_yrange_ref = ls_upp_y_ref - ls_low_y_ref 
 
-  sjimin = MIN((*hdr.sjidata)[0], MAX=sjimax_val)
+  sjimin = MIN((*hdr.sjidata)[0], MAX=sjimax_val, /NAN)
   sjimax = sjimax_val
 	
   IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
@@ -14344,7 +14347,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	CRISPEX_MASK_BUTTONS_SET, pseudoevent
   set_zoomfac = CRISPEX_BGROUP_ZOOMFAC_SET(pseudoevent, /NO_DRAW, SET_FACTOR=0)
-  CRISPEX_DISPRANGE_T_RANGE, pseudoevent, /NO_DRAW
+  IF (hdr.mainnt GT 1) THEN CRISPEX_DISPRANGE_T_RANGE, pseudoevent, /NO_DRAW
 ;  set_stokes = CRISPEX_DISPLAYS_STOKES_SELECT_XY(pseudoevent, /NO_DRAW, SET_STOKES=0)
 	IF (*(*info).winswitch).showsp THEN BEGIN
 		(*(*info).winswitch).showsp = 0
