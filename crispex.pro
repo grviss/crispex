@@ -500,8 +500,14 @@ FUNCTION CRISPEX_SCALING_SLICES, dispim, gamma_val, histo_opt_val, $
       dispim = (TEMPORARY((dispim)))^gamma_val
   ENDIF
   IF ((histo_opt_val NE 0) OR KEYWORD_SET(FORCE_HISTO)) THEN BEGIN
-    IF (MIN(dispim, MAX=dispmax, /NAN) NE dispmax) THEN $
-      dispim = HISTO_OPT(TEMPORARY(dispim), histo_opt_val, MISSING=-32768)
+    IF (MIN(dispim, MAX=dispmax, /NAN) NE dispmax) THEN BEGIN
+      ; Copied over MISSING handling from modified HISTO_OPT() since it gives  "Floating illegal
+      ; operand" errors otherwise
+      finitvals = FINITE(dispim)
+      dispim[WHERE(finitvals eq 0)]=-32768
+      dispim=dispim[WHERE(dispim ne -32768)]
+      dispim = HISTO_OPT(TEMPORARY(dispim), histo_opt_val);, MISSING=-32768)
+    ENDIF
   ENDIF
   minimum = MIN(dispim,MAX=maximum, /NAN)
   IF ((N_ELEMENTS(default_min) EQ 1) AND (N_ELEMENTS(default_max) EQ 1)) THEN $
@@ -3732,7 +3738,7 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
       LONG((*(*info).dataparams).y)] $
   ELSE $  ; Failsafe for IRIS sit-and-stare
     act_dataval = (*(*(*info).data).xyslice)[LONG((*(*info).dataparams).y)]
-  IF (act_dataval NE 0) THEN $
+  IF ((FINITE(act_dataval) EQ 1) AND (act_dataval NE 0)) THEN $
     order = FLOOR(ALOG10(ABS(act_dataval))) $
   ELSE $
     order = 0
@@ -3747,7 +3753,7 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
         LONG((*(*info).dataparams).y)] $
     ELSE $  ; Failsafe for IRIS sit-and-stare
       act_ref_dataval = (*(*(*info).data).refslice)[LONG((*(*info).dataparams).y)]
-    IF (act_ref_dataval NE 0) THEN $
+    IF ((FINITE(act_ref_dataval) EQ 1) AND (act_ref_dataval NE 0)) THEN $
       order = FLOOR(ALOG10(ABS(act_ref_dataval))) $
     ELSE $
       order = 0
@@ -3760,7 +3766,7 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
   IF (*(*info).winswitch).showsji THEN BEGIN
     act_sji_dataval = (*(*(*info).data).sjislice)[LONG((*(*info).dataparams).xsji), $
       LONG((*(*info).dataparams).ysji)]
-    IF (act_sji_dataval NE 0) THEN $
+    IF ((FINITE(act_sji_dataval) EQ 1) AND (act_sji_dataval NE 0)) THEN $
       order = FLOOR(ALOG10(ABS(act_sji_dataval))) $
     ELSE $
       order = 0
@@ -3857,7 +3863,7 @@ PRO CRISPEX_DRAW_SUBCOLOR, event, imref, subcolor, minimum, maximum, XYRANGE=xyr
   minimum = MIN(selected_data, MAX=maximum, /NAN)
   minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
     (*(*info).scaling).minimum[scale_idx],(*(*info).scaling).maximum[scale_idx])
-	scaled_data = BYTSCL(selected_data[x_low:x_upp, y_low:y_upp], MIN=minmax[0], MAX=minmax[1])
+	scaled_data = BYTSCL(selected_data[x_low:x_upp, y_low:y_upp], MIN=minmax[0], MAX=minmax[1], /NAN)
 	subcolor = MEAN(scaled_data, /NAN)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [x_low,x_upp,y_low,y_upp,subcolor], $
@@ -3961,13 +3967,18 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
     ENDELSE
   ENDIF
   IF ((*(*(*info).scaling).imagescale)[sel] EQ 2) THEN BEGIN
+    ; Copied over MISSING handling from modified HISTO_OPT() since it gives  "Floating illegal
+    ; operand" errors otherwise
+    finitvals = FINITE(selected_data)
+    selected_data[WHERE(finitvals eq 0)]=-32768
+    selcted_data = selected_data[WHERE(selected_data ne -32768)]
     selected_data = HISTO_OPT(TEMPORARY(selected_data), $
-      (*(*info).scaling).histo_opt_val[scale_idx], MISSING=-32768)
+      (*(*info).scaling).histo_opt_val[scale_idx]);, MISSING=-32768)
     minimum = MIN(selected_data, MAX=maximum, /NAN)
   ENDIF
   minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
     (*(*info).scaling).minimum[scale_idx],(*(*info).scaling).maximum[scale_idx])
-	finalimage = BYTSCL(selected_data, MIN = minmax[0], MAX = minmax[1]) 
+	finalimage = BYTSCL(selected_data, MIN = minmax[0], MAX = minmax[1], /NAN) 
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [minimum,maximum], labels=['minimum','maximum']
 END
@@ -4278,7 +4289,7 @@ PRO CRISPEX_DRAW_REFSP, event
           (*(*info).scaling).histo_opt_val[sel_idx], $
           (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
       ENDIF
-      TV,(CONGRID( BYTSCL(tmp_disp,MIN=refminmax[0],MAX=refminmax[1]), $
+      TV,(CONGRID( BYTSCL(tmp_disp,MIN=refminmax[0],MAX=refminmax[1], /NAN), $
         (*(*info).dispparams).refnlpreb*diag_ratio[d], (*(*info).dispparams).refntreb, $
         INTERP = (*(*info).dispparams).interpspslice, /CENTER)),$
         (d GE 1)*TOTAL(diag_range[0:d-1])+(*(*info).plotpos).refspx0, (*(*info).plotpos).refspy0, $
@@ -4294,7 +4305,7 @@ PRO CRISPEX_DRAW_REFSP, event
         (*(*info).scaling).histo_opt_val[sel_idx], $
         (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
     ENDIF
-    TV,(CONGRID( BYTSCL(dispslice,MIN=refminmax[0],MAX=refminmax[1]), (*(*info).dispparams).refnlpreb, $
+    TV,(CONGRID( BYTSCL(dispslice,MIN=refminmax[0],MAX=refminmax[1], /NAN), (*(*info).dispparams).refnlpreb, $
        (*(*info).dispparams).refntreb, INTERP = (*(*info).dispparams).interpspslice, /CENTER)),$
        (*(*info).plotpos).refspx0, (*(*info).plotpos).refspy0, /NORM
   ENDELSE
@@ -4631,7 +4642,7 @@ PRO CRISPEX_DRAW_SP, event
           (*(*info).scaling).minimum[wheredispdiag[d]],$
           (*(*info).scaling).maximum[wheredispdiag[d]])
       ENDIF
-      TV,(CONGRID( BYTSCL(tmp_disp, MIN=minmax[0], MAX=minmax[1]), $
+      TV,(CONGRID( BYTSCL(tmp_disp, MIN=minmax[0], MAX=minmax[1], /NAN), $
         (*(*info).dispparams).nlpreb*diag_ratio[d], (*(*info).dispparams).ntreb, $
         INTERP = (*(*info).dispparams).interpspslice, /CENTER) ), $
         (d GE 1)*TOTAL(diag_range[0:d-1])+(*(*info).plotpos).spx0, (*(*info).plotpos).spy0, /NORM
@@ -4646,7 +4657,7 @@ PRO CRISPEX_DRAW_SP, event
         (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
         (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
     ENDIF
-    TV,(CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1]), (*(*info).dispparams).nlpreb, $
+    TV,(CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1], /NAN), (*(*info).dispparams).nlpreb, $
        (*(*info).dispparams).ntreb, INTERP = (*(*info).dispparams).interpspslice, /CENTER) ), $
        (*(*info).plotpos).spx0, (*(*info).plotpos).spy0, /NORM
   ENDELSE
@@ -4841,7 +4852,7 @@ PRO CRISPEX_DRAW_PHIS, event
             (*(*info).scaling).minimum[wheredispdiag[d]],$
             (*(*info).scaling).maximum[wheredispdiag[d]])
         ENDIF
-        TV,(CONGRID( BYTSCL(tmp_disp, MIN=minmax[0], MAX=minmax[1]), $
+        TV,(CONGRID( BYTSCL(tmp_disp, MIN=minmax[0], MAX=minmax[1], /NAN), $
           (*(*info).dispparams).phisnlpreb*diag_ratio[d], (*(*info).dispparams).nphireb, $
           INTERP = (*(*info).dispparams).interpspslice, /CENTER) ), $
           (d GE 1)*TOTAL(diag_range[0:d-1])+(*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, $
@@ -4857,7 +4868,7 @@ PRO CRISPEX_DRAW_PHIS, event
           (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
           (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
       ENDIF
-    	TV, CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1]), (*(*info).dispparams).phisnlpreb, $
+    	TV, CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1], /NAN), (*(*info).dispparams).phisnlpreb, $
         (*(*info).dispparams).nphireb, INTERP = (*(*info).dispparams).interpspslice), $
         (*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, /NORM
     ENDELSE
@@ -4937,7 +4948,7 @@ PRO CRISPEX_DRAW_LOOPSLAB, event
       (*(*info).scaling).minimum[(*(*info).intparams).lp_diag_all],$
       (*(*info).scaling).maximum[(*(*info).intparams).lp_diag_all])
   ENDELSE
-	TV, CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1]), (*(*info).dispparams).loopnlxreb, $
+	TV, CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1], /NAN), (*(*info).dispparams).loopnlxreb, $
     (*(*info).dispparams).loopntreb, /INTERP), $
 		(*(*info).plotpos).loopx0, (*(*info).plotpos).loopy0,/NORM
   ; Overplot time indicator
@@ -4980,7 +4991,7 @@ PRO CRISPEX_DRAW_REFLOOPSLAB, event
       (*(*info).scaling).gamma[sel_idx],(*(*info).scaling).histo_opt_val[sel_idx], $
       (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
   ENDELSE
-	TV, CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1]), (*(*info).dispparams).refloopnlxreb, $
+	TV, CONGRID( BYTSCL(dispslice, MIN=minmax[0], MAX=minmax[1], /NAN), (*(*info).dispparams).refloopnlxreb, $
     (*(*info).dispparams).refloopntreb, /INTERP), $
 		(*(*info).plotpos).refloopx0, (*(*info).plotpos).refloopy0,/NORM
   ; Overplot time indicator
@@ -5042,7 +5053,7 @@ PRO CRISPEX_DRAW_REST_LOOP, event
         minimum = MIN(dispslice,MAX=maximum, /NAN)
 		ENDELSE
     ; Display slice
-		TV, CONGRID( BYTSCL(dispslice, MIN=minimum, MAX=maximum), (*(*info).dispparams).restloopnlxreb,$
+		TV, CONGRID( BYTSCL(dispslice, MIN=minimum, MAX=maximum, /NAN), (*(*info).dispparams).restloopnlxreb,$
       (*(*info).dispparams).restloopntreb, /INTERP), $
 			(*(*info).plotpos).restloopx0, (*(*info).plotpos).restloopy0, /NORM
     ; Overplot time indicator
@@ -11867,7 +11878,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '625'
+	revision_number = '626'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
