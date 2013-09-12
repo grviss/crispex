@@ -7972,18 +7972,11 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     dt = cdelt[sortorder[3]]
     tlab = STRTRIM(ctype[sortorder[3]],2)
     tunit = STRTRIM(cunit[sortorder[3]],2)
-    common_tunit = [(tunit EQ 's'),(tunit EQ 'ms'),(tunit EQ 'hs')]
-    where_common_tunit = WHERE(common_tunit EQ 1)
-    IF (where_common_tunit NE -1) THEN $
-      tfactor = ([1,0.001,100.])[where_common_tunit] $
-    ELSE $
-      tfactor = 1.
   ENDIF ELSE BEGIN
     dt = 0
     tlab = 't'
 ;    tunit = '[s]'
   ENDELSE
-  tunit = 's'
   tini_col = 0    ; Default raster timing column
   IF ~KEYWORD_SET(SJICUBE) THEN BEGIN
     ; Get time array (assuming each raster is co-temporal)
@@ -8020,9 +8013,16 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     sjix0 = SXPAR(header, 'ROWSTAR')
     sjiy0 = SXPAR(header, 'COLSTAR')
     nt = naxis[sortorder[2]]
-    ; Currently hardcoded assumption of millisec since there is no keyword value
-    tfactor = 0.001 
+    tunit = STRTRIM(cunit[sortorder[2]],2)
   ENDELSE
+  ; Determine tfactor and set time units to seconds
+  common_tunit = [(tunit EQ 's'),(tunit EQ 'ms'),(tunit EQ 'hs')]
+  where_common_tunit = WHERE(common_tunit EQ 1)
+  IF (where_common_tunit NE -1) THEN $
+    tfactor = ([1,0.001,100.])[where_common_tunit] $
+  ELSE $
+    tfactor = 1.
+  tunit = 's'
   tarr_sel *= REPLICATE(tfactor,nt)
   tarr_raster *= REPLICATE(tfactor,(SIZE(tarr_raster))[1],nt)
   ; Determine plot labels
@@ -11878,7 +11878,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '627'
+	revision_number = '628'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
