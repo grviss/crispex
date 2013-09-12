@@ -501,7 +501,7 @@ FUNCTION CRISPEX_SCALING_SLICES, dispim, gamma_val, histo_opt_val, $
   ENDIF
   IF ((histo_opt_val NE 0) OR KEYWORD_SET(FORCE_HISTO)) THEN BEGIN
     IF (MIN(dispim, MAX=dispmax, /NAN) NE dispmax) THEN $
-      dispim = HISTO_OPT(TEMPORARY(dispim), histo_opt_val)
+      dispim = HISTO_OPT(TEMPORARY(dispim), histo_opt_val, MISSING=-32768)
   ENDIF
   minimum = MIN(dispim,MAX=maximum, /NAN)
   IF ((N_ELEMENTS(default_min) EQ 1) AND (N_ELEMENTS(default_max) EQ 1)) THEN $
@@ -3960,7 +3960,7 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
   ENDIF
   IF ((*(*(*info).scaling).imagescale)[sel] EQ 2) THEN BEGIN
     selected_data = HISTO_OPT(TEMPORARY(selected_data), $
-      (*(*info).scaling).histo_opt_val[scale_idx])
+      (*(*info).scaling).histo_opt_val[scale_idx], MISSING=-32768)
     minimum = MIN(selected_data, MAX=maximum, /NAN)
   ENDIF
   minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
@@ -11865,7 +11865,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '623'
+	revision_number = '624'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -13531,7 +13531,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
       ENDELSE
       IF ((hdr.sjint GT 1) AND dt_set) THEN BEGIN
         t_sji_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_sji[$
-          (WHERE(hdr.tsel_sji GT 0))[-1]]))+3,2)+'.1)'
+          (WHERE(hdr.tarr_sji GT 0))[-1]]))+3,2)+'.1)'
         t_sji_real_txt = STRING(hdr.tarr_sji[hdr.tsel_sji[t_start]], $
           FORMAT=t_sji_real_format)
       ENDIF ELSE BEGIN
@@ -13885,7 +13885,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		interpspslice:interpspslice, phislice_update:phislice_update, slices_imscale:slices_imscale, $
     tsel_main:PTR_NEW(hdr.tsel_main), tsel_ref:PTR_NEW(hdr.tsel_ref), $
     tsel_sji:PTR_NEW(hdr.tsel_sji), master_time:0, $
-    tarr_main:PTR_NEW(hdr.tarr_main), tarr_ref:PTR_NEW(hdr.tarr_ref), tarr_sji:PTR_NEW(hdr.tarr_sji), $
+    tarr_main:PTR_NEW(hdr.tarr_main[hdr.tsel_main]), $
+    tarr_ref:PTR_NEW(hdr.tarr_ref[hdr.tsel_ref]), $
+    tarr_sji:PTR_NEW(hdr.tarr_sji[hdr.tsel_sji]), $
     t:t_start, t_main:hdr.tsel_main[0], t_ref:hdr.tsel_ref[0], t_sji:hdr.tsel_sji[0], $
     t_low_main:hdr.tarr_main[0], t_upp_main:hdr.tarr_main[hdr.mainnt-1], $
     t_low_ref:hdr.tarr_ref[0], t_upp_ref:hdr.tarr_ref[hdr.refnt-1], $
