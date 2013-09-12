@@ -2396,6 +2396,8 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
   t_upp_y = (*(*info).dispparams).t_upp_ref
   ;(*(*(*info).dispparams).tarr_ref)[$
   ;            (WHERE(*(*(*info).dispparams).tarr_ref NE 0))[-1]]  ; Temp fix for tarr[-1]=0
+  xrange = [(*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low], $
+            (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_upp]]
   correct_axes = (FLOOR(ALOG10(ABS(t_upp_y))) GE 3)
   IF ((t_low_y NE 0.) AND ~KEYWORD_SET(correct_axes)) THEN $
     correct_axes = (FLOOR(ALOG10(ABS(t_low_y))) LE -2) 
@@ -2408,9 +2410,7 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
   IF (*(*info).plotswitch).v_dop_set_ref THEN topxtitle = 'Doppler velocity [km/s]'
   ; Plot basic axes box
   PLOT, (*(*info).dataparams).lps, *(*(*info).dispparams).tarr_ref, $
-    YR = [t_low_y,t_upp_y], /YS, $
-    XR = [(*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low], $
-          (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_upp]], $
+    YR = [t_low_y,t_upp_y], /YS, XR=xrange, $
     XSTYLE = (*(*info).plotswitch).v_dop_set_ref * 8 + 1, $
   	YTICKLEN = yticklen, YTITLE = ytitle, YTICKNAME = ytickname, $
     XTICKLEN = xticklen, XTITLE = xtitle, XTICKNAME = xtickname, $
@@ -2433,8 +2433,9 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
     FOR d=0,(*(*info).intparams).ndisp_refdiagnostics-1 DO BEGIN
       disp_idx = (WHERE((*(*info).intparams).disp_refdiagnostics EQ 1))[d]
       ; Determine xrange to display
-      xrange = (*(*info).dataparams).reflps[[(*(*info).intparams).refdiag_start[disp_idx],$
-        ((*(*info).intparams).refdiag_start[disp_idx]+(*(*info).intparams).refdiag_width[disp_idx]-1)]]
+      IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN $
+        xrange = (*(*info).dataparams).reflps[[(*(*info).intparams).refdiag_start[disp_idx],$
+          ((*(*info).intparams).refdiag_start[disp_idx]+(*(*info).intparams).refdiag_width[disp_idx]-1)]]
       IF (d EQ 0) THEN offset = 0 ELSE offset = TOTAL(diag_range[0:(d-1)])
       ; Determine lower left corner position of plot
       refspx0 = (*(*info).plotpos).refspx0 + offset
@@ -2507,8 +2508,8 @@ PRO CRISPEX_DISPLAYS_REFSP_TOGGLE, event, NO_DRAW=no_draw
     ; Create window
 		CRISPEX_WINDOW, (*(*info).winsizes).refspxres, (*(*info).winsizes).refspyres, $
       (*(*info).winids).root, title, refsptlb, refspwid, (*(*info).winsizes).spxoffset, $
-      (*(*info).winswitch).showsp * (*(*info).winsizes).ydelta, DRAWID = refspdrawid, RESIZING = 1,$
-      RES_HANDLER = 'CRISPEX_DISPLAYS_REFSP_RESIZE'
+      (*(*info).winsizes).spyoffset+((*(*info).winswitch).showsp * (*(*info).winsizes).ydelta),$
+      DRAWID = refspdrawid, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_REFSP_RESIZE'
     ; Save window variables
 		(*(*info).winids).refsptlb = refsptlb		&	(*(*info).winids).refspwid = refspwid	&	(*(*info).winswitch).showrefsp = 1
 		(*(*info).winids).refspdrawid = refspdrawid	&	(*(*info).winids).refspwintitle = title 
@@ -2601,6 +2602,8 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
   ;tarr_main_sel[(WHERE(tarr_main_sel NE 0))[-1]]
 ;  t_upp_y = (*(*(*info).dispparams).tarr_main)[$
 ;              (WHERE(*(*(*info).dispparams).tarr_main NE 0))[-1]]  ; Temp fix for tarr[-1]=0
+  xrange = [(*(*info).dataparams).lps[(*(*info).dispparams).lp_low], $
+            (*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]]
   correct_axes = (FLOOR(ALOG10(ABS(t_upp_y))) GE 3)
   IF ((t_low_y NE 0.) AND ~KEYWORD_SET(correct_axes)) THEN $
     correct_axes = (FLOOR(ALOG10(ABS(t_low_y))) LE -2) 
@@ -2614,9 +2617,7 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
   IF (*(*info).plotswitch).v_dop_set THEN topxtitle += 'Doppler velocity [km/s]'
   ; Plot basic axes box
   PLOT, (*(*info).dataparams).lps, *(*(*info).dispparams).tarr_main, $
-    YR = [t_low_y,t_upp_y], /YS, $
-    XR = [(*(*info).dataparams).lps[(*(*info).dispparams).lp_low], $
-          (*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]], $
+    YR = [t_low_y,t_upp_y], /YS, XR=xrange, $
     XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
   	YTICKLEN = yticklen, YTITLE = ytitle, YTICKNAME = ytickname, $
     XTICKLEN = xticklen, XTITLE = xtitle, XTICKNAME = xtickname, $
@@ -2641,8 +2642,9 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
       disp_idx = (WHERE((*(*info).intparams).disp_diagnostics EQ 1))[d]
       ; Determine xrange to display
-      xrange = (*(*info).dataparams).lps[[(*(*info).intparams).diag_start[disp_idx],$
-        ((*(*info).intparams).diag_start[disp_idx]+(*(*info).intparams).diag_width[disp_idx]-1)]]
+      IF ((*(*info).intparams).ndiagnostics GT 1) THEN $
+        xrange = (*(*info).dataparams).lps[[(*(*info).intparams).diag_start[disp_idx],$
+          ((*(*info).intparams).diag_start[disp_idx]+(*(*info).intparams).diag_width[disp_idx]-1)]]
       IF (d EQ 0) THEN offset = 0 ELSE offset = TOTAL(diag_range[0:(d-1)])
       ; Determine lower left corner position of plot
       spx0 = (*(*info).plotpos).spx0 + offset
@@ -3123,7 +3125,7 @@ PRO CRISPEX_DISPRANGE_GET_WARP_TRIANGULATE, event, xo, yo, xi, yi, slice, PHIS=p
 END
 
 PRO CRISPEX_DISPRANGE_LP_LOW, event, LP_SET=lp_set, NO_DRAW=no_draw
-; Handles change in lower s-value of accessed data cube
+; Handles change in lower lp-value of accessed data cube
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (N_ELEMENTS(LP_SET) EQ 1) THEN $
@@ -3140,7 +3142,7 @@ PRO CRISPEX_DISPRANGE_LP_LOW, event, LP_SET=lp_set, NO_DRAW=no_draw
 END
 
 PRO CRISPEX_DISPRANGE_LP_UPP, event, LP_SET=lp_set, NO_DRAW=no_draw
-; Handles change in upper s-value of accessed data cube
+; Handles change in upper lp-value of accessed data cube
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (N_ELEMENTS(LP_SET) EQ 1) THEN $
@@ -7881,8 +7883,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.sjitype = key.datatype    &  hdr_out.sjint = key.nt
       hdr_out.sjinx = key.nx            &  hdr_out.sjiny = key.ny
       hdr_out.sjidx = key.dx            &  hdr_out.sjidy = key.dy
-      hdr_out.sjix0 = key.sjix0 
-      hdr_out.sjiy0 = key.sjiy0
+      hdr_out.sjix0 = key.sjix0         &  hdr_out.sjiy0 = key.sjiy0
+      hdr_out.sjibunit = key.bunit      
       hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
         'sjixoff', key.sjixoff, 'sjiyoff', key.sjiyoff)
   ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                ; Fill hdr parameters for MASKCUBE
@@ -11865,7 +11867,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '624'
+	revision_number = '625'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -12065,6 +12067,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
             stokes_enabled:[0,0,0,0], scalestokes_max:0, ndiagnostics:1, nrefdiagnostics:1, $
             refxunit:'arcsec', refyunit:'arcsec', reflpunit:'', refbunit:'counts', $
             refxlabel:'x', refylabel:'y', reftlabel:'', reflplabel:'', refblabel:'Intensity', $
+            sjibunit:'counts', $
             xtitle:STRARR(2), ytitle:STRARR(2), refspxtitle:'', spxtitle:'', spytitle:'', $
             ipath:ipath, opath:opath, instance_label:instance_label, $
             lunim:0, lunsp:0, lunrefim:0, lunrefsp:0, lunsji:0, lunmask:0, $
@@ -12418,17 +12421,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	IF (hdr.mainnt GE 50) THEN windowy = imwiny ELSE windowy = imwiny/2. > (y_scr_size/2.)
 	lswinx 		= 0.2 * x_scr_size											; Set maximum x-extent of loc spec win
 
-  ; If reference cube present, check if it would fit next to main image
-  refxoffset = 0
-  refyoffset = 0
-  IF hdr.showref THEN BEGIN
-    windows_xextent = imwinx*2 + windowx + lswinx + xdelta*3
-    IF (windows_xextent LE x_scr_size) THEN refxoffset = imwinx + 2*xdelta $
-      ELSE refyoffset = ydelta
-  ENDIF ELSE windows_xextent = imwinx + windowx + lswinx + xdelta*2
+  ;; If reference cube present, check if it would fit next to main image
+  ;refxoffset = 0
+  ;refyoffset = 0
+  ;IF hdr.showref THEN BEGIN
+  ;  windows_xextent = imwinx*2 + windowx + lswinx + xdelta*3
+  ;  IF (windows_xextent LE x_scr_size) THEN refxoffset = imwinx + 2*xdelta $
+  ;    ELSE refyoffset = ydelta
+  ;ENDIF ELSE windows_xextent = imwinx + windowx + lswinx + xdelta*2
 
-	spxoffset = imwinx + refxoffset + (1+(windows_xextent GT x_scr_size))*xdelta
-	lsxoffset = spxoffset + windowx + xdelta
+	;spxoffset = imwinx + refxoffset + (1+(windows_xextent GT x_scr_size))*xdelta
+	;lsxoffset = spxoffset + windowx + xdelta
 
 	xswinx		= windowx												; Set maximum x-extent of x-slice window
 	xswiny		= windowy												; Set maximum y-extent of x-slice window
@@ -12520,7 +12523,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     refspheight = (1. - (spmargin * 2.) * spwinx/spwiny) $
   ELSE $
     refspheight = (1. - (spmargin + spwall) * spwinx/spwiny)
-	refspwiny	= windowy
+	refspwiny	= imwiny-lswiny ;windowy
 
 	spx0 		= spmargin * spwinx/spwinx 
 	spx1 		= spx0 + spwidth * spwinx/spwinx
@@ -13555,26 +13558,35 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
         FORMAT='(E10.4)')
 		  dataval_real_val = WIDGET_LABEL(params_main_base, VALUE=dataval_real_txt, $
         /ALIGN_RIGHT)
+      ; dataval_unit_txt = WIDGET_LABEL(params_main_base, VALUE='['+hdr.bunit+']', /ALIGN_RIGHT)
       ref_label   = WIDGET_LABEL(params_ref_base, VALUE=' ', /ALIGN_RIGHT)
       IF hdr.showref THEN BEGIN
         dataval_ref_real_txt = STRING(((*hdr.refdata)[lp_ref_start])[x_start,y_start], $
           FORMAT='(E10.4)')
+        ; dataval_ref_unit_txt = '['+hdr.refbunit+']'
       ENDIF ELSE BEGIN
         dataval_ref_real_format = ''
         dataval_ref_real_txt = 'N/A'
+        ; dataval_ref_unit_txt = ' '
       ENDELSE
 		  dataval_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=dataval_ref_real_txt, $
         /ALIGN_RIGHT)
+      ;dataval_ref_unit_txt = WIDGET_LABEL(params_ref_base, VALUE=dataval_ref_unit_txt, $
+      ;  /ALIGN_CENTER)
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
+      ;dataval_sji_unit_txt = ' '
       IF hdr.sjifile THEN BEGIN
         dataval_sji_real_txt = STRING(((*hdr.sjidata)[0])[x_start,y_start], $
           FORMAT='(E10.4)')
+        ;IF (STRTRIM(hdr.sjibunit,2) NE '0') THEN dataval_sji_unit_txt = '['+hdr.sjibunit+']'
       ENDIF ELSE BEGIN
         dataval_sji_real_format = ''
-        dataval_sji_real_txt = 'N/A'
+        ;dataval_sji_real_txt = 'N/A'
       ENDELSE
       dataval_sji_real_val = WIDGET_LABEL(params_sji_base, VALUE=dataval_sji_real_txt, $
         /ALIGN_RIGHT)
+      ;dataval_sji_unit_txt = WIDGET_LABEL(params_sji_base, VALUE=dataval_sji_unit_txt, $
+      ;  /ALIGN_CENTER)
 
    param_base = WIDGET_BASE(control_panel, /COLUMN)
     ; Column 1 of parameters overview containing cursor x,y and zoomfactor
@@ -13676,9 +13688,19 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   xpos_slider = WIDGET_SLIDER(draw_horslid_base,VALUE=0,MIN=0,MAX=1,/SUPPRESS,/DRAG,$
                           EVENT_PRO='CRISPEX_SLIDER_XPOS', XSIZE=imwinx)
 	WIDGET_CONTROL, cpanel, /REALIZE, TLB_GET_SIZE=cpanel_size
-  spxoffset = cpanel_size[0]+xdelta
+  ; Determine window offsets based on realised control panel size and position
+  ; If reference cube present, check if it would fit next to main image
+  refxoffset = cpanel_size[0]
+  refyoffset = ydelta
+  IF hdr.showref THEN BEGIN
+    windows_xextent = cpanel_size[0]+ spwinx + imwinx + lswinx + xdelta*3
+    IF (windows_xextent LE x_scr_size) THEN refxoffset += xdelta 
+  ENDIF 
+ 
+  spxoffset = refxoffset+(hdr.showref*imwinx)+xdelta
   spyoffset = lswiny + ydelta
-  lsxoffset = cpanel_size[0]+xdelta
+  lsxoffset = spxoffset
+  
   WIDGET_CONTROL, xydraw, GET_VALUE=xydrawid
 
 	WIDGET_CONTROL, xydraw, EVENT_PRO = 'CRISPEX_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, $
