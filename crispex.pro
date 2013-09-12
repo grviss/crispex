@@ -501,12 +501,12 @@ FUNCTION CRISPEX_SCALING_SLICES, dispim, gamma_val, histo_opt_val, $
   ENDIF
   IF ((histo_opt_val NE 0) OR KEYWORD_SET(FORCE_HISTO)) THEN BEGIN
     IF (MIN(dispim, MAX=dispmax, /NAN) NE dispmax) THEN BEGIN
-      ; Copied over MISSING handling from modified HISTO_OPT() since it gives  "Floating illegal
-      ; operand" errors otherwise
-      finitvals = FINITE(dispim)
-      dispim[WHERE(finitvals eq 0)]=-32768
-      dispim=dispim[WHERE(dispim ne -32768)]
-      dispim = HISTO_OPT(TEMPORARY(dispim), histo_opt_val);, MISSING=-32768)
+;      ; Copied over MISSING handling from modified HISTO_OPT() since it gives  "Floating illegal
+;      ; operand" errors otherwise
+;      finitvals = FINITE(dispim)
+;      dispim[WHERE(finitvals eq 0)]=-32768
+;      dispim=dispim[WHERE(dispim ne -32768)]
+      dispim = HISTO_OPT(TEMPORARY(dispim), histo_opt_val, MISSING=-32768)
     ENDIF
   ENDIF
   minimum = MIN(dispim,MAX=maximum, /NAN)
@@ -3967,13 +3967,13 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
     ENDELSE
   ENDIF
   IF ((*(*(*info).scaling).imagescale)[sel] EQ 2) THEN BEGIN
-    ; Copied over MISSING handling from modified HISTO_OPT() since it gives  "Floating illegal
-    ; operand" errors otherwise
-    finitvals = FINITE(selected_data)
-    selected_data[WHERE(finitvals eq 0)]=-32768
-    selcted_data = selected_data[WHERE(selected_data ne -32768)]
+;    ; Copied over MISSING handling from modified HISTO_OPT() since it gives  "Floating illegal
+;    ; operand" errors otherwise
+;    finitvals = FINITE(selected_data)
+;    selected_data[WHERE(finitvals eq 0)]=-32768
+;    selected_data = selected_data[WHERE(selected_data ne -32768)]
     selected_data = HISTO_OPT(TEMPORARY(selected_data), $
-      (*(*info).scaling).histo_opt_val[scale_idx]);, MISSING=-32768)
+      (*(*info).scaling).histo_opt_val[scale_idx], MISSING=-32768)
     minimum = MIN(selected_data, MAX=maximum, /NAN)
   ENDIF
   minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
@@ -11878,7 +11878,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '626'
+	revision_number = '627'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
