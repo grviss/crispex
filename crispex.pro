@@ -359,6 +359,98 @@ FUNCTION CRISPEX_DEC2BIN, decimal_number
 END
 
 ;------------------------- BUTTON GROUP FUNCTIONS
+FUNCTION CRISPEX_BGROUP_DIAGNOSTICS_SELECT, event
+; Handles selection of diagnostics and calls necessary replot procedures
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF (event.VALUE EQ 0) THEN BEGIN
+    (*(*info).intparams).disp_diagnostics = REPLICATE(1,(*(*info).intparams).ndiagnostics)   
+    (*(*info).intparams).ndisp_diagnostics = TOTAL((*(*info).intparams).disp_diagnostics)
+    FOR i=0,(*(*info).intparams).ndiagnostics-1 DO $
+      WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i+1], /SET_BUTTON, /SENSITIVE
+  ENDIF ELSE BEGIN
+    sel_idx = event.VALUE-1
+    (*(*info).intparams).disp_diagnostics[sel_idx] = event.SELECT 
+    (*(*info).intparams).ndisp_diagnostics = TOTAL((*(*info).intparams).disp_diagnostics)
+    IF ((*(*info).intparams).ndisp_diagnostics EQ 1) THEN $
+      WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[$
+        WHERE((*(*info).intparams).disp_diagnostics EQ 1)+1], SENSITIVE=0 $
+    ELSE $
+      FOR i=0,(*(*info).intparams).ndiagnostics-1 DO $
+        WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i+1], /SENSITIVE
+  ENDELSE
+  WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[0], $
+    SENSITIVE=((*(*info).intparams).ndisp_diagnostics NE (*(*info).intparams).ndiagnostics), $
+    SET_BUTTON=((*(*info).intparams).ndisp_diagnostics EQ (*(*info).intparams).ndiagnostics)
+  ; Adjust slider settings based on available lp-range
+  low_sel = (WHERE((*(*info).intparams).disp_diagnostics EQ 1, nwhereq1))[0]
+  upp_sel = (WHERE((*(*info).intparams).disp_diagnostics EQ 1))[nwhereq1-1]
+  lp_low = (*(*info).intparams).diag_start[low_sel]
+  lp_upp = (*(*info).intparams).diag_start[upp_sel] + (*(*info).intparams).diag_width[upp_sel]-1
+  IF (lp_low NE (*(*info).dispparams).lp_low) THEN $
+    CRISPEX_DISPRANGE_LP_LOW, event, LP_SET=lp_low, /NO_DRAW
+  IF (lp_upp NE (*(*info).dispparams).lp_upp) THEN $
+    CRISPEX_DISPRANGE_LP_UPP, event, LP_SET=lp_upp, /NO_DRAW
+  IF ((*(*info).intparams).ndisp_diagnostics NE (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
+    IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
+      CRISPEX_SLIDER_LP_REF_LOCK, event, /UNLOCK, /NO_DRAW
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE=0
+  ENDIF ELSE $
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
+  CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /MAIN
+  IF (*(*info).winswitch).showsp THEN BEGIN
+    CRISPEX_UPDATE_SPSLICE, event
+    CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
+  ENDIF
+  CRISPEX_DRAW, event, /NO_REF
+END
+
+FUNCTION CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT, event
+; Handles selection of reference diagnostics and calls necessary replot procedures
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF (event.VALUE EQ 0) THEN BEGIN
+    (*(*info).intparams).disp_refdiagnostics = REPLICATE(1,(*(*info).intparams).nrefdiagnostics)   
+    (*(*info).intparams).ndisp_refdiagnostics = TOTAL((*(*info).intparams).disp_refdiagnostics)
+    FOR i=0,(*(*info).intparams).nrefdiagnostics-1 DO $
+      WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[i+1], /SET_BUTTON, /SENSITIVE
+  ENDIF ELSE BEGIN
+    sel_idx = event.VALUE-1
+    (*(*info).intparams).disp_refdiagnostics[sel_idx] = event.SELECT
+    (*(*info).intparams).ndisp_refdiagnostics = TOTAL((*(*info).intparams).disp_refdiagnostics)
+    IF ((*(*info).intparams).ndisp_refdiagnostics EQ 1) THEN $
+      WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[$
+        WHERE((*(*info).intparams).disp_refdiagnostics EQ 1)+1], SENSITIVE=0 $
+    ELSE $
+      FOR i=0,(*(*info).intparams).nrefdiagnostics-1 DO $
+        WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[i+1], /SENSITIVE
+  ENDELSE
+  WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[0], $
+    SENSITIVE=((*(*info).intparams).ndisp_refdiagnostics NE (*(*info).intparams).nrefdiagnostics), $
+    SET_BUTTON=((*(*info).intparams).ndisp_refdiagnostics EQ (*(*info).intparams).nrefdiagnostics)
+  ; Adjust slider settings based on available lp-range
+  low_sel = (WHERE((*(*info).intparams).disp_refdiagnostics EQ 1, nwhereq1))[0]
+  upp_sel = (WHERE((*(*info).intparams).disp_refdiagnostics EQ 1))[nwhereq1-1]
+  lp_low = (*(*info).intparams).refdiag_start[low_sel]
+  lp_upp = (*(*info).intparams).refdiag_start[upp_sel] + (*(*info).intparams).refdiag_width[upp_sel]-1
+  IF (lp_low NE (*(*info).dispparams).lp_ref_low) THEN $
+    CRISPEX_DISPRANGE_LP_REF_RANGE, event, LP_LOW=lp_low, /NO_DRAW
+  IF (lp_upp NE (*(*info).dispparams).lp_ref_upp) THEN $
+    CRISPEX_DISPRANGE_LP_REF_RANGE, event, LP_UPP=lp_upp, /NO_DRAW
+  IF ((*(*info).intparams).ndisp_diagnostics NE (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
+    IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
+      CRISPEX_SLIDER_LP_REF_LOCK, event, /UNLOCK, /NO_DRAW
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE=0
+  ENDIF ELSE $
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
+  CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /REFERENCE
+  IF (*(*info).winswitch).showrefsp THEN BEGIN
+    CRISPEX_UPDATE_REFSPSLICE, event
+    CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
+  ENDIF
+  CRISPEX_DRAW, event, /NO_MAIN
+END
+
 FUNCTION CRISPEX_BGROUP_MASTER_TIME, event
 ; Handles the change mask overlay window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -1008,131 +1100,6 @@ PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old
       t_set = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
     ENDIF
     CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW, T_SET=t_set
-END
-
-;================================================================================= DIAGNOSTICS PROCEDURES
-PRO CRISPEX_DIAGNOSTICS_SELECT, event
-; Handles selection of diagnostics and calls necessary replot procedures
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-  WIDGET_CONTROL, (*(*info).ctrlscp).specwin_cbox, GET_VALUE = list_values
-  redraw = 1
-  IF (event.INDEX EQ 0) THEN BEGIN
-    (*(*info).intparams).disp_diagnostics = REPLICATE(1,(*(*info).intparams).ndiagnostics)   
-    (*(*info).intparams).ndisp_diagnostics = TOTAL((*(*info).intparams).disp_diagnostics)
-    list_values = ['Show all',REPLICATE('Hide ',(*(*info).intparams).ndiagnostics)+$
-      (*(*info).intparams).diagnostics]
-  ENDIF ELSE BEGIN
-    sel_idx = event.INDEX-1
-    (*(*info).intparams).disp_diagnostics[sel_idx] = $
-      ABS(((*(*info).intparams).disp_diagnostics[sel_idx] EQ 1)-1)
-    (*(*info).intparams).ndisp_diagnostics = TOTAL((*(*info).intparams).disp_diagnostics)
-    IF (*(*info).intparams).disp_diagnostics[sel_idx] THEN BEGIN
-    ; If selected diagnostic is to be displayed
-      list_values[event.INDEX] = 'Hide '+(*(*info).intparams).diagnostics[sel_idx]
-    ENDIF ELSE BEGIN
-    ; If selected diagnostic is to be hidden
-      IF ((*(*info).intparams).ndisp_diagnostics EQ 0) THEN BEGIN
-        ; If no diagnostics left, reset to display last one and throw error message
-        (*(*info).intparams).disp_diagnostics[sel_idx] = 1
-        (*(*info).intparams).ndisp_diagnostics = TOTAL((*(*info).intparams).disp_diagnostics)
-        CRISPEX_WINDOW_OK, event, 'WARNING!','Cannot hide "'+$
-          STRTRIM((*(*info).intparams).diagnostics[sel_idx],2)+'".',$
-          'At least one diagnostic must remain for display.',$
-          OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW',/BLOCK
-        redraw = 0
-      ENDIF ELSE BEGIN
-        list_values[event.INDEX] = 'Show '+(*(*info).intparams).diagnostics[sel_idx]
-      ENDELSE
-    ENDELSE
-  ENDELSE
-  WIDGET_CONTROL, (*(*info).ctrlscp).specwin_cbox, SET_VALUE = list_values, $ 
-    SET_COMBOBOX_SELECT=event.INDEX
-  ; Adjust slider settings based on available lp-range
-  low_sel = (WHERE((*(*info).intparams).disp_diagnostics EQ 1, nwhereq1))[0]
-  upp_sel = (WHERE((*(*info).intparams).disp_diagnostics EQ 1))[nwhereq1-1]
-  lp_low = (*(*info).intparams).diag_start[low_sel]
-  lp_upp = (*(*info).intparams).diag_start[upp_sel] + (*(*info).intparams).diag_width[upp_sel]-1
-  IF (lp_low NE (*(*info).dispparams).lp_low) THEN $
-    CRISPEX_DISPRANGE_LP_LOW, event, LP_SET=lp_low, /NO_DRAW
-  IF (lp_upp NE (*(*info).dispparams).lp_upp) THEN $
-    CRISPEX_DISPRANGE_LP_UPP, event, LP_SET=lp_upp, /NO_DRAW
-  IF ((*(*info).intparams).ndisp_diagnostics NE (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
-    IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
-      CRISPEX_SLIDER_LP_REF_LOCK, event, /UNLOCK, /NO_DRAW
-    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE=0
-  ENDIF ELSE $
-    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
-  IF redraw THEN BEGIN
-    CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /MAIN
-    IF (*(*info).winswitch).showsp THEN BEGIN
-      CRISPEX_UPDATE_SPSLICE, event
-      CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
-    ENDIF
-    CRISPEX_DRAW, event, /NO_REF
-  ENDIF
-END
-
-PRO CRISPEX_REFDIAGNOSTICS_SELECT, event
-; Handles selection of reference diagnostics and calls necessary replot procedures
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-  redraw = 1
-  WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_cbox, GET_VALUE = list_values
-  IF (event.INDEX EQ 0) THEN BEGIN
-    (*(*info).intparams).disp_refdiagnostics = REPLICATE(1,(*(*info).intparams).nrefdiagnostics)   
-    (*(*info).intparams).ndisp_refdiagnostics = TOTAL((*(*info).intparams).disp_refdiagnostics)
-    list_values = ['Show all',REPLICATE('Hide ',(*(*info).intparams).nrefdiagnostics)+$
-      (*(*info).intparams).refdiagnostics]
-  ENDIF ELSE BEGIN
-    sel_idx = event.INDEX-1
-    (*(*info).intparams).disp_refdiagnostics[sel_idx] = $
-      ABS(((*(*info).intparams).disp_refdiagnostics[sel_idx] EQ 1)-1)
-    (*(*info).intparams).ndisp_refdiagnostics = TOTAL((*(*info).intparams).disp_refdiagnostics)
-    IF (*(*info).intparams).disp_refdiagnostics[sel_idx] THEN BEGIN
-    ; If selected reference diagnostic is to be displayed
-      list_values[event.INDEX] = 'Hide '+(*(*info).intparams).refdiagnostics[sel_idx]
-    ENDIF ELSE BEGIN
-    ; If selected reference diagnostic is to be hidden
-      IF ((*(*info).intparams).ndisp_refdiagnostics EQ 0) THEN BEGIN
-        ; If no reference diagnostics left, reset to display last one and throw error message
-        (*(*info).intparams).disp_refdiagnostics[sel_idx] = 1
-        (*(*info).intparams).ndisp_refdiagnostics = TOTAL((*(*info).intparams).disp_refdiagnostics)
-        CRISPEX_WINDOW_OK, event, 'WARNING!','Cannot hide "'+$
-          STRTRIM((*(*info).intparams).refdiagnostics[sel_idx],2)+'".',$
-          'At least one diagnostic must remain for display.',$
-          OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW',/BLOCK
-        redraw = 0
-      ENDIF ELSE BEGIN
-        list_values[event.INDEX] = 'Show '+(*(*info).intparams).refdiagnostics[sel_idx]
-      ENDELSE
-    ENDELSE
-  ENDELSE
-  WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_cbox, SET_VALUE = list_values, $ 
-    SET_COMBOBOX_SELECT=event.INDEX
-  ; Adjust slider settings based on available lp-range
-  low_sel = (WHERE((*(*info).intparams).disp_refdiagnostics EQ 1, nwhereq1))[0]
-  upp_sel = (WHERE((*(*info).intparams).disp_refdiagnostics EQ 1))[nwhereq1-1]
-  lp_low = (*(*info).intparams).refdiag_start[low_sel]
-  lp_upp = (*(*info).intparams).refdiag_start[upp_sel] + (*(*info).intparams).refdiag_width[upp_sel]-1
-  IF (lp_low NE (*(*info).dispparams).lp_ref_low) THEN $
-    CRISPEX_DISPRANGE_LP_REF_RANGE, event, LP_LOW=lp_low, /NO_DRAW
-  IF (lp_upp NE (*(*info).dispparams).lp_ref_upp) THEN $
-    CRISPEX_DISPRANGE_LP_REF_RANGE, event, LP_UPP=lp_upp, /NO_DRAW
-  IF ((*(*info).intparams).ndisp_diagnostics NE (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
-    IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
-      CRISPEX_SLIDER_LP_REF_LOCK, event, /UNLOCK, /NO_DRAW
-    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE=0
-  ENDIF ELSE $
-    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
-  IF redraw THEN BEGIN  
-    CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /REFERENCE
-    IF (*(*info).winswitch).showrefsp THEN BEGIN
-      CRISPEX_UPDATE_REFSPSLICE, event
-      CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
-    ENDIF
-    CRISPEX_DRAW, event, /NO_MAIN
-  ENDIF
 END
 
 ;================================================================================= DISPLAYS PROCEDURES
@@ -11968,7 +11935,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '631'
+	revision_number = '632'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -13208,24 +13175,29 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   specwin_frame       = WIDGET_BASE(diagnostics_tab, /FRAME, /COLUMN)
   specwin_disp_label  = WIDGET_LABEL(specwin_frame, $
     VALUE = 'Spectral windows:                                    ', /ALIGN_LEFT)
-  main_select_base    = WIDGET_BASE(specwin_frame,/ROW)
+  specwin_sub_frame   = WIDGET_BASE(specwin_frame, /GRID_LAYOUT, COLUMN=2)
+  main_select_base    = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME)
 	main_specwin_label  = WIDGET_LABEL(main_select_base, VALUE = 'Main:', /ALIGN_LEFT)
   IF (hdr.ndiagnostics GT 1) THEN $
-    vals = ['Show all',REPLICATE('Hide ',hdr.ndiagnostics)+hdr.diagnostics] $
+    vals = ['Display all',hdr.diagnostics] $
   ELSE $
-    vals = 'N/A'
-  specwin_cbox        = WIDGET_COMBOBOX(main_select_base, VALUE=vals, $
-                          SENSITIVE=(hdr.ndiagnostics GT 1), $
-                          EVENT_PRO='CRISPEX_DIAGNOSTICS_SELECT', /DYNAMIC_RESIZE)
-  ref_select_base    = WIDGET_BASE(specwin_frame,/ROW)
+    vals = 'N/A        '
+  specwin_buts        = CW_BGROUP(main_select_base, vals, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(vals)), IDS=specwin_button_ids, $
+                          /NONEXCLUSIVE, /COLUMN, EVENT_FUNC='CRISPEX_BGROUP_DIAGNOSTICS_SELECT')
+  FOR i=0,N_ELEMENTS(vals)-1 DO $
+    WIDGET_CONTROL, specwin_button_ids[i], SENSITIVE=(i GT 0), /SET_BUTTON
+  ref_select_base    = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME)
 	ref_specwin_label  = WIDGET_LABEL(ref_select_base, VALUE = 'Reference:', /ALIGN_LEFT)
   IF (hdr.nrefdiagnostics GT 1) THEN $
-    vals = ['Show all',REPLICATE('Hide ',hdr.nrefdiagnostics)+hdr.refdiagnostics] $
+    vals = ['Display all',hdr.refdiagnostics] $
   ELSE $
-    vals = 'N/A'
-  refspecwin_cbox     = WIDGET_COMBOBOX(ref_select_base, VALUE=vals, $
-                          SENSITIVE=(hdr.nrefdiagnostics GT 1), $
-                          EVENT_PRO='CRISPEX_REFDIAGNOSTICS_SELECT', /DYNAMIC_RESIZE)
+    vals = 'N/A        '
+  refspecwin_buts   = CW_BGROUP(ref_select_base, vals, $
+                        BUTTON_UVALUE=INDGEN(N_ELEMENTS(vals)), IDS=refspecwin_button_ids, $
+                        /NONEXCLUSIVE, /COLUMN, EVENT_FUNC='CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT')
+  FOR i=0,N_ELEMENTS(vals)-1 DO $
+    WIDGET_CONTROL, refspecwin_button_ids[i], SENSITIVE=(i GT 0), /SET_BUTTON
 
 	display_tab		= WIDGET_BASE(tab_tlb, TITLE = 'Displays', /COLUMN)
 	detspect_frame		= WIDGET_BASE(display_tab, /FRAME, /COLUMN)
@@ -13840,7 +13812,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		x_slider:x_slid, y_slider:y_slid, lock_button:lockbut, unlock_button:unlockbut, $
 		zoom_button_ids:zoom_button_ids, xpos_slider:xpos_slider, ypos_slider:ypos_slider, $			
     stokes_button_ids:stokes_button_ids, stokes_spbutton_ids:stokes_spbutton_ids, $
-    specwin_cbox:specwin_cbox, refspecwin_cbox:refspecwin_cbox, $
+    specwin_buts:specwin_buts, refspecwin_buts:refspecwin_buts, $
+    specwin_button_ids:specwin_button_ids, refspecwin_button_ids:refspecwin_button_ids, $
 		detspect_label:detspect_label, scale_detspect_but:scale_detspect_but, $
 		detspect_im_but:detspect_im_but, detspect_ref_but:detspect_ref_but, $
 		ls_toggle_but:ls_toggle_but, subtract_but:subtract_but, $		
