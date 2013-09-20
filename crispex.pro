@@ -1882,10 +1882,8 @@ PRO CRISPEX_DISPLAYS_PHIS_TOGGLE, event, NO_DRAW=no_draw
 	WIDGET_CONTROL, (*(*info).ctrlscp).nphi_slider, SENSITIVE = (*(*info).winswitch).showphis
 	WIDGET_CONTROL, (*(*info).ctrlscp).bwd_move_slit, SENSITIVE = (*(*info).winswitch).showphis
 	WIDGET_CONTROL, (*(*info).ctrlscp).fwd_move_slit, SENSITIVE = (*(*info).winswitch).showphis
-	IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
-		CRISPEX_PHISLIT_DIRECTION, event
-		CRISPEX_UPDATE_PHIS, event
-	ENDIF
+	CRISPEX_PHISLIT_DIRECTION, event
+  CRISPEX_UPDATE_PHIS, event, NO_DRAW=no_draw
 	WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 0
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).phistlb,(*(*info).winids).phiswid,$
@@ -2993,7 +2991,7 @@ PRO CRISPEX_DISPRANGE_T_LOW, event
 	IF ((*(*info).dispparams).t_low GE (*(*info).dispparams).t_upp) THEN (*(*info).dispparams).t_low = (*(*info).dispparams).t_upp - 1
 	IF ((*(*info).dispparams).t_low LT (*(*info).dispparams).t_first) THEN (*(*info).dispparams).t_low = (*(*info).dispparams).t_first
 	WIDGET_CONTROL, (*(*info).ctrlscp).lower_t_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_low,2)
-	IF (*(*info).intparams).lock_t THEN BEGIN
+	IF ((*(*info).winswitch).showint AND (*(*info).intparams).lock_t) THEN BEGIN
 		(*(*info).plotaxes).int_low_t = (*(*info).dispparams).t_low
 		CRISPEX_DISPRANGE_INT_T_RANGE, event
 		IF (*(*info).winswitch).showint THEN WIDGET_CONTROL, (*(*info).ctrlsint).lower_t_int_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_low,2)
@@ -3009,14 +3007,14 @@ PRO CRISPEX_DISPRANGE_T_UPP, event
 	IF ((*(*info).dispparams).t_upp LE (*(*info).dispparams).t_low) THEN (*(*info).dispparams).t_upp = (*(*info).dispparams).t_low + 1
 	IF ((*(*info).dispparams).t_upp GT (*(*info).dispparams).t_last) THEN (*(*info).dispparams).t_upp = (*(*info).dispparams).t_last
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_t_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_upp,2)
-	IF (*(*info).intparams).lock_t THEN BEGIN
+	IF ((*(*info).winswitch).showint AND (*(*info).intparams).lock_t) THEN BEGIN
 		(*(*info).plotaxes).int_upp_t = (*(*info).dispparams).t_upp
 		CRISPEX_DISPRANGE_INT_T_RANGE, event
 		IF (*(*info).winswitch).showint THEN WIDGET_CONTROL, (*(*info).ctrlsint).upper_t_int_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_upp,2)
 	ENDIF ELSE CRISPEX_DISPRANGE_T_RANGE, event
 END
 
-PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set
+PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
 ; Determines range from change in lower or upper t-value and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
@@ -3033,8 +3031,12 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set
     WIDGET_CONTROL, (*(*info).ctrlscp).reset_trange_but, SENSITIVE = 0
   IF KEYWORD_SET(T_SET) THEN $
     (*(*info).dispparams).t = t_set $
-  ELSE IF ((*(*info).winswitch).showretrdet EQ 0) THEN $
-      (*(*info).dispparams).t = (*(*info).dispparams).t_low
+  ELSE IF (~KEYWORD_SET(RESET) AND ((*(*info).winswitch).showretrdet EQ 0)) THEN BEGIN
+    IF ((*(*info).dispparams).t LT (*(*info).dispparams).t_low) THEN $
+      (*(*info).dispparams).t = (*(*info).dispparams).t_low $
+    ELSE IF ((*(*info).dispparams).t GT (*(*info).dispparams).t_upp) THEN $
+      (*(*info).dispparams).t = (*(*info).dispparams).t_upp
+  ENDIF
 	WIDGET_CONTROL, (*(*info).ctrlscp).t_slider, SET_SLIDER_MIN=(*(*info).dispparams).t_low, $
     SET_SLIDER_MAX=(*(*info).dispparams).t_upp, SET_VALUE=(*(*info).dispparams).t
 	IF ((*(*info).dispparams).t_range - 1 EQ 1) THEN BEGIN
@@ -3099,7 +3101,8 @@ PRO CRISPEX_DISPRANGE_T_RESET, event, NO_DRAW=no_draw, T_SET=t_set
 	IF ((*(*info).winswitch).showint AND (*(*info).intparams).lock_t) THEN $
     CRISPEX_DISPRANGE_INT_T_RESET, event $
   ELSE $
-    CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set
+    CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, /RESET
+  IF (N_ELEMENTS(T_SET) EQ 1) THEN print,t_set
 END
 
 PRO CRISPEX_DISPRANGE_GET_WARP, event, PHIS=phis
@@ -11965,7 +11968,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '630'
+	revision_number = '631'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
