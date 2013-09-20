@@ -667,17 +667,17 @@ PRO CRISPEX_CLEAR_CURRENT_CPFT, event
 ; Clears current saving time estimate
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	pftfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'.cpft', COUNT = pftfilecount)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, ['crispex.'+(*(*info).paths).hostname+'.cpft',pftfilecount], labels=['File to be deleted','Filecount']
+	pftfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'cpft', COUNT = pftfilecount)
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, ['crispex.'+(*(*info).paths).hostname+'cpft',pftfilecount], labels=['File to be deleted','Filecount']
 	IF pftfilecount THEN BEGIN
-		SPAWN,'rm '+(*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'.cpft'
+		SPAWN,'rm '+(*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'cpft'
 		(*(*info).feedbparams).estimate_lx = 0
 		(*(*info).feedbparams).estimate_time = 0.
 		(*(*info).feedbparams).estimate_run = 0
 		WIDGET_CONTROL, (*(*info).ctrlscp).clear_current_estimate, SENSITIVE = 0
 	ENDIF ELSE BEGIN
 		CRISPEX_WINDOW_OK, event,'ERROR!','Could not delete crispex.'+$
-      ((*(*info).paths).hostname)[0]+'.cpft','from '+(*(*info).paths).dir_settings+'.','File does not exist.',$
+      ((*(*info).paths).hostname)[0]+'cpft','from '+(*(*info).paths).dir_settings+'.','File does not exist.',$
 			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).errtlb = tlb
 	ENDELSE
@@ -687,17 +687,17 @@ PRO CRISPEX_CLEAR_CURRENT_INST, event
 ; Clears current saving time estimate
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	instfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'.inst', COUNT = instfilecount)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, ['crispex.'+(*(*info).paths).hostname+'.inst',instfilecount], labels=['File to be deleted','Filecount']
+	instfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'inst', COUNT = instfilecount)
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, ['crispex.'+(*(*info).paths).hostname+'inst',instfilecount], labels=['File to be deleted','Filecount']
 	IF instfilecount THEN BEGIN
-		SPAWN,'rm '+(*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'.inst'
+		SPAWN,'rm '+(*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'inst'
 		(*(*info).feedbparams).estimate_lx = 0
 		(*(*info).feedbparams).estimate_time = 0.
 		(*(*info).feedbparams).estimate_run = 0
 		WIDGET_CONTROL, (*(*info).ctrlscp).clear_current_inst, SENSITIVE = 0
 	ENDIF ELSE BEGIN
 		CRISPEX_WINDOW_OK, event,'ERROR!','Could not delete crispex.'+((*(*info).paths).hostname)[0]+$
-      '.inst','from '+(*(*info).paths).dir_settings+'.','File does not exist.',$
+      'inst','from '+(*(*info).paths).dir_settings+'.','File does not exist.',$
 			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).errtlb = tlb
 	ENDELSE
@@ -709,16 +709,16 @@ PRO CRISPEX_CLOSE, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).paths).dir_settings_write EQ 1) THEN BEGIN
 		pftfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+$
-      (*(*info).paths).hostname+'.cpft', COUNT = pftfilecount)
+      (*(*info).paths).hostname+'cpft', COUNT = pftfilecount)
 		IF (pftfilecount EQ 0) AND ((*(*info).feedbparams).estimate_run EQ 1) THEN BEGIN
 			estimate_lx = (*(*info).feedbparams).estimate_lx
 			estimate_time = (*(*info).feedbparams).estimate_time
 			estimate_run = (*(*info).feedbparams).estimate_run
-			SAVE, estimate_lx, estimate_time, estimate_run, FILENAME = (*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'.cpft'
-			PRINT,'Written: '+(*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'.cpft'
+			SAVE, estimate_lx, estimate_time, estimate_run, FILENAME = (*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'cpft'
+			PRINT,'Written: '+(*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'cpft'
 		ENDIF
 	ENDIF ELSE BEGIN
-		PRINT, 'ERROR: Could not write performance file crispex.'+(*(*info).paths).hostname+'.cpft '
+		PRINT, 'ERROR: Could not write performance file crispex.'+(*(*info).paths).hostname+'cpft '
 		PRINT, '       to '+(*(*info).paths).dir_settings+'. Permission denied.'
 	ENDELSE
 	FREE_LUN, (*(*info).data).lunim
@@ -746,7 +746,7 @@ END
 PRO CRISPEX_CLOSE_CLEAN_INSTANCE_FILE, dir_inst_write, dir_inst, hostname, curr_instance_id
 ; Called upon closing program, checks for existence of performance test file; if not present it is written
 	IF (dir_inst_write EQ 1) THEN BEGIN
-		instfile = FILE_SEARCH(dir_inst+'crispex.'+hostname+'.inst', COUNT = instfilecount)
+		instfile = FILE_SEARCH(dir_inst+'crispex.'+hostname+'inst', COUNT = instfilecount)
 		IF instfilecount THEN BEGIN
 			nlines = (FILE_LINES(instfile))[0]
 			datarr = STRARR(1,nlines)
@@ -11933,10 +11933,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		RETURN
 	ENDIF
 
-;========================= VERSION AND REVISION NUMBER
-	version_number = '1.6.3'
-	revision_number = '633'
-
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
 		IF (N_ELEMENTS(VERBOSE) GT 1) THEN $
@@ -11959,6 +11955,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	dir_settings_write  = FILE_TEST(dir_settings, /WRITE)                 ; Check for cpft dir writeability
 	IF (verbosity[1] EQ 1) THEN $
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK,'CRISPEX has been compiled from: '+file_crispex
+
+;========================= VERSION AND REVISION NUMBER
+	version_number = '1.6.3'
+  ; Get revision number from CVS $Id
+  SPAWN,"grep '$Id' "+file_crispex, id_string
+  cvs_idn = (STRSPLIT(id_string[0],' ',/EXTRACT))[3]
+  cvs_rev = (STRSPLIT(cvs_idn,'.',/EXTRACT))[1]
+  revision_number = STRTRIM(634L+LONG(cvs_rev)-63L,2)   ; rev_nr=634, cvs_rev=63 when implemented
+	IF (verbosity[1] EQ 1) THEN $
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK,'Version and revision number: '+version_number+$
+      ' ('+revision_number+')'
 
 ;========================= LOAD PREFERENCES
   ; Define default preferences
@@ -11994,15 +12001,16 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ENDELSE
 
 ;------------------------- SETTINGS FOR PERFORMANCE SAVE FILE
-	hostname = GETENV('HOSTNAME') 
-	cpftfile = FILE_SEARCH(dir_settings+'crispex.'+hostname+'.cpft', COUNT = cpftfilecount)
+	hostname = GETENV('HOSTNAME')
+  IF (STRLEN(STRCOMPRESS(hostname)) NE 0) THEN hostname += '.'
+	cpftfile = FILE_SEARCH(dir_settings+'crispex.'+hostname+'cpft', COUNT = cpftfilecount)
 	IF cpftfilecount THEN BEGIN   ; If cpft file is present, restore
 		RESTORE, cpftfile[0] 
 		IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Restored '+cpftfile[0]+'.'
 	ENDIF ELSE BEGIN              ; If not, then initialise variables
 		IF (verbosity[1] EQ 1) THEN BEGIN
 			CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, ['No CRISPEX performance test file (crispex.'+hostname+$
-                                             '.cpft) found to restore in ',dir_settings]
+                                             'cpft) found to restore in ',dir_settings]
 		ENDIF
 		estimate_lx = 0             ; Size variable for time estimate
 		estimate_run = 0            ; Run counter for time estimate
@@ -12010,7 +12018,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ENDELSE 
 
 ;------------------------- SETTINGS FOR INSTANCES SAVE FILE
-	instfilename = 'crispex.'+hostname+'.inst'
+	instfilename = 'crispex.'+hostname+'inst'
 	IF dir_settings_write THEN BEGIN    ; If instances directory is writeable, start procedures
 		instfile = FILE_SEARCH(dir_settings+instfilename, COUNT = instfilecount)
 		IF instfilecount THEN BEGIN   ; If inst file is present for current hostname, add current
