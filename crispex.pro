@@ -11935,7 +11935,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= VERSION AND REVISION NUMBER
 	version_number = '1.6.3'
-	revision_number = '632'
+	revision_number = '633'
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -13394,8 +13394,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
           ','+STRING(LONG(y_start),FORMAT=ycoord_format)+')'
 		    xycoord_val = WIDGET_LABEL(params_main_base, VALUE=coord_txt, $
           /ALIGN_RIGHT)
-        xcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.nx*hdr.dx))+3,2)+'.1)'
-        ycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.ny*hdr.dy))+3,2)+'.1)'
+        xcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.nx*hdr.dx))+3+(hdr.nx*hdr.dx LT 1),2)+'.1)'
+        ycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.ny*hdr.dy))+3+(hdr.ny*hdr.dy LT 1),2)+'.1)'
         real_coord_txt = '('+STRING(FLOAT(x_start*hdr.dx),FORMAT=xcoord_real_format)+$
           ','+STRING(FLOAT(y_start*hdr.dy),FORMAT=ycoord_real_format)+')'
 		    xycoord_real_val = WIDGET_LABEL(params_main_base, VALUE=real_coord_txt, $
@@ -13415,8 +13415,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		    refxycoord_val = WIDGET_LABEL(params_ref_base, VALUE=refcoord_txt, $
           /ALIGN_RIGHT)
       IF hdr.showref THEN BEGIN
-        refxcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refnx*hdr.dx))+3,2)+'.1)'
-        refycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refny*hdr.dy))+3,2)+'.1)'
+        refxcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refnx*hdr.dx))+3+$
+          (hdr.refnx*hdr.dx LT 1),2)+'.1)'
+        refycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refny*hdr.dy))+3+$
+          (hdr.refny*hdr.dy LT 1),2)+'.1)'
         refcoord_real_txt = '('+STRING(FLOAT(x_start*hdr.dx),FORMAT=refxcoord_real_format)+$
           '",'+STRING(FLOAT(y_start*hdr.dy),FORMAT=refycoord_real_format)+'")'
       ENDIF ELSE BEGIN
@@ -13654,7 +13656,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
         ;IF (STRTRIM(hdr.sjibunit,2) NE '0') THEN dataval_sji_unit_txt = '['+hdr.sjibunit+']'
       ENDIF ELSE BEGIN
         dataval_sji_real_format = ''
-        ;dataval_sji_real_txt = 'N/A'
+        dataval_sji_real_txt = 'N/A'
       ENDELSE
       dataval_sji_real_val = WIDGET_LABEL(params_sji_base, VALUE=dataval_sji_real_txt, $
         /ALIGN_RIGHT)
