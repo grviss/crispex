@@ -796,6 +796,7 @@ PRO CRISPEX_CLOSE_EVENT_WINDOW, event
 	IF (event.TOP EQ (*(*info).winids).errtlb) THEN (*(*info).winids).errtlb = 0
 	IF (event.TOP EQ (*(*info).winids).warntlb) THEN (*(*info).winids).warntlb = 0
   IF (event.TOP EQ (*(*info).winids).shorttlb) THEN (*(*info).winids).shorttlb = 0
+  IF (event.TOP EQ (*(*info).winids).headertlb) THEN (*(*info).winids).headertlb = 0
 	WIDGET_CONTROL, event.TOP, /DESTROY
 END
 
@@ -1245,6 +1246,57 @@ PRO CRISPEX_DISPLAYS_DOPPLER_TOGGLE, event, NO_DRAW=no_draw
 ;  ENDIF
 	IF (*(*info).overlayswitch).mask THEN CRISPEX_MASK_BUTTONS_SET, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).doptlb,(*(*info).winids).dopwid,(*(*info).winids).dopdrawid], labels=['doptlb','dopwid','dopdrawid']
+END
+
+PRO CRISPEX_DISPLAYS_HEADER, event
+; Pops up window with header information
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+  files = ['Main: ','Reference: ','Slit-jaw image: ']
+  hdrlen = [STRLEN((*(*(*(*info).dataparams).hdrs[0])[0])[0]), $
+            STRLEN((*(*(*(*info).dataparams).hdrs[1])[0])[0]), $
+            STRLEN((*(*(*(*info).dataparams).hdrs[2])[0])[0])]
+  wherefileset = WHERE((hdrlen GT 0) EQ 1)
+  FOR i=0,N_ELEMENTS(wherefileset)-1 DO BEGIN
+    exte_idx = INDGEN((*(*info).dataparams).next[wherefileset[i]])
+    tmp_vals = REPLICATE(files[wherefileset[i]],(*(*info).dataparams).next[wherefileset[i]])+$
+      REPLICATE('Extension ',(*(*info).dataparams).next[wherefileset[i]])+$
+      STRTRIM(exte_idx,2)
+    tmp_uvals = [[REPLICATE(wherefileset[i],(*(*info).dataparams).next[wherefileset[i]])],[exte_idx]]
+    IF (i EQ 0) THEN BEGIN
+      vals = tmp_vals 
+      uvals = tmp_uvals
+    ENDIF ELSE BEGIN
+      vals = [vals,tmp_vals]
+      uvals = [uvals,tmp_uvals]
+    ENDELSE
+  ENDFOR
+	base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+$
+    ': File headers', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, $
+    /TLB_KILL_REQUEST_EVENTS)
+	disp = WIDGET_BASE(base, /COLUMN)
+  (*(*info).ctrlshdr).header_select = WIDGET_COMBOBOX(disp, VALUE=vals, UVALUE=uvals, $
+    EVENT_PRO='CRISPEX_DISPLAYS_HEADER_SELECT')
+  text_base = WIDGET_BASE(disp, /COLUMN)
+  (*(*info).ctrlshdr).header_txt = WIDGET_TEXT(text_base, $
+    VALUE=(*(*(*(*info).dataparams).hdrs[0])[0]), XSIZE=CEIL(MAX(hdrlen)*1.1), $
+    YSIZE=CEIL(MAX(hdrlen)/2.), /SCROLL, /WRAP)
+  close_base = WIDGET_BASE(disp, /ALIGN_CENTER)
+  close_button = WIDGET_BUTTON(close_base, VALUE='Close', EVENT_PRO='CRISPEX_CLOSE_EVENT_WINDOW')
+	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = (*(*info).winsizes).lsxoffset, $
+    TLB_SET_YOFFSET = (*(*info).winsizes).lswiny+1.5*(*(*info).winsizes).ydelta
+	WIDGET_CONTROL, base, SET_UVALUE = info
+	XMANAGER, 'CRISPEX', base, /NO_BLOCK
+  (*(*info).winids).headertlb = base
+END
+
+PRO CRISPEX_DISPLAYS_HEADER_SELECT, event
+; Handles changing of header display
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+  WIDGET_CONTROL, (*(*info).ctrlshdr).header_select, GET_UVALUE=uvals
+  WIDGET_CONTROL, (*(*info).ctrlshdr).header_txt, $
+    SET_VALUE=(*(*(*(*info).dataparams).hdrs[uvals[event.INDEX,0]])[uvals[event.INDEX,1]])
 END
 
 PRO CRISPEX_DISPLAYS_INT_MENU, event, set_but_array
@@ -7729,6 +7781,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tarr_raster_main = key.tarr_raster
       toffset_main = key.tini_col
       xyrastersji = key.xyrastersji
+      headers = key.headers
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.imtype = datatype         &  hdr_out.imendian = endian
       hdr_out.nx = nx                   &  hdr_out.dx = 0.0592
@@ -7757,10 +7810,11 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       ENDELSE
       xyrastersji = 0
       twave = 0
+      headers = PTR_NEW('')
     ENDELSE
     hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics, 'diag_start', wstart, $
       'diag_width', wwidth, 'tarr_main', tarr_main, 'tarr_raster_main', tarr_raster_main, $
-      'toffset_main', toffset_main, 'xyrastersji', xyrastersji, 'twave', twave)
+      'toffset_main', toffset_main, 'xyrastersji', xyrastersji, 'twave', twave, 'hdrs_main', headers)
   ENDIF ELSE IF KEYWORD_SET(SPCUBE) THEN BEGIN                  ; Fill hdr parameters for SPCUBE
     hdr_out.spoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -7794,6 +7848,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tarr_ref = key.tarr_sel
       tarr_raster_ref = key.tarr_raster
       toffset_ref = key.tini_col
+      headers = key.headers
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.refimtype = datatype      &  hdr_out.refimendian = endian
       hdr_out.refnx = nx                &  hdr_out.refny = ny
@@ -7822,10 +7877,11 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         diagnostics = 'CRISP'
       ENDELSE
       twave = 0
+      headers = PTR_NEW('')
     ENDELSE
     hdr_out = CREATE_STRUCT(hdr_out, 'refdiagnostics', diagnostics, 'refdiag_start', wstart, $
       'refdiag_width', wwidth, 'tarr_ref', tarr_ref, 'tarr_raster_ref', tarr_raster_ref, $
-      'toffset_ref', toffset_ref, 'twave_ref', twave)
+      'toffset_ref', toffset_ref, 'twave_ref', twave, 'hdrs_ref', headers)
   ENDIF ELSE IF KEYWORD_SET(REFSPCUBE) THEN BEGIN               ; Fill hdr parameters for REFSPCUBE
     hdr_out.refspoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -7842,9 +7898,9 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.sjinx = key.nx            &  hdr_out.sjiny = key.ny
       hdr_out.sjidx = key.dx            &  hdr_out.sjidy = key.dy
       hdr_out.sjix0 = key.sjix0         &  hdr_out.sjiy0 = key.sjiy0
-      hdr_out.sjibunit = key.bunit      
+      hdr_out.sjibunit = key.bunit      &  headers = key.headers
       hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
-        'sjixoff', key.sjixoff, 'sjiyoff', key.sjiyoff)
+        'sjixoff', key.sjixoff, 'sjiyoff', key.sjiyoff, 'hdrs_sji', headers)
   ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                ; Fill hdr parameters for MASKCUBE
     hdr_out.maskoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -7867,6 +7923,8 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
 ;   v1.2 26-Jan-2013 Mats Carlsson - works for both Bifrost and Iris cubes
 ;   v1.3 13-Feb-2013 Mats Carlsson 
 ; Incorporated functionality into CRISPEX on 29-May-2013 and extended subsequently
+  hdr1 = ''   ; initialise header placeholders
+  hdr2 = ''
   naxis = SXPAR(header,'NAXIS*')
   CASE (strsplit(SXPAR(header,'CTYPE2'),' ',/extract))[0] OF
     'y': sortorder = INDGEN(4)       ; CRISPEX imcube
@@ -7928,7 +7986,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   IF ~KEYWORD_SET(SJICUBE) THEN BEGIN
     ; Get time array (assuming each raster is co-temporal)
     IF (nt GT 1) THEN BEGIN
-      tarr = READFITS(filename, hdr_tmp, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
+      tarr = READFITS(filename, hdr2, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
       ntarrdims = SIZE(tarr,/N_DIMENSIONS)
       tarr_raster = tarr
       tval = SXPAR(header, 'CRVAL4')    ; tini_col = toffset_main/ref defaults to CRVAL4
@@ -7952,7 +8010,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     sjix0 = 0
     sjiy0 = 0
   ENDIF ELSE BEGIN
-    offsetarray = READFITS(filename, EXTEN_NO=1, SILENT=~KEYWORD_SET(VERBOSE))
+    offsetarray = READFITS(filename, hdr1, EXTEN_NO=1, SILENT=~KEYWORD_SET(VERBOSE))
     tarr_sel = REFORM(offsetarray[0,*]) ; TIME
     tarr_raster = tarr_sel
     sjixoff = REFORM(offsetarray[1,*])  ; PZTX
@@ -7981,7 +8039,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   lpunit = STRTRIM(cunit[sortorder[2]],2)
   ; Determine spectral parameters
   IF (N_PARAMS() EQ 3) THEN BEGIN
-    lam = READFITS(filename,EXTEN_NO=1,SILENT=~KEYWORD_SET(VERBOSE))
+    lam = READFITS(filename,hdr1,EXTEN_NO=1,SILENT=~KEYWORD_SET(VERBOSE))
   ENDIF ELSE BEGIN
     lam = (FINDGEN(nlp)+1-crpix[sortorder[2]])*cdelt[sortorder[2]]+crval[sortorder[2]]
   ENDELSE
@@ -8007,12 +8065,18 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ENDELSE
   twave = SXPAR(header,'TWAVE*')
   twave  = twave[whereselect]
+  ; Get third header too, even if not used in CRISPEX
+  IF KEYWORD_SET(SJICUBE) THEN $
+    dummy = READFITS(filename, hdr2, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
+  ; Initialise headers variable
+  headers = [PTR_NEW(header),PTR_NEW(hdr1),PTR_NEW(hdr2)]
   ; Get slit coordinates on SJI image if raster
   IF ((SIZE(SXPAR(header,'SJIFIL*'),/TYPE) EQ 7) AND $
     (~KEYWORD_SET(SPCUBE) AND ~KEYWORD_SET(REFSPCUBE))) THEN BEGIN
-    raster_coords = READFITS(filename, hdr_tmp, EXTEN_NO=3, SILENT=~KEYWORD_SET(VERBOSE))
+    raster_coords = READFITS(filename, hdr3, EXTEN_NO=3, SILENT=~KEYWORD_SET(VERBOSE))
     xyrastersji = FLTARR(nx,2)
     xyrastersji[*,*] = ABS(raster_coords[*,0,*])
+    headers = [headers, PTR_NEW(hdr3)]
   ENDIF ELSE xyrastersji = 0
   ;
   key = {nx:nx,ny:ny,nlp:nlp,nt:nt,ns:ns,cslab:cslab, $
@@ -8023,7 +8087,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
        btype:btype,bunit:bunit, $ 
        xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,$
        wstart:wstart, wwidth:wwidth, diagnostics:diagnostics, $
-       ndiagnostics:ndiagnostics, twave:twave $
+       ndiagnostics:ndiagnostics, twave:twave, headers:headers $
        }
 END
 
@@ -12240,14 +12304,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   IF ((io_failsafe_ref_error EQ 1) OR (io_failsafe_main_ref_error EQ 1)) THEN RETURN
   IF (N_ELEMENTS(REFCUBE) LT 1) THEN $
     hdr = CREATE_STRUCT(hdr, 'refdiagnostics', 'N/A', 'refdiag_start', 0, 'refdiag_width', 1, $
-            'tarr_ref', 0, 'tarr_raster_ref', 0, 'toffset_ref', 0)
+            'tarr_ref', 0, 'tarr_raster_ref', 0, 'toffset_ref', 0, 'hdrs_ref', PTR_NEW(''))
 
   CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr, HDR_OUT=hdr, $  
                             STARTUPTLB=startuptlb, $
                             IO_FAILSAFE_SJI_ERROR=io_failsafe_sji_error
   IF (io_failsafe_sji_error EQ 1) THEN RETURN
   IF (N_ELEMENTS(sjicube) NE 1) THEN $
-    hdr = CREATE_STRUCT(hdr, 'tarr_sji', 0, 'tsel_sji', 0, 'rastercont', 0)
+    hdr = CREATE_STRUCT(hdr, 'tarr_sji', 0, 'tsel_sji', 0, 'rastercont', 0, 'hdrs_sji', PTR_NEW(''))
   
   CRISPEX_IO_OPEN_MASKCUBE, MASKCUBE=maskcube, HDR_IN=hdr, HDR_OUT=hdr, STARTUPTLB=startuptlb, $
                             IO_FAILSAFE_MASK_ERROR=io_failsafe_mask_error
@@ -12988,6 +13052,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;  openmenu            = WIDGET_BUTTON(filemenu, VALUE = 'Open', /MENU)
 ;  openref             = WIDGET_BUTTON(openmenu, VALUE = 'Reference cube(s)...', $
 ;                                      EVENT_PRO = 'CRISPEX_IO_OPEN_REFCUBE')
+  header_button       = WIDGET_BUTTON(filemenu, VALUE='Show file header(s)', $
+                          EVENT_PRO='CRISPEX_DISPLAYS_HEADER', SENSITIVE=($
+                            (STRLEN((*hdr.hdrs_main[0])[0]) GT 0) OR $
+                            (STRLEN((*hdr.hdrs_ref[0])[0]) GT 0) OR $
+                            (STRLEN((*hdr.hdrs_sji[0])[0]) GT 0)))
 	restore_session		  = WIDGET_BUTTON(filemenu, VALUE='Load session...', $
                           EVENT_PRO='CRISPEX_SESSION_RESTORE_WINDOW')
 	save_session		    = WIDGET_BUTTON(filemenu, VALUE='Save current...', $
@@ -13933,6 +14002,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ctrlsfeedb = { $
 		estimate_label:0, feedback_text:0, close_button:0 $
 	}
+;--------------------------------------------------------------------------------- HEADER CONTROLS 
+	ctrlshdr = { $
+		header_select:0, header_txt:0 $
+	}
 ;--------------------------------------------------------------------------------- INT CONTROLS 
 	ctrlsint = { $
 		int_sel_all:0, int_sel_none:0, int_sel_save:0, lower_y_int_text:0, upper_y_int_text:0, $
@@ -14015,6 +14088,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     ; Filenames
 		imfilename:hdr.imfilename, spfilename:hdr.spfilename, refimfilename:hdr.refimfilename, $
     refspfilename:hdr.refspfilename, maskfilename:hdr.maskfilename, $	
+    ; Headers
+    hdrs:[PTR_NEW(hdr.hdrs_main),PTR_NEW(hdr.hdrs_ref),PTR_NEW(hdr.hdrs_sji)], $
+    next:[N_ELEMENTS(hdr.hdrs_main),N_ELEMENTS(hdr.hdrs_ref),N_ELEMENTS(hdr.hdrs_sji)], $
     ; Spatial dimensions
 		x:x_start, y:y_start, d_nx:hdr.nx, d_ny:hdr.ny, nx:hdr.nx, ny:hdr.ny, $							
     sjinx:hdr.sjinx, sjiny:hdr.sjiny, sjidx:hdr.sjidx, sjidy:hdr.sjidy, $
@@ -14359,7 +14435,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		savetlb:0, detsavetlb:0, restoretlb:0, preftlb:0, $							
 		estimatetlb:0, savewintlb:0, saveoptwintlb:0, restsestlb:0, paramtlb:0, $					
 		feedbacktlb:0, abouttlb:0, errtlb:0, warntlb:0, restsesfeedbtlb:0, $
-    shorttlb:0, $
+    shorttlb:0, headertlb:0, $
 		imwintitle:imwintitle, spwintitle:'',lswintitle:'',refwintitle:'',refspwintitle:'',reflswintitle:'', $
 		imrefwintitle:'',dopwintitle:'',phiswintitle:'',restloopwintitle:PTR_NEW(''),retrdetwintitle:'',$
 		loopwintitle:'',refloopwintitle:'',intwintitle:'', sjiwintitle:'' $
@@ -14397,6 +14473,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		ctrlscp:PTR_NEW(ctrlscp, /NO_COPY), $
 		ctrlsdet:PTR_NEW(ctrlsdet, /NO_COPY), $
 		ctrlsfeedb:PTR_NEW(ctrlsfeedb, /NO_COPY), $
+		ctrlshdr:PTR_NEW(ctrlshdr, /NO_COPY), $
 		ctrlsint:PTR_NEW(ctrlsint, /NO_COPY), $
 		ctrlsloop:PTR_NEW(ctrlsloop, /NO_COPY), $
 		ctrlspbbut:PTR_NEW(ctrlspbbut, /NO_COPY), $
