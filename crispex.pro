@@ -12097,7 +12097,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   SPAWN,"grep '$Id' "+file_crispex, id_string
   cvs_idn = (STRSPLIT(id_string[0],' ',/EXTRACT))[3]
   cvs_rev = (STRSPLIT(cvs_idn,'.',/EXTRACT))[1]
-  revision_number = STRTRIM(634L+LONG(cvs_rev)-63L,2)   ; rev_nr=634, cvs_rev=63 when implemented
+  revision_number = STRTRIM(634L+LONG(cvs_rev)-64L,2)   ; rev_nr=634, cvs_rev=64 when implemented
 	IF (verbosity[1] EQ 1) THEN $
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK,'Version and revision number: '+version_number+$
       ' ('+revision_number+')'
