@@ -398,6 +398,8 @@ FUNCTION CRISPEX_BGROUP_DIAGNOSTICS_SELECT, event
   ENDIF ELSE $
     WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
   CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /MAIN
+  CRISPEX_UPDATE_T, event
+  CRISPEX_SCALING_APPLY_SELECTED, event
   IF (*(*info).winswitch).showsp THEN BEGIN
     CRISPEX_UPDATE_SPSLICE, event
     CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
@@ -448,6 +450,8 @@ FUNCTION CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT, event
   ENDIF ELSE $
     WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
   CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /REFERENCE
+  CRISPEX_UPDATE_T, event
+  CRISPEX_SCALING_APPLY_SELECTED, event
   IF (*(*info).winswitch).showrefsp THEN BEGIN
     CRISPEX_UPDATE_REFSPSLICE, event
     CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
@@ -540,10 +544,12 @@ FUNCTION CRISPEX_BGROUP_ZOOMFAC_SET, event, NO_DRAW=no_draw, NO_UPDATE_SLIDERS=n
     ENDIF
 ;    sensitive = [0,0]
 ;  ENDIF ELSE $
-    sensitive = [(((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio GT 1) OR $
-                  ((*(*info).zooming).factor NE 1)),$
-                 (((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio LT 1) OR $
-                  ((*(*info).zooming).factor NE 1))]
+;    sensitive = [(((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio GT 1) OR $
+;                  ((*(*info).zooming).factor NE 1)),$
+;                 (((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio LT 1) OR $
+;                  ((*(*info).zooming).factor NE 1))]
+  sensitive = [(((*(*info).dataparams).nx NE 1) AND ((*(*info).zooming).factor NE 1)),$
+    ((*(*info).zooming).factor NE 1)]
   CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
   IF ~KEYWORD_SET(NO_UPDATE_SLIDERS) THEN $
   	CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SENSITIVE=sensitive
@@ -3716,8 +3722,8 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
     xtickinterval = int_widths[wheremax]/2.
     doporder = FLOOR(ALOG10(dop_widths))
     int_dopwidths = FLOOR(dop_widths/10^FLOAT(doporder))*10^FLOAT(doporder)
-    wheredopmax = WHERE(int_dopwidths EQ MIN(int_dopwidths, /NAN))
-    ; Have at least two tickmarks per range for the smallest range
+    wheredopmax = WHERE(int_dopwidths EQ MAX(int_dopwidths, /NAN))
+    ; Have at least two tickmarks per range for the biggest range
     xdoptickinterval = int_dopwidths[wheredopmax]/2.
   ENDIF ELSE BEGIN
     xtickinterval = 0
@@ -4480,9 +4486,9 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           ; Set range for Doppler axis
           vdop_xrange = (*(*(*info).plotaxes).v_dop[(*(*(*info).intparams).wheredispdiag)[d]])[$
             [0,(*(*(*info).intparams).diag_widths)[d]-1]]
-        ENDIF
-        vdop_xrange = (*(*(*info).plotaxes).v_dop[0])[$
-          [(*(*info).dispparams).lp_low,(*(*info).dispparams).lp_upp]]
+        ENDIF ELSE $
+          vdop_xrange = (*(*(*info).plotaxes).v_dop[0])[$
+            [(*(*info).dispparams).lp_low,(*(*info).dispparams).lp_upp]]
         ; Display Stokes label if Stokes data
         IF (*(*info).plotswitch).multichannel THEN $
     		  XYOUTS, ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]-$
@@ -11599,8 +11605,8 @@ PRO CRISPEX_UPDATE_T, event
 	IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN BEGIN
     basecubeidx = (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * (*(*info).dataparams).ns+ $
 			            (*(*info).dataparams).s * (*(*info).dataparams).nlp
-		*(*(*info).data).xyslice = REFORM( ((*(*(*info).data).imagedata)[$
-      basecubeidx + (*(*info).dataparams).lp]))
+		*(*(*info).data).xyslice = (*(*(*info).data).imagedata)[$
+      basecubeidx + (*(*info).dataparams).lp]
 		IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
 			temp_xyslice = REFORM( ((*(*(*info).data).imagedata)[$
         basecubeidx + (*(*info).dataparams).lp_dop]))
@@ -11960,18 +11966,18 @@ PRO CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SE
     sensitive = [1,1]
   nx_max = (*(*info).dataparams).nx-1
   ny_max = (*(*info).dataparams).ny-1
-  IF ((*(*info).zooming).handle_extreme EQ 2) THEN BEGIN
-    IF ((*(*info).data).ratio GT 1) THEN BEGIN
-      (*(*info).dataparams).d_nx = (*(*info).winsizes).xywinx / (8. * (*(*info).zooming).factor)
-      (*(*info).dataparams).d_ny = ((*(*info).dataparams).ny / (*(*info).zooming).factor) < ny_max
-    ENDIF ELSE BEGIN
-      (*(*info).dataparams).d_nx = ((*(*info).dataparams).nx / (*(*info).zooming).factor) < nx_max
-      (*(*info).dataparams).d_ny = (*(*info).winsizes).xywiny / (8. * (*(*info).zooming).factor)
-    ENDELSE
-  ENDIF ELSE BEGIN
+;  IF ((*(*info).zooming).handle_extreme EQ 2) THEN BEGIN
+;    IF ((*(*info).data).ratio GT 1) THEN BEGIN
+;      (*(*info).dataparams).d_nx = (*(*info).winsizes).xywinx / (8. * (*(*info).zooming).factor)
+;      (*(*info).dataparams).d_ny = ((*(*info).dataparams).ny / (*(*info).zooming).factor) < ny_max
+;    ENDIF ELSE BEGIN
+;      (*(*info).dataparams).d_nx = ((*(*info).dataparams).nx / (*(*info).zooming).factor) < nx_max
+;      (*(*info).dataparams).d_ny = (*(*info).winsizes).xywiny / (8. * (*(*info).zooming).factor)
+;    ENDELSE
+;  ENDIF ELSE BEGIN
   	(*(*info).dataparams).d_nx = ((*(*info).dataparams).nx / (*(*info).zooming).factor) < nx_max
   	(*(*info).dataparams).d_ny = ((*(*info).dataparams).ny / (*(*info).zooming).factor) < ny_max
-  ENDELSE
+;  ENDELSE
 	(*(*info).phiparams).d_nphi_set = (*(*info).phiparams).nphi_set / (*(*info).zooming).factor
 	(*(*info).zooming).xpos = (cursor_x - (*(*info).dataparams).d_nx / 2.) > 0
 	(*(*info).zooming).ypos = (cursor_y - (*(*info).dataparams).d_ny / 2.) > 0
@@ -12054,7 +12060,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
               SCALE_CUBES=scale_cubes, $      ; scale cubes
               XTITLE=xtitle, YTITLE=ytitle,$; custom detailed spectrum xtitle and ytitle
               WINDOW_LARGE=window_large, $    ; draw large windows for small cubes
-              HANDLE_EXTREME=handle_extreme,$ ; handling procedure for extreme image axis ratio
               VERBOSE=verbose                 ; program verbosity
 
 ;========================= PROGRAM-INFO ON CALL W/O PARAMS
@@ -12063,8 +12068,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
             'SPECTFILE=spectfile, LINE_CENTER=line_center, DT=dt, EXTS=exts, MNSPEC=mnspec, '+$
             'SINGLE_CUBE=single_cube, SCALE_STOKES=scale_stokes, VALS_IMG=vals_img, '+$
             'VALS_REF=vals_ref, NO_WARP=no_warp, SCALE_CUBES=scale_cubes, XTITLE=xtitle, '+$
-            'YTITLE=ytitle, WINDOW_LARGE=window_large, HANDLE_EXTREME=handle_extreme, '+$
-            'VERBOSE=verbose', /INFO
+            'YTITLE=ytitle, WINDOW_LARGE=window_large, VERBOSE=verbose', /INFO
 		RETURN
 	ENDIF
 
@@ -12529,86 +12533,91 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	xdelta		= 20													; Extra xoffset for positioning of windows
 	ydelta		= 40													; Extra yoffset for positioning of windows
   minsize   = 200.
+ 
+  ; Determine image and pixel aspect ratio
+  ratio      = FLOAT(ABS(hdr.nx)) / FLOAT(ABS(hdr.ny))                  
+  pixelratio = FLOAT(ABS(hdr.dx)) / FLOAT(ABS(hdr.dy))                  
 
-  ratio      = FLOAT(ABS(hdr.nx)) / FLOAT(ABS(hdr.ny))                  ; Determine image aspect ratio
-  pixelratio = FLOAT(ABS(hdr.dx)) / FLOAT(ABS(hdr.dy))                  ; Determine pixel aspect ratio
+  ; Determine default window sizes (i.e., regardless of monitor size)
   imwinx_default = hdr.nx
   imwiny_default = hdr.ny
-  ; Handle pixel aspect ratio
+
+  ; Handle pixel aspect ratio for default sizes
   IF (pixelratio GT 1) THEN imwinx_default *= pixelratio ELSE $
     IF (pixelratio LT 1) THEN imwiny_default *= pixelratio
-	
-  x_scr_size = screensizes[2,monitor_order[0]]                ; Get main screen xsize
-	y_scr_size = screensizes[3,monitor_order[0]]                ; Get main screen ysize
+  
+  ; Check for extreme aspect ratio and small dimensions
   extreme_aspect = (((ratio GT 5.) AND (imwiny_default LT minsize)) OR $
-                    ((ratio LT 0.2) AND (imwinx_default LT minsize))) ; Extreme aspect ratio and small dim
+                    ((ratio LT 0.2) AND (imwinx_default LT minsize))) 
 
-  ; If xsize > nx+space for spectral windows AND ysize > ny+space for params window, then:
+  ; Get main screen sizes
+  x_scr_size = screensizes[2,monitor_order[0]]
+	y_scr_size = screensizes[3,monitor_order[0]]
+
+  ; Check whether window would in principle fit (only if xsize > nx+space for spectral 
+  ; windows AND ysize > ny):
 	IF ((x_scr_size GT (imwinx_default+2*xdelta+0.45*x_scr_size)) AND $
-      (y_scr_size GT (imwiny_default+1.5*ydelta+90))) THEN BEGIN		
+      (y_scr_size GT imwiny_default)) THEN BEGIN		
     ; If xsize is small, then still go to old settings procedures
 		IF ((imwinx_default LT 0.48 * x_scr_size) AND $
         (imwiny_default LT (0.48 * x_scr_size / ratio)) AND $
         (extreme_aspect OR KEYWORD_SET(WINDOW_LARGE))) THEN BEGIN				
-			imwinx 	= 0.48 * x_scr_size											; Set maximum x-extent of image window
-			imwiny 	= imwinx / ratio											; Set maximum y-extent of image window
-		  IF (imwiny GT y_scr_size) THEN BEGIN										; Failsafe to avoid a window larger than the 
-			  imwiny = 0.85 * y_scr_size											; screensize
-			  imwinx = imwiny * ratio
+      ; Set maximum x- and y-extent of image window
+      IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
+        imwinx = 5*hdr.nx $
+      ELSE $
+			  imwinx 	= 0.48 * x_scr_size											
+			imwiny 	= imwinx / ratio
+      ; Failsafe to avoid a window larger than the screensize
+		  IF (imwiny GT y_scr_size) THEN BEGIN										
+			  imwiny = 0.9 * y_scr_size											
+        IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
+          imwinx = 5*hdr.nx $
+        ELSE $
+			    imwinx = imwiny * ratio
 		  ENDIF
-			IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'User screen resolution '+$
-                                    'allows 1:1 image window sizing, but dimensions are small. '+$
-                                    'Reverting to image window size of '+STRTRIM(imwinx,2)+'x'+$
-                                    STRTRIM(imwiny,2)+'.', /NEWLINE, /NO_ROUTINE
+			IF (verbosity[1] EQ 1) THEN $
+        msg = 'User screen resolution allows 1:1 image window sizing, '+$
+          'but dimensions are small. '
+    ; Else fit the window with actual data dimensions
 		ENDIF ELSE BEGIN
-			imwinx	= hdr.nx                                  ; - use actual nx as imwinx
-			imwiny	= hdr.ny                                  ; - use actual ny as imwiny
-			IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'User screen resolution '+$
-                                    'allows 1:1 image window sizing. Image window is '+$
-                                    STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.', /NEWLINE, $
-                                    /NO_ROUTINE
+      ; Use actual nx/ny as imwinx/imwiny
+			imwinx	= hdr.nx                  
+      IF (extreme_aspect AND (hdr.nx EQ 1)) THEN imwinx *= 5
+			imwiny	= hdr.ny                 
+			IF (verbosity[1] EQ 1) THEN $
+        msg = 'User screen resolution allows 1:1 image window sizing. '
 		ENDELSE
-	ENDIF ELSE BEGIN													; Else use the old procedures to determine imwinx and imwiny
-		imwinx 	= 0.48 * x_scr_size											; Set maximum x-extent of image window
-		imwiny 	= imwinx / ratio											; Set maximum y-extent of image window
-		IF (imwiny GT y_scr_size) THEN BEGIN										; Failsafe to avoid a window larger than the 
-			imwiny = 0.85 * y_scr_size											; screensize
+  ; Else use the old procedures to determine imwinx and imwiny
+	ENDIF ELSE BEGIN													
+    ; Set maximum x- and y-extent of image window
+		imwinx 	= 0.48 * x_scr_size
+		imwiny 	= imwinx / ratio	 
+    ; Failsafe to avoid a window larger than the screensize
+		IF (imwiny GT y_scr_size) THEN BEGIN										
+			imwiny = 0.9 * y_scr_size
 			imwinx = imwiny * ratio
 		ENDIF
-		IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'User screen resolution '+$
-                                  'does not allow for 1:1 image window sizing. Image window is '+$
-                                  STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.', /NEWLINE, /NO_ROUTINE
+		IF (verbosity[1] EQ 1) THEN $
+      msg = 'User screen resolution does not allow for 1:1 image window sizing. '
 	ENDELSE
-
-  ; HANDLE_EXTREME: handling procedures for extreme image axis ratio
-  ; 0 - do nothing
-  ; 1 - zoom in, no correction for non-square pixels
-  ; 2 - zoom in, with correction for non-square pixels
-  ; 3 - pad with zeroes, window as big as for setting 2, zoom in correctly
-  IF (N_ELEMENTS(HANDLE_EXTREME) NE 1) THEN handle_extreme = 0
+  ; Fix window sizes for pixelratio
+  IF (pixelratio GT 1) THEN $
+    imwinx *= pixelratio $
+  ELSE IF (pixelratio LT 1) THEN $
+    imwiny *= pixelratio
+  IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, msg+'Image window set to '+$
+                                STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.', /NEWLINE, /NO_ROUTINE
+                                
+  ; Set zoomfactors
   zoomfactors = [1.,2.,3.,4.,6.,8.]
   factorswitch = [1B,BYTARR(N_ELEMENTS(zoomfactors)-1)]
-  padded_bg = 0
-  IF extreme_aspect THEN BEGIN
-    IF (handle_extreme EQ 1) THEN BEGIN
-      imwinx = 8*hdr.nx
-      imwiny = 0.85 * y_scr_size
-    ENDIF ELSE IF (handle_extreme EQ 2) THEN BEGIN
-      IF (ratio GT 1) THEN BEGIN
-        imwinx = hdr.nx
-        imwiny = (8.*hdr.ny) < (0.85 * y_scr_size)
-      ENDIF ELSE BEGIN
-        imwinx = (8.*hdr.nx) < (0.48 * x_scr_size)
-        imwiny = hdr.ny
-      ENDELSE
-    ENDIF
-  ENDIF 
-  IF (pixelratio GT 1) THEN imwinx *= pixelratio ELSE IF (pixelratio LT 1) THEN imwiny *= pixelratio
 
   ; If SJI cube supplied, determine sizes
   IF hdr.sjifile THEN BEGIN
-    sjiratio      = FLOAT(ABS(hdr.sjinx)) / FLOAT(ABS(hdr.sjiny))         ; Determine image aspect ratio
-    sjipixelratio = FLOAT(ABS(hdr.sjidx)) / FLOAT(ABS(hdr.sjidy))         ; Determine pixel aspect ratio
+    ; Determine image and pixel aspect ratio
+    sjiratio      = FLOAT(ABS(hdr.sjinx)) / FLOAT(ABS(hdr.sjiny))
+    sjipixelratio = FLOAT(ABS(hdr.sjidx)) / FLOAT(ABS(hdr.sjidy))
     sjiwinx_default = hdr.sjinx
     sjiwiny_default = hdr.sjiny
     ; Handle pixel aspect ratio
@@ -14465,8 +14474,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- ZOOMING 
 	zooming = { $
-		factor:zoomfactors[0], factorswitch:factorswitch, factors:zoomfactors, xpos:0., ypos:0., $
-    handle_extreme:handle_extreme $								
+		factor:zoomfactors[0], factorswitch:factorswitch, factors:zoomfactors, xpos:0., ypos:0. $;, $
+;    handle_extreme:handle_extreme $								
 	}
 ;--------------------------------------------------------------------------------- DEFINE INFO POINTER
 	info = { $
@@ -14731,4 +14740,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		WIDGET_CONTROL, startuptlb, /DESTROY
 	ENDIF
 	CRISPEX_VERBOSE_SET_BUTTONS, pseudoevent
+
+  ; Issue last warning/error messages before finishing setup
+  IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
+    CRISPEX_WINDOW_OK, pseudoevent, 'Warning', $
+      'Extreme aspect ratio detected with NX = 1. Blowing ',$
+      'up x-dimension for better visualisation: note that ',$
+      'the image pixel aspect ratio is now inaccurate.', $
+			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', /BLOCK
 END
