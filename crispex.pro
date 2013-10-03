@@ -4509,7 +4509,7 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           (*(*info).plotpos).spx0, (*(*info).plotpos).spy0, /NORM
       ENDIF
     ENDFOR
-    IF (~KEYWORD_SET(LS_ONLY) AND (*(*info).winswitch).showsp) THEN BEGIN
+    IF ((pass EQ 0) AND ~KEYWORD_SET(LS_ONLY) AND (*(*info).winswitch).showsp) THEN BEGIN
       !X.WINDOW = [(*(*info).plotpos).spx0,(*(*info).plotpos).spx1]
       !Y.WINDOW = [(*(*info).plotpos).spy0,(*(*info).plotpos).spy1]
       ; In case of multiple diagnostics, overplot separator axes
