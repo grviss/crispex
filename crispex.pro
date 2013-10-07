@@ -7825,7 +7825,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   CASE (strsplit(SXPAR(header,'CTYPE2'),' ',/extract))[0] OF
     'y': sortorder = INDGEN(4)       ; CRISPEX imcube
     'HPLT-TAN': sortorder = INDGEN(3); IRIS SJI-file
-    'time': sortorder = [2,3,0,1]    ; CRISPEX refcube
+    'time': sortorder = [2,3,0,1]    ; CRISPEX spcube
     'SolarY': sortorder = INDGEN(3)  ; Bifrost simcube
     ELSE: BEGIN
       MESSAGE,'Valid object not found! Correct fits file?',/cont
@@ -7869,7 +7869,8 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ; Assign values to variables
   dx = cdelt[sortorder[0]]
   dy = cdelt[sortorder[1]]
-  IF (nt GT 1) THEN BEGIN
+;  IF (nt GT 1) THEN BEGIN
+  IF (N_ELEMENTS(naxis) EQ 4) THEN BEGIN
     dt = cdelt[sortorder[3]]
     tlab = STRTRIM(ctype[sortorder[3]],2)
     tunit = STRTRIM(cunit[sortorder[3]],2)
@@ -12264,21 +12265,16 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	feedback_text = [feedback_text,'> Initial playback parameters... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	t_first		= 0L													; Set number of first frame		
-	IF (hdr.mainnt EQ 1) THEN BEGIN
-		t_last = 2L
-		t_last_tmp = 0L
-		t_slid_sens = 0
-	ENDIF ELSE BEGIN
-		t_last = hdr.mainnt-1													; Set number of last frame
-		t_last_tmp = t_last
-		t_slid_sens = 1
-	ENDELSE
+  t_last = hdr.mainnt-1													; Set number of last frame
+  t_slid_sens = (hdr.mainnt NE 1)
 	t_step		= 1L													; Set initial timestep
 	t_speed 	= 10													; Set initial animation speed
 	direction 	= 1													; Set initial animation direction
 	t_start = t_first
 
-	IF (hdr.dt EQ 1) THEN BEGIN
+  ; Is hdr.dt set and main/ref/sjint > 1?
+	IF ((hdr.dt EQ 1) AND $
+    ((hdr.mainnt GT 1) OR (hdr.refnt GT 1) OR (hdr.sjint GT 1))) THEN BEGIN
 		IF (hdr.spfile OR hdr.onecube) THEN BEGIN
 			dt_set = 1
 			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = hdr.spytitle ;'Time (s)'
@@ -12290,6 +12286,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 			hdr.dt = 1.
 			spytitle = 'Frame number'
 		ENDELSE
+  ; If not, revert to frame number as y-axis and spectrum-time plot
 	ENDIF ELSE BEGIN
 		dt_set = 0
 		hdr.dt = 1.
@@ -13065,7 +13062,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                           EVENT_PRO='CRISPEX_PB_BLINK', TOOLTIP = 'Blink')
   tlp_slider_base     = WIDGET_BASE(control_panel, /GRID_LAYOUT, COLUMN=2)
 	t_slid			        = WIDGET_SLIDER(tlp_slider_base, TITLE = 'Frame number', MIN=t_first, $
-                          MAX=t_last, VALUE=t_start, EVENT_PRO='CRISPEX_SLIDER_T', /DRAG, $
+                          MAX=(t_last>(t_first+1)), VALUE=t_start, EVENT_PRO='CRISPEX_SLIDER_T', /DRAG, $
                           SENSITIVE=t_slid_sens, XSIZE=FLOOR((tab_width+2*pad)/2.))
   ; Spectral control
 	lp_slid			        = WIDGET_SLIDER(tlp_slider_base, $
@@ -13089,7 +13086,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	lower_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_first,2), /EDITABLE, $
                           XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_LOW', SENSITIVE = t_slid_sens)
 	upper_t_label		    = WIDGET_LABEL(t_range_field, VALUE = 'Upper index:', /ALIGN_LEFT)
-	upper_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last_tmp,2),  /EDITABLE, $
+;	upper_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last_tmp,2),  /EDITABLE, $
+	upper_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last,2),  /EDITABLE, $
                           XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_UPP', SENSITIVE = t_slid_sens)
 	reset_trange_but	  = WIDGET_BUTTON(playback_tab, VALUE = 'Reset temporal boundaries', $
                           EVENT_PRO = 'CRISPEX_DISPRANGE_T_RESET', SENSITIVE = 0)
@@ -13629,8 +13627,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
       pixel_label = WIDGET_LABEL(verlabel_base, VALUE='Index [px]', /ALIGN_RIGHT)
       IF dt_set THEN $
         real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value [s]', /ALIGN_RIGHT)
-      raster_time_fb = (N_ELEMENTS(hdr.tarr_raster_main) NE N_ELEMENTS(hdr.tarr_main)) 
-      refraster_time_fb = (N_ELEMENTS(hdr.tarr_raster_ref) NE N_ELEMENTS(hdr.tarr_ref))
+      raster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_main) NE N_ELEMENTS(hdr.tarr_main)) $
+                          AND (hdr.mainnt GT 1))
+      refraster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_ref) NE N_ELEMENTS(hdr.tarr_ref)) $
+                            AND (hdr.refnt GT 1))
       IF (raster_time_fb OR refraster_time_fb) THEN $
         raster_label = WIDGET_LABEL(verlabel_base, VALUE='Raster [s]', /ALIGN_RIGHT)
 ;    params_main_base = WIDGET_BASE(params_time_base, /COLUMN)
@@ -14464,7 +14464,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 	info = PTR_NEW(info, /NO_COPY)
 	WIDGET_CONTROL, cpanel, SET_UVALUE = info
-
 ;	WIDGET_CONTROL, imwin, SET_UVALUE = info
 
 	pseudoevent = { WIDGET_BUTTON, id:cpanel, top:cpanel, handler:0L, select:1 }
@@ -14478,7 +14477,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                                         '(determining display of plots)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Determining display of plots... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	IF ((*(*info).dataswitch).spfile EQ 1) THEN BEGIN
+	IF (((*(*info).dataswitch).spfile EQ 1) AND ((*(*info).dataparams).mainnt GT 1)) THEN BEGIN
 		WIDGET_CONTROL, sp_toggle_but, SET_BUTTON = 1
 		(*(*info).winswitch).showsp = 1
 	ENDIF ELSE BEGIN
@@ -14558,9 +14557,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	CRISPEX_MASK_BUTTONS_SET, pseudoevent
   set_zoomfac = CRISPEX_BGROUP_ZOOMFAC_SET(pseudoevent, /NO_DRAW, SET_FACTOR=0)
   IF (hdr.mainnt GT 1) THEN CRISPEX_DISPRANGE_T_RANGE, pseudoevent, /NO_DRAW
+  IF ((*(*info).winswitch).showsp OR (*(*info).winswitch).showls OR $
+    (*(*info).winswitch).showphis) THEN $
+    CRISPEX_DRAW_GET_SPECTRAL_AXES, pseudoevent, /MAIN
 	IF (*(*info).winswitch).showsp THEN BEGIN
 		(*(*info).winswitch).showsp = 0
-    CRISPEX_DRAW_GET_SPECTRAL_AXES, pseudoevent, /MAIN
 		CRISPEX_DISPLAYS_SP_TOGGLE, pseudoevent
 		IF startupwin THEN WSHOW, startupwid
 	ENDIF
