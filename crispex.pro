@@ -591,6 +591,12 @@ FUNCTION CRISPEX_SCALING_SLICES, dispim, gamma_val, histo_opt_val, $
   RETURN, minmax
 END
 
+FUNCTION CRISPEX_WIDGET_DIVIDER, base
+  divider_base = WIDGET_BASE(base, /FRAME, /YSIZE)
+  divider_labl = WIDGET_LABEL(divider_base, VALUE=' ')
+  RETURN, divider_base
+END
+
 ;========================= ABOUT WINDOW PROCEDURES
 PRO CRISPEX_ABOUT_WINDOW, event 							
 ; Creates an about-window displaying code name, version and revision number
@@ -7900,6 +7906,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     sjix0 = 0
     sjiy0 = 0
   ENDIF ELSE BEGIN
+    ; Get timing array for the SJI cube
     offsetarray = READFITS(filename, hdr1, EXTEN_NO=1, SILENT=~KEYWORD_SET(VERBOSE))
     tarr_sel = REFORM(offsetarray[0,*]) ; TIME
     tarr_raster = tarr_sel
@@ -13019,54 +13026,96 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	dispwid			        = WIDGET_BUTTON(developermenu, VALUE='Display window IDs', $
                           EVENT_PRO='CRISPEX_DISPWIDS', ACCELERATOR='Ctrl+I', /CHECKED_MENU)
 
-	tab_tlb			= WIDGET_TAB(control_panel, LOCATION=0, MULTILINE=5)
-
+  tab_width = 384
+  pad = 3
+	tab_tlb			= WIDGET_TAB(control_panel, LOCATION=0, MULTILINE=4, XSIZE=tab_width+2*pad)
+ 
+  ; ==================== Define and order tabs ====================
+	playback_tab        = WIDGET_BASE(tab_tlb, TITLE='Temporal', /COLUMN, XSIZE=tab_width)
+	spectral_tab		    = WIDGET_BASE(tab_tlb, TITLE=sp_h[heightset], /COLUMN, XSIZE=tab_width)
+	spatial_tab		      = WIDGET_BASE(tab_tlb, TITLE='Spatial', /COLUMN, XSIZE=tab_width)
+	scaling_tab 		    = WIDGET_BASE(tab_tlb, TITLE='Scaling', /COLUMN, XSIZE=tab_width)
+  diagnostics_tab     = WIDGET_BASE(tab_tlb, TITLE='Diagnostics', /COLUMN, XSIZE=tab_width)
+	analysis_tab		    = WIDGET_BASE(tab_tlb, TITLE='Analysis',/COLUMN, XSIZE=tab_width)
+	overlays_tab        = WIDGET_BASE(tab_tlb, TITLE='Overlays', /COLUMN, XSIZE=tab_width)
+	display_tab		      = WIDGET_BASE(tab_tlb, TITLE='Displays', /COLUMN, XSIZE=tab_width)
+  
+  ; ==================== Always visible controls ====================
   ; Playback controls
-	playback_tab		= WIDGET_BASE(tab_tlb, TITLE = 'Temporal', /COLUMN)
-	playback_contr		= WIDGET_BASE(control_panel, /ROW)
-	playback_field_basic	= WIDGET_BASE(playback_contr, /FRAME, /GRID_LAYOUT, COLUMN=5)
+	playback_contr		  = WIDGET_BASE(control_panel, /ROW)
+	playback_field_basic= WIDGET_BASE(playback_contr, /FRAME, /GRID_LAYOUT, COLUMN=5)
 	playback_field_add	= WIDGET_BASE(playback_contr, /FRAME, $
-    GRID_LAYOUT = (bmpbut_count EQ 16), COLUMN=3, EXCLUSIVE = (bmpbut_count NE 16))
-	fbwd_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fbwd_idle, $
-    EVENT_PRO = 'CRISPEX_PB_FASTBACKWARD', TOOLTIP = 'Move one frame backward')
-	backward_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_bwd_idle, $
-    EVENT_PRO = 'CRISPEX_PB_BACKWARD', TOOLTIP = 'Play backward')
-	pause_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_pause_pressed, $
-    EVENT_PRO = 'CRISPEX_PB_PAUSE', TOOLTIP = 'Pause')
-	forward_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fwd_idle, $
-    EVENT_PRO = 'CRISPEX_PB_FORWARD', TOOLTIP = 'Play forward')
-	ffwd_button		= WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_ffwd_idle, $
-    EVENT_PRO = 'CRISPEX_PB_FASTFORWARD', TOOLTIP = 'Move one frame forward')
-	loop_button		= WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_loop_pressed, $
-    EVENT_PRO = 'CRISPEX_PB_LOOP', TOOLTIP = 'Loop')
+                          GRID_LAYOUT=(bmpbut_count EQ 16), COLUMN=3, EXCLUSIVE=(bmpbut_count NE 16))
+	fbwd_button		      = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fbwd_idle, $
+                          EVENT_PRO='CRISPEX_PB_FASTBACKWARD', TOOLTIP = 'Move one frame backward')
+	backward_button		  = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_bwd_idle, $
+                          EVENT_PRO='CRISPEX_PB_BACKWARD', TOOLTIP = 'Play backward')
+	pause_button		    = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_pause_pressed, $
+                          EVENT_PRO='CRISPEX_PB_PAUSE', TOOLTIP = 'Pause')
+	forward_button		  = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fwd_idle, $
+                          EVENT_PRO='CRISPEX_PB_FORWARD', TOOLTIP = 'Play forward')
+	ffwd_button		      = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_ffwd_idle, $
+                          EVENT_PRO='CRISPEX_PB_FASTFORWARD', TOOLTIP = 'Move one frame forward')
+	loop_button		      = WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_loop_pressed, $
+                          EVENT_PRO='CRISPEX_PB_LOOP', TOOLTIP = 'Loop')
 	WIDGET_CONTROL, loop_button, SET_BUTTON = (bmpbut_count NE 16)
-	cycle_button		= WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_cycle_idle, $
-    EVENT_PRO = 'CRISPEX_PB_CYCLE', TOOLTIP = 'Cycle')
-	blink_button		= WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_blink_idle, $
-    EVENT_PRO = 'CRISPEX_PB_BLINK', TOOLTIP = 'Blink')
-
-	t_slid			= WIDGET_SLIDER(playback_tab, TITLE = 'Frame number', MIN = t_first, MAX = t_last, VALUE = t_start, EVENT_PRO = 'CRISPEX_SLIDER_T', /DRAG, SENSITIVE = t_slid_sens)
-	t_ranges		= WIDGET_BASE(playback_tab, /COLUMN, /FRAME)
-	t_range_field		= WIDGET_BASE(t_ranges, /ROW)
-	lower_t_label		= WIDGET_LABEL(t_range_field, VALUE = 'Lower index:', /ALIGN_LEFT)
-	lower_t_text		= WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_first,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_LOW', SENSITIVE = t_slid_sens)
-	upper_t_label		= WIDGET_LABEL(t_range_field, VALUE = 'Upper index:', /ALIGN_LEFT)
-	upper_t_text		= WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last_tmp,2),  /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_UPP', SENSITIVE = t_slid_sens)
-	reset_trange_but	= WIDGET_BUTTON(t_ranges, VALUE = 'Reset temporal boundaries', EVENT_PRO = 'CRISPEX_DISPRANGE_T_RESET', SENSITIVE = 0)
-	slice_update_but	= WIDGET_BUTTON(playback_tab, VALUE='Update '+STRLOWCASE(sp_h[heightset])+' slice', EVENT_PRO = 'CRISPEX_UPDATE_SLICES', SENSITIVE = 0)
-	t_speed_slid		= WIDGET_SLIDER(playback_tab, TITLE = 'Animation speed [frame/s]', MIN = 1, MAX = 100, VALUE = t_speed, EVENT_PRO = 'CRISPEX_SLIDER_SPEED', /DRAG)
+	cycle_button		    = WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_cycle_idle, $
+                          EVENT_PRO='CRISPEX_PB_CYCLE', TOOLTIP = 'Cycle')
+	blink_button		    = WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_blink_idle, $
+                          EVENT_PRO='CRISPEX_PB_BLINK', TOOLTIP = 'Blink')
+  tlp_slider_base     = WIDGET_BASE(control_panel, /GRID_LAYOUT, COLUMN=2)
+	t_slid			        = WIDGET_SLIDER(tlp_slider_base, TITLE = 'Frame number', MIN=t_first, $
+                          MAX=t_last, VALUE=t_start, EVENT_PRO='CRISPEX_SLIDER_T', /DRAG, $
+                          SENSITIVE=t_slid_sens, XSIZE=FLOOR((tab_width+2*pad)/2.))
+  ; Spectral control
+	lp_slid			        = WIDGET_SLIDER(tlp_slider_base, $
+                          TITLE = 'Main '+STRLOWCASE(sp_h[heightset])+' position', MIN = lp_first, $
+                          MAX = lp_last_slid, VALUE = lp_start, EVENT_PRO = 'CRISPEX_SLIDER_LP', $
+					                /DRAG, SENSITIVE = lp_slid_sens)
+  ; Cursor lock controls
+	lock_field		      = WIDGET_BASE(control_panel, /FRAME, /ROW, /EXCLUSIVE)
+	lockbut			        = WIDGET_BUTTON(lock_field, VALUE = 'Lock to position', $
+                          EVENT_PRO = 'CRISPEX_CURSOR_LOCK', TOOLTIP = 'Lock cursor to current position')
+	WIDGET_CONTROL, lockbut, SET_BUTTON = 0
+	unlockbut		        = WIDGET_BUTTON(lock_field, VALUE = 'Unlock from position', $
+                          TOOLTIP = 'Unlock cursor from current position')
+	WIDGET_CONTROL, unlockbut, SET_BUTTON = 1
+	
+  ; ==================== Playback Tab ====================
+  ; Temporal range base
+  t_ranges		        = WIDGET_BASE(playback_tab, /COLUMN);, /FRAME, XSIZE=tab_width)
+	t_range_field		    = WIDGET_BASE(t_ranges, /ROW, XSIZE=sub_tab_width)
+	lower_t_label		    = WIDGET_LABEL(t_range_field, VALUE = 'Lower index:', /ALIGN_LEFT)
+	lower_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_first,2), /EDITABLE, $
+                          XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_LOW', SENSITIVE = t_slid_sens)
+	upper_t_label		    = WIDGET_LABEL(t_range_field, VALUE = 'Upper index:', /ALIGN_LEFT)
+	upper_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last_tmp,2),  /EDITABLE, $
+                          XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_UPP', SENSITIVE = t_slid_sens)
+	reset_trange_but	  = WIDGET_BUTTON(playback_tab, VALUE = 'Reset temporal boundaries', $
+                          EVENT_PRO = 'CRISPEX_DISPRANGE_T_RESET', SENSITIVE = 0)
+  playback_divider1   = CRISPEX_WIDGET_DIVIDER(playback_tab)
+	slice_update_but	  = WIDGET_BUTTON(playback_tab, $
+                          VALUE='Update '+STRLOWCASE(sp_h[heightset])+' slice', $
+                          EVENT_PRO = 'CRISPEX_UPDATE_SLICES', SENSITIVE = 0)
+	t_speed_slid		    = WIDGET_SLIDER(playback_tab, TITLE = 'Animation speed [frame/s]', MIN = 1, $
+                          MAX = 100, VALUE = t_speed, EVENT_PRO = 'CRISPEX_SLIDER_SPEED', /DRAG)
   t_last += (t_last EQ 1)
-	t_step_slid		= WIDGET_SLIDER(playback_tab, TITLE = 'Frame increment', MIN = 1, MAX = t_last, VALUE = t_step, EVENT_PRO = 'CRISPEX_SLIDER_STEP', SENSITIVE = t_slid_sens)
-	imref_blink_field	= WIDGET_BASE(playback_tab, /ROW,/NONEXCLUSIVE)
-	imref_blink_but		= WIDGET_BUTTON(imref_blink_field, $
-    VALUE = 'Blink between main and reference image', EVENT_PRO = 'CRISPEX_DISPLAYS_IMREFBLINK_TOGGLE', SENSITIVE = hdr.showref)
-  master_time_base = WIDGET_BASE(playback_tab, /COLUMN, /FRAME)
-  master_time_opts = WIDGET_BASE(master_time_base, /ROW)
-  master_time_lab   = WIDGET_LABEL(master_time_opts, VALUE='Master time:', /ALIGN_LEFT)
-  master_time_labels = ['Main', 'Reference', 'SJI']
-  master_time_buts  = CW_BGROUP(master_time_opts, master_time_labels, $
-                        BUTTON_UVALUE=INDGEN(N_ELEMENTS(master_time_labels)), IDS=master_time_ids, $
-                        /EXCLUSIVE, /ROW, EVENT_FUNC='CRISPEX_BGROUP_MASTER_TIME')
+	t_step_slid		      = WIDGET_SLIDER(playback_tab, TITLE = 'Frame increment', MIN = 1, $
+                          MAX = t_last, VALUE = t_step, EVENT_PRO = 'CRISPEX_SLIDER_STEP', $
+                          SENSITIVE = t_slid_sens)
+	imref_blink_field	  = WIDGET_BASE(playback_tab, /ROW,/NONEXCLUSIVE)
+	imref_blink_but		  = WIDGET_BUTTON(imref_blink_field, $
+                          VALUE = 'Blink between main and reference image', $
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_IMREFBLINK_TOGGLE', SENSITIVE = hdr.showref)
+  playback_divider2   = CRISPEX_WIDGET_DIVIDER(playback_tab)
+  ; Master timing base
+  master_time_base    = WIDGET_BASE(playback_tab, /COLUMN);, XSIZE=sub_tab_width)
+  master_time_opts    = WIDGET_BASE(master_time_base, /ROW)
+  master_time_lab     = WIDGET_LABEL(master_time_opts, VALUE='Master time:', /ALIGN_LEFT)
+  master_time_labels  = ['Main', 'Reference', 'SJI']
+  master_time_buts    = CW_BGROUP(master_time_opts, master_time_labels, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(master_time_labels)), IDS=master_time_ids, $
+                          /EXCLUSIVE, /ROW, EVENT_FUNC='CRISPEX_BGROUP_MASTER_TIME')
   showdata = [(hdr.showref OR hdr.sjifile), hdr.showref, hdr.sjifile]
   nrasterdims = [SIZE(hdr.tarr_raster_main,/N_DIMENSIONS), $
                   SIZE(hdr.tarr_raster_ref,/N_DIMENSIONS), 2]
@@ -13078,78 +13127,105 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     toffset_max = N_ELEMENTS(hdr.tarr_raster_main[*,0])-1 $
   ELSE $
     toffset_max = 1
-  time_offset_slid  = WIDGET_SLIDER(master_time_base, TITLE='Raster timing offset', $
+  time_offset_slid  = WIDGET_SLIDER(playback_tab, TITLE='Raster timing offset', $
                         VALUE=hdr.toffset_main, MIN=0, MAX=toffset_max>1,$
                         EVENT_PRO='CRISPEX_SLIDER_TIME_OFFSET', $
                         SENSITIVE=((toffset_max GT 1) AND (TOTAL(showdata) GT 1)), /DRAG)
+  playback_divider3 = CRISPEX_WIDGET_DIVIDER(playback_tab)
 
-  ; Spectral controls
-	spectral_tab		= WIDGET_BASE(tab_tlb, TITLE = sp_h[heightset], /COLUMN)
-	lp_ranges		= WIDGET_BASE(spectral_tab, /COLUMN, /FRAME)
-	lp_range_field		= WIDGET_BASE(lp_ranges, /ROW)
-	lower_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Lower index:', /ALIGN_LEFT)
-	lower_lp_text		= WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_first,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_LOW', SENSITIVE = lp_blink_vals_sens)
-	upper_lp_label		= WIDGET_LABEL(lp_range_field, VALUE = 'Upper index:', /ALIGN_LEFT)
-	upper_lp_text		= WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_last_vals,2),  /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_UPP', SENSITIVE = lp_blink_vals_sens)
-	reset_lprange_but	= WIDGET_BUTTON(lp_ranges, VALUE = 'Reset '+STRLOWCASE(sp_h[heightset])+' boundaries', EVENT_PRO = 'CRISPEX_DISPRANGE_LP_RESET', SENSITIVE = 0)
-	lp_slid			= WIDGET_SLIDER(control_panel, TITLE = 'Main '+STRLOWCASE(sp_h[heightset])+' position', MIN = lp_first, MAX = lp_last_slid, VALUE = lp_start, EVENT_PRO = 'CRISPEX_SLIDER_LP', $
-					/DRAG, SENSITIVE = lp_slid_sens)
-	lp_speed_slid		= WIDGET_SLIDER(spectral_tab, TITLE = 'Animation speed [blink/s]', MIN = 1, MAX = 100, VALUE = t_speed, EVENT_PRO = 'CRISPEX_SLIDER_SPEED', /DRAG, SENSITIVE = 0)
-	lp_blink_slid		= WIDGET_SLIDER(spectral_tab, $
-    TITLE=sp_h[heightset]+' position to blink against', MIN=lp_first, MAX=lp_last_slid, $
-    VALUE=lp_start, EVENT_PRO='CRISPEX_SLIDER_SPECTBLINK', /DRAG, SENSITIVE = lp_blink_vals_sens)
-	lp_blink_field		= WIDGET_BASE(spectral_tab, /ROW,/NONEXCLUSIVE)
-	lp_blink_but		= WIDGET_BUTTON(lp_blink_field, VALUE = 'Blink between '+STRLOWCASE(sp_h[heightset])+' positions', EVENT_PRO = 'CRISPEX_PB_SPECTBLINK', SENSITIVE = lp_slid_sens)
-	lp_ref_but_field	= WIDGET_BASE(spectral_tab, /ROW, /NONEXCLUSIVE)
+  ; ==================== Spectral Tab ====================
+  ; Spectral range base
+	lp_ranges		        = WIDGET_BASE(spectral_tab, /COLUMN);, /FRAME)
+	lp_range_field		  = WIDGET_BASE(lp_ranges, /ROW)
+	lower_lp_label		  = WIDGET_LABEL(lp_range_field, VALUE = 'Lower index:', /ALIGN_LEFT)
+	lower_lp_text		    = WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_first,2), /EDITABLE, $
+                          XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_LOW', $
+                          SENSITIVE = lp_blink_vals_sens)
+	upper_lp_label		  = WIDGET_LABEL(lp_range_field, VALUE = 'Upper index:', /ALIGN_LEFT)
+	upper_lp_text		    = WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_last_vals,2),  /EDITABLE, $
+                          XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_UPP', $
+                          SENSITIVE = lp_blink_vals_sens)
+	reset_lprange_but	  = WIDGET_BUTTON(spectral_tab, $
+                          VALUE = 'Reset '+STRLOWCASE(sp_h[heightset])+' boundaries', $
+                          EVENT_PRO = 'CRISPEX_DISPRANGE_LP_RESET', SENSITIVE = 0)
+  spectral_divider1   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
+  ; Spectral blink base
+	lp_speed_slid		    = WIDGET_SLIDER(spectral_tab, TITLE = 'Animation speed [blink/s]', MIN = 1, $
+                          MAX = 100, VALUE = t_speed, EVENT_PRO = 'CRISPEX_SLIDER_SPEED', /DRAG, $
+                          SENSITIVE = 0)
+	lp_blink_slid		    = WIDGET_SLIDER(spectral_tab, $
+                          TITLE=sp_h[heightset]+' position to blink against', MIN=lp_first, $
+                          MAX=lp_last_slid, VALUE=lp_start, EVENT_PRO='CRISPEX_SLIDER_SPECTBLINK', $
+                          /DRAG, SENSITIVE = lp_blink_vals_sens)
+	lp_blink_field		  = WIDGET_BASE(spectral_tab, /ROW,/NONEXCLUSIVE)
+	lp_blink_but		    = WIDGET_BUTTON(lp_blink_field, $
+                          VALUE = 'Blink between '+STRLOWCASE(sp_h[heightset])+' positions', $
+                          EVENT_PRO = 'CRISPEX_PB_SPECTBLINK', SENSITIVE = lp_slid_sens)
+  spectral_divider2   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
+  ; Reference spectral base
+	lp_ref_but_field	  = WIDGET_BASE(spectral_tab, /ROW, /NONEXCLUSIVE)
 	IF (heightset NE refheightset) THEN reflab = STRLOWCASE(sp_h[refheightset])+' ' ELSE reflab = ''
-	lp_ref_but		= WIDGET_BUTTON(lp_ref_but_field, VALUE = 'Lock reference '+reflab+'to main '+$
-                  STRLOWCASE(sp_h[heightset])+' position', EVENT_PRO = 'CRISPEX_SLIDER_LP_REF_LOCK', $
-					        SENSITIVE = lp_ref_lock) 
+	lp_ref_but		      = WIDGET_BUTTON(lp_ref_but_field, VALUE = 'Lock reference '+reflab+'to main '+$
+                          STRLOWCASE(sp_h[heightset])+' position', $
+                          EVENT_PRO = 'CRISPEX_SLIDER_LP_REF_LOCK', SENSITIVE = lp_ref_lock) 
 	WIDGET_CONTROL, lp_ref_but, SET_BUTTON = lp_ref_lock 
-	lp_ref_slid = WIDGET_SLIDER(spectral_tab, TITLE = 'Reference '+STRLOWCASE(sp_h[refheightset])+' position', MIN = lp_ref_first, MAX = lp_ref_last, VALUE = lp_ref_start, EVENT_PRO = 'CRISPEX_SLIDER_LP_REF', $
-					/DRAG, SENSITIVE = (refslid_sens AND ABS(eqnlps-1)))
+	lp_ref_slid         = WIDGET_SLIDER(spectral_tab, $
+                          TITLE = 'Reference '+STRLOWCASE(sp_h[refheightset])+' position', $
+                          MIN = lp_ref_first, MAX = lp_ref_last, VALUE = lp_ref_start, $
+                          EVENT_PRO = 'CRISPEX_SLIDER_LP_REF', /DRAG, $
+                          SENSITIVE = (refslid_sens AND ABS(eqnlps-1)))
+  spectral_divider3   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
+  ; Phi-slit base
+	slit_label		      = WIDGET_LABEL(spectral_tab, VALUE = 'Slit controls:', /ALIGN_LEFT)
+	phi_slid		        = WIDGET_SLIDER(spectral_tab, TITLE = 'Slit angle [degrees]', MIN = 0, MAX = 179, $
+                          VALUE=angle, EVENT_PRO = 'CRISPEX_SLIDER_PHI_ANGLE', SENSITIVE = 0, /DRAG)
+	nphi_slid		        = WIDGET_SLIDER(spectral_tab, TITLE = 'Slit length [pixel]', MIN = 2, MAX = nphi, $
+                          VALUE=LONG(hdr.ny/3.), EVENT_PRO = 'CRISPEX_SLIDER_NPHI', SENSITIVE = 0, /DRAG)
+	slit_move_field		  = WIDGET_BASE(spectral_tab,/ROW,/ALIGN_CENTER)
+	bwd_move_slit		    = WIDGET_BUTTON(slit_move_field, VALUE = '< Move slit backwards', $
+                          EVENT_PRO = 'CRISPEX_PHISLIT_MOVE_BWD', SENSITIVE= 0, $
+                          TOOLTIP = 'Move slit backward along slit direction')
+	fwd_move_slit		    = WIDGET_BUTTON(slit_move_field, VALUE = 'Move slit forwards >', $
+                          EVENT_PRO = 'CRISPEX_PHISLIT_MOVE_FWD', SENSITIVE = 0, $
+                          TOOLTIP = 'Move slit forward along slit direction')
 
-  ; Spatial controls
-	spatial_tab		= WIDGET_BASE(tab_tlb, TITLE='Spatial', /COLUMN)
-	cursor_frame	= WIDGET_BASE(spatial_tab, /FRAME, /COLUMN)
-	x_slid			  = WIDGET_SLIDER(cursor_frame, TITLE='X position of the cursor [pixel]', $
-                    MIN=x_first, MAX=(x_last > 1), VALUE=x_start, $
-                    EVENT_PRO='CRISPEX_SLIDER_X', /DRAG, SENSITIVE=(x_last GT x_first))
-	y_slid			  = WIDGET_SLIDER(cursor_frame, TITLE='Y position of the cursor [pixel]', $
-                    MIN=y_first, MAX=(y_last > 1), VALUE=y_start, $
-                    EVENT_PRO = 'CRISPEX_SLIDER_Y', /DRAG, SENSITIVE=(y_last GT y_first))
+  ; ==================== Spatial Tab ====================
+  ; Cursor base 
+	x_slid			        = WIDGET_SLIDER(spatial_tab, TITLE='X position of the cursor [pixel]', $
+                          MIN=x_first, MAX=(x_last > 1), VALUE=x_start, $
+                          EVENT_PRO='CRISPEX_SLIDER_X', /DRAG, SENSITIVE=(x_last GT x_first))
+	y_slid			        = WIDGET_SLIDER(spatial_tab, TITLE='Y position of the cursor [pixel]', $
+                          MIN=y_first, MAX=(y_last > 1), VALUE=y_start, $
+                          EVENT_PRO = 'CRISPEX_SLIDER_Y', /DRAG, SENSITIVE=(y_last GT y_first))
+  spatial_divider1    = CRISPEX_WIDGET_DIVIDER(spatial_tab)
+  ; Zoom base
+	zoom_frame		      = WIDGET_BASE(spatial_tab, /ROW)
+	zoom_label		      = WIDGET_LABEL(zoom_frame, VALUE = 'Zoom:', /ALIGN_LEFT)
+	zoom_but_field      = WIDGET_BASE(zoom_frame, /ROW )
+	zoom_buts	          = CW_BGROUP(zoom_but_field,STRTRIM(FIX(zoomfactors),2)+REPLICATE('x',$
+                          N_ELEMENTS(zoomfactors)), BUTTON_UVALUE=INDGEN(N_ELEMENTS(zoomfactors)), $
+                          IDS=zoom_button_ids,/EXCLUSIVE, /ROW, $
+                          EVENT_FUNC = 'CRISPEX_BGROUP_ZOOMFAC_SET')
+  spatial_divider2    = CRISPEX_WIDGET_DIVIDER(spatial_tab)
 
-	lock_field		= WIDGET_BASE(control_panel, /FRAME, /ROW, /EXCLUSIVE)
-	lockbut			= WIDGET_BUTTON(lock_field, VALUE = 'Lock to position', EVENT_PRO = 'CRISPEX_CURSOR_LOCK', TOOLTIP = 'Lock cursor to current position')
-	WIDGET_CONTROL, lockbut, SET_BUTTON = 0
-	unlockbut		= WIDGET_BUTTON(lock_field, VALUE = 'Unlock from position', TOOLTIP = 'Unlock cursor from current position')
-	WIDGET_CONTROL, unlockbut, SET_BUTTON = 1
-
-	zoom_frame		  = WIDGET_BASE(cursor_frame, /ROW)
-	zoom_label		  = WIDGET_LABEL(zoom_frame, VALUE = 'Zoom:', /ALIGN_LEFT)
-	zoom_but_field  = WIDGET_BASE(zoom_frame, /ROW )
-	zoom_buts	      = CW_BGROUP(zoom_but_field,STRTRIM(FIX(zoomfactors),2)+REPLICATE('x',$
-                      N_ELEMENTS(zoomfactors)), BUTTON_UVALUE=INDGEN(N_ELEMENTS(zoomfactors)), $
-                      IDS=zoom_button_ids,/EXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_BGROUP_ZOOMFAC_SET')
-
-  ; Diagnostics tab: Stokes and spectral windows
-  diagnostics_tab = WIDGET_BASE(tab_tlb, TITLE='Diagnostics', /COLUMN)
+  ; ==================== Diagnostics Tab ====================
   ; Stokes part
-	stokes_frame    = WIDGET_BASE(diagnostics_tab, /FRAME, /COLUMN)
-	stokes_disp_label		= WIDGET_LABEL(stokes_frame, $
-    VALUE = 'Stokes parameter:                                    ', /ALIGN_LEFT)
-	stokes_main			= WIDGET_BASE(stokes_frame, /ROW)
+	stokes_disp_label		= WIDGET_LABEL(diagnostics_tab, VALUE = 'Stokes parameter:', /ALIGN_LEFT)
+	stokes_main			    = WIDGET_BASE(diagnostics_tab, /ROW)
 	stokes_main_label		= WIDGET_LABEL(stokes_main, VALUE = 'Main image:',/ALIGN_LEFT)
-	stokes_xy_but_field= WIDGET_BASE(stokes_main, /ROW )
-  stokes_button_labels = ['I','Q','U','V']
-  stokes_xy_buts     = CW_BGROUP(stokes_xy_but_field, stokes_button_labels, $
-                      BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), IDS=stokes_button_ids,$
-                      /EXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_BGROUP_STOKES_SELECT_XY')
-	stokes_sp			= WIDGET_BASE(stokes_frame, /ROW)
-	stokes_sp_label		= WIDGET_LABEL(stokes_sp, VALUE = 'Detailed spectra:',/ALIGN_LEFT)
-  stokes_sp_buts     = CW_BGROUP(stokes_sp, stokes_button_labels, $
-                      BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), IDS=stokes_spbutton_ids,$
-                      /NONEXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_BGROUP_STOKES_SELECT_SP')
+	stokes_xy_but_field = WIDGET_BASE(stokes_main, /ROW )
+  stokes_button_labels= ['I','Q','U','V']
+  stokes_xy_buts      = CW_BGROUP(stokes_xy_but_field, stokes_button_labels, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), IDS=stokes_button_ids,$
+                          /EXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_BGROUP_STOKES_SELECT_XY')
+	stokes_sp			      = WIDGET_BASE(diagnostics_tab, /ROW)
+	stokes_sp_label		  = WIDGET_LABEL(stokes_sp, VALUE = 'Detailed spectra:',/ALIGN_LEFT)
+  stokes_sp_buts      = CW_BGROUP(stokes_sp, stokes_button_labels, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), $
+                          IDS=stokes_spbutton_ids, /NONEXCLUSIVE, /ROW, $
+                          EVENT_FUNC = 'CRISPEX_BGROUP_STOKES_SELECT_SP')
+  diagnostics_divider1= CRISPEX_WIDGET_DIVIDER(diagnostics_tab)
+  ; Setting Stokes buttons
 	spconstraint		= (hdr.nlp GT 1)
   FOR i=0,N_ELEMENTS(stokes_button_labels)-1 DO BEGIN
     WIDGET_CONTROL, stokes_button_ids[i], SENSITIVE=hdr.stokes_enabled[i], SET_BUTTON=(i EQ 0)
@@ -13161,216 +13237,249 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
       SET_BUTTON=set_constraint
   ENDFOR
   ; Spectral window part
-  specwin_frame       = WIDGET_BASE(diagnostics_tab, /FRAME, /COLUMN)
-  specwin_disp_label  = WIDGET_LABEL(specwin_frame, $
-    VALUE = 'Spectral windows:                                    ', /ALIGN_LEFT)
-  specwin_sub_frame   = WIDGET_BASE(specwin_frame, /GRID_LAYOUT, COLUMN=2)
+  specwin_disp_label  = WIDGET_LABEL(diagnostics_tab, VALUE = 'Spectral windows:', /ALIGN_LEFT)
+  specwin_sub_frame   = WIDGET_BASE(diagnostics_tab, /GRID_LAYOUT, COLUMN=2)
   main_select_base    = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME)
 	main_specwin_label  = WIDGET_LABEL(main_select_base, VALUE = 'Main:', /ALIGN_LEFT)
   IF (hdr.ndiagnostics GT 1) THEN $
     vals = ['Display all',hdr.diagnostics] $
   ELSE $
-    vals = 'N/A        '
+    vals = 'Display all'
   specwin_buts        = CW_BGROUP(main_select_base, vals, $
                           BUTTON_UVALUE=INDGEN(N_ELEMENTS(vals)), IDS=specwin_button_ids, $
                           /NONEXCLUSIVE, /COLUMN, EVENT_FUNC='CRISPEX_BGROUP_DIAGNOSTICS_SELECT')
   FOR i=0,N_ELEMENTS(vals)-1 DO $
     WIDGET_CONTROL, specwin_button_ids[i], SENSITIVE=(i GT 0), /SET_BUTTON
-  ref_select_base    = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME)
-	ref_specwin_label  = WIDGET_LABEL(ref_select_base, VALUE = 'Reference:', /ALIGN_LEFT)
+  ref_select_base     = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME)
+	ref_specwin_label   = WIDGET_LABEL(ref_select_base, VALUE = 'Reference:', /ALIGN_LEFT)
   IF (hdr.nrefdiagnostics GT 1) THEN $
     vals = ['Display all',hdr.refdiagnostics] $
+  ELSE IF hdr.showref THEN $
+    vals = 'Display all' $
   ELSE $
     vals = 'N/A        '
-  refspecwin_buts   = CW_BGROUP(ref_select_base, vals, $
-                        BUTTON_UVALUE=INDGEN(N_ELEMENTS(vals)), IDS=refspecwin_button_ids, $
-                        /NONEXCLUSIVE, /COLUMN, EVENT_FUNC='CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT')
+  refspecwin_buts     = CW_BGROUP(ref_select_base, vals, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(vals)), IDS=refspecwin_button_ids, $
+                          /NONEXCLUSIVE, /COLUMN, EVENT_FUNC='CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT')
   FOR i=0,N_ELEMENTS(vals)-1 DO $
     WIDGET_CONTROL, refspecwin_button_ids[i], SENSITIVE=(i GT 0), /SET_BUTTON
+  diagnostics_divider2= CRISPEX_WIDGET_DIVIDER(diagnostics_tab)
 
-	display_tab		= WIDGET_BASE(tab_tlb, TITLE = 'Displays', /COLUMN)
-	detspect_frame		= WIDGET_BASE(display_tab, /FRAME, /COLUMN)
-	detspect_label_imref	= WIDGET_BASE(detspect_frame, /ROW)
-	detspect_label		= WIDGET_LABEL(detspect_label_imref, VALUE = lswintitle[heightset]+':',/ALIGN_LEFT, /DYNAMIC_RESIZE)
-	detspect_imref		= WIDGET_BASE(detspect_label_imref, /ROW, /EXCLUSIVE)
-	detspect_im_but		= WIDGET_BUTTON(detspect_imref, VALUE = 'Main', EVENT_PRO = $
-  'CRISPEX_DISPLAYS_DETSPECT_IM_SELECT', /NO_RELEASE, SENSITIVE = (hdr.nlp GT 1), $
-					TOOLTIP = 'Main '+STRLOWCASE(lswintitle[heightset])+' display options')
+  ; ==================== Displays Tab ====================
+  ; LS base
+	detspect_label_imref= WIDGET_BASE(display_tab, /ROW)
+	detspect_label		  = WIDGET_LABEL(detspect_label_imref, VALUE = lswintitle[heightset]+':',$
+                          /ALIGN_LEFT, /DYNAMIC_RESIZE)
+	detspect_imref		  = WIDGET_BASE(detspect_label_imref, /ROW, /EXCLUSIVE)
+	detspect_im_but		  = WIDGET_BUTTON(detspect_imref, VALUE = 'Main', $
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_DETSPECT_IM_SELECT', /NO_RELEASE, $
+                          SENSITIVE = (hdr.nlp GT 1), $
+					                TOOLTIP = 'Main '+STRLOWCASE(lswintitle[heightset])+' display options')
 	WIDGET_CONTROL, detspect_im_but, SET_BUTTON = (hdr.nlp GT 1)
-	detspect_ref_but	= WIDGET_BUTTON(detspect_imref, VALUE = 'Reference', EVENT_PRO = 'CRISPEX_DISPLAYS_DETSPECT_REF_SELECT', /NO_RELEASE, SENSITIVE = showrefls, $
-					TOOLTIP = 'Reference '+STRLOWCASE(lswintitle[refheightset])+' display options')
-	detspect_buts		= WIDGET_BASE(detspect_frame, /ROW, /NONEXCLUSIVE)
-	ls_toggle_but		= WIDGET_BUTTON(detspect_buts, VALUE = 'Display '+STRLOWCASE(lswintitle[heightset]), EVENT_PRO = 'CRISPEX_DISPLAYS_IMREF_LS_TOGGLE', /DYNAMIC_RESIZE)
-	subtract_but		= WIDGET_BUTTON(detspect_buts, VALUE = 'Subtract average', EVENT_PRO = 'CRISPEX_DISPRANGE_LS_SUBTRACT', TOOLTIP = 'Subtract detailed spectrum from average spectrum')
-	detspect_range		= WIDGET_BASE(detspect_frame, /ROW)
-	lower_y_label		= WIDGET_LABEL(detspect_range, VALUE = 'Lower y-value:', /ALIGN_LEFT)
-	lower_y_text		= WIDGET_TEXT(detspect_range, VALUE = STRTRIM(ls_low_y_init,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LS_LOW')
-	upper_y_label		= WIDGET_LABEL(detspect_range, VALUE = 'Upper y-value:', /ALIGN_LEFT)
-	upper_y_text		= WIDGET_TEXT(detspect_range, VALUE = STRTRIM(ls_upp_y_init,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LS_UPP')
-	scale_detspect_buts	= WIDGET_BASE(detspect_frame, /ROW, /NONEXCLUSIVE)
-	scale_detspect_but	= WIDGET_BUTTON(scale_detspect_buts, VALUE = 'Scale '+STRLOWCASE(lswintitle[heightset])+' to maximum of average', EVENT_PRO = 'CRISPEX_DISPRANGE_LS_SCALE_SELECT', $
-					SENSITIVE = detspect_scale_enable, /DYNAMIC_RESIZE)
+	detspect_ref_but	  = WIDGET_BUTTON(detspect_imref, VALUE = 'Reference', $
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_DETSPECT_REF_SELECT', /NO_RELEASE, $
+                          SENSITIVE = showrefls, $
+                          TOOLTIP = 'Reference '+STRLOWCASE(lswintitle[refheightset])+' display options')
+	detspect_buts		    = WIDGET_BASE(display_tab, /ROW, /NONEXCLUSIVE)
+	ls_toggle_but		    = WIDGET_BUTTON(detspect_buts, $
+                          VALUE = 'Display '+STRLOWCASE(lswintitle[heightset]), $
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_IMREF_LS_TOGGLE', /DYNAMIC_RESIZE)
+	subtract_but		    = WIDGET_BUTTON(detspect_buts, VALUE = 'Subtract average', $
+                          EVENT_PRO = 'CRISPEX_DISPRANGE_LS_SUBTRACT', $
+                          TOOLTIP = 'Subtract detailed spectrum from average spectrum')
+	detspect_range		  = WIDGET_BASE(display_tab, /ROW)
+	lower_y_label		    = WIDGET_LABEL(detspect_range, VALUE = 'Lower y-value:', /ALIGN_LEFT)
+	lower_y_text		    = WIDGET_TEXT(detspect_range, VALUE = STRTRIM(ls_low_y_init,2), /EDITABLE, $
+                          XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LS_LOW')
+	upper_y_label		    = WIDGET_LABEL(detspect_range, VALUE = 'Upper y-value:', /ALIGN_LEFT)
+	upper_y_text		    = WIDGET_TEXT(detspect_range, VALUE = STRTRIM(ls_upp_y_init,2), /EDITABLE, $
+                          XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LS_UPP')
+	scale_detspect_buts = WIDGET_BASE(display_tab, /ROW, /NONEXCLUSIVE)
+	scale_detspect_but  = WIDGET_BUTTON(scale_detspect_buts, $
+                          VALUE='Scale '+STRLOWCASE(lswintitle[heightset])+' to maximum of average',$
+                          EVENT_PRO = 'CRISPEX_DISPRANGE_LS_SCALE_SELECT', $
+					                SENSITIVE = detspect_scale_enable, /DYNAMIC_RESIZE)
 	WIDGET_CONTROL, scale_detspect_but, SET_BUTTON = detspect_scale
-	all_other_disp		= WIDGET_BASE(display_tab, /FRAME, /COLUMN)
-	other_label		= WIDGET_LABEL(all_other_disp, VALUE = 'Other displays:', /ALIGN_LEFT)
-	other_disp		= WIDGET_BASE(all_other_disp, /ROW)
-	slices_label		= WIDGET_LABEL(other_disp, VALUE = 'Slices:')
-	other_buts		= WIDGET_BASE(other_disp, /ROW, /NONEXCLUSIVE)
-	sp_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = lp_h_capital[heightset]+'-t', EVENT_PRO = 'CRISPEX_DISPLAYS_SP_TOGGLE', TOOLTIP = 'Toggle display temporal '+STRLOWCASE(but_tooltip[heightset]))
-	phis_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = lp_h_capital[heightset]+'-Phi', EVENT_PRO = 'CRISPEX_DISPLAYS_PHIS_TOGGLE', TOOLTIP = 'Toggle display '+STRLOWCASE(but_tooltip[heightset])+' along a slit')
-	refsp_toggle_but	= WIDGET_BUTTON(other_buts, VALUE = 'Reference '+lp_h_capital[refheightset]+'-t', EVENT_PRO = 'CRISPEX_DISPLAYS_REFSP_TOGGLE', $
-					TOOLTIP = 'Toggle display reference temporal '+STRLOWCASE(but_tooltip[refheightset]))
-	int_toggle_but		= WIDGET_BUTTON(other_buts, VALUE = 'I-t', EVENT_PRO = $
-  'CRISPEX_DISPLAYS_INT_TOGGLE', SENSITIVE=(hdr.mainnt GT 1), TOOLTIP = 'Toggle display intensity versus time plot')
-	images_disp		= WIDGET_BASE(all_other_disp, /ROW)
-	images_label		= WIDGET_LABEL(images_disp, VALUE = 'Images:')
-	images_buts		= WIDGET_BASE(images_disp, /ROW, /NONEXCLUSIVE)
-	reference_but		= WIDGET_BUTTON(images_buts, VALUE = 'Reference', $
-    EVENT_PRO = 'CRISPEX_DISPLAYS_REF_TOGGLE', SENSITIVE = hdr.showref, TOOLTIP = 'Toggle display reference image')
+  displays_divider1   = CRISPEX_WIDGET_DIVIDER(display_tab)
+  ; Other displays base
+	other_label		      = WIDGET_LABEL(display_tab, VALUE = 'Other displays:', /ALIGN_LEFT)
+	other_disp		      = WIDGET_BASE(display_tab, /ROW)
+	slices_label		    = WIDGET_LABEL(other_disp, VALUE = 'Slices:')
+	other_buts		      = WIDGET_BASE(other_disp, /ROW, /NONEXCLUSIVE)
+	sp_toggle_but		    = WIDGET_BUTTON(other_buts, VALUE = lp_h_capital[heightset]+'-t', $
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_SP_TOGGLE', $
+                          TOOLTIP = 'Toggle display temporal '+STRLOWCASE(but_tooltip[heightset]))
+	phis_toggle_but		  = WIDGET_BUTTON(other_buts, VALUE = lp_h_capital[heightset]+'-Phi', $
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_PHIS_TOGGLE', $
+                          TOOLTIP = 'Toggle display '+STRLOWCASE(but_tooltip[heightset])+' along a slit')
+	refsp_toggle_but	  = WIDGET_BUTTON(other_buts, VALUE='Reference '+lp_h_capital[refheightset]+'-t',$
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_REFSP_TOGGLE', $        
+                          TOOLTIP = 'Toggle display reference temporal '+$
+                          STRLOWCASE(but_tooltip[refheightset]))
+	int_toggle_but		  = WIDGET_BUTTON(other_buts, VALUE = 'I-t', $
+                          EVENT_PRO='CRISPEX_DISPLAYS_INT_TOGGLE', SENSITIVE=(hdr.mainnt GT 1), $
+                          TOOLTIP = 'Toggle display intensity versus time plot')
+	images_disp		      = WIDGET_BASE(display_tab, /ROW)
+	images_label		    = WIDGET_LABEL(images_disp, VALUE = 'Images:')
+	images_buts		      = WIDGET_BASE(images_disp, /ROW, /NONEXCLUSIVE)
+	reference_but		    = WIDGET_BUTTON(images_buts, VALUE = 'Reference', $
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_REF_TOGGLE', SENSITIVE = hdr.showref, $
+                          TOOLTIP = 'Toggle display reference image')
 	WIDGET_CONTROL, reference_but, SET_BUTTON = hdr.showref
-	doppler_but		= WIDGET_BUTTON(images_buts, VALUE = 'Doppler', EVENT_PRO = $
-  'CRISPEX_DISPLAYS_DOPPLER_TOGGLE', SENSITIVE = (hdr.nlp GT 1), TOOLTIP = 'Toggle display Doppler image')
-  sji_but       = WIDGET_BUTTON(images_buts, VALUE = 'Slit-jaw', EVENT_PRO = $
-    'CRISPEX_DISPLAYS_SJI_TOGGLE', SENSITIVE = hdr.sjifile, TOOLTIP='Toggle display slit-jaw image')
+	doppler_but		      = WIDGET_BUTTON(images_buts, VALUE = 'Doppler', $
+                          EVENT_PRO='CRISPEX_DISPLAYS_DOPPLER_TOGGLE', SENSITIVE = (hdr.nlp GT 1), $
+                          TOOLTIP = 'Toggle display Doppler image')
+  sji_but             = WIDGET_BUTTON(images_buts, VALUE = 'Slit-jaw', $
+                          EVENT_PRO='CRISPEX_DISPLAYS_SJI_TOGGLE', SENSITIVE = hdr.sjifile, $
+                          TOOLTIP='Toggle display slit-jaw image')
   WIDGET_CONTROL, sji_but, SET_BUTTON = hdr.sjifile
+  displays_divider2   = CRISPEX_WIDGET_DIVIDER(display_tab)
 
-	scaling_tab 		= WIDGET_BASE(tab_tlb, TITLE = 'Scaling', /COLUMN)
-	xy_scaling		  = WIDGET_BASE(scaling_tab, /FRAME, /COLUMN)
-  scaling_cbox    = WIDGET_COMBOBOX(xy_scaling, $
-                    VALUE=['Main image','Reference image','Doppler image','Slit-jaw image'], $
-                    EVENT_PRO='CRISPEX_SCALING_SELECT_DATA')
-	xy_scale_opts		= WIDGET_BASE(xy_scaling, /COLUMN)
-  imagescale_cbox = WIDGET_COMBOBOX(xy_scaling, $
-    VALUE=['Based on first image','Based on current image','Per time step'],$
-    EVENT_PRO='CRISPEX_SCALING_SELECT_TYPE')
-  diagscale_label_vals = REPLICATE('Spectral window: ',2*hdr.ndiagnostics+hdr.nrefdiagnostics+1)+$
-    [hdr.diagnostics,hdr.refdiagnostics,hdr.diagnostics,'N/A']
-  diagscale_label = WIDGET_LABEL(xy_scaling, VALUE=diagscale_label_vals[0], /ALIGN_LEFT, $
-    /DYNAMIC_RESIZE)
-  histo_base = WIDGET_BASE(xy_scaling, /ROW)
-  histo_opt_label = WIDGET_LABEL(histo_base, VALUE='Histogram optimisation', /ALIGN_LEFT)
-  histo_opt_txt   = WIDGET_TEXT(histo_base, VALUE=STRTRIM(histo_opt_val,2), /EDITABLE, $
-    XSIZE=11, EVENT_PRO='CRISPEX_SCALING_HISTO_OPT_VALUE')
-  minmax_sliders = WIDGET_BASE(xy_scaling, /ROW)
-  scalemin_slider = WIDGET_SLIDER(minmax_sliders, TITLE='Image minimum [%]', MIN=0, MAX=99, $
-    VALUE=0, EVENT_PRO='CRISPEX_SCALING_SLIDER_MIN', /DRAG, XSIZE=131)
-  scalemax_slider = WIDGET_SLIDER(minmax_sliders, TITLE='Image maximum [%]', MIN=1, MAX=100, $
-    VALUE=100, EVENT_PRO='CRISPEX_SCALING_SLIDER_MAX', /DRAG, XSIZE=131)
-  gamma_label = WIDGET_LABEL(xy_scaling, VALUE=STRING(gamma_val, FORMAT='(F6.3)'), $
-    /ALIGN_CENTER,XSIZE=250)
-  gamma_slider = WIDGET_SLIDER(xy_scaling, TITLE='Gamma', MIN=0, MAX=1000, $
-    VALUE=500*(ALOG10(gamma_val)+1), EVENT_PRO='CRISPEX_SCALING_GAMMA_SLIDER', /SUPPRESS, $
-    /DRAG,XSIZE=250)
-  reset_buts = WIDGET_BASE(xy_scaling, /ROW, /GRID, /ALIGN_CENTER)
-  scaling_reset_but = WIDGET_BUTTON(reset_buts, VALUE='Reset current', $
-    EVENT_PRO='CRISPEX_SCALING_RESET_DEFAULTS', TOOLTIP='Reset scaling of current diagnostic to '+$
-    'defaults')
-  scaling_reset_all_but = WIDGET_BUTTON(reset_buts, VALUE='Reset all', $
-    EVENT_PRO='CRISPEX_SCALING_RESET_ALL_DEFAULTS', TOOLTIP='Reset scaling of all diagnostics to '+$
-    'defaults', SENSITIVE=(hdr.ndiagnostics GT 1))
-  ls_scaling    = WIDGET_BASE(scaling_tab, /FRAME,/COLUMN)
-  ls_scale_opts = WIDGET_BASE(ls_scaling, /COLUMN)
-  ls_scale_label= WIDGET_LABEL(ls_scale_opts, VALUE='Detailed spectrum:', /ALIGN_LEFT)
-  ls_mult_opts  = WIDGET_BASE(ls_scale_opts, /ROW)
-  ls_mult_label = WIDGET_LABEL(ls_mult_opts, VALUE='Multiply', /ALIGN_LEFT, $
-    SENSITIVE=((hdr.ndiagnostics GT 1) OR (hdr.nrefdiagnostics GT 1)))
+  ; ==================== Scaling Tab ====================
+  scaling_cbox        = WIDGET_COMBOBOX(scaling_tab, $
+                          VALUE=['Main image','Reference image','Doppler image','Slit-jaw image'], $
+                          EVENT_PRO='CRISPEX_SCALING_SELECT_DATA')
+  imagescale_cbox     = WIDGET_COMBOBOX(scaling_tab, $
+                          VALUE=['Based on first image','Based on current image','Per time step'],$
+                          EVENT_PRO='CRISPEX_SCALING_SELECT_TYPE')
+  diagscale_label_vals= REPLICATE('Spectral window: ',2*hdr.ndiagnostics+hdr.nrefdiagnostics+1)+$
+                          [hdr.diagnostics,hdr.refdiagnostics,hdr.diagnostics,'N/A']
+  diagscale_label     = WIDGET_LABEL(scaling_tab, VALUE=diagscale_label_vals[0], /ALIGN_LEFT, $
+                          /DYNAMIC_RESIZE)
+  histo_base          = WIDGET_BASE(scaling_tab, /ROW)
+  histo_opt_label     = WIDGET_LABEL(histo_base, VALUE='Histogram optimisation', /ALIGN_LEFT)
+  histo_opt_txt       = WIDGET_TEXT(histo_base, VALUE=STRTRIM(histo_opt_val,2), /EDITABLE, $
+                          XSIZE=11, EVENT_PRO='CRISPEX_SCALING_HISTO_OPT_VALUE')
+  minmax_sliders      = WIDGET_BASE(scaling_tab, /ROW)
+  scalemin_slider     = WIDGET_SLIDER(minmax_sliders, TITLE='Image minimum [%]', MIN=0, MAX=99, $
+                          VALUE=0, EVENT_PRO='CRISPEX_SCALING_SLIDER_MIN', /DRAG, XSIZE=131)
+  scalemax_slider     = WIDGET_SLIDER(minmax_sliders, TITLE='Image maximum [%]', MIN=1, MAX=100, $
+                          VALUE=100, EVENT_PRO='CRISPEX_SCALING_SLIDER_MAX', /DRAG, XSIZE=131)
+  gamma_label         = WIDGET_LABEL(scaling_tab, VALUE=STRING(gamma_val, FORMAT='(F6.3)'), $
+                          /ALIGN_CENTER,XSIZE=250)
+  gamma_slider        = WIDGET_SLIDER(scaling_tab, TITLE='Gamma', MIN=0, MAX=1000, $
+                          VALUE=500*(ALOG10(gamma_val)+1), EVENT_PRO='CRISPEX_SCALING_GAMMA_SLIDER', $
+                          /SUPPRESS, /DRAG,XSIZE=250)
+  reset_buts          = WIDGET_BASE(scaling_tab, /ROW, /GRID, /ALIGN_CENTER)
+  scaling_reset_but   = WIDGET_BUTTON(reset_buts, VALUE='Reset current', $
+                          EVENT_PRO='CRISPEX_SCALING_RESET_DEFAULTS', $
+                          TOOLTIP='Reset scaling of current diagnostic to defaults')
+  scaling_reset_all_but= WIDGET_BUTTON(reset_buts, VALUE='Reset all', $
+                          EVENT_PRO='CRISPEX_SCALING_RESET_ALL_DEFAULTS', $
+                          TOOLTIP='Reset scaling of all diagnostics to defaults', $
+                          SENSITIVE=(hdr.ndiagnostics GT 1))
+  scaling_divider1    = CRISPEX_WIDGET_DIVIDER(scaling_tab)
+  ; LS scaling base
+  ls_scale_opts       = WIDGET_BASE(scaling_tab, /COLUMN)
+  ls_scale_label      = WIDGET_LABEL(ls_scale_opts, VALUE='Detailed spectrum:', /ALIGN_LEFT)
+  ls_mult_opts        = WIDGET_BASE(ls_scale_opts, /ROW)
+  ls_mult_label       = WIDGET_LABEL(ls_mult_opts, VALUE='Multiply', /ALIGN_LEFT, $
+                          SENSITIVE=((hdr.ndiagnostics GT 1) OR (hdr.nrefdiagnostics GT 1)))
   IF (hdr.refdiagnostics[0] NE 'N/A') THEN $
     ls_mult_list  = [REPLICATE('Main ',hdr.ndiagnostics)+hdr.diagnostics, $
                       REPLICATE('Reference ',hdr.nrefdiagnostics)+hdr.refdiagnostics] $
   ELSE $
     ls_mult_list  = [REPLICATE('Main ',hdr.ndiagnostics)+hdr.diagnostics]
-  ls_mult_cbox  = WIDGET_COMBOBOX(ls_mult_opts, VALUE=ls_mult_list, $
-    EVENT_PRO='CRISPEX_SCALING_MULTIPLY_LS_SELECT', /DYNAMIC_RESIZE, $
-    SENSITIVE=((hdr.ndiagnostics GT 1) OR (hdr.nrefdiagnostics GT 1)))
-  ls_mult_by    = WIDGET_LABEL(ls_mult_opts, VALUE='by', /ALIGN_CENTER, $
-    SENSITIVE=((hdr.ndiagnostics GT 1) OR (hdr.nrefdiagnostics GT 1)))
-  ls_mult_txt   = WIDGET_TEXT(ls_mult_opts, VALUE=STRTRIM(main_mult_val[0],2), /EDITABLE, $
-    XSIZE=5, EVENT_PRO='CRISPEX_SCALING_MULTIPLY_LS_VALUE', $
-    SENSITIVE=((hdr.ndiagnostics GT 1) OR (hdr.nrefdiagnostics GT 1)))
+  ls_mult_cbox        = WIDGET_COMBOBOX(ls_mult_opts, VALUE=ls_mult_list, $
+                          EVENT_PRO='CRISPEX_SCALING_MULTIPLY_LS_SELECT', /DYNAMIC_RESIZE, $
+                          SENSITIVE=((hdr.ndiagnostics GT 1) OR (hdr.nrefdiagnostics GT 1)))
+  ls_mult_by          = WIDGET_LABEL(ls_mult_opts, VALUE='by', /ALIGN_CENTER, $
+                          SENSITIVE=((hdr.ndiagnostics GT 1) OR (hdr.nrefdiagnostics GT 1)))
+  ls_mult_txt         = WIDGET_TEXT(ls_mult_opts, VALUE=STRTRIM(main_mult_val[0],2), /EDITABLE, $
+                          XSIZE=5, EVENT_PRO='CRISPEX_SCALING_MULTIPLY_LS_VALUE', $
+                          SENSITIVE=((hdr.ndiagnostics GT 1) OR (hdr.nrefdiagnostics GT 1)))
+  scaling_divider2    = CRISPEX_WIDGET_DIVIDER(scaling_tab)
 	
-	slit_tab		= WIDGET_BASE(tab_tlb, TITLE = 'Slits',/COLUMN)
-	slit_frame		= WIDGET_BASE(slit_tab, /FRAME, /COLUMN)
-	slit_label		= WIDGET_LABEL(slit_frame, VALUE = 'Slit controls:', /ALIGN_LEFT)
-	phi_slid		= WIDGET_SLIDER(slit_frame, TITLE = 'Slit angle [degrees]', MIN = 0, MAX = 179, $
-    VALUE=angle, EVENT_PRO = 'CRISPEX_SLIDER_PHI_ANGLE', SENSITIVE = 0, /DRAG)
-	nphi_slid		= WIDGET_SLIDER(slit_frame, TITLE = 'Slit length [pixel]', MIN = 2, MAX = nphi, $
-    VALUE=LONG(hdr.ny/3.), EVENT_PRO = 'CRISPEX_SLIDER_NPHI', SENSITIVE = 0, /DRAG)
-	slit_move_field		= WIDGET_BASE(slit_frame,/ROW)
-	bwd_move_slit		= WIDGET_BUTTON(slit_move_field, VALUE = '< Move slit backwards', EVENT_PRO = 'CRISPEX_PHISLIT_MOVE_BWD', SENSITIVE= 0, TOOLTIP = 'Move slit backward along slit direction')
-	fwd_move_slit		= WIDGET_BUTTON(slit_move_field, VALUE = 'Move slit forwards >', EVENT_PRO = 'CRISPEX_PHISLIT_MOVE_FWD', SENSITIVE = 0, TOOLTIP = 'Move slit forward along slit direction')
-	loop_frame		= WIDGET_BASE(slit_tab, /FRAME, /COLUMN)
-	loop_label		= WIDGET_LABEL(loop_frame, VALUE = 'Time slice along a loop:', /ALIGN_LEFT)
-	loop_but_frame		= WIDGET_BASE(loop_frame, /ROW, /NONEXCLUSIVE)
-	loop_slit_but		= WIDGET_BUTTON(loop_but_frame, VALUE = 'Draw loop path  ', EVENT_PRO = 'CRISPEX_LOOP_DEFINE') 
-	loop_feedb_but		= WIDGET_BUTTON(loop_but_frame, VALUE = 'Path feedback', EVENT_PRO = 'CRISPEX_LOOP_FEEDBACK')
+  ; ==================== Analysis Tab ====================
+  ; Space-time diagram controls
+	loop_label		      = WIDGET_LABEL(analysis_tab, VALUE = 'Space-time diagram along a path:', $
+                          /ALIGN_LEFT)
+	loop_but_frame		  = WIDGET_BASE(analysis_tab, /NONEXCLUSIVE, /GRID_LAYOUT, COLUMN=2)
+	loop_slit_but		    = WIDGET_BUTTON(loop_but_frame, VALUE = 'Draw path  ', $
+                          EVENT_PRO = 'CRISPEX_LOOP_DEFINE') 
+	loop_feedb_but		  = WIDGET_BUTTON(loop_but_frame, VALUE = 'Path feedback', $
+                          EVENT_PRO = 'CRISPEX_LOOP_FEEDBACK')
 	WIDGET_CONTROL, loop_feedb_but, /SET_BUTTON
-	loop_buts_frame		= WIDGET_BASE(loop_frame, /ROW)
-	rem_loop_pt_but		= WIDGET_BUTTON(loop_buts_frame, VALUE = 'Remove last loop point', EVENT_PRO = 'CRISPEX_LOOP_REMOVE_POINT', SENSITIVE = 0)
-	loop_slice_but		= WIDGET_BUTTON(loop_buts_frame, VALUE = 'Time slice along loop', EVENT_PRO = 'CRISPEX_DISPLAYS_LOOPSLAB_GET', SENSITIVE = 0)
-
-	masks_tab		            = WIDGET_BASE(tab_tlb, TITLE = 'Mask', /COLUMN)
-	masks			              = WIDGET_BASE(masks_tab, /FRAME, /COLUMN)
-	masks_overlay		        = WIDGET_BASE(masks, /ROW)
-	masks_overlay_label	    = WIDGET_LABEL(masks_overlay, VALUE = 'Overlay on:',/ALIGN_LEFT)
-	masks_overlay_buts	    = CW_BGROUP(masks_overlay, ['Main','Reference','Doppler'],$
-                              BUTTON_UVALUE=INDGEN(3),IDS=mask_button_ids,/NONEXCLUSIVE, /ROW, $
-                              EVENT_FUNC = 'CRISPEX_BGROUP_MASK_OVERLAY')
-	masks_overlay_color	    = WIDGET_BASE(masks,/COLUMN)
-	LOADCT,GET_NAMES=ctnames,/SILENT
-	masks_overlay_ct_cbox	  = WIDGET_COMBOBOX(masks_overlay_color, $
-                              VALUE = STRTRIM(INDGEN(N_ELEMENTS(ctnames)),2)+REPLICATE(': ',$
-                              N_ELEMENTS(ctnames))+ctnames, $
-                              EVENT_PRO = 'CRISPEX_MASK_OVERLAY_SELECT_COLOR_TABLE', $
-                              SENSITIVE = maskfile)
-	maskct                  = 13
-	WIDGET_CONTROL, masks_overlay_ct_cbox, SET_COMBOBOX_SELECT = maskct
-	masks_overlay_col_slid  = WIDGET_SLIDER(masks_overlay_color, MIN = 0, MAX = 255, VALUE = 255, $
-                              TITLE = 'Color index', EVENT_PRO='CRISPEX_MASK_OVERLAY_COLOR_SLIDER',$
-                              /DRAG, SENSITIVE = maskfile)
-  raster_base = WIDGET_BASE(masks_tab,/FRAME,/COLUMN)
-  raster_overlay_label = WIDGET_LABEL(raster_base, VALUE='Raster:',/ALIGN_LEFT)
-  raster_overlay = WIDGET_BASE(raster_base, /ROW, /NONEXCLUSIVE)
-  raster_but = WIDGET_BUTTON(raster_overlay, VALUE='Overlay boundaries on slit-jaw image', $
-    EVENT_PRO='CRISPEX_MASK_OVERLAY_RASTER_TOGGLE', SENSITIVE=hdr.sjifile)
-  WIDGET_CONTROL, raster_but, SET_BUTTON=hdr.sjifile
-
-	overlays_tab		= WIDGET_BASE(tab_tlb, TITLE = 'Miscellaneous', /COLUMN)
-	overlays		= WIDGET_BASE(overlays_tab, /FRAME, /COLUMN)
-	overlay_label		= WIDGET_LABEL(overlays, VALUE = 'Overlays:', /ALIGN_LEFT)
-	overlay_buts		= WIDGET_BASE(overlays, /ROW)
-	overlay_onebut		= WIDGET_BASE(overlay_buts, /NONEXCLUSIVE)
-	overlay_but 		= WIDGET_BUTTON(overlay_onebut, VALUE = 'Saved loops:', EVENT_PRO = 'CRISPEX_RESTORE_LOOPS_MAIN')
-	overlay_actbuts	 = WIDGET_BASE(overlay_buts, /ROW, /EXCLUSIVE)
-	loop_overlay_al		= WIDGET_BUTTON(overlay_actbuts, VALUE = 'Always', EVENT_PRO = 'CRISPEX_RESTORE_LOOPS_ALWAYS', SENSITIVE = 0)
-	WIDGET_CONTROL, loop_overlay_al, SET_BUTTON = 1
-	loop_overlay_sav	= WIDGET_BUTTON(overlay_actbuts, VALUE = 'At saved '+STRLOWCASE(wav_h[heightset]), SENSITIVE = 0)
-	linestyle_base		= WIDGET_BASE(overlays, /ROW)
-	linestyle_label		= WIDGET_LABEL(linestyle_base, VALUE = 'Loops linestyle:', /ALIGN_LEFT)
-	linestyle_buts		= WIDGET_BASE(linestyle_base, /ROW, /EXCLUSIVE)
-	linestyle_0		= WIDGET_BUTTON(linestyle_buts, VALUE = 'solid', EVENT_PRO = 'CRISPEX_DRAW_LOOP_LINESTYLE_0')
-	WIDGET_CONTROL, linestyle_0, SET_BUTTON = 1
-	linestyle_1		= WIDGET_BUTTON(linestyle_buts, VALUE = 'dotted', EVENT_PRO = 'CRISPEX_DRAW_LOOP_LINESTYLE_1')
-	linestyle_2		= WIDGET_BUTTON(linestyle_buts, VALUE = 'dashed', EVENT_PRO = 'CRISPEX_DRAW_LOOP_LINESTYLE_2')
-
-	measuretool		= WIDGET_BASE(overlays_tab, /FRAME, /COLUMN)
-	measure_label		= WIDGET_LABEL(measuretool, VALUE = 'Spatial measurement tool:', /ALIGN_LEFT)
-	measure_buts		= WIDGET_BASE(measuretool, /ROW, /NONEXCLUSIVE)
-	measure_but		= WIDGET_BUTTON(measure_buts, VALUE = 'Start measurement', EVENT_PRO = 'CRISPEX_MEASURE_ENABLE')
-	apix_base		= WIDGET_BASE(measuretool, /ROW)
-	apix_label		= WIDGET_LABEL(apix_base, VALUE = 'Pixel size:', /ALIGN_LEFT, SENSITIVE = 0)
+	loop_buts_frame		  = WIDGET_BASE(analysis_tab, /ROW)
+	rem_loop_pt_but		  = WIDGET_BUTTON(loop_buts_frame, VALUE = 'Remove last loop point', $
+                          EVENT_PRO = 'CRISPEX_LOOP_REMOVE_POINT', SENSITIVE = 0)
+	loop_slice_but		  = WIDGET_BUTTON(loop_buts_frame, VALUE = 'Time slice along loop', $
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_LOOPSLAB_GET', SENSITIVE = 0)
+  analysis_divider1   = CRISPEX_WIDGET_DIVIDER(analysis_tab)
+  ; Measurement tool controls
+	measure_label	      = WIDGET_LABEL(analysis_tab, VALUE = 'Spatial measurement tool:', /ALIGN_LEFT)
+	measure_buts	      = WIDGET_BASE(analysis_tab, /ROW, /NONEXCLUSIVE)
+	measure_but		      = WIDGET_BUTTON(measure_buts, VALUE = 'Start measurement', $
+                          EVENT_PRO = 'CRISPEX_MEASURE_ENABLE')
+	apix_base		        = WIDGET_BASE(analysis_tab, /ROW)
+	apix_label		      = WIDGET_LABEL(apix_base, VALUE = 'Pixel size:', /ALIGN_LEFT, SENSITIVE = 0)
   IF hdr.dx_fixed THEN $
   	apix_text		= WIDGET_LABEL(apix_base, VALUE = STRTRIM(hdr.dx,2), /ALIGN_LEFT, SENSITIVE = 0) $
   ELSE $
-  	apix_text		= WIDGET_TEXT(apix_base, VALUE = STRTRIM(hdr.dx,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_MEASURE_ARCSEC', SENSITIVE = 0)
-	apix_unit		= WIDGET_LABEL(apix_base, VALUE = '['+hdr.xunit+']', /ALIGN_LEFT, SENSITIVE = 0)
-	measure_asec		= WIDGET_BASE(measuretool, /ROW)
-	measure_asec_lab	= WIDGET_LABEL(measure_asec, VALUE = 'Distance [arcsec]:', /ALIGN_LEFT, SENSITIVE = 0)
-	measure_asec_text	= WIDGET_LABEL(measure_asec, VALUE = '0.00', /DYNAMIC_RESIZE, SENSITIVE = 0)
-	measure_km		= WIDGET_BASE(measuretool, /ROW)
-	measure_km_lab		= WIDGET_LABEL(measure_km, VALUE = 'Distance [km]:', /ALIGN_LEFT, SENSITIVE = 0)
-	measure_km_text		= WIDGET_LABEL(measure_km, VALUE = '0.00', /DYNAMIC_RESIZE, SENSITIVE = 0)
+  	apix_text		= WIDGET_TEXT(apix_base, VALUE = STRTRIM(hdr.dx,2), /EDITABLE, XSIZE = 5, $
+                    EVENT_PRO = 'CRISPEX_MEASURE_ARCSEC', SENSITIVE = 0)
+	apix_unit		        = WIDGET_LABEL(apix_base, VALUE = '['+hdr.xunit+']', /ALIGN_LEFT, SENSITIVE = 0)
+	measure_asec		    = WIDGET_BASE(analysis_tab, /ROW)
+	measure_asec_lab	  = WIDGET_LABEL(measure_asec, VALUE = 'Distance [arcsec]:', /ALIGN_LEFT, $
+                          SENSITIVE = 0)
+	measure_asec_text	  = WIDGET_LABEL(measure_asec, VALUE = '0.00', /DYNAMIC_RESIZE, SENSITIVE = 0)
+	measure_km		      = WIDGET_BASE(analysis_tab, /ROW)
+	measure_km_lab		  = WIDGET_LABEL(measure_km, VALUE = 'Distance [km]:', /ALIGN_LEFT, SENSITIVE = 0)
+	measure_km_text		  = WIDGET_LABEL(measure_km, VALUE = '0.00', /DYNAMIC_RESIZE, SENSITIVE = 0)
+  analysis_divider2   = CRISPEX_WIDGET_DIVIDER(analysis_tab)
 
-  ; Parameters overview
+  ; ==================== Overlays Tab ====================
+  ; Mask overlays base
+  masks_overlay_label = WIDGET_LABEL(overlays_tab, VALUE='Mask:',/ALIGN_LEFT)
+	masks_overlay		    = WIDGET_BASE(overlays_tab, /ROW)
+	masks_overlay_label	= WIDGET_LABEL(masks_overlay, VALUE = 'Overlay on:',/ALIGN_LEFT)
+	masks_overlay_buts	= CW_BGROUP(masks_overlay, ['Main','Reference','Doppler'],$
+                          BUTTON_UVALUE=INDGEN(3),IDS=mask_button_ids,/NONEXCLUSIVE, /ROW, $
+                          EVENT_FUNC = 'CRISPEX_BGROUP_MASK_OVERLAY')
+	LOADCT,GET_NAMES=ctnames,/SILENT
+	masks_overlay_ct_cbox= WIDGET_COMBOBOX(overlays_tab, $
+                          VALUE = STRTRIM(INDGEN(N_ELEMENTS(ctnames)),2)+REPLICATE(': ',$
+                          N_ELEMENTS(ctnames))+ctnames, $
+                          EVENT_PRO = 'CRISPEX_MASK_OVERLAY_SELECT_COLOR_TABLE', $
+                          SENSITIVE = maskfile)
+	maskct = 13
+	WIDGET_CONTROL, masks_overlay_ct_cbox, SET_COMBOBOX_SELECT = maskct
+	masks_overlay_col_slid= WIDGET_SLIDER(overlays_tab, MIN = 0, MAX = 255, VALUE = 255, $
+                            TITLE = 'Color index', EVENT_PRO='CRISPEX_MASK_OVERLAY_COLOR_SLIDER',$
+                            /DRAG, SENSITIVE = maskfile)
+  overlays_divider1   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
+  ; Loop overlays base                            
+	overlay_label		    = WIDGET_LABEL(overlays_tab, VALUE = 'Overlays:', /ALIGN_LEFT)
+	overlay_buts		    = WIDGET_BASE(overlays_tab, /ROW)
+	overlay_onebut		  = WIDGET_BASE(overlay_buts, /NONEXCLUSIVE)
+	overlay_but 		    = WIDGET_BUTTON(overlay_onebut, VALUE = 'Saved loops:', $
+                          EVENT_PRO = 'CRISPEX_RESTORE_LOOPS_MAIN')
+	overlay_actbuts	    = WIDGET_BASE(overlay_buts, /ROW, /EXCLUSIVE)
+	loop_overlay_al		  = WIDGET_BUTTON(overlay_actbuts, VALUE = 'Always', $
+                          EVENT_PRO = 'CRISPEX_RESTORE_LOOPS_ALWAYS', SENSITIVE = 0)
+	WIDGET_CONTROL, loop_overlay_al, SET_BUTTON = 1
+	loop_overlay_sav	  = WIDGET_BUTTON(overlay_actbuts, $
+                          VALUE = 'At saved '+STRLOWCASE(wav_h[heightset]), SENSITIVE = 0)
+	linestyle_base		  = WIDGET_BASE(overlays_tab, /ROW)
+	linestyle_label		  = WIDGET_LABEL(linestyle_base, VALUE = 'Loops linestyle:', /ALIGN_LEFT)
+	linestyle_buts		  = WIDGET_BASE(linestyle_base, /ROW, /EXCLUSIVE)
+	linestyle_0		      = WIDGET_BUTTON(linestyle_buts, VALUE = 'solid', $
+                          EVENT_PRO = 'CRISPEX_DRAW_LOOP_LINESTYLE_0')
+	linestyle_1		      = WIDGET_BUTTON(linestyle_buts, VALUE = 'dotted', $
+                          EVENT_PRO = 'CRISPEX_DRAW_LOOP_LINESTYLE_1')
+	linestyle_2		      = WIDGET_BUTTON(linestyle_buts, VALUE = 'dashed', $
+                          EVENT_PRO = 'CRISPEX_DRAW_LOOP_LINESTYLE_2')
+	WIDGET_CONTROL, linestyle_0, SET_BUTTON = 1
+  overlays_divider2   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
+  ; Raster overlays base
+  raster_overlay_label= WIDGET_LABEL(overlays_tab, VALUE='Raster:',/ALIGN_LEFT)
+  raster_overlay      = WIDGET_BASE(overlays_tab, /ROW, /NONEXCLUSIVE)
+  raster_but          = WIDGET_BUTTON(raster_overlay, VALUE='Overlay boundaries on slit-jaw image', $
+                          EVENT_PRO='CRISPEX_MASK_OVERLAY_RASTER_TOGGLE', SENSITIVE=hdr.sjifile)
+  WIDGET_CONTROL, raster_but, SET_BUTTON=hdr.sjifile
+  overlays_divider3   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
+
+  ; ==================== Parameters Overview ====================
     ; Position parameters
     params_position_base = WIDGET_BASE(control_panel, /ROW,/FRAME, /GRID_LAYOUT)
     verlabel_base = WIDGET_BASE(params_position_base, /COLUMN)
@@ -13748,6 +13857,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                           EVENT_PRO='CRISPEX_SLIDER_YPOS',/VERTICAL, YSIZE=imwiny)
   xpos_slider = WIDGET_SLIDER(draw_horslid_base,VALUE=0,MIN=0,MAX=1,/SUPPRESS,/DRAG,$
                           EVENT_PRO='CRISPEX_SLIDER_XPOS', XSIZE=imwinx)
+;    print,'t_slid post-widgets, pre-realize:'
+;    help,widget_info(t_slid,/geometry)
 	WIDGET_CONTROL, cpanel, /REALIZE, TLB_GET_SIZE=cpanel_size
   ; Determine window offsets based on realised control panel size and position
   ; If reference cube present, check if it would fit next to main image
@@ -14558,5 +14669,5 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
       'Extreme aspect ratio detected with NX = 1. Stretching ',$
       'x-dimension for easier visualisation: note that the',$
       'image pixel aspect ratio is now inaccurate.', $
-			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', /BLOCK
+			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW';, /BLOCK
 END
