@@ -13099,9 +13099,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                           EVENT_PRO = 'CRISPEX_UPDATE_SLICES', SENSITIVE = 0)
 	t_speed_slid		    = WIDGET_SLIDER(playback_tab, TITLE = 'Animation speed [frame/s]', MIN = 1, $
                           MAX = 100, VALUE = t_speed, EVENT_PRO = 'CRISPEX_SLIDER_SPEED', /DRAG)
-  t_last += (t_last EQ 1)
 	t_step_slid		      = WIDGET_SLIDER(playback_tab, TITLE = 'Frame increment', MIN = 1, $
-                          MAX = t_last, VALUE = t_step, EVENT_PRO = 'CRISPEX_SLIDER_STEP', $
+                          MAX = (t_last>2), VALUE = t_step, EVENT_PRO = 'CRISPEX_SLIDER_STEP', $
                           SENSITIVE = t_slid_sens)
 	imref_blink_field	  = WIDGET_BASE(playback_tab, /ROW,/NONEXCLUSIVE)
 	imref_blink_but		  = WIDGET_BUTTON(imref_blink_field, $
