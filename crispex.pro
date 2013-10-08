@@ -1983,6 +1983,7 @@ PRO CRISPEX_DISPLAYS_PHIS_TOGGLE, event, NO_DRAW=no_draw
       ((*(*info).plottitles).phiswintitle)[(*(*info).plotswitch).heightset]
 		CRISPEX_WINDOW, (*(*info).winsizes).phisxres, (*(*info).winsizes).phisyres, $
       (*(*info).winids).root, wintitle, tlb, wid, (*(*info).winsizes).spxoffset, $
+      (*(*info).winswitch).showls * ((*(*info).winsizes).lswiny + (*(*info).winsizes).ydelta) + $ 
       (*(*info).winswitch).showsp * (*(*info).winsizes).ydelta, DRAWID = phisdrawid, $
       RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_PHIS_RESIZE'
 		(*(*info).winids).phistlb = tlb			&	(*(*info).winids).phiswid = wid
@@ -12667,12 +12668,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	spwall 		= spxwall_init/spwinx
 	xsize 		= 1.*spwinx
 
-	phiswinx	= spwinx
-	phiswiny	= imwiny
-
 	spwidth 	= (1. - (spmargin + spwall))
 	IF hdr.spfile THEN spwiny = windowy ELSE spwiny = imwiny
   spwiny = imwiny - lswiny
+	phiswinx	= spwinx
+  phiswiny = spwiny
 	IF ((hdr.v_dop_set[0] EQ 1) OR (hdr.ns GT 1)) THEN BEGIN
 		spheight = (1. - (spmargin * 2.) * spwinx/spwiny)
 		phisheight = (1. - (spmargin * 2.) * phiswinx/phiswiny)
@@ -13966,6 +13966,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
  
   spxoffset = refxoffset+(hdr.showref*imwinx)+xdelta
   spyoffset = lswiny + ydelta
+  phisyoffset = lswiny + ydelta
   lsxoffset = spxoffset
   
   WIDGET_CONTROL, xydraw, GET_VALUE=xydrawid
