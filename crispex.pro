@@ -591,10 +591,37 @@ FUNCTION CRISPEX_SCALING_SLICES, dispim, gamma_val, histo_opt_val, $
   RETURN, minmax
 END
 
+
+;------------------------- WIDGET FUNCTION
 FUNCTION CRISPEX_WIDGET_DIVIDER, base
   divider_base = WIDGET_BASE(base, /FRAME, /YSIZE)
   divider_labl = WIDGET_LABEL(divider_base, VALUE=' ')
   RETURN, divider_base
+END
+
+;------------------------- SPLIT MESSAGE FUNCTION
+FUNCTION CRISPEX_SPLIT_MSG, message1, max_text_width
+  message_split = STRSPLIT(message1, ' ', /EXTRACT)
+  message_split += ' '  ; Add whitespace after each substring
+  k = 0L
+  i = 0L 
+  total_length_left = STRLEN(message1)+1
+  WHILE (total_length_left GT 0) DO BEGIN
+    length_left = max_text_width
+    substr_reconstr = ''
+    WHILE ((length_left GT 0) AND (total_length_left GT 0)) DO BEGIN
+      substr_reconstr = substr_reconstr+message_split[i]
+      length_left -= STRLEN(message_split[i])
+      total_length_left -= STRLEN(message_split[i])
+      i += 1L
+    ENDWHILE
+    IF (k EQ 0) THEN $
+      final_msg = substr_reconstr $
+    ELSE $
+      final_msg = [final_msg,substr_reconstr]
+    k += 1L
+  ENDWHILE
+  RETURN, final_msg
 END
 
 ;========================= ABOUT WINDOW PROCEDURES
@@ -664,7 +691,8 @@ PRO CRISPEX_CLEAR_CURRENT_CPFT, event
 		WIDGET_CONTROL, (*(*info).ctrlscp).clear_current_estimate, SENSITIVE = 0
 	ENDIF ELSE BEGIN
 		CRISPEX_WINDOW_OK, event,'ERROR!','Could not delete crispex.'+$
-      ((*(*info).paths).hostname)[0]+'cpft','from '+(*(*info).paths).dir_settings+'.','File does not exist.',$
+      ((*(*info).paths).hostname)[0]+'cpft '+$
+      'from '+(*(*info).paths).dir_settings+'. File does not exist.',$
 			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).errtlb = tlb
 	ENDELSE
@@ -684,7 +712,7 @@ PRO CRISPEX_CLEAR_CURRENT_INST, event
 		WIDGET_CONTROL, (*(*info).ctrlscp).clear_current_inst, SENSITIVE = 0
 	ENDIF ELSE BEGIN
 		CRISPEX_WINDOW_OK, event,'ERROR!','Could not delete crispex.'+((*(*info).paths).hostname)[0]+$
-      'inst','from '+(*(*info).paths).dir_settings+'.','File does not exist.',$
+      'inst from '+(*(*info).paths).dir_settings+'. File does not exist.',$
 			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).errtlb = tlb
 	ENDELSE
@@ -2027,7 +2055,9 @@ END
 PRO CRISPEX_DISPLAYS_RESIZE_ERROR, event
 ; Opens error window on resize error
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	CRISPEX_WINDOW_OK, event,'ERROR!','Window resize request cannot be completed:','resize values beyond boundaries.','Reverted to old window size.',$
+	CRISPEX_WINDOW_OK, event,'ERROR!',$
+    'Window resize request cannot be completed: '+$
+    'resize values beyond boundaries. Reverted to old window size.',$
 		OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 	(*(*info).winids).errtlb = tlb
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).errtlb], labels=['errtlb']
@@ -2204,9 +2234,9 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB, event, NO_DRAW=no_draw, INDEX=index
         (*(*info).dataparams).nt) THEN BEGIN
 				IF (N_ELEMENTS(t_low) EQ 0) THEN BEGIN
 					CRISPEX_WINDOW_OK, event, 'WARNING!', $
-						'The slice to be loaded has a reduced temporal range,',$
-            'however the format in which it was saved does not',$
-						'allow for correct slice restoration. If display',$
+						'The slice to be loaded has a reduced temporal range,'+$
+            'however the format in which it was saved does not '+$
+						'allow for correct slice restoration. If display '+$
             'is required, please save the slice again.', $
             OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 					(*(*info).winids).warntlb = tlb
@@ -2215,9 +2245,9 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB, event, NO_DRAW=no_draw, INDEX=index
 					IF ((t_low GE (*(*info).dispparams).t_upp) OR $
               (t_upp LT (*(*info).dispparams).t_low)) THEN BEGIN
 						CRISPEX_WINDOW_OK, event, 'WARNING!', $
-							'The temporal range of the loaded slice falls outside',$
-              'the range set by the currently loaded slices. If',$
-							'display is required, please close all currently',$
+							'The temporal range of the loaded slice falls outside '+$
+              'the range set by the currently loaded slices. If '+$
+							'display is required, please close all currently '+$
               'loaded slices before proceeding.', $
               OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 						(*(*info).winids).warntlb = tlb
@@ -2268,9 +2298,9 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB, event, NO_DRAW=no_draw, INDEX=index
           (*(*info).dispparams).t = t_saved
 				IF (N_ELEMENTS(t_low) EQ 0) THEN BEGIN
 					CRISPEX_WINDOW_OK, event, 'WARNING!', $
-						'The slice to be loaded has a reduced temporal range,',$
-            'however the format in which it was saved does not',$
-						'allow for correct slice restoration. If display',$
+						'The slice to be loaded has a reduced temporal range, '+$
+            'however the format in which it was saved does not '+$
+						'allow for correct slice restoration. If display '+$
             'is required, please save the slice again.', $
             OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 					(*(*info).winids).warntlb = tlb
@@ -2279,9 +2309,9 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB, event, NO_DRAW=no_draw, INDEX=index
 					IF ((t_low GE (*(*info).dispparams).t_upp) OR $
             (t_upp LT (*(*info).dispparams).t_low)) THEN BEGIN
 						CRISPEX_WINDOW_OK, event, 'WARNING!', $
-							'The temporal range of the loaded slice falls outside',$
-              'the range set by the currently loaded slices. If',$
-							'display is required, please close all currently',$
+							'The temporal range of the loaded slice falls outside '+$
+              'the range set by the currently loaded slices. If '+$
+							'display is required, please close all currently '+$
               'loaded slices before proceeding.', $
               OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 						(*(*info).winids).warntlb = tlb
@@ -7109,10 +7139,12 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
     ': Preferences', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, $
     /TLB_KILL_REQUEST_EVENTS)
 	main		= WIDGET_BASE(base, /COLUMN)
+  tab_width = 432
+  pad = 3
+  tab_tlb = WIDGET_TAB(main, LOCATION=0, MULTILINE=3, XSIZE=tab_width+2*pad)
  
   ; Start-up preferences
-  startup_base   = WIDGET_BASE(main, /COLUMN, /FRAME)
-	startup_lab 	= WIDGET_LABEL(startup_base, VALUE = 'Start-up and Playback', /ALIGN_LEFT)
+  startup_base   = WIDGET_BASE(tab_tlb, TITLE='Start-up', /COLUMN, XSIZE=tab_width);, /FRAME)
 	startup_buts 	= WIDGET_BASE(startup_base, /COLUMN, /NONEXCLUSIVE)
 	(*(*info).ctrlspref).startup_win = $
                   WIDGET_BUTTON(startup_buts, VALUE = 'Show start-up window', $
@@ -7131,17 +7163,17 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
     SET_BUTTON=(*(*info).dispparams).phislice_update
 
   ; Displays preferences
-	layout_base   	= WIDGET_BASE(main,/COLUMN, /FRAME)
-	layout_lab 	    = WIDGET_LABEL(layout_base, VALUE='Layout', /ALIGN_LEFT)
+	layout_base   	= WIDGET_BASE(tab_tlb, TITLE='Layout', /COLUMN, XSIZE=tab_width);, /FRAME)
 	displays_buts 	= WIDGET_BASE(layout_base, /GRID_LAYOUT, COLUMN=2)
 	(*(*info).prefs).bgplotcol_old = (*(*info).plotparams).bgplotcol
 	(*(*info).ctrlspref).displays_bgcols = $
                     WIDGET_SLIDER(displays_buts, TITLE='Default background plot color', $
                       MIN=0, MAX=255, VALUE=(*(*info).plotparams).bgplotcol, /DRAG, $
-		                  EVENT_PRO='CRISPEX_PREFERENCES_SET_BGPLOTCOL')
+		                  EVENT_PRO='CRISPEX_PREFERENCES_SET_BGPLOTCOL', $
+                      XSIZE=FLOOR((tab_width-3*pad)/2.))
 	(*(*info).ctrlspref).displays_plcols = $
                     WIDGET_SLIDER(displays_buts, TITLE='Default line plot color', $
-                      MIN=0, MAX=55, VALUE=(*(*info).plotparams).plotcol, /DRAG, $
+                      MIN=0, MAX=255, VALUE=(*(*info).plotparams).plotcol, /DRAG, $
                       EVENT_PRO='CRISPEX_PREFERENCES_SET_PLOTCOL')
 	displays_int_base = WIDGET_BASE(layout_base, /ROW, /NONEXCLUSIVE)
 	(*(*info).ctrlspref).displays_interp = $
@@ -7150,8 +7182,7 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
 	displays_preview= WIDGET_BUTTON(displays_int_base, VALUE='Preview', $
                       EVENT_PRO='CRISPEX_PREFERENCES_SET_PREVIEW')
 
-  scaling_base    = WIDGET_BASE(main, /COLUMN, /FRAME)
-	scaling_lab 	  = WIDGET_LABEL(scaling_base, VALUE='Scaling', /ALIGN_LEFT)
+  scaling_base    = WIDGET_BASE(tab_tlb, TITLE='Scaling', /COLUMN, XSIZE=tab_width);, /FRAME)
   histo_base      = WIDGET_BASE(scaling_base, /ROW)
   histo_opt_lab   = WIDGET_LABEL(histo_base, VALUE='Default histogram optimisation value:', /ALIGN_LEFT)
   (*(*info).ctrlspref).histo_opt_txt = $
@@ -7179,8 +7210,7 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
     SET_BUTTON=(*(*info).dispparams).slices_imscale
 
   ; IO preferences: inputs
-  paths_base      = WIDGET_BASE(main, /COLUMN, /FRAME)
-	paths_lab	      = WIDGET_LABEL(paths_base, VALUE = 'Input/Output paths', /ALIGN_LEFT)
+  paths_base      = WIDGET_BASE(tab_tlb, TITLE='Input/Output', /COLUMN, XSIZE=tab_width);, /FRAME)
 	paths_io_base	  = WIDGET_BASE(paths_base, /COLUMN)
 	paths_i_labbuts = WIDGET_BASE(paths_io_base, /ROW)
 	paths_i_lab	    = WIDGET_LABEL(paths_i_labbuts, VALUE = 'Default input path:')
@@ -7224,8 +7254,7 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_o_sav_but, $
     SET_BUTTON=(*(*info).prefs).defopath
   ; File-ID
-	save_base	      = WIDGET_BASE(main, /COLUMN, /FRAME)
-	save_lab	      = WIDGET_LABEL(save_base, VALUE='Filenaming', /ALIGN_LEFT)
+	save_base	      = WIDGET_BASE(tab_tlb, TITLE='Filenaming', /COLUMN, XSIZE=tab_width);, /FRAME)
 	saveid_buts 	  = WIDGET_BASE(save_base, /ROW)
 	saveid_lab	    = WIDGET_LABEL(saveid_buts, VALUE='Default unique file ID:', /ALIGN_LEFT)
 	saveids	= ['YYYYMMMDD_hhmmss (default)','DDMMMYYYY_hhmmss', $
@@ -7240,6 +7269,18 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
                     WIDGET_LABEL(saveid_sample, VALUE=defsaveid_sample, /DYNAMIC_RESIZE)
 	WIDGET_CONTROL, (*(*info).ctrlspref).save_defsaveid, $
     SET_COMBOBOX_SELECT=(*(*info).prefs).defsaveid
+
+  ; Messages
+  messages_base = WIDGET_BASE(tab_tlb, TITLE='Messages', /COLUMN, XSIZE=tab_width)
+  warn_cbox_base = WIDGET_BASE(messages_base, /ROW)
+  warnings_lab  = WIDGET_LABEL(warn_cbox_base, VALUE='Display set-up warnings:', $
+                    /ALIGN_LEFT)
+  warnings_desc =['Do not show messages',$
+                  'Write messages to terminal only',$
+                  'Always pop-up messages']
+  (*(*info).ctrlspref).warnings_cbox = WIDGET_COMBOBOX(warn_cbox_base, VALUE=warnings_desc, $
+                    EVENT_PRO='CRISPEX_PREFERENCES_SET_WARNINGS_SETUP')
+  WIDGET_CONTROL, (*(*info).ctrlspref).warnings_cbox, SET_COMBOBOX_SELECT=(*(*info).prefs).warnings
 
   ; Defaults / Cancel / Accept settings buttons
 	dec_buts 	      = WIDGET_BASE(main, /ALIGN_CENTER, /GRID_LAYOUT, COLUMN=3)
@@ -7279,12 +7320,14 @@ PRO CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 		((*(*info).prefs).tmp_prefipath NE (*(*info).prefs).default_prefipath) OR $
 		((*(*info).prefs).tmp_defopath NE (*(*info).prefs).default_defopath) OR $
 		((*(*info).prefs).tmp_prefopath NE (*(*info).prefs).default_prefopath) OR $
-		((*(*info).prefs).tmp_defsaveid NE (*(*info).prefs).default_defsaveid)) THEN $
+		((*(*info).prefs).tmp_defsaveid NE (*(*info).prefs).default_defsaveid) OR $
+		((*(*info).prefs).tmp_warnings NE (*(*info).prefs).default_warnings)) THEN $
       nondefault = 1 $
     ELSE $
       nondefault = 0
 	WIDGET_CONTROL, (*(*info).ctrlspref).set_defaults, SENSITIVE=nondefault
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [ABS(nondefault-1)], labels=['Buttons on default']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [ABS(nondefault-1)], labels=['Buttons on default']
 END
 
 PRO CRISPEX_PREFERENCES_SET_STARTUPWIN, event
@@ -7509,6 +7552,17 @@ PRO CRISPEX_PREFERENCES_SET_SAVEID, event
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 END
 
+PRO CRISPEX_PREFERENCES_SET_WARNINGS_SETUP, event
+; Handles setting of warnings
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+  (*(*info).prefs).tmp_warnings = event.INDEX 
+	IF (event.TOP EQ (*(*info).winids).preftlb) THEN $
+	  CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event $
+  ELSE $
+    CRISPEX_PREFERENCES_SAVE_SETTINGS, event, /RESAVE
+END
+
 PRO CRISPEX_PREFERENCES_SET_DEFAULTS, event
 ; Handles the setting of all defaults
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -7527,12 +7581,14 @@ PRO CRISPEX_PREFERENCES_SET_DEFAULTS, event
   (*(*info).prefs).tmp_slices_imscale = (*(*info).prefs).default_slices_imscale		
   (*(*info).prefs).tmp_histo_opt_val = (*(*info).prefs).default_histo_opt_val
   (*(*info).prefs).tmp_gamma_val = (*(*info).prefs).default_gamma_val
+  (*(*info).prefs).tmp_warnings = (*(*info).prefs).default_warnings
 	WIDGET_CONTROL, (*(*info).ctrlspref).startup_win, SET_BUTTON = (*(*info).prefs).tmp_startupwin
 	WIDGET_CONTROL, (*(*info).ctrlspref).startup_autopl, SET_BUTTON = (*(*info).prefs).tmp_autoplay
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_bgcols, SET_VALUE = (*(*info).prefs).tmp_bgplotcol
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_plcols, SET_VALUE = (*(*info).prefs).tmp_plotcol
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_interp, SET_BUTTON = (*(*info).prefs).tmp_interpspslice
-	WIDGET_CONTROL, (*(*info).ctrlspref).displays_phislice, SET_BUTTON = (*(*info).prefs).tmp_phislice_update		
+	WIDGET_CONTROL, (*(*info).ctrlspref).displays_phislice, $
+    SET_BUTTON = (*(*info).prefs).tmp_phislice_update		
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_slices, SET_BUTTON = (*(*info).prefs).tmp_slices_imscale
 	WIDGET_CONTROL, (*(*info).ctrlspref).histo_opt_txt, $
     SET_VALUE=STRTRIM((*(*info).prefs).tmp_histo_opt_val,2)
@@ -7542,14 +7598,18 @@ PRO CRISPEX_PREFERENCES_SET_DEFAULTS, event
     SET_VALUE=(500*(ALOG10((*(*info).prefs).tmp_gamma_val)+1))
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_i_def_but, SET_BUTTON = ABS((*(*info).prefs).tmp_defipath-1)
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_i_sav_but, SET_BUTTON = (*(*info).prefs).tmp_defipath
-	WIDGET_CONTROL, (*(*info).ctrlspref).paths_ipath_text, SET_VALUE = (*(*info).prefs).tmp_prefipath, SENSITIVE = (*(*info).prefs).tmp_defipath
+	WIDGET_CONTROL, (*(*info).ctrlspref).paths_ipath_text, $
+    SET_VALUE = (*(*info).prefs).tmp_prefipath, SENSITIVE = (*(*info).prefs).tmp_defipath
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_o_def_but, SET_BUTTON = ABS((*(*info).prefs).tmp_defopath-1)
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_o_sav_but, SET_BUTTON = (*(*info).prefs).tmp_defopath
-	WIDGET_CONTROL, (*(*info).ctrlspref).paths_opath_text, SET_VALUE = (*(*info).prefs).tmp_prefopath, SENSITIVE = (*(*info).prefs).tmp_defopath
+	WIDGET_CONTROL, (*(*info).ctrlspref).paths_opath_text, $
+    SET_VALUE = (*(*info).prefs).tmp_prefopath, SENSITIVE = (*(*info).prefs).tmp_defopath
 	WIDGET_CONTROL, (*(*info).ctrlspref).paths_iopath, SENSITIVE = 0
-	WIDGET_CONTROL, (*(*info).ctrlspref).save_defsaveid, SET_COMBOBOX_SELECT = (*(*info).prefs).tmp_defsaveid
+	WIDGET_CONTROL, (*(*info).ctrlspref).save_defsaveid, $
+    SET_COMBOBOX_SELECT = (*(*info).prefs).tmp_defsaveid
 	CRISPEX_SAVE_DETERMINE_SAVEID, event, defsaveid_sample
 	WIDGET_CONTROL, (*(*info).ctrlspref).save_defsaveid_sample, SET_VALUE = defsaveid_sample
+  WIDGET_CONTROL, (*(*info).ctrlspref).warnings_cbox, SET_COMBOBOX_SELECT=(*(*info).prefs).warnings
 	IF (*(*info).prefs).preview THEN BEGIN
 		(*(*info).plotparams).plotcol = (*(*info).prefs).tmp_plotcol
 		(*(*info).plotparams).bgplotcol = (*(*info).prefs).tmp_bgplotcol
@@ -7584,10 +7644,11 @@ PRO CRISPEX_PREFERENCES_SAVE_SETTINGS, event, RESAVE=resave
 	phislice_update = (*(*info).prefs).tmp_phislice_update	&	slices_imscale = (*(*info).prefs).tmp_slices_imscale	
   histo_opt_val = (*(*info).prefs).tmp_histo_opt_val
   gamma_val = (*(*info).prefs).tmp_gamma_val
+  warnings = (*(*info).prefs).tmp_warnings
 	crispex_version = [(*(*info).versioninfo).version_number, (*(*info).versioninfo).revision_number]
 	SAVE, crispex_version, startupwin, interpspslice, phislice_update, slices_imscale, histo_opt_val,$
     gamma_val, autoplay, defsaveid, defipath, defopath, bgplotcol, plotcol, prefipath, prefopath, $
-    FILENAME = (*(*info).paths).dir_settings+'crispex.cpref'
+    warnings, FILENAME = (*(*info).paths).dir_settings+'crispex.cpref'
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).paths).dir_settings+'crispex.cpref'],labels=['Written']
 	(*(*info).prefs).startupwin = startupwin		&	(*(*info).dispparams).interpspslice = interpspslice
 	(*(*info).prefs).autoplay = autoplay			&	(*(*info).prefs).defsaveid = defsaveid
@@ -7598,6 +7659,7 @@ PRO CRISPEX_PREFERENCES_SAVE_SETTINGS, event, RESAVE=resave
 	(*(*info).dispparams).phislice_update = phislice_update	&	(*(*info).dispparams).slices_imscale = slices_imscale	
   (*(*info).prefs).histo_opt_val = histo_opt_val
   (*(*info).prefs).gamma_val = gamma_val
+  (*(*info).prefs).warnings = warnings
 	IF ~KEYWORD_SET(RESAVE) THEN BEGIN
 		CRISPEX_PREFERENCES_REDRAW, event
 		WIDGET_CONTROL, (*(*info).winids).preftlb, /DESTROY
@@ -8070,7 +8132,9 @@ PRO CRISPEX_RESTORE_LOOPS_MAIN, event
 			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, SENSITIVE = 1
 		ENDIF ELSE CRISPEX_RESTORE_LOOPS_MENU_CLOSE, event
 	ENDIF ELSE BEGIN
-		CRISPEX_WINDOW_OK, event,'ERROR!','No saved time slice (*csav) files found corresponding','to the current data file. Unable to produce loop overlays.',$
+		CRISPEX_WINDOW_OK, event,'ERROR!',$
+      'No saved time slice (*csav) files found corresponding '+$
+      'to the current data file. Unable to produce loop overlays.',$
 			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).errtlb = tlb
 		WIDGET_CONTROL, (*(*info).ctrlscp).overlay_but, SET_BUTTON = 0
@@ -8276,9 +8340,14 @@ PRO CRISPEX_RESTORE_LOOPS_OPEN_TANAT, event
 				RESOLVE_ROUTINE, 'TANAT'
 				CRISPEX_RESTORE_LOOPS_OPEN_TANAT_OPEN, event
 			ENDIF ELSE IF ((*(*info).paths).tanat_repointed NE 1) THEN BEGIN				; Correct TANAT can not be found, run anyway but warn
-				CRISPEX_WINDOW_OK, event,'WARNING!','CRISPEX could not find TANAT at the expected location','('+(*(*info).paths).dir_aux+'),','but a local copy has been compiled before from',$
-					'('+STRMID(path_tanat,0,STRPOS(path_tanat,'/',/REVERSE_SEARCH))+').','Press OK to continue with that local copy of TANAT, or select a different one.',$
-					OK_EVENT='CRISPEX_RESTORE_LOOPS_OPEN_TANAT_OPEN', CANCEL_EVENT='CRISPEX_RESTORE_LOOPS_OPEN_TANAT_REPOINT', CANCEL_LABEL='Select different', BASE=tlb
+				CRISPEX_WINDOW_OK, event,'WARNING!',$
+          'CRISPEX could not find TANAT at the expected location '+$
+          '('+(*(*info).paths).dir_aux+'), but a local copy has been compiled before from '+$
+					'('+STRMID(path_tanat,0,STRPOS(path_tanat,'/',/REVERSE_SEARCH))+'). '+$
+          'Press OK to continue with that local copy of TANAT, or select a different one.',$
+					OK_EVENT='CRISPEX_RESTORE_LOOPS_OPEN_TANAT_OPEN', $
+          CANCEL_EVENT='CRISPEX_RESTORE_LOOPS_OPEN_TANAT_REPOINT', $
+          CANCEL_LABEL='Select different', BASE=tlb
 				(*(*info).winids).errtlb = tlb
 				(*(*info).paths).tanat_repointed = 1
 			ENDIF ELSE CRISPEX_RESTORE_LOOPS_OPEN_TANAT_OPEN, event
@@ -8290,8 +8359,11 @@ PRO CRISPEX_RESTORE_LOOPS_OPEN_TANAT, event
 			RESOLVE_ROUTINE, 'TANAT'
 			CRISPEX_RESTORE_LOOPS_OPEN_TANAT_OPEN, event
 		ENDIF ELSE BEGIN											; TANAT has not been compiled, nor can be found where it should: have user point to local copy or abort	
-			CRISPEX_WINDOW_OK, event,'ERROR!','CRISPEX could not find TANAT at the expected location','('+(*(*info).paths).dir_aux+').',$
-				'Press OK to point CRISPEX to a local copy of TANAT, or cancel to abort.',OK_EVENT='CRISPEX_RESTORE_LOOPS_OPEN_TANAT_REPOINT', CANCEL_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
+			CRISPEX_WINDOW_OK, event,'ERROR!',$
+        'CRISPEX could not find TANAT at the expected location ('+(*(*info).paths).dir_aux+'). '+$
+				'Press OK to point CRISPEX to a local copy of TANAT, or cancel to abort.',$
+        OK_EVENT='CRISPEX_RESTORE_LOOPS_OPEN_TANAT_REPOINT', $
+        CANCEL_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 			(*(*info).winids).errtlb = tlb
 		ENDELSE
 	ENDELSE 
@@ -8915,7 +8987,8 @@ PRO CRISPEX_RETRIEVE_LOOP_MENU, event, set_but_array
 		(*(*info).winids).savetlb = base
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).savetlb,filecount,(*(*info).loopswitch).restore_loops],labels=['savetlb','Retrieved loops','Was restoring loops']
 	ENDIF ELSE BEGIN
-		CRISPEX_WINDOW_OK, event,'ERROR!','No saved loop points (*.clsav) files found', OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
+		CRISPEX_WINDOW_OK, event,'ERROR!','No saved loop points (*.clsav) files found.', $
+      OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).errtlb = tlb
 	ENDELSE
 	IF (*(*info).loopswitch).restore_loops THEN BEGIN
@@ -9538,7 +9611,8 @@ PRO CRISPEX_SESSION_RESTORE_WINDOW, event
 		(*(*info).winids).restsestlb = base
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [csesfilecount,(*(*info).winids).restsestlb], labels=['Restored sessions','restsestlb']
 	ENDIF ELSE BEGIN
-		CRISPEX_WINDOW_OK, event,'ERROR!','No stored session (*.cses) files found.', OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
+		CRISPEX_WINDOW_OK, event,'ERROR!','No stored session (*.cses) files found.', $
+      OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).errtlb = tlb
 	ENDELSE
 END
@@ -9930,15 +10004,20 @@ PRO CRISPEX_SESSION_RESTORE, event
 			(*(*info).winids).restsestlb = 0
 		ENDIF ELSE BEGIN
 			CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
-			CRISPEX_WINDOW_OK, event,'ERROR!','Unable to restore earlier session due to incompatibility','between currently and earlier loaded data.',$
+			CRISPEX_WINDOW_OK, event,'ERROR!',$
+        'Unable to restore earlier session due to incompatibility '+$
+        'between currently and earlier loaded data.',$
 				OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 			(*(*info).winids).errtlb = tlb
 		ENDELSE
 	ENDIF ELSE BEGIN
 		CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
 		IF (N_ELEMENTS(versioninfo) GT 0) THEN message4 = 'Session was saved with CRISPEX v'+versioninfo.version_number+' (rev '+versioninfo.revision_number+').' ELSE message4 = ''
-		CRISPEX_WINDOW_OK, event,'ERROR!','Unable to restore earlier session due to incompatibility between','saved and expected session save file format. Running version of',$
-			'CRISPEX requires a session saved with CRISPEX v1.6 (rev 542) or later.', message4, OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
+		CRISPEX_WINDOW_OK, event,'ERROR!',$
+      'Unable to restore earlier session due to incompatibility between '+$
+      'saved and expected session save file format. Running version of '+$
+			'CRISPEX requires a session saved with CRISPEX v1.6 (rev 542) or later. '+$
+      message4, OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).errtlb = tlb
 	ENDELSE
 END
@@ -10415,8 +10494,11 @@ PRO CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).paths).opath_write = FILE_TEST((*(*info).paths).opath, /WRITE)
 	IF ((*(*info).paths).opath_write EQ 0) THEN BEGIN
-		CRISPEX_WINDOW_OK, event, 'ERROR!','You appear not to have write permissions to the current','output directory ('+(*(*info).paths).opath+').',$
-			'Please change the path before continuing saving.', OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb, /BLOCK
+		CRISPEX_WINDOW_OK, event, 'ERROR!',$
+      'You appear not to have write permissions to the current '+$
+      'output directory ('+(*(*info).paths).opath+'). '+$
+			'Please change the path before continuing saving.', $
+      OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb, /BLOCK
 		(*(*info).winids).errtlb = tlb
 	END
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).paths).opath_write],labels=['Output path writeable']
@@ -10450,7 +10532,9 @@ PRO CRISPEX_SAVE_GET_FILENAME, event, title, standard_filename, ok_event, sessio
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF ((*(*info).winids).savewintlb NE 0) THEN BEGIN
-		CRISPEX_WINDOW_OK, event, 'WARNING!','You are currently already saving output. Please finish','saving or discard the current saving procedure first,',$
+		CRISPEX_WINDOW_OK, event, 'WARNING!',$
+      'You are currently already saving output. Please finish '+$
+      'saving or discard the current saving procedure first, '+$
 			'before starting a new saving procedure.', OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).warntlb = tlb
 		RETURN
@@ -10490,7 +10574,9 @@ PRO CRISPEX_SAVE_CHECK_FILENAME, event, extension, ok_event, midtension=midtensi
 	existing = WHERE(STRPOS(csesfiles,(*(*info).paths).opath+full_session_filename) EQ 0)
 	IF (existing EQ -1) AND (session_filename NE '') AND (compressedfilename EQ full_session_filename)  AND ((*(*info).paths).opath_write EQ 1) THEN CRISPEX_SAVE_CONTINUE, event, session_filename $
 	ELSE IF (existing EQ -1) AND (session_filename EQ '') OR (compressedfilename NE full_session_filename) THEN BEGIN
-		CRISPEX_WINDOW_OK, event,'ERROR!','Invalid filename. Please enter a filename of','at least one character and without any white spaces.',$
+		CRISPEX_WINDOW_OK, event,'ERROR!',$
+      'Invalid filename. Please enter a filename of '+$
+      'at least one character and without any white spaces.',$
 			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).errtlb = tlb
 	ENDIF ELSE IF ((*(*info).paths).opath_write EQ 0) THEN CRISPEX_SAVE_CHECK_PATH_WRITE, event $
@@ -11727,25 +11813,33 @@ PRO CRISPEX_WINDOW, xsize, ysize, leader, title, base, wid, xoffset, yoffset, DR
 	WIDGET_CONTROL, drawid, GET_VALUE = wid
 END
 
-PRO CRISPEX_WINDOW_OK, event, title, message1, message2, message3, message4, message5, OK_EVENT=ok_event, CANCEL_EVENT=cancel_event, CANCEL_LABEL=cancel_label, BASE=base, BLOCK=block
+PRO CRISPEX_WINDOW_OK, event, title, message1, OK_EVENT=ok_event, CANCEL_EVENT=cancel_event, $
+  CANCEL_LABEL=cancel_label, BASE=base, BLOCK=block, NO_SHOW_EVENT=no_show_event, $
+  NO_SHOW_CHOICES=no_show_choices, SET_CHOICE_IDX=set_choice_idx
 ; Sets up the message windows with only an OK-button
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	fulltitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+STRTRIM(title,2)
-	base = WIDGET_BASE(TITLE = fulltitle, GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
+	base = WIDGET_BASE(TITLE = fulltitle, GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, $
+    /TLB_KILL_REQUEST_EVENTS)
 	disp = WIDGET_BASE(base, /COLUMN)
 	message_base = WIDGET_BASE(disp, /COLUMN)
-	text_label1 = WIDGET_LABEL(message_base, VALUE = message1)
-	IF (N_ELEMENTS(message2) GT 0) THEN text_label2 = WIDGET_LABEL(message_base, VALUE = message2)
-	IF (N_ELEMENTS(message3) GT 0) THEN text_label3 = WIDGET_LABEL(message_base, VALUE = message3)
-	IF (N_ELEMENTS(message4) GT 0) THEN text_label4 = WIDGET_LABEL(message_base, VALUE = message4)
-	IF (N_ELEMENTS(message5) GT 0) THEN text_label5 = WIDGET_LABEL(message_base, VALUE = message5)
+  final_msg = CRISPEX_SPLIT_MSG(message1, 50) ; Set maximum width in characters to 50
+  FOR j=0,N_ELEMENTS(final_msg)-1 DO $
+	  text_label = WIDGET_LABEL(message_base, VALUE = final_msg[j])
+  IF (N_ELEMENTS(NO_SHOW_EVENT) EQ 1) THEN BEGIN
+    divider = CRISPEX_WIDGET_DIVIDER(disp)
+    choice_base = WIDGET_BASE(disp, /ALIGN_CENTER)
+    choices = WIDGET_COMBOBOX(choice_base, VALUE=NO_SHOW_CHOICES, EVENT_PRO=NO_SHOW_EVENT)
+    IF (N_ELEMENTS(SET_CHOICE_IDX) EQ 1) THEN $
+      WIDGET_CONTROL, choices, SET_COMBOBOX_SELECT=set_choice_idx
+  ENDIF
 	IF (N_ELEMENTS(CANCEL_EVENT) GT 0) THEN BEGIN
 		IF (N_ELEMENTS(CANCEL_LABEL) NE 1) THEN cancel_label = 'Cancel'
 		button_base = WIDGET_BASE(disp,COLUMN=2,/GRID_LAYOUT,/ALIGN_CENTER) 
 		cancel_but = WIDGET_BUTTON(button_base, VALUE = cancel_label, EVENT_PRO = cancel_event)
 	ENDIF ELSE button_base = WIDGET_BASE(disp,/ROW,/ALIGN_CENTER)
-	ok_but = WIDGET_BUTTON(button_base, VALUE = 'OK' , EVENT_PRO = ok_event)
+	ok_but = WIDGET_BUTTON(button_base, VALUE = '   OK   ' , EVENT_PRO = ok_event)
 	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = 500, TLB_SET_YOFFSET = 500
 	WIDGET_CONTROL, base, SET_UVALUE = info
 	IF (N_ELEMENTS(BLOCK) NE 1) THEN block = 0
@@ -11970,6 +12064,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	default_bgplotcol = 255     &  default_plotcol = 0
 	default_phislice_update = 0 &  default_slices_imscale = 0
   default_histo_opt_val = 0.0001  & default_gamma_val = 1.0
+  default_warnings = 2  ; 0=no startup warnings, 1=warnings on cmd line, 2=warnings in pop-up
 	cpreffiles = FILE_SEARCH(dir_settings+'crispex.cpref', COUNT = cpreffilecount)
 	IF (cpreffilecount GE 1) THEN BEGIN     ; If preference file is present, load preference file
 		RESTORE, cpreffiles[0] 
@@ -11985,6 +12080,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		IF (N_ELEMENTS(histo_opt_val) NE 1) THEN histo_opt_val = default_histo_opt_val
     ; Gamma value
 		IF (N_ELEMENTS(gamma_val) NE 1) THEN gamma_val = default_gamma_val
+    ; Warnings
+		IF (N_ELEMENTS(warnings) NE 1) THEN warnings = default_warnings
 	ENDIF ELSE BEGIN                        ; If no preference file is present, set defaults
 		startupwin = default_startupwin           &  interpspslice = default_interpspslice
 		autoplay = default_autoplay               &  defsaveid = default_defsaveid
@@ -11992,6 +12089,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		bgplotcol = default_bgplotcol             &  plotcol = default_plotcol
 		phislice_update = default_phislice_update &  slices_imscale = default_slices_imscale
     histo_opt_val = default_histo_opt_val     &  gamma_val = default_gamma_val
+    warnings = default_warnings
 		resave_preferences = 0
 	ENDELSE
 
@@ -13856,8 +13954,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                           EVENT_PRO='CRISPEX_SLIDER_YPOS',/VERTICAL, YSIZE=imwiny)
   xpos_slider = WIDGET_SLIDER(draw_horslid_base,VALUE=0,MIN=0,MAX=1,/SUPPRESS,/DRAG,$
                           EVENT_PRO='CRISPEX_SLIDER_XPOS', XSIZE=imwinx)
-;    print,'t_slid post-widgets, pre-realize:'
-;    help,widget_info(t_slid,/geometry)
 	WIDGET_CONTROL, cpanel, /REALIZE, TLB_GET_SIZE=cpanel_size
   ; Determine window offsets based on realised control panel size and position
   ; If reference cube present, check if it would fit next to main image
@@ -13997,7 +14093,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		paths_i_def_but:0, paths_i_sav_but:0, paths_ipath_text:0, $
 		paths_o_def_but:0, paths_o_sav_but:0, paths_opath_text:0, $
 		paths_iopath:0, save_defsaveid:0, save_defsaveid_sample:0, $
-		set_defaults:0 $
+		set_defaults:0, warnings_cbox:0 $
 	}
 ;--------------------------------------------------------------------------------- RESTORE LOOPS CONTROLS 
 	ctrlsrestore = { $
@@ -14279,11 +14375,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		defipath:defipath, prefipath:prefipath, defopath:defopath, prefopath:prefopath, $
 		bgplotcol_old:bgplotcol, plotcol_old:plotcol, interpspslice_old:interpspslice, $
 		slices_imscale_old:slices_imscale, histo_opt_val:histo_opt_val, gamma_val:gamma_val, $
+    warnings:warnings, $
 		tmp_autoplay:autoplay, tmp_startupwin:startupwin, tmp_defsaveid:defsaveid, $
 		tmp_bgplotcol:bgplotcol, tmp_plotcol:plotcol, tmp_defipath:defipath, tmp_prefipath:prefipath, $
 		tmp_defopath:defopath, tmp_prefopath:prefopath, tmp_interpspslice:interpspslice, $
 		tmp_phislice_update:phislice_update, tmp_slices_imscale:slices_imscale, $								
-    tmp_histo_opt_val:histo_opt_val, tmp_gamma_val:gamma_val, $
+    tmp_histo_opt_val:histo_opt_val, tmp_gamma_val:gamma_val, tmp_warnings:warnings, $
 		default_autoplay:default_autoplay, default_startupwin:default_startupwin, $
 		default_bgplotcol:default_bgplotcol, default_plotcol:default_plotcol, $
 		default_defipath:default_defipath, default_prefipath:default_prefipath, $
@@ -14291,7 +14388,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		default_defsaveid:default_defsaveid, default_interpspslice:default_interpspslice, $
 		default_phislice_update:default_phislice_update, default_slices_imscale:default_slices_imscale, $
     default_histo_opt_val:default_histo_opt_val, default_gamma_val:default_gamma_val, $
-		preview:0 $					
+		default_warnings:default_warnings, preview:0 $					
 	}
 ;--------------------------------------------------------------------------------- RESTORED LOOPS PARAMS
 	restoreparams = { $
@@ -14664,10 +14761,24 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	CRISPEX_VERBOSE_SET_BUTTONS, pseudoevent
 
   ; Issue last warning/error messages before finishing setup
-  IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
-    CRISPEX_WINDOW_OK, pseudoevent, 'Warning', $
-      'Extreme aspect ratio detected with NX = 1. Stretching ',$
-      'x-dimension for easier visualisation: note that the',$
-      'image pixel aspect ratio is now inaccurate.', $
-			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW';, /BLOCK
+  ; Issue only if WARNINGS >= 1
+  IF ((*(*info).prefs).warnings GE 1) THEN BEGIN
+    msg = ''
+    IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
+      msg = 'Extreme aspect ratio detected with NX = 1. Stretching '+$
+        'x-dimension for easier visualisation: note that the '+$
+        'image pixel aspect ratio is now inaccurate.'
+    IF (STRCOMPRESS(msg) NE '') THEN BEGIN
+      IF ((*(*info).prefs).warnings EQ 1) THEN $
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, msg, /WARNING, /NO_ROUTINE, /NEWLINE $
+      ELSE $
+        CRISPEX_WINDOW_OK, pseudoevent, 'WARNING!', msg, $
+    			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW',$;, /BLOCK
+          NO_SHOW_EVENT='CRISPEX_PREFERENCES_SET_WARNINGS_SETUP', $
+          NO_SHOW_CHOICES=['Do not show set-up warnings',$
+            'Write set-up warnings to terminal only',$
+            'Always pop-up set-up warnings'], $
+          SET_CHOICE_IDX=(*(*info).prefs).warnings
+    ENDIF
+  ENDIF
 END
