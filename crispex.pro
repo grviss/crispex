@@ -1470,8 +1470,9 @@ PRO CRISPEX_DISPLAYS_INT_RESIZE, event
 ; Intensity versus time window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).intxres, (*(*info).winsizes).intyres, (*(*info).plotpos).intxmargin_init, (*(*info).plotpos).intxwall_init, $
-		intxres, intyres, intwidth, intheight, intx0, intx1, inty0, inty1, ERROR=error, /GOLDEN
+	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).intxres, $
+    (*(*info).winsizes).intyres, (*(*info).plotpos).intxmargin_init, (*(*info).plotpos).intxwall_init, $
+		intxres, intyres, intwidth, intheight, intx0, intx1, inty0, inty1, ERROR=error
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).intxres = intxres		& 	(*(*info).winsizes).intyres = intyres
 		(*(*info).plotpos).intx0 = intx0		&	(*(*info).plotpos).intx1 = intx1
@@ -1535,7 +1536,7 @@ PRO CRISPEX_DISPLAYS_LOOPSLAB_RESIZE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).loopxres, (*(*info).winsizes).loopyres, (*(*info).plotpos).loopxmargin_init, (*(*info).plotpos).loopxwall_init, $
-		loopxres, loopyres, loopwidth, loopheight, loopx0, loopx1, loopy0, loopy1, ERROR=error, /ACTUAL_RESIZE
+		loopxres, loopyres, loopwidth, loopheight, loopx0, loopx1, loopy0, loopy1, ERROR=error, /SLICE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).loopxres = loopxres			& 	(*(*info).winsizes).loopyres = loopyres
 		(*(*info).plotpos).loopx0 = loopx0			&	(*(*info).plotpos).loopx1 = loopx1
@@ -1603,7 +1604,8 @@ PRO CRISPEX_DISPLAYS_REFLOOPSLAB_RESIZE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).refloopxres, (*(*info).winsizes).refloopyres, (*(*info).plotpos).refloopxmargin_init, (*(*info).plotpos).refloopxwall_init, $
-		refloopxres, refloopyres, refloopwidth, refloopheight, refloopx0, refloopx1, refloopy0, refloopy1, ERROR=error, /ACTUAL_RESIZE
+		refloopxres, refloopyres, refloopwidth, refloopheight, refloopx0, refloopx1, refloopy0, $
+  refloopy1, ERROR=error, /SLICE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).refloopxres = refloopxres			& 	(*(*info).winsizes).refloopyres = refloopyres
 		(*(*info).plotpos).refloopx0 = refloopx0			&	(*(*info).plotpos).refloopx1 = refloopx1
@@ -1649,102 +1651,83 @@ PRO CRISPEX_DISPLAYS_REFLOOPSLAB, event, NO_DRAW=no_draw
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).reflooptlb,(*(*info).winids).refloopwid,(*(*info).winids).refloopdrawid], labels=['reflooptlb','refloopwid','refloopdrawid']
 END
 
-PRO CRISPEX_DISPLAYS_PLOT_RESIZE, event, new_xres_tmp, new_yres_tmp, init_xres, init_yres, init_xmargin, init_xwall, new_xres, new_yres, new_width, new_height, $
-	x0, x1, y0, y1, v_dop_set, INX0=inx0, INX1=inx1, INY0=iny0, INY1=iny1, ERROR=error, GOLDEN=golden, ACTUAL_RESIZE=actual_resize, DETSPECT=detspect, STOKES_SELECT=stokes_select
+PRO CRISPEX_DISPLAYS_PLOT_RESIZE, event, new_xres_tmp, new_yres_tmp, $
+  init_xres, init_yres, init_xmargin, init_xwall, new_xres, new_yres, new_width, new_height, $
+	x0, x1, y0, y1, v_dop_set, INX0=inx0, INX1=inx1, INY0=iny0, INY1=iny1, ERROR=error, $
+  SLICE=slice, DETSPECT=detspect, STOKES_SELECT=stokes_select
 ; Handles the display plot resizing
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (N_ELEMENTS(v_dop_set) NE 1) THEN v_dop_set = 0
-	IF KEYWORD_SET(ACTUAL_RESIZE) THEN BEGIN												; Used for display of loopslices
+	IF KEYWORD_SET(DETSPECT) THEN BEGIN												; If considering main detailed spectrum
+		curns = TOTAL((*(*info).stokesparams).select_sp)
+		IF KEYWORD_SET(STOKES_SELECT) THEN BEGIN
+			prevns = TOTAL((*(*info).stokesparams).prev_select_sp)
+			new_xres_tmp = init_xres											; Default: no change in xsize
+			new_yres_tmp = init_yres											; Default: no change in ysize
+			IF (v_dop_set EQ 1) THEN offset = init_xmargin ELSE offset = init_xwall
+			IF (prevns GT curns) THEN BEGIN											; If reducing the selected Stokes
+        ; If new number is 2, prev was 3
+				IF (curns EQ 2) THEN $
+          new_yres_tmp = (init_yres + offset - v_dop_set*init_xwall) / 2. $
+        ELSE IF (curns EQ 1) THEN $
+          new_xres_tmp = (init_xres + init_xwall) / 2. 				;If new number is 1, prev was 2
+			ENDIF ELSE BEGIN												; If increasing the selected Stokes
+        ; If new number is 3, prev was 2
+				IF (curns EQ 3) THEN $
+          new_yres_tmp = 2. * init_yres - offset + v_dop_set*init_xwall $
+        ELSE IF (curns EQ 2) THEN $
+          new_xres_tmp = 2. * init_xres - init_xwall					; If new number is 2, prev was 1
+			ENDELSE
+		ENDIF
+		IF (curns LE 2) THEN BEGIN
+			npanels = curns	&	cols = curns
+			rowarr = REPLICATE(0,curns)
+		ENDIF ELSE BEGIN
+			npanels = 4	&	cols = 2
+			rowarr = [1,1,0,0]
+		ENDELSE
+		rows = CEIL(npanels / FLOAT(cols))
+		x0 = FLTARR(npanels)
+		x1 = FLTARR(npanels)
+		y0 = FLTARR(npanels)
+		y1 = FLTARR(npanels)
+	ENDIF ELSE BEGIN														; All other plot windows
+		rows = 1	&	cols = 1
+	ENDELSE
+	dx = ABS(new_xres_tmp - init_xres)
+	dy = ABS(new_yres_tmp - init_yres)
+  ; Actual recalculation of plot area
+	IF ((dx NE 0) OR (dy NE 0)) THEN BEGIN
+		new_margin = init_xmargin/new_xres_tmp
+		new_wall = init_xwall/new_xres_tmp
 		new_xres = new_xres_tmp
 		new_yres = new_yres_tmp
-		new_margin = init_xmargin/new_xres
-		new_wall = init_xwall/new_xres
-		new_width = (1. - (new_margin + new_wall))
-		IF ((v_dop_set EQ 1) OR ((*(*info).dataparams).ns GT 1)) THEN new_height = (1. - (new_margin * 2.) * new_xres/new_yres) ELSE new_height = (1. - (new_margin + new_wall) * new_xres/new_yres)
-		x0 = new_margin
-		x1 = x0 + new_width
-		y0 = new_margin * new_xres/new_yres
-		y1 = y0 + new_height; * new_xres/new_yres 
-	ENDIF ELSE BEGIN															; Used for regular plots
-		IF KEYWORD_SET(DETSPECT) THEN BEGIN												; If considering main detailed spectrum
-			curns = TOTAL((*(*info).stokesparams).select_sp)
-			IF KEYWORD_SET(STOKES_SELECT) THEN BEGIN
-				prevns = TOTAL((*(*info).stokesparams).prev_select_sp)
-				new_xres_tmp = init_xres											; Default: no change in xsize
-				new_yres_tmp = init_yres											; Default: no change in ysize
-				IF (v_dop_set EQ 1) THEN offset = init_xmargin ELSE offset = init_xwall
-				IF (prevns GT curns) THEN BEGIN											; If reducing the selected Stokes
-					IF (curns EQ 2) THEN new_yres_tmp = (init_yres + offset - v_dop_set*init_xwall) / 2. ELSE $		; If new number is 2, prev was 3
-						IF (curns EQ 1) THEN new_xres_tmp = (init_xres + init_xwall) / 2. 				;If new number is 1, prev was 2
-				ENDIF ELSE BEGIN												; If increasing the selected Stokes
-					IF (curns EQ 3) THEN new_yres_tmp = 2. * init_yres - offset + v_dop_set*init_xwall ELSE $		; If new number is 3, prev was 2
-						IF (curns EQ 2) THEN new_xres_tmp = 2. * init_xres - init_xwall					; If new number is 2, prev was 1
-				ENDELSE
-			ENDIF
-			IF (curns LE 2) THEN BEGIN
-				npanels = curns	&	cols = curns
-				rowarr = REPLICATE(0,curns)
-			ENDIF ELSE BEGIN
-				npanels = 4	&	cols = 2
-				rowarr = [1,1,0,0]
-			ENDELSE
-			rows = CEIL(npanels / FLOAT(cols))
-			x0 = FLTARR(npanels)
-			x1 = FLTARR(npanels)
-			y0 = FLTARR(npanels)
-			y1 = FLTARR(npanels)
-		ENDIF ELSE BEGIN														; All other plot windows
-			rows = 1	&	cols = 1
+		new_width = (1 - (cols*new_margin + new_wall))/FLOAT(cols)
+			IF ((v_dop_set EQ 1) OR $
+        (KEYWORD_SET(SLICE) AND ((*(*info).dataparams).ns GT 1))) THEN $
+        new_height = (new_yres/FLOAT(new_xres) - (new_margin*(rows+1) + new_wall*(rows-1))) / $
+          FLOAT(rows) $
+      ELSE $
+        new_height = (new_yres/FLOAT(new_xres) - (new_wall + rows*new_margin) ) / FLOAT(rows)
+		IF KEYWORD_SET(DETSPECT) THEN BEGIN
+			x0 = new_margin + (INDGEN(npanels) MOD cols) * (new_width + new_margin) 
+			x1 = x0 + new_width 
+			y0 = (new_margin + rowarr * (new_height + new_margin + v_dop_set*new_wall)) * new_xres/new_yres
+			y1 = y0 + new_height * new_xres/new_yres
+		ENDIF ELSE BEGIN
+			x0 = new_margin 
+			x1 = x0 + new_width
+			y0 = new_margin * new_xres/new_yres
+			y1 = y0 + new_height * new_xres/new_yres 
 		ENDELSE
-		dx = ABS(new_xres_tmp - init_xres)
-		dy = ABS(new_yres_tmp - init_yres)
-		IF (dx GT dy) THEN BEGIN
-			new_margin = init_xmargin/new_xres_tmp
-			new_wall = init_xwall/new_xres_tmp
-			new_xres = new_xres_tmp
-			new_width = (1 - (cols*new_margin + new_wall))/FLOAT(cols)
-			IF KEYWORD_SET(GOLDEN) THEN new_height = new_width * 2D / (1 + SQRT(5)) ELSE BEGIN
-				IF (v_dop_set EQ 1) THEN new_height = (1. - (new_margin * 2.)) ELSE new_height = (1. - (new_margin + new_wall))
-			ENDELSE
-			IF (v_dop_set EQ 1) THEN new_yres = ((rows+1) * new_margin + rows*new_height + (rows-1)*new_wall) * new_xres ELSE new_yres = (new_wall + rows*new_height + rows*new_margin) * new_xres
-			IF KEYWORD_SET(DETSPECT) THEN BEGIN
-				x0 = new_margin * new_xres/new_xres + (INDGEN(npanels) MOD cols) * (new_width + new_margin) * new_xres/new_xres
-				x1 = x0 + new_width * new_xres/new_xres
-				y0 = new_margin * new_xres/new_yres + rowarr * (new_height + new_margin + v_dop_set*new_wall) * new_xres/new_yres
-				y1 = y0 + new_height * new_xres/new_yres
-			ENDIF ELSE BEGIN
-				x0 = new_margin 
-				x1 = x0 + new_width
-				y0 = new_margin * new_xres/new_yres
-				y1 = y0 + new_height * new_xres/new_yres 
-			ENDELSE
-		ENDIF ELSE IF (dx LT dy) THEN BEGIN
-			new_margin = init_xmargin/new_yres_tmp
-			new_wall = init_xwall/new_yres_tmp
-			new_yres = new_yres_tmp
-			IF (v_dop_set EQ 1) THEN new_height = (1. - ((rows+1)*new_margin + (rows-1)*new_wall))/FLOAT(rows) ELSE new_height = (1. - (rows*new_margin + new_wall))/FLOAT(rows)
-			IF KEYWORD_SET(GOLDEN) THEN new_width = new_height / 2D * (1 + SQRT(5)) ELSE new_width = (1. - (new_margin + new_wall))
-			new_xres = (cols*new_margin + cols*new_width + new_wall) * new_yres
-			IF KEYWORD_SET(DETSPECT) THEN BEGIN
-				x0 = new_margin * new_yres/new_xres + (INDGEN(npanels) MOD cols) * (new_width + new_margin) * new_yres/new_xres
-				x1 = x0 + new_width * new_yres/new_xres
-				y0 = new_margin + rowarr * (new_height + new_margin + v_dop_set*new_wall)
-				y1 = y0 + new_height
-			ENDIF ELSE BEGIN
-				x0 = new_margin * new_yres/new_xres
-				x1 = x0 + new_width * new_yres/new_xres
-				y0 = new_margin
-				y1 = y0 + new_height
-			ENDELSE
-		ENDIF ELSE BEGIN															; If no change in size (Stokes select)
-			x0 = inx0	&	x1 = inx1
-			y0 = iny0	&	y1 = iny1
-			new_xres = new_xres_tmp
-			new_yres = new_yres_tmp
-			new_width = inx1[0] - inx0[0]
-			new_height = iny1[0] - iny0[0]
-		ENDELSE
+	ENDIF ELSE BEGIN															; If no change in size (Stokes select)
+		x0 = inx0	&	x1 = inx1
+		y0 = iny0	&	y1 = iny1
+		new_xres = new_xres_tmp
+		new_yres = new_yres_tmp
+		new_width = inx1[0] - inx0[0]
+		new_height = iny1[0] - iny0[0]
 	ENDELSE
 	dxpl = x1[0] - x0[0]	&	dypl = y1[0] - y0[0]
 	IF ((dxpl LE 0) OR (dypl LE 0) OR (x0[0] LE 0) OR (y0[0] LE 0)) THEN error = 1 ELSE error = 0
@@ -1759,9 +1742,12 @@ PRO CRISPEX_DISPLAYS_LS_RESIZE, event, STOKES_SELECT=stokes_select
 	ENDIF ELSE BEGIN
 		newlsxres = event.X		&	newlsyres = event.Y
 	ENDELSE
-	CRISPEX_DISPLAYS_PLOT_RESIZE, event, newlsxres, newlsyres, (*(*info).winsizes).lsxres, (*(*info).winsizes).lsyres, (*(*info).plotpos).lsxmargin_init, (*(*info).plotpos).lsxwall_init, lsxres, lsyres, lswidth, lsheight, $
-		lsx0, lsx1, lsy0, lsy1, (*(*info).plotswitch).v_dop_set, INX0=(*(*info).plotpos).lsx0, INX1=(*(*info).plotpos).lsx1, INY0=(*(*info).plotpos).lsy0, INY1=(*(*info).plotpos).lsy1, ERROR=error, $
-		/GOLDEN, /DETSPECT, STOKES_SELECT=stokes_select
+	CRISPEX_DISPLAYS_PLOT_RESIZE, event, newlsxres, newlsyres, (*(*info).winsizes).lsxres, $
+    (*(*info).winsizes).lsyres, (*(*info).plotpos).lsxmargin_init, $
+    (*(*info).plotpos).lsxwall_init, lsxres, lsyres, lswidth, lsheight, $
+		lsx0, lsx1, lsy0, lsy1, (*(*info).plotswitch).v_dop_set, INX0=(*(*info).plotpos).lsx0, $
+    INX1=(*(*info).plotpos).lsx1, INY0=(*(*info).plotpos).lsy0, INY1=(*(*info).plotpos).lsy1, $
+    ERROR=error, /DETSPECT, STOKES_SELECT=stokes_select
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).lsxres = lsxres	& 	(*(*info).winsizes).lsyres = lsyres
 		(*(*info).plotpos).lsx0 = lsx0		&	(*(*info).plotpos).lsx1 = lsx1
@@ -1952,7 +1938,8 @@ PRO CRISPEX_DISPLAYS_PHIS_RESIZE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).phisxres, (*(*info).winsizes).phisyres, (*(*info).plotpos).phisxmargin_init, (*(*info).plotpos).phisxwall_init, $
-		phisxres, phisyres, phiswidth, phisheight, phisx0, phisx1, phisy0, phisy1, (*(*info).plotswitch).v_dop_set, ERROR=error, /ACTUAL_RESIZE
+		phisxres, phisyres, phiswidth, phisheight, phisx0, phisx1, phisy0, phisy1, $
+  (*(*info).plotswitch).v_dop_set, ERROR=error, /SLICE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).phisxres = phisxres			& 	(*(*info).winsizes).phisyres = phisyres
 		(*(*info).plotpos).phisx0 = phisx0			&	(*(*info).plotpos).phisx1 = phisx1
@@ -2085,7 +2072,8 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_RESIZE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).restloopxres, (*(*info).winsizes).restloopyres, (*(*info).plotpos).restloopxmargin_init, (*(*info).plotpos).restloopxwall_init, $
-		restloopxres, restloopyres, restloopwidth, restloopheight, restloopx0, restloopx1, restloopy0, restloopy1, ERROR=error, /ACTUAL_RESIZE
+		restloopxres, restloopyres, restloopwidth, restloopheight, restloopx0, restloopx1, restloopy0, $
+  restloopy1, ERROR=error, /SLICE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).restloopxres = restloopxres			& 	(*(*info).winsizes).restloopyres = restloopyres
 		(*(*info).plotpos).restloopx0 = restloopx0			&	(*(*info).plotpos).restloopx1 = restloopx1
@@ -2428,7 +2416,8 @@ PRO CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB_RESIZE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).retrdetxres, (*(*info).winsizes).retrdetyres, (*(*info).plotpos).retrdetxmargin_init, (*(*info).plotpos).retrdetxwall_init, $
-		retrdetxres, retrdetyres, retrdetwidth, retrdetheight, retrdetx0, retrdetx1, retrdety0, retrdety1, ERROR=error, /ACTUAL_RESIZE
+		retrdetxres, retrdetyres, retrdetwidth, retrdetheight, retrdetx0, retrdetx1, retrdety0, $
+  retrdety1, ERROR=error, /SLICE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).retrdetxres = retrdetxres			& 	(*(*info).winsizes).retrdetyres = retrdetyres
 		(*(*info).plotpos).retrdetx0 = retrdetx0			&	(*(*info).plotpos).retrdetx1 = retrdetx1
@@ -2491,8 +2480,10 @@ PRO CRISPEX_DISPLAYS_REFLS_RESIZE, event
 ; Detailed spectrum window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).reflsxres, (*(*info).winsizes).reflsyres, (*(*info).plotpos).reflsxmargin_init, (*(*info).plotpos).reflsxwall_init, $
-		reflsxres, reflsyres, reflswidth, reflsheight, reflsx0, reflsx1, reflsy0, reflsy1, (*(*info).plotswitch).v_dop_set_ref, ERROR=error, /GOLDEN
+	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).reflsxres, $
+    (*(*info).winsizes).reflsyres, (*(*info).plotpos).reflsxmargin_init, $
+    (*(*info).plotpos).reflsxwall_init, reflsxres, reflsyres, reflswidth, reflsheight, $
+    reflsx0, reflsx1, reflsy0, reflsy1, (*(*info).plotswitch).v_dop_set_ref, ERROR=error
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).reflsxres = reflsxres	& 	(*(*info).winsizes).reflsyres = reflsyres
 		(*(*info).plotpos).reflsx0 = reflsx0		&	(*(*info).plotpos).reflsx1 = reflsx1
@@ -2614,7 +2605,8 @@ PRO CRISPEX_DISPLAYS_REFSP_RESIZE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).refspxres, (*(*info).winsizes).refspyres, (*(*info).plotpos).refspxmargin_init, (*(*info).plotpos).refspxwall_init, $
-		refspxres, refspyres, refspwidth, refspheight, refspx0, refspx1, refspy0, refspy1, (*(*info).plotswitch).v_dop_set_ref, ERROR=error, /ACTUAL_RESIZE
+		refspxres, refspyres, refspwidth, refspheight, refspx0, refspx1, refspy0, refspy1, $
+  (*(*info).plotswitch).v_dop_set_ref, ERROR=error, /SLICE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).refspxres = refspxres		& 	(*(*info).winsizes).refspyres = refspyres
 		(*(*info).plotpos).refspx0 = refspx0			&	(*(*info).plotpos).refspx1 = refspx1
@@ -2812,7 +2804,8 @@ PRO CRISPEX_DISPLAYS_SP_RESIZE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).spxres, (*(*info).winsizes).spyres, (*(*info).plotpos).spxmargin_init, (*(*info).plotpos).spxwall_init, $
-		spxres, spyres, spwidth, spheight, spx0, spx1, spy0, spy1, (*(*info).plotswitch).v_dop_set, ERROR=error, /ACTUAL_RESIZE
+		spxres, spyres, spwidth, spheight, spx0, spx1, spy0, spy1, (*(*info).plotswitch).v_dop_set, $
+  ERROR=error, /SLICE
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).spxres = spxres		& 	(*(*info).winsizes).spyres = spyres
 		(*(*info).plotpos).spx0 = spx0			&	(*(*info).plotpos).spx1 = spx1
@@ -12583,18 +12576,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	IF (hdr.mainnt GE 50) THEN windowy = imwiny ELSE windowy = imwiny/2. > (y_scr_size/2.)
 	lswinx 		= 0.2 * x_scr_size											; Set maximum x-extent of loc spec win
 
-  ;; If reference cube present, check if it would fit next to main image
-  ;refxoffset = 0
-  ;refyoffset = 0
-  ;IF hdr.showref THEN BEGIN
-  ;  windows_xextent = imwinx*2 + windowx + lswinx + xdelta*3
-  ;  IF (windows_xextent LE x_scr_size) THEN refxoffset = imwinx + 2*xdelta $
-  ;    ELSE refyoffset = ydelta
-  ;ENDIF ELSE windows_xextent = imwinx + windowx + lswinx + xdelta*2
-
-	;spxoffset = imwinx + refxoffset + (1+(windows_xextent GT x_scr_size))*xdelta
-	;lsxoffset = spxoffset + windowx + xdelta
-
 	xswinx		= windowx												; Set maximum x-extent of x-slice window
 	xswiny		= windowy												; Set maximum y-extent of x-slice window
 
@@ -12614,15 +12595,15 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	lsx1 = FLTARR(npanels)
 	lsy0 = FLTARR(npanels)
 	lsy1 = FLTARR(npanels)
-	lswidth = (xsize/lswinx - (cols*lsmargin + lswall))/FLOAT(cols)
+	lswidth = (1. - (cols*lsmargin + lswall))/FLOAT(cols)
 	lsheight = lswidth * 2D / (1 + SQRT(5))
 	IF (hdr.v_dop_set[0] EQ 1) THEN $
     lswiny = (lsmargin + rows*lsheight + rows*lsmargin + (rows-1)*lswall) * lswinx $
   ELSE $
     lswiny = (lswall + rows*lsheight + rows*lsmargin) * lswinx
-	lsx0 		= lsmargin * lswinx/lswinx + (INDGEN(npanels) MOD cols) * (lswidth + lsmargin) * lswinx/lswinx
-	lsx1 		= lsx0 + lswidth * lswinx/lswinx
-	lsy0 		= lsmargin * lswinx/lswiny + rowarr * (lsheight + lsmargin + hdr.v_dop_set[0]*lswall) * lswinx/lswiny
+	lsx0 		= lsmargin + (INDGEN(npanels) MOD cols) * (lswidth + lsmargin) 
+	lsx1 		= lsx0 + lswidth 
+	lsy0 		= (lsmargin + rowarr * (lsheight + lsmargin + hdr.v_dop_set[0]*lswall)) * lswinx/lswiny
 	lsy1 		= lsy0 + lsheight * lswinx/lswiny
 	lsxmargin_init	= lsmargin * lswinx
 	lsxwall_init	= lswall * lswinx
@@ -12637,8 +12618,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     reflswiny = (lsmargin + reflsheight + lsmargin) * lswinx $
   ELSE $
     reflswiny = (lsmargin + reflsheight + lswall) * lswinx
-	reflsx0 	= lsmargin * reflswinx/reflswinx 
-	reflsx1 	= reflsx0 + reflswidth * reflswinx/reflswinx
+	reflsx0 	= lsmargin 
+	reflsx1 	= reflsx0 + reflswidth 
 	reflsy0 	= lsmargin * reflswinx/reflswiny
 	reflsy1 	= reflsy0 + reflsheight * reflswinx/reflswiny
 	reflsxmargin_init= lsmargin * reflswinx
@@ -12650,8 +12631,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	intheight 	= intwidth * 2D / (1 + SQRT(5))
 	intwinx		= lswinx
 	intwiny 	= (lsmargin + intheight + lswall) * intwinx
-	intx0 		= lsmargin * intwinx/intwinx 
-	intx1 		= intx0 + intwidth * intwinx/intwinx
+	intx0 		= lsmargin 
+	intx1 		= intx0 + intwidth 
 	inty0 		= lsmargin * intwinx/intwiny
 	inty1	 	= inty0 + intheight * intwinx/intwiny
 	intxmargin_init	= lsmargin * intwinx
@@ -12686,8 +12667,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     refspheight = (1. - (spmargin + spwall) * spwinx/spwiny)
 	refspwiny	= imwiny-lswiny ;windowy
 
-	spx0 		= spmargin * spwinx/spwinx 
-	spx1 		= spx0 + spwidth * spwinx/spwinx
+	spx0 		= spmargin 
+	spx1 		= spx0 + spwidth 
 	spy0 		= spmargin * spwinx/spwiny
 	spy1 		= spy0 + spheight; * spwinx/spwiny
 	xplspw		= spx1 - spx0												; x-extent of the plot
