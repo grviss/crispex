@@ -1928,7 +1928,7 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
       ENDIF ELSE $
   			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).phisxticklen, XRANGE = xrange, XSTYLE=1, $
           XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol, $
-          XTICKNAME=xtickname
+          XTICKNAME=REPLICATE(' ',60)
     ENDFOR
   ENDIF
 END
@@ -2593,7 +2593,7 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
       ENDIF ELSE $
   			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).refspxticklen, XRANGE = xrange, XSTYLE=1, $
           XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol, $
-          XTICKNAME=xtickname
+          XTICKNAME=REPLICATE(' ',60)
     ENDFOR
   ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
@@ -2792,7 +2792,7 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
       ENDIF ELSE $
   			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).spxticklen, XRANGE = xrange, XSTYLE=1, $
           XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol, $
-          XTICKNAME=xtickname
+          XTICKNAME=REPLICATE(' ',60)
     ENDFOR
   ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
