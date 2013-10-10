@@ -13200,8 +13200,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                   SIZE(hdr.tarr_raster_ref,/N_DIMENSIONS), 2]
   setbutton = [1,0,0]
   FOR i=0,N_ELEMENTS(master_time_labels)-1 DO $
-    WIDGET_CONTROL, master_time_ids[i], SENSITIVE=(showdata[i] AND (nrasterdims[i] EQ 2)), $
-    SET_BUTTON=setbutton[i]
+    WIDGET_CONTROL, master_time_ids[i], SET_BUTTON=setbutton[i], $
+    SENSITIVE=(showdata[i] AND ((nrasterdims[i] EQ 2) AND (TOTAL((nrasterdims EQ 2)[0:1]) GT 0)))
   IF (nrasterdims[0] EQ 2) THEN $
     toffset_max = N_ELEMENTS(hdr.tarr_raster_main[*,0])-1 $
   ELSE $
@@ -13721,8 +13721,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		  t_idx_val = WIDGET_LABEL(params_main_base, VALUE=STRING(LONG(t_start),$
         FORMAT=t_idx_format), /ALIGN_RIGHT)
       IF dt_set THEN BEGIN
-        t_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_main[$
-          (WHERE(hdr.tarr_main GT 0))[-1]]))+3,2)+'.1)'
+        IF (hdr.mainnt GT 1) THEN $
+          t_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_main[$
+            (WHERE(hdr.tarr_main GT 0))[-1]]))+3,2)+'.1)' $
+        ELSE $
+          t_real_format = '(F3.1)'
         t_real_txt = STRING(hdr.tarr_main[t_start], FORMAT=t_real_format)
 		    t_real_val = WIDGET_LABEL(params_main_base, VALUE=t_real_txt, /ALIGN_RIGHT)
       ENDIF ELSE BEGIN
