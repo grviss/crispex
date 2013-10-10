@@ -172,8 +172,8 @@
 ;
 ; RESTRICTIONS:
 ;   Requires the following procedures and functions:
-;     Functions: HISTO_OPT()                  [general]
-;                FITSPOINTER(), READFITS()    [if reading FITS cubes]
+;     Functions: HISTO_OPT()    [general]
+;                READFITS()     [if reading FITS cubes]
 ;
 ; PROCEDURE:
 ;   In default setting, four windows are opened, one control panel and three subsidiary windows 
@@ -552,6 +552,167 @@ FUNCTION CRISPEX_READ_BMP_BUTTONS, filename, srcdir
 	RETURN, button_dummy
 END
 
+
+;------------------------- IO FUNCTIONS
+FUNCTION CRISPEX_FITSPOINTER, filename, header, EXTEN_NO=exten_no, SILENT=silent
+;	Finds starting position of data block in extension number exten_no in fits files 
+; Based on earlier FITSPOINTER.PRO, modification history:
+;   v1.0 20-Sep-2012 Viggo Hansteen - first version
+;   v1.1 27-Sep-2013 Mats Carlsson - added to CRISPEX directory
+; Incorporated functionality into CRISPEX on 10-Oct-2013
+  IF N_PARAMS() LT 1 THEN BEGIN
+    MESSAGE,'fitspointer,filename ,header,exten_no=exten_no,silent=silent',/CONT
+    RETURN,-1
+  ENDIF
+    
+  doheader=ARG_PRESENT(header)
+  IF N_ELEMENTS(exten_no) EQ 0 THEN exten_no=0L  
+  silent=KEYWORD_SET(silent)
+
+  OPENR, unit, filename, ERROR=error,/GET_LUN
+  IF error NE 0 then begin
+    MESSAGE,/CON,' ERROR - Unable to locate file ' + filename
+    RETURN, -1
+  ENDIF
+
+;  Handle Unix or Fpack compressed files which will be opened via a pipe using
+;  the SPAWN command. 
+;  ViggoH 19092012: This piece of code can be uncommented at a later date if we want to
+;  include this capability...
+
+  ;; if unixZ then begin
+  ;;               free_lun, unit
+  ;;               spawn, 'gzip -cd '+filename, unit=unit                 
+  ;;               gzip = 1b
+  ;; endif else if fcompress then begin 
+  ;;               free_lun, unit
+  ;;               spawn,'funpack -S ' + filename, unit=unit,/sh
+  ;;               if eof(unit) then begin 
+  ;;                 message,'Error spawning FPACK decompression',/CON
+  ;;                 free_lun,unit
+  ;;                 return,-1
+  ;;                endif    
+  ;;       endif   
+  ;; endelse
+
+  hbuf=36
+  datapointer=0L
+
+  FOR ext = 0L, exten_no DO BEGIN
+               
+;  Read the next header, and get the number of bytes taken up by the data.
+
+    block = STRING(REPLICATE(32b,80,36))
+    w = [-1]
+    header = STRARR(36)
+    headerblock = 0L
+    i = 0L      
+
+    WHILE w[0] EQ -1 DO BEGIN
+          
+      IF EOF(unit) THEN BEGIN 
+            MESSAGE,/CON, $
+               'EOF encountered attempting to read extension ' + STRTRIM(ext,2)
+            FREE_LUN,unit
+            RETURN,-1
+      ENDIF
+
+      READU, unit, block
+      headerblock = headerblock + 1
+      w = WHERE(STRLEN(block) NE 80, Nbad)
+      IF (Nbad GT 0) THEN BEGIN
+           MESSAGE,'Warning-Invalid characters in header',/INF,NoPrint=Silent
+           block[w] = STRING(REPLICATE(32b, 80))
+      ENDIF
+      w = where(strcmp(block,'END     ',8), Nend)
+      IF (headerblock EQ 1) || ((ext EQ exten_no) && (doheader)) THEN BEGIN
+        IF Nend GT 0 THEN  BEGIN
+          IF headerblock EQ 1 THEN header = block[0:w[0]]   $
+          ELSE header = [header[0:i-1],block[0:w[0]]]
+       ENDIF ELSE BEGIN
+         header[i] = block
+         i = i+36
+         IF i MOD hbuf EQ 0 THEN header = [header,strarr(hbuf)]
+       ENDELSE
+      ENDIF
+      datapointer=datapointer+2880L
+    ENDWHILE
+
+    IF (ext EQ 0 ) THEN $
+      IF STRMID( header[0], 0, 8)  NE 'SIMPLE  ' THEN BEGIN
+        MESSAGE,/CON, $
+           'ERROR - Header does not contain required SIMPLE keyword'
+      IF ~unitsupplied THEN FREE_LUN, unit
+      RETURN, -1
+    ENDIF
+             
+; Get parameters that determine size of data region.
+                
+    bitpix =  SXPAR(header,'BITPIX')
+    byte_elem = ABS(bitpix)/8               ;Bytes per element
+    naxis  = SXPAR(header,'NAXIS')
+    gcount = SXPAR(header,'GCOUNT') > 1
+    pcount = SXPAR(header,'PCOUNT')
+                
+    IF naxis GT 0 THEN BEGIN 
+      dims = SXPAR( header,'NAXIS*')           ;Read dimensions
+      ndata = PRODUCT(dims,/integer)
+    ENDIF ELSE ndata = 0
+                
+    nbytes = byte_elem * gcount * (pcount + ndata)
+
+;  Move to the next extension header in the file.   Use MRD_SKIP to skip with
+;  fastest available method (POINT_LUN or readu) for different file
+;  types (regular, compressed, Unix pipe, socket) 
+
+    IF ext LT exten_no THEN BEGIN
+      nrec = LONG64((nbytes + 2879) / 2880)
+      IF nrec GT 0 THEN mrd_skip, unit, nrec*2880L
+      datapointer=datapointer+nrec*2880L    
+   ENDIF
+  ENDFOR
+
+  CASE BITPIX OF 
+           8:   IDL_type = 1          ; Byte
+          16:   IDL_type = 2          ; Integer*2
+          32:   IDL_type = 3          ; Integer*4
+          64:   IDL_type = 14         ; Integer*8
+         -32:   IDL_type = 4          ; Real*4
+         -64:   IDL_type = 5          ; Real*8
+        ELSE:   BEGIN
+                MESSAGE,/CON, 'ERROR - Illegal value of BITPIX (= ' +  $
+                STRTRIM(bitpix,2) + ') in FITS header'
+                IF ~unitsupplied THEN FREE_LUN,unit
+                RETURN, -1
+                END
+  ENDCASE     
+ 
+  IF nbytes EQ 0 THEN BEGIN
+    IF ~SILENT THEN MESSAGE, $
+         "FITS header has NAXIS or NAXISi = 0,  no data array read",/CON
+    FREE_LUN, unit
+    RETURN,-1
+  ENDIF
+
+  IF exten_no GT 0 THEN BEGIN
+    xtension = STRTRIM( SXPAR( header, 'XTENSION' , Count = N_ext),2)
+    IF N_ext EQ 0 THEN MESSAGE, /INF, NoPRINT = Silent, $
+          'WARNING - Header missing XTENSION keyword'
+  ENDIF 
+
+  IF ~SILENT THEN BEGIN   ;Print size of array being read
+    IF exten_no GT 0 THEN MESSAGE, $
+             'Reading FITS extension of type ' + xtension, /INF  
+    IF N_elements(dims) EQ 1 THEN $
+        st = 'Now reading ' + STRTRIM(dims,2) + ' element vector' ELSE $                 
+        st = 'Now reading ' + STRJOIN(STRTRIM(dims,2),' by ') + ' array'
+        IF (exten_no GT 0) && (pcount GT 0) THEN st = st + ' + heap area'
+        MESSAGE,/INF,st   
+  ENDIF
+  FREE_LUN, unit
+  RETURN,datapointer  
+END
+
 ;------------------------- SCALING FUNCTIONS
 FUNCTION CRISPEX_SCALING_CONTRAST, minimum_init, maximum_init, $
   minimum_perc, maximum_perc
@@ -739,9 +900,14 @@ PRO CRISPEX_CLOSE, event
 	ENDELSE
 	FREE_LUN, (*(*info).data).lunim
 	IF (*(*info).dataswitch).spfile THEN FREE_LUN, (*(*info).data).lunsp
-	IF ((*(*info).winswitch).showref AND ((*(*info).data).lunrefim GT 0)) THEN FREE_LUN, (*(*info).data).lunrefim
-	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)) THEN FREE_LUN, (*(*info).data).lunrefsp
-	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)) THEN FREE_LUN, (*(*info).data).lunmask
+	IF ((*(*info).dataswitch).reffile AND ((*(*info).data).lunrefim GT 0)) THEN $
+    FREE_LUN, (*(*info).data).lunrefim
+	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)) THEN $
+    FREE_LUN, (*(*info).data).lunrefsp
+	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)) THEN $
+    FREE_LUN, (*(*info).data).lunmask
+	IF ((*(*info).dataswitch).sjifile AND ((*(*info).data).lunsji GT 0)) THEN $
+    FREE_LUN, (*(*info).data).lunsji
 	WIDGET_CONTROL, (*(*info).winids).root, /DESTROY
 	PTR_FREE, info
 END
@@ -751,9 +917,14 @@ PRO CRISPEX_CLOSE_CLEANUP, base
 	WIDGET_CONTROL, base, GET_UVALUE = info
 	FREE_LUN, (*(*info).data).lunim
 	IF (*(*info).dataswitch).spfile THEN FREE_LUN, (*(*info).data).lunsp
-	IF ((*(*info).winswitch).showref AND ((*(*info).data).lunrefim GT 0)) THEN FREE_LUN, (*(*info).data).lunrefim
-	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)) THEN FREE_LUN, (*(*info).data).lunrefsp
-	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)) THEN FREE_LUN, (*(*info).data).lunmask
+	IF ((*(*info).dataswitch).reffile AND ((*(*info).data).lunrefim GT 0)) THEN $
+    FREE_LUN, (*(*info).data).lunrefim
+	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)) THEN $
+    FREE_LUN, (*(*info).data).lunrefsp
+	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)) THEN $
+    FREE_LUN, (*(*info).data).lunmask
+	IF ((*(*info).dataswitch).sjifile AND ((*(*info).data).lunsji GT 0)) THEN $
+    FREE_LUN, (*(*info).data).lunsji
 	CRISPEX_CLOSE_CLEAN_INSTANCE_FILE, (*(*info).paths).dir_settings_write, $
   (*(*info).paths).dir_settings, (*(*info).paths).hostname, ((*(*info).sesparams).curr_instance_id)[0]
 	PTR_FREE, info
@@ -7666,7 +7837,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
 ; Handles read-in of file header, running different parsing depending on CUBE_COMPATIBILITY setting
   ; Start filling data header structure with header info from inputfile
   IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN
-    offset = FITSPOINTER(filename, EXTEN_NO=exten_no, header, /SILENT)   ; Get header offset to data
+    offset = CRISPEX_FITSPOINTER(filename, EXTEN_NO=exten_no, header, /SILENT)   ; Get header offset to data
     CRISPEX_READ_FITSHEADER, header, key, filename, $                    ; Parse FITS header into key struct
       IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, REFSPCUBE=refspcube, $
       SJICUBE=sjicube, VERBOSE=hdr_out.verbosity[1]
@@ -14112,7 +14283,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		emptydopslice:emptydopslice, scan:hdr.scan, phiscan:phiscan, phislice:phislice, $				
     sjidata:hdr.sjidata, sjislice:hdr.sjislice, $
 		indexmap:indexmap, indices:indices, ratio:ratio, $
-		lunsp:hdr.lunsp, lunim:hdr.lunim, lunrefim:hdr.lunrefim, lunrefsp:hdr.lunrefsp, lunmask:hdr.lunmask $
+		lunsp:hdr.lunsp, lunim:hdr.lunim, lunrefim:hdr.lunrefim, lunrefsp:hdr.lunrefsp, $
+    lunsji:hdr.lunsji, lunmask:hdr.lunmask $
 	}
 ;--------------------------------------------------------------------------------- DATA PARAMETERS
 	dataparams = { $
