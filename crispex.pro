@@ -11360,7 +11360,7 @@ PRO CRISPEX_SLIDER_T, event
 		ENDELSE
 	ENDIF 
   IF ((*(*info).dataswitch).spfile EQ 0) THEN CRISPEX_UPDATE_SSP, event
-  IF ((*(*info).dataswitch).refspfile EQ 0) THEN CRISPEX_UPDATE_REFSSP, event
+  IF ((*(*info).winswitch).showrefls AND ((*(*info).dataswitch).refspfile EQ 0)) THEN CRISPEX_UPDATE_REFSSP, event
   CRISPEX_DRAW, event, NO_PHIS=event.DRAG
 END
 
