@@ -277,7 +277,7 @@
 ; AUTHOR:
 ;	  Gregal Vissers (g.j.m.vissers@astro.uio.no)
 ;	  @ Institute of Theoretical Astrophysics, University of Oslo
-;   $Id$
+;   
 ;-
 
 ;========================= CRISPEX FUNCTIONS
@@ -12226,7 +12226,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	base_version_number = '1.6.3'
   
   ; Get revision number from CVS $Id
-  SPAWN,"grep '$Id' "+file_crispex, id_string
+  id_string='; $Id$'
   split_id_string = STRSPLIT(id_string[0],' ',/EXTRACT)
   cvs_idn = split_id_string[3]
   cvs_rev = (STRSPLIT(cvs_idn,'.',/EXTRACT))[1]
