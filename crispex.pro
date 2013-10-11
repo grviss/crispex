@@ -12180,16 +12180,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
               WINDOW_LARGE=window_large, $    ; draw large windows for small cubes
               VERBOSE=verbose                 ; program verbosity
 
-;========================= PROGRAM-INFO ON CALL W/O PARAMS
-	IF N_PARAMS() LT 1 THEN BEGIN
-		MESSAGE,'Syntax: CRISPEX, imcube, spcube, REFCUBE=refcube, MASKCUBE=maskcube, '+$
-            'SPECTFILE=spectfile, LINE_CENTER=line_center, DT=dt, EXTS=exts, MNSPEC=mnspec, '+$
-            'SINGLE_CUBE=single_cube, SCALE_STOKES=scale_stokes, NO_WARP=no_warp, '+$
-            'SCALE_CUBES=scale_cubes, XTITLE=xtitle, YTITLE=ytitle, WINDOW_LARGE=window_large, '+$
-            'VERBOSE=verbose', /INFO
-		RETURN
-	ENDIF
-
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
 		IF (N_ELEMENTS(VERBOSE) GT 1) THEN $
@@ -12214,15 +12204,38 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK,'CRISPEX has been compiled from: '+file_crispex
 
 ;========================= VERSION AND REVISION NUMBER
-	version_number = '1.6.3'
+  ; Version 1.6.3 (rev 571) == version 1.6.3.0
+	base_version_number = '1.6.3'
+  
   ; Get revision number from CVS $Id
   SPAWN,"grep '$Id' "+file_crispex, id_string
-  cvs_idn = (STRSPLIT(id_string[0],' ',/EXTRACT))[3]
+  split_id_string = STRSPLIT(id_string[0],' ',/EXTRACT)
+  cvs_idn = split_id_string[3]
   cvs_rev = (STRSPLIT(cvs_idn,'.',/EXTRACT))[1]
-  revision_number = STRTRIM(634L+LONG(cvs_rev)-64L,2)   ; rev_nr=634, cvs_rev=64 when implemented
+  cvs_msg = STRJOIN(split_id_string[3:6],' ')
+  ; Assumption: CVS committed revision number will always be 1.x, with x increasing linearly
+  revnr = 634+FIX(cvs_rev)-64             ; rev_nr=634, cvs_rev=64 when implemented
+ 
+  ; Change rev_nr and cvs_rev below whenever changing base_versions_number!
+  subvnr = 652 + (FIX(cvs_rev)-82) - 571  ; rev_nr=652, cvs_rev=82 when implemented
+  
+  ; Convert revision and version numbers to strings
+  revision_number = STRTRIM(revnr,2)   
+  version_number = base_version_number +'.'+ STRTRIM(subvnr,2)
+  vnr_msg = version_number+' (r'+revision_number+'; '+cvs_msg+')'
 	IF (verbosity[1] EQ 1) THEN $
-    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK,'Version and revision number: '+version_number+$
-      ' ('+revision_number+')'
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK,'Version and revision number: '+vnr_msg
+
+;========================= PROGRAM-INFO ON CALL W/O PARAMS
+	IF N_PARAMS() LT 1 THEN BEGIN
+    MESSAGE,'Version '+vnr_msg, /INFO
+		MESSAGE,'Syntax: CRISPEX, imcube, spcube, REFCUBE=refcube, MASKCUBE=maskcube, '+$
+            'SPECTFILE=spectfile, LINE_CENTER=line_center, DT=dt, EXTS=exts, MNSPEC=mnspec, '+$
+            'SINGLE_CUBE=single_cube, SCALE_STOKES=scale_stokes, NO_WARP=no_warp, '+$
+            'SCALE_CUBES=scale_cubes, XTITLE=xtitle, YTITLE=ytitle, WINDOW_LARGE=window_large, '+$
+            'VERBOSE=verbose', /INFO
+		RETURN
+	ENDIF
 
 ;========================= LOAD PREFERENCES
   ; Define default preferences
