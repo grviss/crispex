@@ -846,7 +846,7 @@ PRO CRISPEX_CLEAR_CURRENT_CPFT, event
 	pftfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'cpft', COUNT = pftfilecount)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, ['crispex.'+(*(*info).paths).hostname+'cpft',pftfilecount], labels=['File to be deleted','Filecount']
 	IF pftfilecount THEN BEGIN
-		SPAWN,'rm '+(*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'cpft'
+    FILE_DELETE, (*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'cpft', /QUIET
 		(*(*info).feedbparams).estimate_lx = 0
 		(*(*info).feedbparams).estimate_time = 0.
 		(*(*info).feedbparams).estimate_run = 0
@@ -867,7 +867,7 @@ PRO CRISPEX_CLEAR_CURRENT_INST, event
 	instfiles = FILE_SEARCH((*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'inst', COUNT = instfilecount)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, ['crispex.'+(*(*info).paths).hostname+'inst',instfilecount], labels=['File to be deleted','Filecount']
 	IF instfilecount THEN BEGIN
-		SPAWN,'rm '+(*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'inst'
+		FILE_DELETE, (*(*info).paths).dir_settings+'crispex.'+(*(*info).paths).hostname+'inst', /QUIET
 		(*(*info).feedbparams).estimate_lx = 0
 		(*(*info).feedbparams).estimate_time = 0.
 		(*(*info).feedbparams).estimate_run = 0
@@ -10434,8 +10434,12 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
 			FILENAME = (*(*info).paths).opath+singlefilename 
 		PRINT,'Saving retrieved exact loop '+save_message+' done. Saved data to: '+STRTRIM(singlefilename,2)
 		IF (*(*info).savswitch).delete_clsav THEN BEGIN
-			IF ((*(*info).savswitch).imref_only LE 2) THEN SPAWN,'rm '+STRTRIM((*(*(*info).retrparams).retrieve_files)[i],2) ELSE BEGIN
-				IF (i GE (*(*info).retrparams).retrieve_filecount) THEN SPAWN,'rm '+STRTRIM((*(*(*info).retrparams).retrieve_files)[(i MOD (*(*info).retrparams).retrieve_filecount)],2)
+			IF ((*(*info).savswitch).imref_only LE 2) THEN $
+        FILE_DELETE, STRTRIM((*(*(*info).retrparams).retrieve_files)[i],2), /QUIET $
+      ELSE BEGIN
+				IF (i GE (*(*info).retrparams).retrieve_filecount) THEN $
+          FILE_DELETE, STRTRIM((*(*(*info).retrparams).retrieve_files)[$
+                        (i MOD (*(*info).retrparams).retrieve_filecount)],2), /QUIET
 			ENDELSE
 		ENDIF
 	ENDFOR
