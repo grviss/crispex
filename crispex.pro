@@ -439,16 +439,25 @@ FUNCTION CRISPEX_BGROUP_MASTER_TIME, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Get old time 
   CASE (*(*info).dispparams).master_time OF
-    0:  t_old = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_main]
-    1:  t_old = (*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t_ref]
-    2:  t_old = (*(*(*info).dispparams).tarr_sji)[(*(*info).dispparams).t_sji]
+    0:  BEGIN
+          t_old = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_main]
+          nt_old = (*(*info).dataparams).mainnt
+        END
+    1:  BEGIN
+          t_old = (*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t_ref]
+          nt_old = (*(*info).dataparams).refnt
+        END
+    2:  BEGIN
+          t_old = (*(*(*info).dispparams).tarr_sji)[(*(*info).dispparams).t_sji]
+          nt_old = (*(*info).dataparams).sjint
+        END
   ENDCASE
   ; Get new timing master
   (*(*info).dispparams).master_time = event.VALUE
   ; Reset timing offset to defaults
   (*(*info).dispparams).toffset_main = (*(*info).dataparams).default_toffset_main
   (*(*info).dispparams).toffset_ref = (*(*info).dataparams).default_toffset_ref
-  CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old
+  CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old, NT_OLD=nt_old
   CRISPEX_UPDATE_T, event
   IF (*(*info).winswitch).showsp THEN CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
   IF (*(*info).winswitch).showrefsp THEN CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
@@ -1221,50 +1230,71 @@ PRO CRISPEX_COORDS_TRANSFORM_XY, event, MAIN2SJI=main2sji
   ENDIF
 END
 
-PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old
+PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old, NT_OLD=nt_old
 ; Handles transformation of t-coordinates in case of unequal temporal dimensions
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
     ; Select temporal array for main and reference depending on dimensions and offset
-    IF (SIZE((*(*info).dataparams).tarr_raster_main,/N_DIMENSIONS) EQ 2) THEN $
+    ; Either: - array with raster times for every time step
+    ;         - array with raster times for a single scan (but only if NOT dealing with a
+    ;           sit-and-stare; determined from nx=1)
+    nrasterdims_main = SIZE((*(*info).dataparams).tarr_raster_main,/N_DIMENSIONS) 
+    nrasterdims_ref = SIZE((*(*info).dataparams).tarr_raster_ref,/N_DIMENSIONS) 
+    IF ( (nrasterdims_main EQ 2) OR ((nrasterdims_main EQ 1) AND $
+      ((*(*info).dataparams).mainnt EQ 1) AND ((*(*info).dataparams).nx NE 1))) THEN $
       tarr_main = REFORM((*(*info).dataparams).tarr_raster_main[$
         (*(*info).dispparams).toffset_main,*]) $
     ELSE $
       tarr_main = (*(*info).dataparams).tarr_raster_main
-    IF (SIZE((*(*info).dataparams).tarr_raster_ref,/N_DIMENSIONS) EQ 2) THEN $
+    IF ( (nrasterdims_ref EQ 2) OR ((nrasterdims_ref EQ 1) AND $
+      ((*(*info).dataparams).refnt EQ 1) AND ((*(*info).dataparams).nx NE 1))) THEN $
       tarr_ref = REFORM((*(*info).dataparams).tarr_raster_ref[$
         (*(*info).dispparams).toffset_ref,*]) $
     ELSE $
       tarr_ref = (*(*info).dataparams).tarr_raster_ref
     ; Set master array and temporal dimension depending on chosen master
     CASE (*(*info).dispparams).master_time OF
-      0:  BEGIN
+      0:  BEGIN ; Select main data as timing master
             tarr_master = tarr_main
             (*(*info).dataparams).nt = (*(*info).dataparams).mainnt
             offset_value = (*(*info).dispparams).toffset_main
+            nrasterdims_master = nrasterdims_main
           END
-      1:  BEGIN
+      1:  BEGIN ; Select reference data as timing master
             tarr_master = tarr_ref
             (*(*info).dataparams).nt = (*(*info).dataparams).refnt
             offset_value = (*(*info).dispparams).toffset_ref
+            nrasterdims_master = nrasterdims_ref
           END
-      2:  BEGIN
+      2:  BEGIN ; Select slit-jaw image data as timing master
             tarr_master = (*(*info).dataparams).tarr_sji
             (*(*info).dataparams).nt = (*(*info).dataparams).sjint
             offset_value = 0
+            nrasterdims_master = 1
           END
     ENDCASE
     ; Adjust time offset slider according to choices
+    ; Become sensitive if timing master is a raster, so either:
+    ; - single scan (nx>1 AND nt=1, tarr_raster dims = 1)
+    ; - raster with time evolution (nx>1 AND nt>1, tarr_raster dims = 2)
     WIDGET_CONTROL, (*(*info).ctrlscp).time_offset_slider, $
-      SENSITIVE=((*(*info).dispparams).master_time LT 2), SET_VALUE=offset_value
+      SENSITIVE=(((nrasterdims_master EQ 1) AND ((*(*info).dataparams).nt EQ 1) AND $
+        ((*(*info).dataparams).nx GT 1)) OR (nrasterdims_master EQ 2)), $
+      SET_VALUE=offset_value
+    IF ((((*(*info).dataparams).nt EQ 1) AND (nt_old GT 1)) OR $
+        (((*(*info).dataparams).nt GT 1) AND (nt_old EQ 1))) THEN $
+      CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET, /LOOP_SET, $
+        SENSITIVE_SET=(((*(*info).dataparams).nt GT 1) AND (nt_old EQ 1))
     ; Initialise variables
-    tsel_main = LONARR((*(*info).dataparams).nt)
+    IF ((*(*info).dataparams).mainnt GT 1) THEN tsel_main = LONARR((*(*info).dataparams).nt)
     IF ((*(*info).dataparams).refnt GT 1) THEN tsel_ref = LONARR((*(*info).dataparams).nt)
     IF ((*(*info).dataparams).sjint GT 1) THEN tsel_sji = LONARR((*(*info).dataparams).nt)
     ; Determine frame closest in time to master array
     FOR tt=0,(*(*info).dataparams).nt-1 DO BEGIN
-      tdiff_main = ABS(tarr_main - tarr_master[tt])
-      tsel_main[tt] = (WHERE(tdiff_main EQ MIN(tdiff_main, /NAN)))[0]
+      IF ((*(*info).dataparams).mainnt GT 1) THEN BEGIN
+        tdiff_main = ABS(tarr_main - tarr_master[tt])
+        tsel_main[tt] = (WHERE(tdiff_main EQ MIN(tdiff_main, /NAN)))[0]
+      ENDIF
       IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN 
         tdiff_ref = ABS(tarr_ref - tarr_master[tt])
         tsel_ref[tt] = (WHERE(tdiff_ref EQ MIN(tdiff_ref, /NAN)))[0]
@@ -1275,8 +1305,10 @@ PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old
       ENDIF
     ENDFOR
     ; Populate variables with results
-    *(*(*info).dispparams).tsel_main = tsel_main
-    *(*(*info).dispparams).tarr_main = tarr_main[tsel_main]
+    IF ((*(*info).dataparams).mainnt GT 1) THEN BEGIN
+      *(*(*info).dispparams).tsel_main = tsel_main
+      *(*(*info).dispparams).tarr_main = tarr_main[tsel_main]
+    ENDIF
     IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN 
       *(*(*info).dispparams).tsel_ref = tsel_ref
       *(*(*info).dispparams).tarr_ref = tarr_ref[tsel_ref]
@@ -1287,10 +1319,10 @@ PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old
     ENDIF
     ; Reset temporal boundaries and get T_SET
     (*(*info).dispparams).t_last = (*(*info).dataparams).nt-1
-    IF (N_ELEMENTS(T_OLD) EQ 1) THEN BEGIN
+    IF (((*(*info).dataparams).nt NE 1) AND (N_ELEMENTS(T_OLD) EQ 1)) THEN BEGIN
       tdiff = ABS(tarr_master - t_old)
       t_set = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
-    ENDIF
+    ENDIF ELSE t_set = 0
     CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW, T_SET=t_set
 END
 
@@ -3311,7 +3343,7 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
     WIDGET_CONTROL, (*(*info).ctrlscp).reset_trange_but, /SENSITIVE $
   ELSE $
     WIDGET_CONTROL, (*(*info).ctrlscp).reset_trange_but, SENSITIVE = 0
-  IF KEYWORD_SET(T_SET) THEN $
+  IF (N_ELEMENTS(T_SET) EQ 1) THEN $
     (*(*info).dispparams).t = t_set $
   ELSE IF (~KEYWORD_SET(RESET) AND ((*(*info).winswitch).showretrdet EQ 0)) THEN BEGIN
     IF ((*(*info).dispparams).t LT (*(*info).dispparams).t_low) THEN $
@@ -3320,8 +3352,9 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
       (*(*info).dispparams).t = (*(*info).dispparams).t_upp
   ENDIF
 	WIDGET_CONTROL, (*(*info).ctrlscp).t_slider, SET_SLIDER_MIN=(*(*info).dispparams).t_low, $
-    SET_SLIDER_MAX=(*(*info).dispparams).t_upp, SET_VALUE=(*(*info).dispparams).t
-	IF ((*(*info).dispparams).t_range - 1 EQ 1) THEN BEGIN
+    SET_SLIDER_MAX=(*(*info).dispparams).t_upp, SET_VALUE=(*(*info).dispparams).t, $
+    SENSITIVE=((*(*info).dispparams).t_upp NE (*(*info).dispparams).t_low)
+	IF ((*(*info).dispparams).t_range - 1 LE 1) THEN BEGIN
 		t_step = 1
 		t_sens = 0 
 	ENDIF ELSE BEGIN
@@ -3329,10 +3362,12 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
 		t_sens = 1
 	ENDELSE
   ; Set real lower/upper time values for main
-  (*(*info).dispparams).t_low_main = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_low]
-  tarr_main_sel = (*(*(*info).dispparams).tarr_main)[$
-    (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
-  (*(*info).dispparams).t_upp_main = tarr_main_sel[(WHERE(tarr_main_sel NE 0))[-1]] ;Fix tarr[-1]=0
+  IF ((*(*info).dataparams).mainnt GT 1) THEN BEGIN
+    (*(*info).dispparams).t_low_main = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_low]
+    tarr_main_sel = (*(*(*info).dispparams).tarr_main)[$
+      (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
+    (*(*info).dispparams).t_upp_main = tarr_main_sel[(WHERE(tarr_main_sel NE 0))[-1]] ;Fix tarr[-1]=0
+  ENDIF
   IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN
     ; Set real lower/upper time values for reference
     (*(*info).dispparams).t_low_ref = (*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t_low]
@@ -3343,7 +3378,8 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).t_low,(*(*info).dispparams).t_upp], $
       labels=['Lower t-value','Upper t-value']
-	WIDGET_CONTROL, (*(*info).ctrlscp).t_step_slider, SET_SLIDER_MAX=(*(*info).dispparams).t_range-1,$
+	WIDGET_CONTROL, (*(*info).ctrlscp).t_step_slider, $
+    SET_SLIDER_MAX=((*(*info).dispparams).t_range-1)>2,$
     SET_VALUE=t_step, SENSITIVE=t_sens
 	IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
 		CRISPEX_UPDATE_T, event
@@ -3375,15 +3411,14 @@ PRO CRISPEX_DISPRANGE_T_RESET, event, NO_DRAW=no_draw, T_SET=t_set
 	(*(*info).dispparams).t_upp = (*(*info).dispparams).t_last
 	(*(*info).dispparams).t_low = (*(*info).dispparams).t_first
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_t_text, $
-    SET_VALUE=STRTRIM((*(*info).dispparams).t_upp,2), /SENSITIVE
+    SET_VALUE=STRTRIM((*(*info).dispparams).t_upp,2), SENSITIVE=((*(*info).dataparams).nt GT 1)
 	WIDGET_CONTROL, (*(*info).ctrlscp).lower_t_text, $
-    SET_VALUE=STRTRIM((*(*info).dispparams).t_low,2), /SENSITIVE
+    SET_VALUE=STRTRIM((*(*info).dispparams).t_low,2), SENSITIVE=((*(*info).dataparams).nt GT 1)
 	WIDGET_CONTROL, (*(*info).ctrlscp).reset_trange_but, SENSITIVE = 0
 	IF ((*(*info).winswitch).showint AND (*(*info).intparams).lock_t) THEN $
     CRISPEX_DISPRANGE_INT_T_RESET, event $
   ELSE $
     CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, /RESET
-  IF (N_ELEMENTS(T_SET) EQ 1) THEN print,t_set
 END
 
 PRO CRISPEX_DISPRANGE_GET_WARP, event, PHIS=phis
@@ -4022,7 +4057,7 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
   t_idx_txt = STRING(LONG((*(*info).dispparams).t_main),$
     FORMAT=(*(*info).paramparams).t_idx_format)
   WIDGET_CONTROL, (*(*info).ctrlsparam).t_idx_val, SET_VALUE=t_idx_txt
-  IF (*(*info).paramswitch).dt_set THEN BEGIN
+  IF ((*(*info).paramswitch).dt_set AND ((*(*info).dataparams).mainnt GT 1)) THEN BEGIN
     t_real_txt = STRING((*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t],$
       FORMAT=(*(*info).paramparams).t_real_format)
     WIDGET_CONTROL, (*(*info).ctrlsparam).t_real_val, SET_VALUE=t_real_txt
@@ -6985,13 +7020,19 @@ PRO CRISPEX_PB_BG, event
 								IF ((*(*info).dispparams).t_low EQ (*(*info).dispparams).t_first) THEN (*(*info).dispparams).t *= -1 ELSE $
 									(*(*info).dispparams).t = -1 * ((*(*info).dispparams).t - (*(*info).dispparams).t_low) + (*(*info).dispparams).t_low
 							ENDIF
-							IF ((*(*info).pbparams).direction GT 0) THEN CRISPEX_PB_BUTTONS_SET, event, /FWD_SET ELSE CRISPEX_PB_BUTTONS_SET, event, /BWD_SET
+							IF ((*(*info).pbparams).direction GT 0) THEN $
+                CRISPEX_PB_BUTTONS_SET, event, /FWD_SET, /NO_PB_TYPE $
+              ELSE $
+                CRISPEX_PB_BUTTONS_SET, event, /BWD_SET, /NO_PB_TYPE
 						  END
 					'BLINK'	: BEGIN
 							(*(*info).pbparams).direction *= -1
 							IF (*(*info).dispparams).t GT (*(*info).dispparams).t_upp THEN (*(*info).dispparams).t -=(*(*info).dispparams).t_range ELSE $
 								IF (*(*info).dispparams).t LT (*(*info).dispparams).t_low THEN (*(*info).dispparams).t += (*(*info).dispparams).t_range
-							IF ((*(*info).pbparams).direction GT 0) THEN CRISPEX_PB_BUTTONS_SET, event, /FWD_SET ELSE CRISPEX_PB_BUTTONS_SET, event, /BWD_SET
+							IF ((*(*info).pbparams).direction GT 0) THEN $
+                CRISPEX_PB_BUTTONS_SET, event, /FWD_SET, /NO_PB_TYPE $
+              ELSE $
+                CRISPEX_PB_BUTTONS_SET, event, /BWD_SET, /NO_PB_TYPE
 						  END
 				ENDCASE
 			  END
@@ -7024,29 +7065,64 @@ PRO CRISPEX_PB_BG, event
 	ENDIF
 END
 
-PRO CRISPEX_PB_BUTTONS_SET, event, fbwd_set=fbwd_set, bwd_set=bwd_set, pause_set=pause_set, fwd_set=fwd_set, ffwd_set=ffwd_set, loop_set=loop_set, cycle_set=cycle_set, blink_set=blink_set
+PRO CRISPEX_PB_BUTTONS_SET, event, FBWD_SET=fbwd_set, BWD_SET=bwd_set, PAUSE_SET=pause_set, $
+  FWD_SET=fwd_set, FFWD_SET=ffwd_set, LOOP_SET=loop_set, CYCLE_SET=cycle_set, BLINK_SET=blink_set, $
+  NO_PB_TYPE=no_pb_type, NO_PB_DIR=no_pb_dir, SENSITIVE_SET=sensitive_set
 ; Sets playback buttons according to actions
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF (KEYWORD_SET(LOOP_SET) OR KEYWORD_SET(CYCLE_SET) OR KEYWORD_SET(BLINK_SET)) THEN BEGIN
-		IF KEYWORD_SET(LOOP_SET) THEN WIDGET_CONTROL, (*(*info).ctrlscp).loop_button, SET_VALUE = (*(*info).ctrlspbbut).loop_pressed, /SET_BUTTON ELSE $
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_button, SET_VALUE = (*(*info).ctrlspbbut).loop_idle
-		IF KEYWORD_SET(CYCLE_SET) THEN WIDGET_CONTROL, (*(*info).ctrlscp).cycle_button, SET_VALUE = (*(*info).ctrlspbbut).cycle_pressed, /SET_BUTTON ELSE $
-			WIDGET_CONTROL, (*(*info).ctrlscp).cycle_button, SET_VALUE = (*(*info).ctrlspbbut).cycle_idle
-		IF KEYWORD_SET(BLINK_SET) THEN WIDGET_CONTROL, (*(*info).ctrlscp).blink_button, SET_VALUE = (*(*info).ctrlspbbut).blink_pressed, /SET_BUTTON ELSE $
-			WIDGET_CONTROL, (*(*info).ctrlscp).blink_button, SET_VALUE = (*(*info).ctrlspbbut).blink_idle
-	ENDIF ELSE BEGIN
-		IF KEYWORD_SET(FBWD_SET) THEN WIDGET_CONTROL, (*(*info).ctrlscp).fbwd_button, SET_VALUE = (*(*info).ctrlspbbut).fbwd_pressed ELSE $
-			WIDGET_CONTROL, (*(*info).ctrlscp).fbwd_button, SET_VALUE = (*(*info).ctrlspbbut).fbwd_idle
-		IF KEYWORD_SET(BWD_SET) THEN WIDGET_CONTROL, (*(*info).ctrlscp).bwd_button, SET_VALUE = (*(*info).ctrlspbbut).bwd_pressed ELSE $
-			WIDGET_CONTROL, (*(*info).ctrlscp).bwd_button, SET_VALUE = (*(*info).ctrlspbbut).bwd_idle
-		IF KEYWORD_SET(PAUSE_SET) THEN WIDGET_CONTROL, (*(*info).ctrlscp).pause_button, SET_VALUE = (*(*info).ctrlspbbut).pause_pressed ELSE $
-			WIDGET_CONTROL, (*(*info).ctrlscp).pause_button, SET_VALUE = (*(*info).ctrlspbbut).pause_idle
-		IF KEYWORD_SET(FWD_SET) THEN WIDGET_CONTROL, (*(*info).ctrlscp).fwd_button, SET_VALUE = (*(*info).ctrlspbbut).fwd_pressed ELSE $
-			WIDGET_CONTROL, (*(*info).ctrlscp).fwd_button, SET_VALUE = (*(*info).ctrlspbbut).fwd_idle
-		IF KEYWORD_SET(FFWD_SET) THEN WIDGET_CONTROL, (*(*info).ctrlscp).ffwd_button, SET_VALUE = (*(*info).ctrlspbbut).ffwd_pressed ELSE $
-			WIDGET_CONTROL, (*(*info).ctrlscp).ffwd_button, SET_VALUE = (*(*info).ctrlspbbut).ffwd_idle
-	ENDELSE
+  IF ~KEYWORD_SET(NO_PB_TYPE) THEN BEGIN
+		IF KEYWORD_SET(LOOP_SET) THEN $
+      WIDGET_CONTROL, (*(*info).ctrlscp).loop_button, $
+        SET_VALUE=(*(*info).ctrlspbbut).loop_pressed, /SET_BUTTON, SENSITIVE=sensitive_set $
+    ELSE $
+			WIDGET_CONTROL, (*(*info).ctrlscp).loop_button, SET_VALUE=(*(*info).ctrlspbbut).loop_idle, $
+        SENSITIVE=sensitive_set
+		IF KEYWORD_SET(CYCLE_SET) THEN $
+      WIDGET_CONTROL, (*(*info).ctrlscp).cycle_button, $
+        SET_VALUE=(*(*info).ctrlspbbut).cycle_pressed, /SET_BUTTON, SENSITIVE=sensitive_set $
+    ELSE $
+			WIDGET_CONTROL, (*(*info).ctrlscp).cycle_button, SET_VALUE=(*(*info).ctrlspbbut).cycle_idle, $
+        SENSITIVE=sensitive_set
+		IF KEYWORD_SET(BLINK_SET) THEN $
+      WIDGET_CONTROL, (*(*info).ctrlscp).blink_button, $
+        SET_VALUE=(*(*info).ctrlspbbut).blink_pressed, /SET_BUTTON, SENSITIVE=sensitive_set $
+    ELSE $
+			WIDGET_CONTROL, (*(*info).ctrlscp).blink_button, SET_VALUE=(*(*info).ctrlspbbut).blink_idle, $
+        SENSITIVE=sensitive_set
+	ENDIF 
+  IF ~KEYWORD_SET(NO_PB_DIR) THEN BEGIN
+		IF KEYWORD_SET(FBWD_SET) THEN $
+      WIDGET_CONTROL, (*(*info).ctrlscp).fbwd_button, SET_VALUE=(*(*info).ctrlspbbut).fbwd_pressed,$
+        SENSITIVE=sensitive_set $
+    ELSE $
+			WIDGET_CONTROL, (*(*info).ctrlscp).fbwd_button, SET_VALUE=(*(*info).ctrlspbbut).fbwd_idle, $
+        SENSITIVE=sensitive_set
+		IF KEYWORD_SET(BWD_SET) THEN $
+      WIDGET_CONTROL, (*(*info).ctrlscp).bwd_button, SET_VALUE=(*(*info).ctrlspbbut).bwd_pressed, $
+        SENSITIVE=sensitive_set $
+    ELSE $
+			WIDGET_CONTROL, (*(*info).ctrlscp).bwd_button, SET_VALUE=(*(*info).ctrlspbbut).bwd_idle, $
+        SENSITIVE=sensitive_set
+		IF KEYWORD_SET(PAUSE_SET) THEN $
+      WIDGET_CONTROL, (*(*info).ctrlscp).pause_button, $
+        SET_VALUE=(*(*info).ctrlspbbut).pause_pressed, SENSITIVE=sensitive_set $
+    ELSE $
+			WIDGET_CONTROL, (*(*info).ctrlscp).pause_button, SET_VALUE=(*(*info).ctrlspbbut).pause_idle, $
+        SENSITIVE=sensitive_set
+		IF KEYWORD_SET(FWD_SET) THEN $
+      WIDGET_CONTROL, (*(*info).ctrlscp).fwd_button, SET_VALUE=(*(*info).ctrlspbbut).fwd_pressed, $
+        SENSITIVE=sensitive_set $
+    ELSE $
+			WIDGET_CONTROL, (*(*info).ctrlscp).fwd_button, SET_VALUE=(*(*info).ctrlspbbut).fwd_idle, $
+        SENSITIVE=sensitive_set
+		IF KEYWORD_SET(FFWD_SET) $
+      THEN WIDGET_CONTROL, (*(*info).ctrlscp).ffwd_button, $
+        SET_VALUE=(*(*info).ctrlspbbut).ffwd_pressed, SENSITIVE=sensitive_set $
+    ELSE $
+			WIDGET_CONTROL, (*(*info).ctrlscp).ffwd_button, SET_VALUE=(*(*info).ctrlspbbut).ffwd_idle, $
+        SENSITIVE=sensitive_set
+  ENDIF
 END
 
 PRO CRISPEX_PB_BACKWARD, event
@@ -7056,7 +7132,7 @@ PRO CRISPEX_PB_BACKWARD, event
 	IF (*(*info).pbparams).mode EQ 'PLAY' AND (*(*info).pbparams).direction EQ -1 THEN RETURN
 	(*(*info).pbparams).direction = -1			&	(*(*info).pbparams).mode = 'PLAY'
 	WIDGET_CONTROL, (*(*info).pbparams).bg, TIMER = 0.0
-	CRISPEX_PB_BUTTONS_SET, event, /BWD_SET
+	CRISPEX_PB_BUTTONS_SET, event, /BWD_SET, /NO_PB_TYPE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,STRTRIM((*(*info).pbparams).direction,2)], labels=['Play mode','Play direction']
 END
 
@@ -7067,7 +7143,7 @@ PRO CRISPEX_PB_FORWARD, event
 	IF (*(*info).pbparams).mode EQ 'PLAY' AND (*(*info).pbparams).direction EQ 1 THEN RETURN
 	(*(*info).pbparams).direction = 1			&	(*(*info).pbparams).mode = 'PLAY'
 	WIDGET_CONTROL, (*(*info).pbparams).bg, TIMER = 0.0
-	CRISPEX_PB_BUTTONS_SET, event, /FWD_SET
+	CRISPEX_PB_BUTTONS_SET, event, /FWD_SET, /NO_PB_TYPE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,STRTRIM((*(*info).pbparams).direction,2)], labels=['Play mode','Play direction']
 END
 
@@ -7076,7 +7152,7 @@ PRO CRISPEX_PB_FASTBACKWARD, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).pbparams).mode EQ 'PAUSE' OR (*(*info).pbparams).lmode EQ 'BLINK' THEN BEGIN
-		CRISPEX_PB_BUTTONS_SET, event, /FBWD_SET
+		CRISPEX_PB_BUTTONS_SET, event, /FBWD_SET, /NO_PB_TYPE
 		(*(*info).dispparams).t -= (*(*info).pbparams).t_step
 		IF ((*(*info).dispparams).t LT (*(*info).dispparams).t_low) THEN (*(*info).dispparams).t = (*(*info).dispparams).t_upp
 		CRISPEX_UPDATE_T, event
@@ -7084,7 +7160,7 @@ PRO CRISPEX_PB_FASTBACKWARD, event
 		CRISPEX_UPDATE_SLICES, event, SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
       REFSSP_UPDATE=((*(*info).dataswitch).refspfile EQ 0), /NO_DRAW
 		CRISPEX_DRAW, event
-		CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET
+		CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET, /NO_PB_TYPE
 	ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
 END
@@ -7094,14 +7170,14 @@ PRO CRISPEX_PB_FASTFORWARD, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).pbparams).mode EQ 'PAUSE' OR (*(*info).pbparams).lmode EQ 'BLINK' THEN BEGIN
-		CRISPEX_PB_BUTTONS_SET, event, /FFWD_SET
+		CRISPEX_PB_BUTTONS_SET, event, /FFWD_SET, /NO_PB_TYPE
 		(*(*info).dispparams).t = (((*(*info).dispparams).t - (*(*info).dispparams).t_low + (*(*info).pbparams).t_step) MOD ((*(*info).dispparams).t_upp - (*(*info).dispparams).t_low + 1)) + (*(*info).dispparams).t_low
 		CRISPEX_UPDATE_T, event
 		WIDGET_CONTROL, (*(*info).ctrlscp).t_slider, SET_VALUE = (*(*info).dispparams).t
 		CRISPEX_UPDATE_SLICES, event, SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
       REFSSP_UPDATE=((*(*info).dataswitch).refspfile EQ 0), /NO_DRAW 
 		CRISPEX_DRAW, event
-		CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET
+		CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET, /NO_PB_TYPE
 	ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
 END
@@ -7117,8 +7193,9 @@ PRO CRISPEX_PB_PAUSE, event
 		WIDGET_CONTROL, (*(*info).ctrlsfeedb).close_button, /SENSITIVE
 	ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
-	CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET
-	IF ((*(*info).dispparams).phislice_update NE 1) THEN $
+	CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET, /NO_PB_TYPE
+	IF (((*(*info).dispparams).phislice_update NE 1) AND $
+    (((*(*info).dataparams).mainnt GT 1) OR ((*(*info).dataparams).refnt GT 1))) THEN $
     CRISPEX_UPDATE_SLICES, event, SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
       REFSSP_UPDATE=((*(*info).dataswitch).refspfile EQ 0), /REFLS_DRAW
 END
@@ -7129,7 +7206,7 @@ PRO CRISPEX_PB_BLINK, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lmode = 'BLINK'
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
-	CRISPEX_PB_BUTTONS_SET, event, /BLINK_SET
+	CRISPEX_PB_BUTTONS_SET, event, /BLINK_SET, /NO_PB_DIR
 END
 
 PRO CRISPEX_PB_CYCLE, event
@@ -7138,7 +7215,7 @@ PRO CRISPEX_PB_CYCLE, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lmode = 'CYCLE'
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
-	CRISPEX_PB_BUTTONS_SET, event, /CYCLE_SET
+	CRISPEX_PB_BUTTONS_SET, event, /CYCLE_SET, /NO_PB_DIR
 END
 
 PRO CRISPEX_PB_LOOP, event
@@ -7147,7 +7224,7 @@ PRO CRISPEX_PB_LOOP, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lmode = 'LOOP'
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
-	CRISPEX_PB_BUTTONS_SET, event, /LOOP_SET
+	CRISPEX_PB_BUTTONS_SET, event, /LOOP_SET, /NO_PB_DIR
 END
 
 PRO CRISPEX_PB_SPECTBLINK, event
@@ -8072,7 +8149,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   tini_col = 0    ; Default raster timing column
   IF ~KEYWORD_SET(SJICUBE) THEN BEGIN
     ; Get time array (assuming each raster is co-temporal)
-    IF (nt GT 1) THEN BEGIN
+    IF (nt GE 1) THEN BEGIN
       tarr = READFITS(filename, hdr2, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
       ntarrdims = SIZE(tarr,/N_DIMENSIONS)
       tarr_raster = tarr
@@ -11376,7 +11453,7 @@ PRO CRISPEX_SLIDER_TIME_OFFSET, event
     0:  (*(*info).dispparams).toffset_main = event.VALUE
     1:  (*(*info).dispparams).toffset_ref = event.VALUE
   ENDCASE
-  CRISPEX_COORDS_TRANSFORM_T, event
+  CRISPEX_COORDS_TRANSFORM_T, event, NT_OLD=(*(*info).dataparams).nt
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [event.VALUE], labels=['Raster timing offset']
 	CRISPEX_UPDATE_T, event
@@ -11462,7 +11539,7 @@ PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw, NO_PHIS=no_phis, SSP_UPDATE=s
   ENDIF
 	IF ((*(*info).winswitch).showphis OR $
       ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls)) THEN BEGIN
-		IF ((*(*info).dataparams).nt GT 1) THEN $
+		IF ((*(*info).dataparams).mainnt GT 1) THEN $
       *(*(*info).data).sspscan = (*(*(*info).data).scan)[(*(*info).dispparams).t_main] $
     ELSE $
       *(*(*info).data).sspscan = (*(*(*info).data).scan)
@@ -11736,7 +11813,8 @@ PRO CRISPEX_UPDATE_T, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Update time indices
-  (*(*info).dispparams).t_main = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).t]
+  IF ((*(*info).dataparams).mainnt GT 1) THEN $
+    (*(*info).dispparams).t_main = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).t]
   IF ((*(*info).dataparams).refnt GT 1) THEN $
     (*(*info).dispparams).t_ref = (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).t]
   IF ((*(*info).dataparams).sjint GT 1) THEN $
@@ -13400,15 +13478,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   master_time_labels  = ['Main', 'Reference', 'SJI']
   master_time_buts    = CW_BGROUP(master_time_opts, master_time_labels, $
                           BUTTON_UVALUE=INDGEN(N_ELEMENTS(master_time_labels)), IDS=master_time_ids, $
-                          /EXCLUSIVE, /ROW, EVENT_FUNC='CRISPEX_BGROUP_MASTER_TIME')
+                          /EXCLUSIVE, /ROW, EVENT_FUNC='CRISPEX_BGROUP_MASTER_TIME', /NO_RELEASE)
   showdata = [(hdr.showref OR hdr.sjifile), hdr.showref, hdr.sjifile]
   nrasterdims = [SIZE(hdr.tarr_raster_main,/N_DIMENSIONS), $
-                  SIZE(hdr.tarr_raster_ref,/N_DIMENSIONS), 2]
+                  SIZE(hdr.tarr_raster_ref,/N_DIMENSIONS), 1]
   setbutton = [1,0,0]
   FOR i=0,N_ELEMENTS(master_time_labels)-1 DO $
     WIDGET_CONTROL, master_time_ids[i], SET_BUTTON=setbutton[i], $
-    SENSITIVE=(showdata[i] AND ((nrasterdims[i] EQ 2) AND (TOTAL((nrasterdims EQ 2)[0:1]) GT 0)))
-  IF (nrasterdims[0] EQ 2) THEN $
+    SENSITIVE=(showdata[i] AND (nrasterdims[i] GE 1))
+  ; Raster (nx>1) without time evolution or raster/sit-and-stare with time evolution
+  IF (((nrasterdims[0] EQ 1) AND (hdr.nx GT 1) AND (hdr.mainnt EQ 1)) OR $  
+    (nrasterdims[0] EQ 2)) THEN $                     
     toffset_max = N_ELEMENTS(hdr.tarr_raster_main[*,0])-1 $
   ELSE $
     toffset_max = 1
@@ -13915,8 +13995,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
       pixel_label = WIDGET_LABEL(verlabel_base, VALUE='Index [px]', /ALIGN_RIGHT)
       IF dt_set THEN $
         real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value [s]', /ALIGN_RIGHT)
-      raster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_main) NE N_ELEMENTS(hdr.tarr_main)) $
-                          AND (hdr.mainnt GT 1))
+      raster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_main) NE N_ELEMENTS(hdr.tarr_main))); $
+;                          AND (hdr.mainnt GT 1))
       refraster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_ref) NE N_ELEMENTS(hdr.tarr_ref)) $
                             AND (hdr.refnt GT 1))
       IF (raster_time_fb OR refraster_time_fb) THEN $
