@@ -12818,7 +12818,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     ; Failsafe to avoid a window larger than the screensize
 		IF (imwiny GT y_scr_size) THEN BEGIN										
 			imwiny = 0.9 * y_scr_size
-			imwinx = imwiny * ratio
+      IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
+        imwinx = 5*hdr.nx $
+      ELSE $
+			  imwinx = imwiny * ratio
 		ENDIF
 		IF (verbosity[1] EQ 1) THEN $
       msg = 'User screen resolution does not allow for 1:1 image window sizing. '
