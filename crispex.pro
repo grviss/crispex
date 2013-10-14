@@ -12843,17 +12843,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     sjiwinx_default = hdr.sjinx
     sjiwiny_default = hdr.sjiny
     ; Handle pixel aspect ratio
-;    IF (sjipixelratio GT 1) THEN sjiwinx_default *= sjipixelratio ELSE $
-;      IF (sjipixelratio LT 1) THEN sjiwiny_default *= sjipixelratio
-;    print,hdr.sjidx,hdr.sjidy,hdr.dx,hdr.dy
-      sjiwinx = sjiwinx_default/imwinx_default*imwinx
-      sjiwiny = sjiwiny_default/imwiny_default*imwiny
-      IF (sjiwinx GT 0.75*x_scr_size) THEN BEGIN
-        sjiwinx = 0.75*x_scr_size
-        sjiwiny = sjiwinx / sjiratio
-        imwinx = imwinx_default/sjiwinx_default*sjiwinx
-        imwiny = imwiny_default/sjiwiny_default*sjiwiny
-      ENDIF
+    IF (sjipixelratio GT 1) THEN sjiwinx_default *= sjipixelratio ELSE $
+      IF (sjipixelratio LT 1) THEN sjiwiny_default *= sjipixelratio
+    sjiwiny = sjiwiny_default/FLOAT(imwiny_default)*imwiny
+    sjiwinx = sjiwinx_default/FLOAT(sjiwiny_default)*sjiwiny
   ENDIF ELSE BEGIN
     sjiwinx = 0
     sjiwiny = 0
