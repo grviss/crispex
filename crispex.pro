@@ -11832,16 +11832,16 @@ PRO CRISPEX_UPDATE_T, event
 		*(*(*info).data).xyslice = (*(*(*info).data).imagedata)[$
       basecubeidx + (*(*info).dataparams).lp]
 		IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
-			temp_xyslice = REFORM( ((*(*(*info).data).imagedata)[$
-        basecubeidx + (*(*info).dataparams).lp_dop]))
+			temp_xyslice =  (*(*(*info).data).imagedata)[$
+        basecubeidx + (*(*info).dataparams).lp_dop]
   ; Determine main image, in case the cube has no spectral dimension
 	ENDIF ELSE BEGIN
     basecubeidx = (*(*info).dataparams).s * (*(*info).dataparams).nlp 
-		*(*(*info).data).xyslice = REFORM( ((*(*(*info).data).imagedata)[basecubeidx + $
-      (*(*info).dataparams).lp]))
+		*(*(*info).data).xyslice = (*(*(*info).data).imagedata)[basecubeidx + $
+      (*(*info).dataparams).lp]
 		IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
-      temp_xyslice = REFORM( ((*(*(*info).data).imagedata)[basecubeidx + $
-      (*(*info).dataparams).lp_dop]))
+      temp_xyslice = (*(*(*info).data).imagedata)[basecubeidx + $
+      (*(*info).dataparams).lp_dop]
 	ENDELSE
   ; Determine Doppler image
 	IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN BEGIN
@@ -11854,31 +11854,31 @@ PRO CRISPEX_UPDATE_T, event
 	IF ((*(*info).winswitch).showref OR (*(*info).winswitch).showimref) THEN BEGIN
 		IF (((*(*info).dataparams).refnlp GT 1) AND ((*(*info).dataparams).refnt GT 1)) THEN BEGIN
       refidx = (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref
-      *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[refidx]))
+      *(*(*info).data).refslice = (*(*(*info).data).refdata)[refidx]
 		ENDIF ELSE BEGIN
 			IF ((*(*info).dataparams).refnt EQ 0) THEN $
         *(*(*info).data).refslice = (*(*(*info).data).refdata) $
 			ELSE IF ((*(*info).dataparams).refnt EQ 1) THEN BEGIN
 				IF ((*(*info).dataparams).refnlp NE 1) THEN $
-          *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[$
-            (*(*info).dataparams).lp_ref])) $
+          *(*(*info).data).refslice = (*(*(*info).data).refdata)[$
+            (*(*info).dataparams).lp_ref] $
 				ELSE $
-          *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[0]))
+          *(*(*info).data).refslice = (*(*(*info).data).refdata)[0]
 			ENDIF ELSE IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN BEGIN
-        *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[$
-          (*(*info).dispparams).t_ref]))
+        *(*(*info).data).refslice = (*(*(*info).data).refdata)[$
+          (*(*info).dispparams).t_ref]
 			ENDIF ELSE $
-        *(*(*info).data).refslice = REFORM( ((*(*(*info).data).refdata)[$
-          (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref]))
+        *(*(*info).data).refslice = (*(*(*info).data).refdata)[$
+          (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref]
 		ENDELSE
 	ENDIF
   ; Determine mask image
 	IF (*(*info).dataswitch).maskfile THEN BEGIN
 		IF ((*(*info).dataparams).masknt GT 1) THEN BEGIN
-      *(*(*info).data).maskslice = REFORM( ((*(*(*info).data).maskdata)[$
-        (*(*info).dispparams).t_main]))
+      *(*(*info).data).maskslice = (*(*(*info).data).maskdata)[$
+        (*(*info).dispparams).t_main]
 		ENDIF ELSE BEGIN
-      *(*(*info).data).maskslice = REFORM( ((*(*(*info).data).maskdata)[0]))
+      *(*(*info).data).maskslice = (*(*(*info).data).maskdata)[0]
 		ENDELSE
 	ENDIF
   ; Determine sji image
