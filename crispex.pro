@@ -762,6 +762,13 @@ FUNCTION CRISPEX_SCALING_SLICES, dispim, gamma_val, histo_opt_val, $
   RETURN, minmax
 END
 
+FUNCTION CRISPEX_SCALING_DESCALE, data, bscale, bzero
+  missing = WHERE(data EQ -32768,count)
+  floatdata = FLOAT(data)*bscale+bzero
+  IF(count GT 0) THEN floatdata[missing] = !VALUES.F_NAN
+  RETURN, floatdata
+END
+
 
 ;------------------------- WIDGET FUNCTION
 FUNCTION CRISPEX_WIDGET_DIVIDER, base
@@ -8062,6 +8069,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.sjidx = key.dx            &  hdr_out.sjidy = key.dy
       hdr_out.sjix0 = key.sjix0         &  hdr_out.sjiy0 = key.sjiy0
       hdr_out.sjibunit = key.bunit      &  headers = key.headers
+      hdr_out.sjibscale = key.bscale    &  hdr_out.sjibzero = key.bzero
+      hdr_out.sjiscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) ; Check for scaled integer
       hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
         'sjixoff', key.sjixoff, 'sjiyoff', key.sjiyoff, 'hdrs_sji', headers)
   ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                ; Fill hdr parameters for MASKCUBE
@@ -8133,6 +8142,9 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   cunit = SXPAR(header,'CUNIT*')
   btype = STRTRIM(SXPAR(header,'BTYPE'),2)
   bunit = STRTRIM(SXPAR(header,'BUNIT'))
+  ; Get necessary info to process scaled data
+  bscale= SXPAR(header,'BSCALE')
+  bzero = SXPAR(header,'BZERO')
   ; Assign values to variables
   dx = cdelt[sortorder[0]]
   dy = cdelt[sortorder[1]]
@@ -8249,7 +8261,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
        tarr_sel:tarr_sel, tarr_raster:tarr_raster, tini_col:tini_col, xyrastersji:xyrastersji, $
        sjixoff:sjixoff, sjiyoff:sjiyoff, sjix0:sjix0, sjiy0:sjiy0, $
        xlab:xlab,ylab:ylab,lplab:lplab,tlab:tlab, $
-       btype:btype,bunit:bunit, $ 
+       btype:btype,bunit:bunit, bscale:bscale, bzero:bzero, $ 
        xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,$
        wstart:wstart, wwidth:wwidth, diagnostics:diagnostics, $
        ndiagnostics:ndiagnostics, twave:twave, headers:headers $
@@ -9531,6 +9543,10 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event
     idx = 2*(*(*info).intparams).ndiagnostics + (*(*info).intparams).nrefdiagnostics
     IF ((*(*(*info).scaling).imagescale)[3] EQ 0) THEN BEGIN
       minmax_data = (*(*(*info).data).sjidata)[0]
+    ; If SJI data is scaled integer, descale and convert to float
+    IF (*(*info).dispswitch).sjiscaled THEN $
+      minmax_data = CRISPEX_SCALING_DESCALE(minmax_data, (*(*info).dispparams).sjibscale, $
+        (*(*info).dispparams).sjibzero)
       minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
         (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
       (*(*info).scaling).sjimin = minmax[0]
@@ -11884,9 +11900,14 @@ PRO CRISPEX_UPDATE_T, event
   ; Determine sji image
 	IF (*(*info).dataswitch).sjifile THEN BEGIN
 		IF ((*(*info).dataparams).sjint GT 1) THEN $
-        *(*(*info).data).sjislice = ((*(*(*info).data).sjidata)[(*(*info).dispparams).t_sji]) $
+        sjislice_tmp = ((*(*(*info).data).sjidata)[(*(*info).dispparams).t_sji]) $
     ELSE $
-        *(*(*info).data).sjislice = ((*(*(*info).data).sjidata)[0])
+        sjislice_tmp = ((*(*(*info).data).sjidata)[0])
+    ; If SJI data is scaled integer, descale and convert to float
+    IF (*(*info).dispswitch).sjiscaled THEN $
+      sjislice_tmp = CRISPEX_SCALING_DESCALE(sjislice_tmp, (*(*info).dispparams).sjibscale, $
+        (*(*info).dispparams).sjibzero)
+    *(*(*info).data).sjislice = sjislice_tmp
 	ENDIF
 END
 
@@ -12510,7 +12531,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
             refnx:0L, refny:0L, refnlp:0L, refnt:0L, refns:0L, refimnt:0L, refspnt:0L, $
             sjinx:0L, sjiny:0L, sjint:1L, sjidx:0., sjidy:0., sjix0:0L, sjiy0:0L, $
             masknx:0L, maskny:0L, masknt:0L, dx:0., dy:0., dt:dt, dx_fixed:0, $
-            imns:0L, spns:0L, imstokes:'', spstokes:'', imdiagnostics:'', $
+            imns:0L, spns:0L, $
+            sjibscale:0., sjibzero:0., sjiscaled:0B, $
+            imstokes:'', spstokes:'', imdiagnostics:'', $
             xunit:'arcsec', yunit:'arcsec', tunit:'', lpunit:'', sunit:'', bunit:'counts', $
             xlabel:'x', ylabel:'y', tlabel:'Frame number', lplabel:'Spectral position', $
             slabel:'', blabel:'Intensity', $
@@ -13155,9 +13178,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	ENDELSE
 	ls_yrange_ref = ls_upp_y_ref - ls_low_y_ref 
 
-  sjimin = MIN((*hdr.sjidata)[0], MAX=sjimax_val, /NAN)
+  sjidata_tmp = (*hdr.sjidata)[0]
+  ; If SJI data is scaled integer, descale and convert to float
+  IF hdr.sjiscaled THEN $
+    sjidata_tmp = CRISPEX_SCALING_DESCALE(sjidata_tmp, hdr.sjibscale, hdr.sjibzero)
+  sjimin = MIN(sjidata_tmp, MAX=sjimax_val, /NAN)
   sjimax = sjimax_val
-	
   IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(initial scaling parameters)', /OPT, /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial scaling parameters... done!']
@@ -14117,7 +14143,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
       ;dataval_sji_unit_txt = ' '
       IF hdr.sjifile THEN BEGIN
-        dataval_sji_real_txt = STRING(((*hdr.sjidata)[0])[x_start,y_start], $
+;        dataval_sji_real_txt = STRING(((*hdr.sjidata)[0])[x_start,y_start], $
+        dataval_sji_real_txt = STRING(sjidata_tmp[x_start,y_start], $
           FORMAT='(E10.4)')
         ;IF (STRTRIM(hdr.sjibunit,2) NE '0') THEN dataval_sji_unit_txt = '['+hdr.sjibunit+']'
       ENDIF ELSE BEGIN
@@ -14461,13 +14488,15 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     t:t_start, t_main:hdr.tsel_main[0], t_ref:hdr.tsel_ref[0], t_sji:hdr.tsel_sji[0], $
     t_low_main:hdr.tarr_main[0], t_upp_main:hdr.tarr_main[hdr.mainnt-1], $
     t_low_ref:hdr.tarr_ref[0], t_upp_ref:hdr.tarr_ref[hdr.refnt-1], $
-    toffset_main:hdr.toffset_main, toffset_ref:hdr.toffset_ref $
+    toffset_main:hdr.toffset_main, toffset_ref:hdr.toffset_ref, $
+    sjibscale:hdr.sjibscale, sjibzero:hdr.sjibzero $
 	}
 ;--------------------------------------------------------------------------------- DATA DISPLAY SWITCHES
 	dispswitch = { $
 		restricted_t_range:PTR_NEW(0), restricted_lp_range:PTR_NEW(0), restricted_lp_ref_range:PTR_NEW(0), $
 		exts:exts_set, refexts:refexts_set, warpspslice:hdr.warpspslice, warprefspslice:hdr.warprefspslice, $
-		detspect_scale:detspect_scale, ref_detspect_scale:ref_detspect_scale, drawdop:0 $	
+		detspect_scale:detspect_scale, ref_detspect_scale:ref_detspect_scale, drawdop:0, $	
+    sjiscaled:hdr.sjiscaled $
 	}
 ;--------------------------------------------------------------------------------- FEEDBACK PARAMS
 	feedbparams = { $
