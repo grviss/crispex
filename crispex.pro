@@ -172,8 +172,8 @@
 ;
 ; RESTRICTIONS:
 ;   Requires the following procedures and functions:
-;     Functions: HISTO_OPT()    [general]
-;                READFITS()     [if reading FITS cubes]
+;     Functions: IRIS_HISTO_OPT() [general; included in SolarSoft]
+;                READFITS()       [if reading FITS cubes]
 ;
 ; PROCEDURE:
 ;   In default setting, four windows are opened, one control panel and three subsidiary windows 
@@ -745,12 +745,13 @@ FUNCTION CRISPEX_SCALING_SLICES, dispim, gamma_val, histo_opt_val, $
   ENDIF
   IF ((histo_opt_val NE 0) OR KEYWORD_SET(FORCE_HISTO)) THEN BEGIN
     IF (MIN(dispim, MAX=dispmax, /NAN) NE dispmax) THEN BEGIN
-;      ; Copied over MISSING handling from modified HISTO_OPT() since it gives  "Floating illegal
-;      ; operand" errors otherwise
-;      finitvals = FINITE(dispim)
-;      dispim[WHERE(finitvals eq 0)]=-32768
-;      dispim=dispim[WHERE(dispim ne -32768)]
-      dispim = HISTO_OPT(TEMPORARY(dispim), histo_opt_val, MISSING=-32768)
+;      ; Copied over MISSING handling from modified IRIS_HISTO_OPT() since the call to that function
+;      ; gives "Floating illegal operand" errors otherwise
+;      wherenotfinit = WHERE(FINITE(dispim) EQ 0, nwherenotfinit)
+;      IF (nwherenotfinit NE 0) THEN dispim[wherenotfinit]=-32768
+;      wheregood = WHERE(dispim NE -32768, nwheregood)
+;      IF (nwheregood NE 0) THEN dispim = dispim[wheregood]
+      dispim = IRIS_HISTO_OPT(dispim, histo_opt_val, MISSING=-32768)
     ENDIF
   ENDIF
   minimum = MIN(dispim,MAX=maximum, /NAN)
@@ -4342,12 +4343,13 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
     ENDELSE
   ENDIF
   IF ((*(*(*info).scaling).imagescale)[sel] EQ 2) THEN BEGIN
-;    ; Copied over MISSING handling from modified HISTO_OPT() since it gives  "Floating illegal
+;    ; Copied over MISSING handling from modified IRIS_HISTO_OPT() since it gives  "Floating illegal
 ;    ; operand" errors otherwise
-;    finitvals = FINITE(selected_data)
-;    selected_data[WHERE(finitvals eq 0)]=-32768
-;    selected_data = selected_data[WHERE(selected_data ne -32768)]
-    selected_data = HISTO_OPT(TEMPORARY(selected_data), $
+;    wherenotfinit = WHERE(FINITE(selected_data) EQ 0, nwherenotfinit)
+;    IF (nwherenotfinit NE 0) THEN selected_data[wherenotfinit]=-32768
+;    wheregood = WHERE(selected_data NE -32768, nwheregood)
+;    IF (nwheregood NE 0) THEN selected_data = selected_data[wheregood]
+    selected_data = IRIS_HISTO_OPT(TEMPORARY(selected_data), $
       (*(*info).scaling).histo_opt_val[scale_idx], MISSING=-32768)
     minimum = MIN(selected_data, MAX=maximum, /NAN)
   ENDIF
