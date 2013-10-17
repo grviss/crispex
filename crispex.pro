@@ -7255,7 +7255,6 @@ PRO CRISPEX_PB_SPECTBLINK, event
 			WIDGET_CONTROL, (*(*info).ctrlsfeedb).close_button, /SENSITIVE
 		ENDIF
 	ENDELSE
-	WIDGET_CONTROL, (*(*info).ctrlscp).lp_speed_slider, SENSITIVE = (*(*info).pbparams).spmode
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).spmode,(*(*info).pbparams).spdirection], labels=['Spectral blink mode','Blink direction']
 END
 
@@ -7508,8 +7507,8 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
                       EVENT_PRO='CRISPEX_PREFERENCES_SAVE_SETTINGS')
 
   ; Realize widget window
-	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET=(*(*info).winsizes).spxoffset, $
-    TLB_SET_YOFFSET=0
+	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET=(*(*info).winsizes).aboutxoffset, $
+    TLB_SET_YOFFSET=(*(*info).winsizes).aboutyoffset
 	WIDGET_CONTROL, base, SET_UVALUE=info
 	XMANAGER, 'CRISPEX', base, /NO_BLOCK
 	(*(*info).winids).preftlb = base
@@ -10006,7 +10005,6 @@ PRO CRISPEX_SESSION_RESTORE, event
 			WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, SENSITIVE = ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp)
 			WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_VALUE = (*(*info).dataparams).lp, SET_SLIDER_MIN = (*(*info).dispparams).lp_low, SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, $
 				SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).lp_speed_slider, SET_VALUE = (*(*info).pbparams).t_speed, SENSITIVE = ((*(*info).dataswitch).spfile AND (*(*info).pbparams).spmode)
   	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_SLIDER_MIN=(*(*info).dispparams).lp_low, $
       SET_SLIDER_MAX=(*(*info).dispparams).lp_upp, SET_VALUE=(*(*info).dataparams).lp, $
       SENSITIVE=(((*(*info).dispparams).lp_range-1) NE 1)
@@ -11427,8 +11425,7 @@ PRO CRISPEX_SLIDER_SPEED, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	(*(*info).pbparams).t_speed = event.VALUE
-	IF (*(*info).pbparams).spmode THEN WIDGET_CONTROL, (*(*info).ctrlscp).t_speed_slider, SET_VALUE = (*(*info).pbparams).t_speed ELSE $
-		WIDGET_CONTROL, (*(*info).ctrlscp).lp_speed_slider, SET_VALUE = (*(*info).pbparams).t_speed
+  WIDGET_CONTROL, (*(*info).ctrlscp).t_speed_slider, SET_VALUE = (*(*info).pbparams).t_speed 
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).t_speed], labels=['Playback (blink) speed']
 END
 
@@ -13479,7 +13476,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;	upper_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last_tmp,2),  /EDITABLE, $
 	upper_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last,2),  /EDITABLE, $
                           XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_UPP', SENSITIVE = t_slid_sens)
-	reset_trange_but	  = WIDGET_BUTTON(playback_tab, VALUE = 'Reset temporal boundaries', $
+	reset_trange_but	  = WIDGET_BUTTON(t_range_field, VALUE = '  Reset  ', $
                           EVENT_PRO = 'CRISPEX_DISPRANGE_T_RESET', SENSITIVE = 0)
   playback_divider1   = CRISPEX_WIDGET_DIVIDER(playback_tab)
 	slice_update_but	  = WIDGET_BUTTON(playback_tab, $
@@ -13534,22 +13531,19 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	upper_lp_text		    = WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_last_vals,2),  /EDITABLE, $
                           XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_UPP', $
                           SENSITIVE = lp_blink_vals_sens)
-	reset_lprange_but	  = WIDGET_BUTTON(spectral_tab, $
-                          VALUE = 'Reset '+STRLOWCASE(sp_h[heightset])+' boundaries', $
+	reset_lprange_but	  = WIDGET_BUTTON(lp_range_field, $
+                          VALUE = '  Reset  ',$
                           EVENT_PRO = 'CRISPEX_DISPRANGE_LP_RESET', SENSITIVE = 0)
   spectral_divider1   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
   ; Spectral blink base
-	lp_speed_slid		    = WIDGET_SLIDER(spectral_tab, TITLE = 'Animation speed [blink/s]', MIN = 1, $
-                          MAX = 100, VALUE = t_speed, EVENT_PRO = 'CRISPEX_SLIDER_SPEED', /DRAG, $
-                          SENSITIVE = 0)
-	lp_blink_slid		    = WIDGET_SLIDER(spectral_tab, $
-                          TITLE=sp_h[heightset]+' position to blink against', MIN=lp_first, $
-                          MAX=lp_last_slid, VALUE=lp_start, EVENT_PRO='CRISPEX_SLIDER_SPECTBLINK', $
-                          /DRAG, SENSITIVE = lp_blink_vals_sens)
 	lp_blink_field		  = WIDGET_BASE(spectral_tab, /ROW,/NONEXCLUSIVE)
 	lp_blink_but		    = WIDGET_BUTTON(lp_blink_field, $
                           VALUE = 'Blink between '+STRLOWCASE(sp_h[heightset])+' positions', $
                           EVENT_PRO = 'CRISPEX_PB_SPECTBLINK', SENSITIVE = lp_slid_sens)
+	lp_blink_slid		    = WIDGET_SLIDER(spectral_tab, $
+                          TITLE=sp_h[heightset]+' position to blink against', MIN=lp_first, $
+                          MAX=lp_last_slid, VALUE=lp_start, EVENT_PRO='CRISPEX_SLIDER_SPECTBLINK', $
+                          /DRAG, SENSITIVE = lp_blink_vals_sens)
   spectral_divider2   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
   ; Reference spectral base
 	lp_ref_but_field	  = WIDGET_BASE(spectral_tab, /ROW, /NONEXCLUSIVE)
@@ -13566,11 +13560,13 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   spectral_divider3   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
   ; Phi-slit base
 	slit_label		      = WIDGET_LABEL(spectral_tab, VALUE = 'Slit controls:', /ALIGN_LEFT)
-	phi_slid		        = WIDGET_SLIDER(spectral_tab, TITLE = 'Slit angle [degrees]', MIN = 0, MAX = 179, $
-                          VALUE=angle, EVENT_PRO = 'CRISPEX_SLIDER_PHI_ANGLE', SENSITIVE = 0, /DRAG)
-	nphi_slid		        = WIDGET_SLIDER(spectral_tab, TITLE = 'Slit length [pixel]', MIN = 2, MAX = nphi, $
+  phi_slid_base       = WIDGET_BASE(spectral_tab, /GRID_LAYOUT, COLUMN=2, /ALIGN_CENTER) 
+	phi_slid		        = WIDGET_SLIDER(phi_slid_base, TITLE = 'Slit angle [degrees]', MIN = 0, MAX = 179, $
+                          VALUE=angle, EVENT_PRO = 'CRISPEX_SLIDER_PHI_ANGLE', SENSITIVE=0, /DRAG, $
+                          XSIZE=FLOOR((tab_width-2*pad)/2.))
+	nphi_slid		        = WIDGET_SLIDER(phi_slid_base, TITLE = 'Slit length [pixel]', MIN = 2, MAX = nphi, $
                           VALUE=LONG(hdr.ny/3.), EVENT_PRO = 'CRISPEX_SLIDER_NPHI', SENSITIVE = 0, /DRAG)
-	slit_move_field		  = WIDGET_BASE(spectral_tab,/ROW,/ALIGN_CENTER)
+	slit_move_field		  = WIDGET_BASE(spectral_tab,/GRID_LAYOUT, COLUMN=2,/ALIGN_CENTER)
 	bwd_move_slit		    = WIDGET_BUTTON(slit_move_field, VALUE = '< Move slit backwards', $
                           EVENT_PRO = 'CRISPEX_PHISLIT_MOVE_BWD', SENSITIVE= 0, $
                           TOOLTIP = 'Move slit backward along slit direction')
@@ -13580,10 +13576,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
   ; ==================== Spatial Tab ====================
   ; Cursor base 
-	x_slid			        = WIDGET_SLIDER(spatial_tab, TITLE='X position of the cursor [pixel]', $
+	x_slid			        = WIDGET_SLIDER(spatial_tab, TITLE='X position of cursor [pixel]', $
                           MIN=x_first, MAX=(x_last > 1), VALUE=x_start, $
                           EVENT_PRO='CRISPEX_SLIDER_X', /DRAG, SENSITIVE=(x_last GT x_first))
-	y_slid			        = WIDGET_SLIDER(spatial_tab, TITLE='Y position of the cursor [pixel]', $
+	y_slid			        = WIDGET_SLIDER(spatial_tab, TITLE='Y position of cursor [pixel]', $
                           MIN=y_first, MAX=(y_last > 1), VALUE=y_start, $
                           EVENT_PRO = 'CRISPEX_SLIDER_Y', /DRAG, SENSITIVE=(y_last GT y_first))
   spatial_divider1    = CRISPEX_WIDGET_DIVIDER(spatial_tab)
@@ -13628,7 +13624,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   ; Spectral window part
   specwin_disp_label  = WIDGET_LABEL(diagnostics_tab, VALUE = 'Spectral windows:', /ALIGN_LEFT)
   specwin_sub_frame   = WIDGET_BASE(diagnostics_tab, /GRID_LAYOUT, COLUMN=2)
-  main_select_base    = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME)
+  main_select_base    = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME, $
+                          Y_SCROLL_SIZE=(hdr.ndiagnostics GT 1)*200, $
+                          X_SCROLL_SIZE=FLOOR(tab_width/2.5))
 	main_specwin_label  = WIDGET_LABEL(main_select_base, VALUE = 'Main:', /ALIGN_LEFT)
   IF (hdr.ndiagnostics GT 1) THEN $
     vals = ['Display all',hdr.diagnostics] $
@@ -13639,7 +13637,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                           /NONEXCLUSIVE, /COLUMN, EVENT_FUNC='CRISPEX_BGROUP_DIAGNOSTICS_SELECT')
   FOR i=0,N_ELEMENTS(vals)-1 DO $
     WIDGET_CONTROL, specwin_button_ids[i], SENSITIVE=(i GT 0), /SET_BUTTON
-  ref_select_base     = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME)
+  ref_select_base     = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME, $
+                          Y_SCROLL_SIZE=(hdr.nrefdiagnostics GT 1)*200, $
+                          X_SCROLL_SIZE=FLOOR(tab_width/2.5))
 	ref_specwin_label   = WIDGET_LABEL(ref_select_base, VALUE = 'Reference:', /ALIGN_LEFT)
   IF (hdr.nrefdiagnostics GT 1) THEN $
     vals = ['Display all',hdr.refdiagnostics] $
@@ -13739,11 +13739,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   histo_opt_label     = WIDGET_LABEL(histo_base, VALUE='Histogram optimisation', /ALIGN_LEFT)
   histo_opt_txt       = WIDGET_TEXT(histo_base, VALUE=STRTRIM(histo_opt_val,2), /EDITABLE, $
                           XSIZE=11, EVENT_PRO='CRISPEX_SCALING_HISTO_OPT_VALUE')
-  minmax_sliders      = WIDGET_BASE(scaling_tab, /ROW)
+  minmax_sliders      = WIDGET_BASE(scaling_tab, /GRID_LAYOUT, COLUMN=2)
   scalemin_slider     = WIDGET_SLIDER(minmax_sliders, TITLE='Image minimum [%]', MIN=0, MAX=99, $
-                          VALUE=0, EVENT_PRO='CRISPEX_SCALING_SLIDER_MIN', /DRAG, XSIZE=131)
+                          VALUE=0, EVENT_PRO='CRISPEX_SCALING_SLIDER_MIN', /DRAG, $
+                          XSIZE=FLOOR((tab_width-2*pad)/2.))
   scalemax_slider     = WIDGET_SLIDER(minmax_sliders, TITLE='Image maximum [%]', MIN=1, MAX=100, $
-                          VALUE=100, EVENT_PRO='CRISPEX_SCALING_SLIDER_MAX', /DRAG, XSIZE=131)
+                          VALUE=100, EVENT_PRO='CRISPEX_SCALING_SLIDER_MAX', /DRAG)
   gamma_label         = WIDGET_LABEL(scaling_tab, VALUE=STRING(gamma_val, FORMAT='(F6.3)'), $
                           /ALIGN_CENTER,XSIZE=250)
   gamma_slider        = WIDGET_SLIDER(scaling_tab, TITLE='Gamma', MIN=0, MAX=1000, $
@@ -13838,10 +13839,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                             /DRAG, SENSITIVE = maskfile)
   overlays_divider1   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
   ; Loop overlays base                            
-	overlay_label		    = WIDGET_LABEL(overlays_tab, VALUE = 'Overlays:', /ALIGN_LEFT)
+	overlay_label		    = WIDGET_LABEL(overlays_tab, VALUE = 'Paths:', /ALIGN_LEFT)
 	overlay_buts		    = WIDGET_BASE(overlays_tab, /ROW)
 	overlay_onebut		  = WIDGET_BASE(overlay_buts, /NONEXCLUSIVE)
-	overlay_but 		    = WIDGET_BUTTON(overlay_onebut, VALUE = 'Saved loops:', $
+	overlay_but 		    = WIDGET_BUTTON(overlay_onebut, VALUE = 'Saved paths:', $
                           EVENT_PRO = 'CRISPEX_RESTORE_LOOPS_MAIN')
 	overlay_actbuts	    = WIDGET_BASE(overlay_buts, /ROW, /EXCLUSIVE)
 	loop_overlay_al		  = WIDGET_BUTTON(overlay_actbuts, VALUE = 'Always', $
@@ -13850,7 +13851,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	loop_overlay_sav	  = WIDGET_BUTTON(overlay_actbuts, $
                           VALUE = 'At saved '+STRLOWCASE(wav_h[heightset]), SENSITIVE = 0)
 	linestyle_base		  = WIDGET_BASE(overlays_tab, /ROW)
-	linestyle_label		  = WIDGET_LABEL(linestyle_base, VALUE = 'Loops linestyle:', /ALIGN_LEFT)
+	linestyle_label		  = WIDGET_LABEL(linestyle_base, VALUE = 'Paths linestyle:', /ALIGN_LEFT)
 	linestyle_buts		  = WIDGET_BASE(linestyle_base, /ROW, /EXCLUSIVE)
 	linestyle_0		      = WIDGET_BUTTON(linestyle_buts, VALUE = 'solid', $
                           EVENT_PRO = 'CRISPEX_DRAW_LOOP_LINESTYLE_0')
@@ -14299,8 +14300,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		t_speed_slider:t_speed_slid, t_step_slider:t_step_slid, imref_blink_but:imref_blink_but, $					
     master_time_ids:master_time_ids, time_offset_slider:time_offset_slid, $
 		lower_lp_text:lower_lp_text, upper_lp_text:upper_lp_text, $	
-		reset_lprange_but:reset_lprange_but, lp_slider:lp_slid, $				
-		lp_speed_slider:lp_speed_slid, lp_blink_slider:lp_blink_slid, $	
+		reset_lprange_but:reset_lprange_but, lp_slider:lp_slid, lp_blink_slider:lp_blink_slid, $	
 		lp_blink_but:lp_blink_but, lp_ref_but:lp_ref_but, lp_ref_slider:lp_ref_slid, $
 		x_slider:x_slid, y_slider:y_slid, lock_button:lockbut, unlock_button:unlockbut, $
 		zoom_button_ids:zoom_button_ids, xpos_slider:xpos_slider, ypos_slider:ypos_slider, $			
