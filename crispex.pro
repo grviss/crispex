@@ -915,16 +915,13 @@ PRO CRISPEX_CLOSE, event
 		PRINT, 'ERROR: Could not write performance file crispex.'+(*(*info).paths).hostname+'cpft '
 		PRINT, '       to '+(*(*info).paths).dir_settings+'. Permission denied.'
 	ENDELSE
-	FREE_LUN, (*(*info).data).lunim
-	IF (*(*info).dataswitch).spfile THEN FREE_LUN, (*(*info).data).lunsp
-	IF ((*(*info).dataswitch).reffile AND ((*(*info).data).lunrefim GT 0)) THEN $
-    FREE_LUN, (*(*info).data).lunrefim
-	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)) THEN $
-    FREE_LUN, (*(*info).data).lunrefsp
-	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)) THEN $
-    FREE_LUN, (*(*info).data).lunmask
-	IF ((*(*info).dataswitch).sjifile AND ((*(*info).data).lunsji GT 0)) THEN $
-    FREE_LUN, (*(*info).data).lunsji
+  CRISPEX_CLOSE_FREE_LUN, (*(*info).data).lunim, (*(*info).data).lunsp, $
+    (*(*info).data).lunrefim, (*(*info).data).lunrefsp, (*(*info).data).lunmask, $
+    (*(*info).data).lunsji, /IMDISP, SPDISP=(*(*info).dataswitch).spfile, $
+    REFIMDISP=((*(*info).dataswitch).reffile AND ((*(*info).data).lunrefim GT 0)),$
+    REFSPDISP=((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)),$
+    MASKDISP=((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)),$
+	  SJIDISP=((*(*info).dataswitch).sjifile AND ((*(*info).data).lunsji GT 0))
 	WIDGET_CONTROL, (*(*info).winids).root, /DESTROY
 	PTR_FREE, info
 END
@@ -932,19 +929,27 @@ END
 PRO CRISPEX_CLOSE_CLEANUP, base								
 ; Clean-up upon closing program
 	WIDGET_CONTROL, base, GET_UVALUE = info
-	FREE_LUN, (*(*info).data).lunim
-	IF (*(*info).dataswitch).spfile THEN FREE_LUN, (*(*info).data).lunsp
-	IF ((*(*info).dataswitch).reffile AND ((*(*info).data).lunrefim GT 0)) THEN $
-    FREE_LUN, (*(*info).data).lunrefim
-	IF ((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)) THEN $
-    FREE_LUN, (*(*info).data).lunrefsp
-	IF ((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)) THEN $
-    FREE_LUN, (*(*info).data).lunmask
-	IF ((*(*info).dataswitch).sjifile AND ((*(*info).data).lunsji GT 0)) THEN $
-    FREE_LUN, (*(*info).data).lunsji
+  CRISPEX_CLOSE_FREE_LUN, (*(*info).data).lunim, (*(*info).data).lunsp, $
+    (*(*info).data).lunrefim, (*(*info).data).lunrefsp, (*(*info).data).lunmask, $
+    (*(*info).data).lunsji, /IMDISP, SPDISP=(*(*info).dataswitch).spfile, $
+    REFIMDISP=((*(*info).dataswitch).reffile AND ((*(*info).data).lunrefim GT 0)),$
+    REFSPDISP=((*(*info).dataswitch).refspfile AND ((*(*info).data).lunrefsp GT 0)),$
+    MASKDISP=((*(*info).dataswitch).maskfile AND ((*(*info).data).lunmask GT 0)),$
+	  SJIDISP=((*(*info).dataswitch).sjifile AND ((*(*info).data).lunsji GT 0))
 	CRISPEX_CLOSE_CLEAN_INSTANCE_FILE, (*(*info).paths).dir_settings_write, $
   (*(*info).paths).dir_settings, (*(*info).paths).hostname, ((*(*info).sesparams).curr_instance_id)[0]
 	PTR_FREE, info
+END
+
+PRO CRISPEX_CLOSE_FREE_LUN, lunim, lunsp, lunrefim, lunrefsp, lunmask, lunsji, $
+  IMDISP=imdisp, SPDISP=spdisp, REFIMDISP=refimdisp, REFSPDISP=refspdisp, $
+  MASKDISP=maskdisp, SJIDISP=sjidisp
+  IF KEYWORD_SET(IMDISP) THEN FREE_LUN, lunim
+  IF KEYWORD_SET(SPDISP) THEN FREE_LUN, lunsp
+  IF KEYWORD_SET(REFIMDISP) THEN FREE_LUN, lunrefim
+  IF KEYWORD_SET(REFSPDISP) THEN FREE_LUN, lunrefsp
+  IF KEYWORD_SET(MASKDISP) THEN FREE_LUN, lunmask
+  IF KEYWORD_SET(SJIDISP) THEN FREE_LUN, lunsji
 END
 
 PRO CRISPEX_CLOSE_CLEAN_INSTANCE_FILE, dir_inst_write, dir_inst, hostname, curr_instance_id
@@ -5841,12 +5846,26 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
   ipath = hdr_out.ipath
   instance_label = hdr_out.instance_label
   hdr_out.imfilename = imcube
+  ; Check existence of file, else throw error message
+  IF (FILE_TEST(hdr_out.imfilename) EQ 0) THEN BEGIN
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The main image file "'+hdr_out.imfilename+$
+      '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+    io_failsafe_main_error = 1
+    RETURN
+  ENDIF
   ; Determine cube compatibility mode for inputfiles (0: running FITS cubes, 1: running old cubes)
 	imext = STRMID(hdr_out.imfilename,STRPOS(hdr_out.imfilename,'.',/REVERSE_SEARCH)+1,$
                   STRLEN(hdr_out.imfilename))  ; Process extension
 	hdr_out.imcube_compatibility = ABS(STRMATCH(imext,'fits',/FOLD_CASE)-1)             ; Determine comp mode
   IF (N_ELEMENTS(SPCUBE) EQ 1) THEN BEGIN
     hdr_out.spfilename = spcube
+    ; Check existence of file, else throw error message
+    IF (FILE_TEST(hdr_out.spfilename) EQ 0) THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The main spectral file "'+hdr_out.spfilename+$
+        '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+      io_failsafe_main_error = 1
+      RETURN
+    ENDIF
     spext = STRMID(hdr_out.spfilename,STRPOS(hdr_out.spfilename,'.',/REVERSE_SEARCH)+1,$
                     STRLEN(hdr_out.spfilename))
     hdr_out.spcube_compatibility = ABS(STRMATCH(spext,'fits',/FOLD_CASE)-1)
@@ -6011,6 +6030,13 @@ PRO CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
 ;  ENDIF
 	IF ((N_ELEMENTS(REFCUBE) GE 1) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN					
     hdr_out.refimfilename = refcube[0]
+    ; Check existence of file, else throw error message
+    IF (FILE_TEST(hdr_out.refimfilename) EQ 0) THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image file "'+hdr_out.refimfilename+$
+        '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+      io_failsafe_ref_error = 1
+      RETURN
+    ENDIF
   	refimext = STRMID(hdr_out.refimfilename,STRPOS(hdr_out.refimfilename,'.',/REVERSE_SEARCH)+1,$
                       STRLEN(hdr_out.refimfilename))
   	hdr_out.refimcube_compatibility = ABS(STRMATCH(refimext,'fits',/FOLD_CASE)-1)
@@ -6024,6 +6050,13 @@ PRO CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
                            CUBE_COMPATIBILITY=hdr_out.refimcube_compatibility, EXTEN_NO=0, /REFIMCUBE
     IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN
       hdr_out.refspfilename = refcube[1]
+      ; Check existence of file, else throw error message
+      IF (FILE_TEST(hdr_out.refspfilename) EQ 0) THEN BEGIN
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference spectral file "'+hdr_out.refspfilename+$
+          '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+        io_failsafe_ref_error = 1
+        RETURN
+      ENDIF
      	refspext = STRMID(hdr_out.refspfilename,STRPOS(hdr_out.refspfilename,'.',/REVERSE_SEARCH)+1,$
                         STRLEN(hdr_out.refspfilename))
     	hdr_out.refspcube_compatibility = ABS(STRMATCH(refspext,'fits',/FOLD_CASE)-1)
@@ -6134,6 +6167,13 @@ PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
   hdr_out = hdr_in
 	IF ((N_ELEMENTS(SJICUBE) GE 1) AND (SIZE(SJICUBE,/TYPE) EQ 7)) THEN BEGIN					
     hdr_out.sjifilename = sjicube[0]
+    ; Check existence of file, else throw error message
+    IF (FILE_TEST(hdr_out.sjifilename) EQ 0) THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The slit-jaw image file "'+hdr_out.sjifilename+$
+        '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+      io_failsafe_sji_error = 1
+      RETURN
+    ENDIF
   	sjiext = STRMID(hdr_out.sjifilename,STRPOS(hdr_out.sjifilename,'.',/REVERSE_SEARCH)+1,$
                       STRLEN(hdr_out.sjifilename))
   	sjicube_compatibility = ABS(STRMATCH(sjiext,'fits',/FOLD_CASE)-1)
@@ -6194,6 +6234,13 @@ PRO CRISPEX_IO_OPEN_MASKCUBE, MASKCUBE=maskcube, HDR_IN=hdr_in, HDR_OUT=hdr_out,
   hdr_out = hdr_in
   IF (N_ELEMENTS(MASKCUBE) GE 1) THEN BEGIN
     hdr_out.maskfilename = maskcube[0]
+    ; Check existence of file, else throw error message
+    IF (FILE_TEST(hdr_out.maskfilename) EQ 0) THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The mask file "'+hdr_out.maskfilename+$
+        '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+      io_failsafe_mask_error = 1
+      RETURN
+    ENDIF
   	maskext = STRMID(hdr_out.maskfilename,STRPOS(hdr_out.maskfilename,'.',/REVERSE_SEARCH)+1,$
                       STRLEN(hdr_out.maskfilename))
   	hdr_out.maskcube_compatibility = ABS(STRMATCH(maskext,'fits',/FOLD_CASE)-1)
@@ -6266,9 +6313,13 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
     WIDGET_CONTROL, event.TOP, GET_UVALUE = info $
   ELSE $
     hdr_out = hdr_in
+  
+  io_failsafe_mnspec_error = 0
+  io_failsafe_imspectfile_error = 0
+  io_failsafe_refspectfile_error = 0
+  io_failsafe_line_center_error = 0
 
   ; Check for correct MNSPEC setting
-  io_failsafe_mnspec_error = 0
   IF (N_ELEMENTS(MNSPEC) NE 0) THEN BEGIN
     CRISPEX_IO_FAILSAFES_MNSPEC, mnspec, hdr_out, STARTUPTLB=startuptlb, $
                                  IO_FAILSAFE_ERROR=io_failsafe_mnspec_error
@@ -6277,17 +6328,33 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
 
   ; Handle SPECTFILE input; will only be done when cube is read in compatibility mode (i.e., for
   ; non-FITS cubes). Check whether SPECTFILE has been provided with save files
-  io_failsafe_imspectfile_error = 0
-  io_failsafe_refspectfile_error = 0
   IF ((N_ELEMENTS(SPECTFILE) GE 1) AND (SIZE(SPECTFILE,/TYPE) EQ 7)) THEN $
     spectfile_set = (spectfile[0] NE '') ELSE BEGIN
     spectfile_set = 0
   ENDELSE
+  IF spectfile_set THEN BEGIN
+    ; Check existence of file, else throw error message
+    IF (FILE_TEST(spectfile[0]) EQ 0) THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The main spectral save file "'+spectfile[0]+$
+        '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+      io_failsafe_imspectfile_error = 1
+      RETURN
+    ENDIF
+  ENDIF
   CRISPEX_IO_PARSE_SPECTFILE, spectfile, *hdr_out.imdata, hdr_out.verbosity, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                               MNSPEC=mnspec, /IMCUBE, CUBE_COMPATIBILITY=hdr_out.imcube_compatibility, $
                               STARTUPTLB=startuptlb, IO_FAILSAFE_ERROR=io_failsafe_imspectfile_error
   IF (io_failsafe_imspectfile_error EQ 1) THEN RETURN 
   refspectfile_set = ((N_ELEMENTS(SPECTFILE) EQ 2) AND (SIZE(SPECTFILE,/TYPE) EQ 7)) 
+  IF refspectfile_set THEN BEGIN
+    ; Check existence of file, else throw error message
+    IF (FILE_TEST(spectfile[1]) EQ 0) THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference spectral save file "'+spectfile[1]+$
+        '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+      io_failsafe_refspectfile_error = 1
+      RETURN
+    ENDIF
+  ENDIF
   IF (STRCOMPRESS(hdr_out.refimfilename) NE '') THEN BEGIN
     IF ((N_ELEMENTS(SPECTFILE) EQ 1) AND (refspectfile_set EQ 0)) THEN spectfile = [spectfile, '']
     CRISPEX_IO_PARSE_SPECTFILE, spectfile, *hdr_out.refdata, hdr_out.verbosity, HDR_IN=hdr_out, $
@@ -6299,7 +6366,6 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
   ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'refspec', 0, 'refms', 0, 'reflps', 0)
 
   ; Handle LINE_CENTER input
-  io_failsafe_line_center_error = 0
   IF (N_ELEMENTS(LINE_CENTER) NE 0) THEN BEGIN
     CRISPEX_IO_FAILSAFES_LINE_CENTER, line_center, hdr_out, NFILES=(hdr_out.showref+1), $
                                       STARTUPTLB=startuptlb, SPECTFILE_SET=spectfile_set, $
@@ -12074,15 +12140,17 @@ END
 ;================================================================================= GENERAL WINDOW PROCEDURES
 PRO CRISPEX_WINDOW, xsize, ysize, leader, title, base, wid, xoffset, yoffset, DRAWID = drawid, $
                     DRAWBASE =disp, XSCROLL = xscroll, YSCROLL = yscroll, SCROLL = scroll, $
-                    RESIZING = resizing, RES_HANDLER = res_handler
+                    RESIZING = resizing, RES_HANDLER = res_handler, $
+                    NO_TLB_KILL_REQUEST=no_tlb_kill_request
 ; Sets up the display windows
 	IF (N_ELEMENTS(RESIZING) EQ 0) THEN resizing = 0
 	IF (N_ELEMENTS(LEADER) EQ 0) THEN $
-    base = WIDGET_BASE(TITLE = title, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS, $
-                        TLB_SIZE_EVENTS = resizing) $
+    base = WIDGET_BASE(TITLE = title, TLB_FRAME_ATTR = 1, $
+      TLB_KILL_REQUEST_EVENTS=~KEYWORD_SET(NO_TLB_KILL_REQUEST), $
+      TLB_SIZE_EVENTS = resizing) $
   ELSE $
 		base = WIDGET_BASE(TITLE = STRTRIM(title), GROUP_LEADER = leader, TLB_FRAME_ATTR = 1, $
-                        /TLB_KILL_REQUEST_EVENTS, TLB_SIZE_EVENTS = resizing)
+      TLB_KILL_REQUEST_EVENTS=~KEYWORD_SET(NO_TLB_KILL_REQUEST), TLB_SIZE_EVENTS = resizing)
 	disp = WIDGET_BASE(base, /COLUMN)
   IF KEYWORD_SET(SCROLL) THEN BEGIN
     draw_verslid_base = WIDGET_BASE(disp,/ROW)
@@ -12506,7 +12574,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	yout          = REPLICATE(FIX(startup_ny/2.5)+10,9)-INDGEN(9)*15
 	IF startupwin THEN BEGIN  ; If startup window is to be shown, launch window
 		CRISPEX_WINDOW, startup_nx, startup_ny, 0, 'CRISPEX', startuptlb, startupwid, startup_xpos, $
-                    startup_ypos, DRAWID = startupdrawid, DRAWBASE = drawbase
+                    startup_ypos, DRAWID = startupdrawid, DRAWBASE = drawbase, $
+                    /NO_TLB_KILL_REQUEST
 		CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Initializing... '
 	ENDIF
 
@@ -12555,14 +12624,29 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, HDR_IN=hdr, HDR_OUT=hdr, $
                             SINGLE_CUBE=single_cube, STARTUPTLB=startuptlb, $
                             IO_FAILSAFE_MAIN_ERROR=io_failsafe_main_error
-  IF (io_failsafe_main_error EQ 1) THEN RETURN
+  IF (io_failsafe_main_error EQ 1) THEN BEGIN
+    CRISPEX_CLOSE_FREE_LUN, hdr.lunim, hdr.lunsp, hdr.lunrefim, hdr.lunrefsp, $
+      hdr.lunmask, hdr.lunsji, IMDISP=(hdr.lunim NE 0), SPDISP=(hdr.lunsp NE 0), $
+      REFIMDISP=(hdr.lunrefim NE 0), REFSPDISP=(hdr.lunrefsp NE 0), $
+      MASKDISP=(hdr.lunmask NE 0), SJIDISP=(hdr.lunsji NE 0)
+    IF (hdr.lunsp NE 0) THEN FREE_LUN, hdr.lunsp
+    WIDGET_CONTROL, startuptlb, /DESTROY
+    RETURN
+  ENDIF
 
   CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr, HDR_OUT=hdr, $
                             SINGLE_CUBE=single_cube, $
                             CUBE_COMPATIBILITY=refcube_compatibility, $
                             IO_FAILSAFE_REF_ERROR=io_failsafe_ref_error, $
                             IO_FAILSAFE_MAIN_REF_ERROR=io_failsafe_main_ref_error
-  IF ((io_failsafe_ref_error EQ 1) OR (io_failsafe_main_ref_error EQ 1)) THEN RETURN
+  IF ((io_failsafe_ref_error EQ 1) OR (io_failsafe_main_ref_error EQ 1)) THEN BEGIN
+    CRISPEX_CLOSE_FREE_LUN, hdr.lunim, hdr.lunsp, hdr.lunrefim, hdr.lunrefsp, $
+      hdr.lunmask, hdr.lunsji, IMDISP=(hdr.lunim NE 0), SPDISP=(hdr.lunsp NE 0), $
+      REFIMDISP=(hdr.lunrefim NE 0), REFSPDISP=(hdr.lunrefsp NE 0), $
+      MASKDISP=(hdr.lunmask NE 0), SJIDISP=(hdr.lunsji NE 0)
+    WIDGET_CONTROL, startuptlb, /DESTROY
+    RETURN
+  ENDIF
   IF (N_ELEMENTS(REFCUBE) LT 1) THEN $
     hdr = CREATE_STRUCT(hdr, 'refdiagnostics', 'N/A', 'refdiag_start', 0, 'refdiag_width', 1, $
             'tarr_ref', 0, 'tarr_raster_ref', 0, 'toffset_ref', 0, 'hdrs_ref', PTR_NEW(''))
@@ -12570,13 +12654,27 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr, HDR_OUT=hdr, $  
                             STARTUPTLB=startuptlb, $
                             IO_FAILSAFE_SJI_ERROR=io_failsafe_sji_error
-  IF (io_failsafe_sji_error EQ 1) THEN RETURN
+  IF (io_failsafe_sji_error EQ 1) THEN BEGIN
+    CRISPEX_CLOSE_FREE_LUN, hdr.lunim, hdr.lunsp, hdr.lunrefim, hdr.lunrefsp, $
+      hdr.lunmask, hdr.lunsji, IMDISP=(hdr.lunim NE 0), SPDISP=(hdr.lunsp NE 0), $
+      REFIMDISP=(hdr.lunrefim NE 0), REFSPDISP=(hdr.lunrefsp NE 0), $
+      MASKDISP=(hdr.lunmask NE 0), SJIDISP=(hdr.lunsji NE 0)
+    WIDGET_CONTROL, startuptlb, /DESTROY
+    RETURN
+  ENDIF
   IF (N_ELEMENTS(sjicube) NE 1) THEN $
     hdr = CREATE_STRUCT(hdr, 'tarr_sji', 0, 'tsel_sji', 0, 'rastercont', 0, 'hdrs_sji', PTR_NEW(''))
   
   CRISPEX_IO_OPEN_MASKCUBE, MASKCUBE=maskcube, HDR_IN=hdr, HDR_OUT=hdr, STARTUPTLB=startuptlb, $
                             IO_FAILSAFE_MASK_ERROR=io_failsafe_mask_error
-  IF (io_failsafe_mask_error EQ 1) THEN RETURN
+  IF (io_failsafe_mask_error EQ 1) THEN BEGIN
+    CRISPEX_CLOSE_FREE_LUN, hdr.lunim, hdr.lunsp, hdr.lunrefim, hdr.lunrefsp, $
+      hdr.lunmask, hdr.lunsji, IMDISP=(hdr.lunim NE 0), SPDISP=(hdr.lunsp NE 0), $
+      REFIMDISP=(hdr.lunrefim NE 0), REFSPDISP=(hdr.lunrefsp NE 0), $
+      MASKDISP=(hdr.lunmask NE 0), SJIDISP=(hdr.lunsji NE 0)
+    WIDGET_CONTROL, startuptlb, /DESTROY
+    RETURN
+  ENDIF
 
 	IF (hdr.refnlp NE hdr.nlp) THEN BEGIN
 		eqnlps = 0 
@@ -12635,7 +12733,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                                 IO_FAILSAFE_LINE_CENTER_ERROR=io_failsafe_line_center_error
 
   IF ((io_failsafe_mnspec_error EQ 1) OR (io_failsafe_imspectfile_error EQ 1) OR $
-      (io_failsafe_refspectfile_error EQ 1) OR (io_failsafe_line_center_error EQ 1)) THEN RETURN
+      (io_failsafe_refspectfile_error EQ 1) OR (io_failsafe_line_center_error EQ 1)) THEN BEGIN
+    CRISPEX_CLOSE_FREE_LUN, hdr.lunim, hdr.lunsp, hdr.lunrefim, hdr.lunrefsp, $
+      hdr.lunmask, hdr.lunsji, IMDISP=(hdr.lunim NE 0), SPDISP=(hdr.lunsp NE 0), $
+      REFIMDISP=(hdr.lunrefim NE 0), REFSPDISP=(hdr.lunrefsp NE 0), $
+      MASKDISP=(hdr.lunmask NE 0), SJIDISP=(hdr.lunsji NE 0)
+    WIDGET_CONTROL, startuptlb, /DESTROY
+    RETURN
+  ENDIF
 	
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(parameters from/for mean spectrum)', /OPT, /OVER, /DONE, $
@@ -15062,13 +15167,13 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;--------------------------------------------------------------------------------- START MANAGING
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
-                                        '(start mangaing)', /WIDGET, /OVER
+                                        '(start managing)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Start managing... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	XMANAGER, 'CRISPEX', cpanel, /NO_BLOCK
 	WSHOW, (*(*info).winids).imwid
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
-                                        '(start mangaing)', /WIDGET, /OVER, /DONE
+                                        '(start managing)', /WIDGET, /OVER, /DONE
 	feedback_text = [feedback_text[0]+'done!',feedback_text[1:N_ELEMENTS(feedback_text)-2],$
     '> Start managing... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
