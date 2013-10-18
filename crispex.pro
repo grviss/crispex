@@ -12877,88 +12877,95 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     sjiwiny = 0
   ENDELSE
 
-	windowx		= 0.2 * x_scr_size											; Set maximum x-extent of spectral win
-	IF (hdr.mainnt GE 50) THEN windowy = imwiny ELSE windowy = imwiny/2. > (y_scr_size/2.)
+  ; Set default tickmark length (fraction of window size)
+  ticklen 	= 0.01
+
+  ; ==================== Main detailed spectrum window ====================
+  ; Set detailed spectrum window parameters
 	lswinx 		= 0.2 * x_scr_size											; Set maximum x-extent of loc spec win
-
-	xswinx		= windowx												; Set maximum x-extent of x-slice window
-	xswiny		= windowy												; Set maximum y-extent of x-slice window
-
-	lswintitle	= ['Detailed spectrum','Height distribution']
 	lsmargin 	= 0.1
 	lswall 		= 0.03
-	ticklen 	= 0.01
+	lswintitle	= ['Detailed spectrum','Height distribution']
 	xsize 		= 1.*lswinx
-
+  ; Determine number of panels for detailed spectrum window
 	IF (hdr.ns LE 2) THEN BEGIN
 		npanels = hdr.ns	&	cols = hdr.ns	&	rowarr = REPLICATE(0,hdr.ns)
 	ENDIF ELSE BEGIN
 		npanels = 4	&	cols = 2	&	rowarr = [1,1,0,0]
 	ENDELSE
 	rows = CEIL(npanels / FLOAT(cols))
-	lsx0 = FLTARR(npanels)
-	lsx1 = FLTARR(npanels)
-	lsy0 = FLTARR(npanels)
-	lsy1 = FLTARR(npanels)
+  ; Determine plot width and height, and consequent window height
 	lswidth = (1. - (cols*lsmargin + lswall))/FLOAT(cols)
 	lsheight = lswidth * 2D / (1 + SQRT(5))
 	IF (hdr.v_dop_set[0] EQ 1) THEN $
     lswiny = (lsmargin + rows*lsheight + rows*lsmargin + (rows-1)*lswall) * lswinx $
   ELSE $
     lswiny = (lswall + rows*lsheight + rows*lsmargin) * lswinx
+  ; Determine plot positions
 	lsx0 		= lsmargin + (INDGEN(npanels) MOD cols) * (lswidth + lsmargin) 
 	lsx1 		= lsx0 + lswidth 
 	lsy0 		= (lsmargin + rowarr * (lsheight + lsmargin + hdr.v_dop_set[0]*lswall)) * lswinx/lswiny
 	lsy1 		= lsy0 + lsheight * lswinx/lswiny
+  ; Determine default margin, wall and tickmark length 
 	lsxmargin_init	= lsmargin * lswinx
 	lsxwall_init	= lswall * lswinx
 	lsxticklen 	= ticklen / lsheight
 	lsyticklen 	= ticklen / lswidth
 
+  ; ==================== Reference detailed spectrum window ====================
+  ; Set reference spectrum window parameters
 	reflswintitle	= ['Reference detailed spectrum','Reference height distribution']
+	reflswinx	= lswinx
+  ; Determine plot width and height, and consequent window height
 	reflswidth 	= (xsize/lswinx - (lsmargin + lswall))
 	reflsheight 	= reflswidth * 2D / (1 + SQRT(5))
-	reflswinx	= lswinx
 	IF (hdr.v_dop_set[1] EQ 1) THEN $
     reflswiny = (lsmargin + reflsheight + lsmargin) * lswinx $
   ELSE $
     reflswiny = (lsmargin + reflsheight + lswall) * lswinx
+  ; Determine plot positions
 	reflsx0 	= lsmargin 
 	reflsx1 	= reflsx0 + reflswidth 
 	reflsy0 	= lsmargin * reflswinx/reflswiny
 	reflsy1 	= reflsy0 + reflsheight * reflswinx/reflswiny
+  ; Determine default margin, wall and tickmark length 
 	reflsxmargin_init= lsmargin * reflswinx
 	reflsxwall_init	= lswall * reflswinx
 	reflsxticklen 	= ticklen / reflsheight
 	reflsyticklen 	= ticklen / reflswidth
 
+  ; ==================== Intensity-time window ====================
+  ; Set intensity-time window parameters
 	intwidth 	= (xsize/lswinx - (lsmargin + lswall))
 	intheight 	= intwidth * 2D / (1 + SQRT(5))
 	intwinx		= lswinx
 	intwiny 	= (lsmargin + intheight + lswall) * intwinx
+  ; Determine plot positions
 	intx0 		= lsmargin 
 	intx1 		= intx0 + intwidth 
 	inty0 		= lsmargin * intwinx/intwiny
 	inty1	 	= inty0 + intheight * intwinx/intwiny
+  ; Determine default margin, wall and tickmark length 
 	intxmargin_init	= lsmargin * intwinx
 	intxwall_init	= lswall * intwinx
 	intxticklen 	= ticklen / intheight
 	intyticklen 	= ticklen / intwidth
 
+  ; ==================== Spectrum-time and Phi-slit window ====================
 	spwintitle	= ['Spectral T-slice','Height T-slice']
+  phiswintitle	= ['Spectral Phi-slice','Height Phi-slice']
+  ; Window sizes	
+  spwinx		= 0.2 * x_scr_size											; Set maximum x-extent of spectral win
+  spwiny    = (imwiny - lswiny) > (y_scr_size/2.)
+	phiswinx	= spwinx
+  phiswiny  = spwiny
+  ; Determine default margin adn wall 
 	spxmargin_init	= lsmargin * lswinx * 1.3
 	spxwall_init	= lswall * lswinx
-
-	spwinx 		= windowx
 	spmargin 	= spxmargin_init/spwinx
 	spwall 		= spxwall_init/spwinx
-	xsize 		= 1.*spwinx
-
+  ; Plot sizes
 	spwidth 	= (1. - (spmargin + spwall))
-	IF hdr.spfile THEN spwiny = windowy ELSE spwiny = imwiny
-  spwiny = imwiny - lswiny
-	phiswinx	= spwinx
-  phiswiny = spwiny
 	IF ((hdr.v_dop_set[0] EQ 1) OR (hdr.ns GT 1)) THEN BEGIN
 		spheight = (1. - (spmargin * 2.) * spwinx/spwiny)
 		phisheight = (1. - (spmargin * 2.) * phiswinx/phiswiny)
@@ -12966,45 +12973,56 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		spheight = (1. - (spmargin + spwall) * spwinx/spwiny)
 		phisheight = (1. - (spmargin + spwall) * phiswinx/phiswiny)
 	ENDELSE
-	IF (hdr.v_dop_set[1] EQ 1) THEN $
-    refspheight = (1. - (spmargin * 2.) * spwinx/spwiny) $
-  ELSE $
-    refspheight = (1. - (spmargin + spwall) * spwinx/spwiny)
-	refspwiny	= imwiny-lswiny ;windowy
-
+  ; Determine plot positions
 	spx0 		= spmargin 
 	spx1 		= spx0 + spwidth 
 	spy0 		= spmargin * spwinx/spwiny
 	spy1 		= spy0 + spheight; * spwinx/spwiny
 	xplspw		= spx1 - spx0												; x-extent of the plot
 	yplspw		= spy1 - spy0												; y-extent of the plot
-
-	refspwintitle	= ['Reference spectral T-slice','Reference height T-slice']
-	refspy0 	= spmargin * spwinx/refspwiny
-	refspy1 	= refspy0 + refspheight; * spwinx/refspwiny
-	refyplspw	= refspy1 - refspy0												; y-extent of the plot
-	
-	IF ((hdr.spfile EQ 1) OR (hdr.single_cube[0] GE 1)) THEN ntreb = yplspw * spwiny ELSE ntreb = 0						; actual nt rebinning factor
-	refntreb	= refyplspw * refspwiny
-	nlpreb		= xplspw * spwinx							 				; actual nlp rebinning factor
+  ; Determine default tickmark length 
 	spxticklen 	= -1. * ticklen / spheight
 	spyticklen 	= -1. * ticklen / spwidth
-
-	phiswintitle	= ['Spectral Phi-slice','Height Phi-slice']
+  ; Determine rebinning factors for display of slice
+	IF ((hdr.spfile EQ 1) OR (hdr.single_cube[0] GE 1)) THEN $
+    ntreb = yplspw * spwiny $
+  ELSE $
+    ntreb = 0						; actual nt rebinning factor
+	nlpreb		= xplspw * spwinx							 				; actual nlp rebinning factor
+	
+  ; Determine plot positions: Phi-slit
 	phisx0 		= spmargin * phiswinx/phiswinx 
 	phisx1 		= phisx0 + spwidth * phiswinx/phiswinx
 	phisy0 		= spmargin * phiswinx/phiswiny
 	phisy1 		= phisy0 + phisheight; * spwinx/spwiny
 	phisxplspw	= phisx1 - phisx0												; x-extent of the plot
 	phisyplspw	= phisy1 - phisy0												; y-extent of the plot
-	nphireb		= phisyplspw * phiswiny
+  ; Determine default tickmark length 
 	phisxticklen 	= -1. * ticklen / phisheight
 	phisyticklen 	= -1. * ticklen / spwidth
+  ; Determine rebinning factors for display of slice
+	nphireb		= phisyplspw * phiswiny
+
+  ; ==================== Reference spectrum-time window ====================
+	refspwiny	= spwiny 
+	refspwintitle	= ['Reference spectral T-slice','Reference height T-slice']
+  ; Determine plot width and height
+	IF (hdr.v_dop_set[1] EQ 1) THEN $
+    refspheight = (1. - (spmargin * 2.) * spwinx/spwiny) $
+  ELSE $
+    refspheight = (1. - (spmargin + spwall) * spwinx/spwiny)
+  ; Determine plot positions
+	refspy0 	= spmargin * spwinx/refspwiny
+	refspy1 	= refspy0 + refspheight; * spwinx/refspwiny
+	refyplspw	= refspy1 - refspy0												; y-extent of the plot
+  ; Determine rebinning factors for display of slice
+	refntreb	= refyplspw * refspwiny
 	
-	loopheight	= (1. - (spmargin + spwall) * spwinx/windowy)
+  ; ==================== Space-time diagram window ====================
+	loopheight	= (1. - (spmargin + spwall) * spwinx/spwiny)
 	loopy1		= spy0 + loopheight
 	loopyplspw	= loopy1 - spy0
-	loopntreb	= loopyplspw * windowy
+	loopntreb	= loopyplspw * spwiny
 
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(window sizes)', /OPT, /OVER, /DONE, $
