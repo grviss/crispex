@@ -770,6 +770,85 @@ FUNCTION CRISPEX_SCALING_DESCALE, data, bscale, bzero
   RETURN, floatdata
 END
 
+;------------------------- PLOTAXES FUNCTION
+FUNCTION CRISPEX_PLOTAXES_XTICKVALS_SELECT, xtickvals_in, TICKSEP=ticksep, DOPPLER=doppler
+  ; Mark every TICKSEP-th major tickmark, if total # < TICKSEP: mark the middle one
+  IF (N_ELEMENTS(TICKSEP) NE 1) THEN ticksep = 4.
+  nxtickvals = N_ELEMENTS(xtickvals_in)
+  nticks_select = FLOOR(nxtickvals/ticksep+1) > 1
+  IF KEYWORD_SET(DOPPLER) THEN $
+    wheremiddle = (WHERE(xtickvals_in EQ 0.))[0] $
+  ELSE $
+    wheremiddle = FLOOR(nxtickvals/2.)
+  ; Check whether able to fit multiple major tickmarks
+  IF ((wheremiddle GT ticksep/2.) OR $
+    (KEYWORD_SET(DOPPLER) AND (nticks_select GT 1))) THEN BEGIN
+    diffarray = INDGEN(nxtickvals)*ticksep
+    ; Select tickmarks centred on middle, but excluding middle (unless Doppler)
+    diffarray -= diffarray[wheremiddle];-ticksep/2.
+    IF ~KEYWORD_SET(DOPPLER) THEN diffarray -= ticksep/2.
+    selarray = (INDGEN(nxtickvals))[wheremiddle] + diffarray
+    whereselarray = WHERE((selarray GE 0) AND (selarray LT nxtickvals), count)
+    IF (count NE 0) THEN $
+      whereselect = selarray[whereselarray] $
+    ELSE $
+      whereselect = wheremiddle
+  ENDIF ELSE $
+    whereselect = wheremiddle
+  xtickvals_tmp = REPLICATE(' ',nxtickvals)
+  ; Determine output format from input format
+  xtickvals_in = STRTRIM(xtickvals_in,2)
+  ; Assuming all xtick_get values are formatted equally
+  decimal_switch = (N_ELEMENTS(STRSPLIT(xtickvals_in[0],'.',/EXTRACT)) EQ 2)
+  split_array = STRARR(nxtickvals,2)
+  FOR i=0,nxtickvals-1 DO split_array[i,*] = STRSPLIT(xtickvals_in[i],'.',/EXTRACT)
+  ; Get number of digits left of period
+  IF KEYWORD_SET(DOPPLER) THEN $;BEGIN
+    min_splitarray = MIN(split_array[*,0],MAX=max_splitarray)
+  ; Get number of decimals
+  IF decimal_switch THEN BEGIN
+    done = 0
+    check_array = split_array[*,1]
+    maxlen = MAX(STRLEN(check_array))
+    wherenotmax = WHERE(STRLEN(check_array) NE maxlen, count)
+    IF (count NE 0) THEN BEGIN
+      add_array = maxlen-STRLEN(check_array)
+      FOR i=0,nxtickvals-1 DO BEGIN
+        IF (add_array[i] NE 0) THEN $
+          check_array[i] = check_array[i]+STRJOIN(REPLICATE('0',add_array[i]))
+      ENDFOR
+    ENDIF
+    WHILE (done EQ 0) DO BEGIN
+      strpos_array = STRPOS(check_array,'0',/REVERSE_SEARCH)  
+      IF ((N_ELEMENTS(strpos_array[UNIQ(strpos_array)]) EQ 1) AND $
+        (MAX(STRLEN(check_array)) GT 0)) THEN $
+        check_array = STRMID(check_array,0,strpos_array[0]) $
+      ELSE $
+        done = 1
+    ENDWHILE
+    ndecimals = STRLEN(check_array[0])
+  ENDIF ELSE ndecimals = 0
+  IF (ndecimals GT 0) THEN $
+    xtick_format ='(F'+STRTRIM(STRLEN(split_array[whereselect,0])+ndecimals+(ndecimals GT 0),2)+'.'+$
+      STRTRIM(ndecimals,2)+')' $
+  ELSE $
+    xtick_format ='(I'+STRTRIM(STRLEN(split_array[whereselect,0]),2)+')'
+  FOR i=0,N_ELEMENTS(whereselect)-1 DO $
+    xtickvals_tmp[whereselect[i]] = STRING(xtickvals_in[whereselect[i]],FORMAT=xtick_format[i])
+  xtickvals_out = [xtickvals_tmp,REPLICATE(' ',60-nxtickvals)]
+  RETURN, xtickvals_out
+END
+
+
+FUNCTION CRISPEX_PLOTAXES_XDOPTICKLOC, xdoptickvals_orig, sel_criterion, vdop_xrange, $
+  plot_xrange
+  ; Determine Doppler tick mark locations
+  xdopticksel = xdoptickvals_orig[sel_criterion]
+  vdoprange = vdop_xrange[1]-vdop_xrange[0]
+  xdoptickloc = (xdopticksel - vdop_xrange[0])/vdoprange * $
+    (plot_xrange[1]-plot_xrange[0]) + plot_xrange[0]
+  RETURN, xdoptickloc
+END
 
 ;------------------------- WIDGET FUNCTION
 FUNCTION CRISPEX_WIDGET_DIVIDER, base
@@ -2067,9 +2146,11 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
     title = ''
   ytitle = 'Position along slit [pixel]'
   ; Set axes parameters depending on # of diagnostics
-  IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
+  IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
     xticklen = 1E-9   & xtitle = ''
     xtickname = REPLICATE(' ',60)
+    xtlen_basic_fac = 0.5
+    xtlen_major_fac = 0.8
     IF KEYWORD_SET(NO_AXES) THEN BEGIN
       yticklen = 1E-9 & ytitle = ''
       ytickname = REPLICATE(' ',60)
@@ -2080,9 +2161,11 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
   ENDIF ELSE BEGIN
     xticklen = (*(*info).plotaxes).phisxticklen
     xtitle = (*(*info).plottitles).spxtitle
+    xtlen_basic_fac = 1.
     yticklen = (*(*info).plotaxes).phisyticklen
     xtickname = ''  & ytickname = ''
   ENDELSE
+;  xticklen = xtlen_basic_fac * (*(*info).plotaxes).phisxticklen
   topxtitle = title
   IF (*(*info).plotswitch).v_dop_set THEN topxtitle += 'Doppler velocity [km/s]'
   ; Determine plot ranges
@@ -2125,15 +2208,41 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
       ; Determine lower left corner position of plot
       phisx0 = (*(*info).plotpos).phisx0 + offset
       phisx1 = (*(*(*info).plotaxes).diag_range_phis)[d] + phisx0
+      ; Plot axes sub-box
   	  PLOT, (*(*info).dataparams).lps, FINDGEN((*(*info).phiparams).nw_cur), /NODATA, $
         YRANGE=(*(*info).plotaxes).phis_yrange, /YS, XRANGE=phis_xrange, $
         XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
         POS = [phisx0,(*(*info).plotpos).phisy0,phisx1,(*(*info).plotpos).phisy1], $
-        YTICKLEN=1E-9, XTICKLEN=(*(*info).plotaxes).phisxticklen, $
-        YTICKNAME=REPLICATE(' ',60), $;XTICKNAME=xtickname, $
-        XTICKINTERVAL=(*(*info).plotaxes).xtickinterval, $
+        YTICKLEN=1E-9, XTICKLEN=xticklen, $
+        YTICKNAME=REPLICATE(' ',60), XTICKNAME=xtickname, $
+        XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0], $
+        XTICK_GET=xtickvals, XMINOR=(0-((*(*info).intparams).ndisp_diagnostics GT 1)), $
         BACKGROUND = (*(*info).plotparams).bgplotcol, COLOR = (*(*info).plotparams).plotcol,$
         /NOERASE
+      ; In case of multiple diagnostics
+      IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+        ; Redraw x-axis with custom labelling
+        IF (*(*info).plotswitch).xtick_reset THEN BEGIN
+          (*(*info).plotaxes).xtickvals[d] = $
+            PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xtickvals, $
+            TICKSEP=(*(*(*info).plotaxes).xtickinterval)[1]))
+          IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
+            (*(*info).plotswitch).xtick_reset = 0
+        ENDIF
+        wherenonempty = WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ')
+        FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+          PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[wherenonempty[k]]), $
+            [(*(*info).plotaxes).phis_yrange[0], xtlen_major_fac*$
+            ((*(*info).plotaxes).phis_yrange[1]-(*(*info).plotaxes).phis_yrange[0])*$
+            (*(*info).plotaxes).phisxticklen+(*(*info).plotaxes).phis_yrange[0]], $
+            COLOR=(*(*info).plotparams).plotcol
+        ENDFOR
+        AXIS, XAXIS=0, XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).phisxticklen, $
+          XRANGE=phis_xrange, /XS, $
+          XTICKNAME=*(*(*info).plotaxes).xtickvals[d], XMINOR=-1, $
+          COLOR=(*(*info).plotparams).plotcol, $
+          XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0]
+      ENDIF
       ; Display Doppler top axis if Doppler set, else regular top axis
   		IF ((*(*info).plotswitch).v_dop_set EQ 1) THEN BEGIN
         IF (d EQ 0) THEN $
@@ -2142,10 +2251,45 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
             (*(*info).plotpos).phisy0/5.*3+(*(*info).plotpos).phisy1, topxtitle, $
             ALIGNMENT=0.5, COLOR = (*(*info).plotparams).plotcol,/NORMAL
         topxtitle = ''
-  			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).phisxticklen, $
-          XRANGE=vdop_xrange, XSTYLE=1, $
-          COLOR = (*(*info).plotparams).plotcol,$
-          XTICKINT=(*(*info).plotaxes).xdoptickinterval
+        ;Draw top axis
+        IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+          ; Plot the initial tick marks and get the tick vals
+          AXIS, XAXIS=1, XRANGE=vdop_xrange, $
+            XSTYLE=1, XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol,$
+            XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], $
+            XTICKNAME=REPLICATE(' ',60), $
+            XTICK_GET=xdoptickvals, XTICKLEN=1E-9
+          ; Redraw x-axis with custom labelling
+          IF (*(*info).plotswitch).xdoptick_reset THEN BEGIN
+            (*(*info).plotaxes).xdoptickvals[d] = $
+              PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xdoptickvals, $
+              TICKSEP=(*(*(*info).plotaxes).xdoptickinterval)[1],$
+              /DOPPLER))
+            wherenonempty = WHERE(*(*(*info).plotaxes).xdoptickvals[d] NE ' ')
+            ; Determine Doppler tick mark locations
+            (*(*info).plotaxes).xdoptickloc[d] = $
+              PTR_NEW(CRISPEX_PLOTAXES_XDOPTICKLOC(xdoptickvals, wherenonempty, $
+              vdop_xrange, phis_xrange))
+            IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
+              (*(*info).plotswitch).xdoptick_reset = 0
+          ENDIF
+          FOR k=0,N_ELEMENTS(*(*(*info).plotaxes).xdoptickloc[d])-1 DO BEGIN
+            PLOTS,[1.,1.]*(*(*(*info).plotaxes).xdoptickloc[d])[k], $
+              [(*(*info).plotaxes).phis_yrange[1], -xtlen_major_fac*$
+              ((*(*info).plotaxes).phis_yrange[1]-(*(*info).plotaxes).phis_yrange[0])*$
+              (*(*info).plotaxes).phisxticklen+(*(*info).plotaxes).phis_yrange[1]], $
+              COLOR=(*(*info).plotparams).plotcol
+          ENDFOR
+          ; Add the labels      
+          AXIS, XAXIS=1, XRANGE=vdop_xrange, /XS, $
+            XTICKNAME=*(*(*info).plotaxes).xdoptickvals[d], $
+            COLOR=(*(*info).plotparams).plotcol, $
+            XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).phisxticklen, $
+            XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], XMINOR=-1
+        ENDIF ELSE $
+          ; Else plot Doppler axis with automatic tick mark settings
+        	AXIS, XAXIS=1, XTICKLEN=(*(*info).plotaxes).phisxticklen, XRANGE=vdop_xrange, $
+            XSTYLE=1, XTITLE=topxtitle, COLOR=(*(*info).plotparams).plotcol
       ENDIF ELSE $
   			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).phisxticklen, XRANGE = xrange, XSTYLE=1, $
           XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol, $
@@ -2725,9 +2869,11 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).refspwid
   ; Set axes parameters depending on # of diagnostics
-  IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
+  IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
     xticklen = 1E-9   & xtitle = ''
     xtickname = REPLICATE(' ',60)
+    xtlen_basic_fac = 0.5
+    xtlen_major_fac = 0.8
     IF KEYWORD_SET(NO_AXES) THEN BEGIN
       yticklen = 1E-9 & ytitle = ''
       ytickname = REPLICATE(' ',60)
@@ -2741,8 +2887,10 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
     xtitle = (*(*info).plottitles).refspxtitle
     yticklen = (*(*info).plotaxes).refspyticklen
     ytitle = (*(*info).plottitles).spytitle
+    xtlen_basic_fac = 1.
     xtickname = ''  & ytickname = ''
   ENDELSE
+  xticklen = xtlen_basic_fac * (*(*info).plotaxes).spxticklen
   t_low_y = (*(*info).dispparams).t_low_ref
   t_upp_y = (*(*info).dispparams).t_upp_ref
   xrange = [(*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low], $
@@ -2762,7 +2910,7 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
     YR = [t_low_y,t_upp_y], /YS, XR=xrange, $
     XSTYLE = (*(*info).plotswitch).v_dop_set_ref * 8 + 1, $
   	YTICKLEN = yticklen, YTITLE = ytitle, YTICKNAME = ytickname, $
-    XTICKLEN = xticklen, XTITLE = xtitle, XTICKNAME = xtickname, $
+    XTICKLEN = 1E-9, XTITLE = xtitle, XTICKNAME = REPLICATE(' ',60), $
     POS = [(*(*info).plotpos).refspx0,(*(*info).plotpos).refspy0,(*(*info).plotpos).refspx1,$
     (*(*info).plotpos).refspy1], BACKGROUND=(*(*info).plotparams).bgplotcol, $
     COLOR=(*(*info).plotparams).plotcol, /NODATA, NOERASE=KEYWORD_SET(NO_AXES)
@@ -2774,17 +2922,21 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
   diag_range = diag_ratio * (*(*info).plotpos).refxplspw
   IF ~KEYWORD_SET(NO_AXES) THEN BEGIN
     ; Plot xtitle(s)
-    IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN $
+    IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN $
       XYOUTS,(*(*info).plotpos).refxplspw/2.+(*(*info).plotpos).refspx0,$
         (*(*info).plotpos).refspy0/3.,(*(*info).plottitles).refspxtitle,ALIGNMENT=0.5,$
         COLOR = (*(*info).plotparams).plotcol,/NORMAL
-    ; Loop over all diagnostics for plotting of detailed spectrum
+    ; Loop over all diagnostics for plotting of axes boxes
     FOR d=0,(*(*info).intparams).ndisp_refdiagnostics-1 DO BEGIN
       disp_idx = (WHERE((*(*info).intparams).disp_refdiagnostics EQ 1))[d]
       ; Determine xrange to display
-      IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN $
+      IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
         xrange = (*(*info).dataparams).reflps[[(*(*info).intparams).refdiag_start[disp_idx],$
           ((*(*info).intparams).refdiag_start[disp_idx]+(*(*info).intparams).refdiag_width[disp_idx]-1)]]
+        vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[disp_idx])[[0,diag_widths[d]-1]]
+      ENDIF ELSE $
+        vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[0])[$
+          [(*(*info).dispparams).lp_ref_low,(*(*info).dispparams).lp_ref_upp]]
       IF (d EQ 0) THEN offset = 0 ELSE offset = TOTAL(diag_range[0:(d-1)])
       ; Determine lower left corner position of plot
       refspx0 = (*(*info).plotpos).refspx0 + offset
@@ -2793,11 +2945,35 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
         /NODATA, YR=[t_low_y,t_upp_y], /YS, $
   			XRANGE=xrange, XSTYLE = (*(*info).plotswitch).v_dop_set_ref * 8 + 1, $
         POS = [refspx0,(*(*info).plotpos).refspy0,refspx1,(*(*info).plotpos).refspy1], $
-        YTICKLEN=(*(*info).plotaxes).refspyticklen, XTICKLEN=(*(*info).plotaxes).refspxticklen, $
-        YTICKNAME=REPLICATE(' ',60), $;XTICKNAME=xtickname, $
-        XTICKINTERVAL=(*(*info).plotaxes).xreftickinterval, $
+        YTICKLEN=(*(*info).plotaxes).refspyticklen, $
+        XTICKLEN=xticklen, YTICKNAME=REPLICATE(' ',60), XTICKNAME=xtickname, $
+        XTICKINTERVAL=(*(*(*info).plotaxes).xreftickinterval)[0], $
         BACKGROUND = (*(*info).plotparams).bgplotcol, COLOR = (*(*info).plotparams).plotcol,$
-        /NOERASE
+        /NOERASE, XTICK_GET=xtickvals, $
+        XMINOR=(0-((*(*info).intparams).ndisp_refdiagnostics GT 1))
+      ; In case of multiple diagnostics
+      IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
+        ; Redraw x-axis with custom labelling
+        IF (*(*info).plotswitch).xreftick_reset THEN BEGIN
+          (*(*info).plotaxes).xreftickvals[d] = $
+            PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xtickvals, $
+            TICKSEP=(*(*(*info).plotaxes).xreftickinterval)[1]))
+          IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
+            (*(*info).plotswitch).xreftick_reset = 0
+        ENDIF
+        wherenonempty = WHERE(*(*(*info).plotaxes).xreftickvals[d] NE ' ')
+        FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+          PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xreftickvals[d])[wherenonempty[k]]), $
+            [t_low_y,xtlen_major_fac*(t_upp_y-t_low_y)*(*(*info).plotaxes).refspxticklen+$
+            t_low_y], $
+            COLOR=(*(*info).plotparams).plotcol
+        ENDFOR
+        AXIS, XAXIS=0, XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).refspxticklen, $
+          XRANGE=xrange, /XS, $
+          XTICKNAME=*(*(*info).plotaxes).xreftickvals[d], XMINOR=-1, $
+          COLOR=(*(*info).plotparams).plotcol, $
+          XTICKINTERVAL=(*(*(*info).plotaxes).xreftickinterval)[0]
+      ENDIF
       ; Display Doppler top axis if Doppler set, else regular top axis
   		IF ((*(*info).plotswitch).v_dop_set_ref EQ 1) THEN BEGIN
         IF (d EQ 0) THEN $
@@ -2806,11 +2982,44 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
             (*(*info).plotpos).refspy0/5.*3+(*(*info).plotpos).refspy1, topxtitle, $
             ALIGNMENT=0.5, COLOR = (*(*info).plotparams).plotcol,/NORMAL
         topxtitle = ''
-  			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).refspxticklen, $
-          XRANGE = [(*(*(*info).plotaxes).v_dop_ref[disp_idx])[0], $
-          (*(*(*info).plotaxes).v_dop_ref[disp_idx])[diag_widths[d]-1]], XSTYLE=1, $
-          COLOR = (*(*info).plotparams).plotcol, XTITLE=topxtitle, $
-          XTICKINT=(*(*info).plotaxes).xrefdoptickinterval 
+        ;Draw top axis
+        IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
+          ; Plot the initial tick marks and get the tick vals
+          AXIS, XAXIS=1, XRANGE=vdop_xrange, $
+            XSTYLE=1, XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol,$
+            XTICKINTERVAL=(*(*(*info).plotaxes).xrefdoptickinterval)[0], $
+            XTICKNAME=REPLICATE(' ',60), $
+            XTICK_GET=xdoptickvals, XTICKLEN=1E-9
+          ; Redraw x-axis with custom labelling
+          IF (*(*info).plotswitch).xrefdoptick_reset THEN BEGIN
+            (*(*info).plotaxes).xrefdoptickvals[d] = $
+              PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xdoptickvals, $
+              TICKSEP=(*(*(*info).plotaxes).xrefdoptickinterval)[1],$
+              /DOPPLER))
+            wherenonempty = WHERE(*(*(*info).plotaxes).xrefdoptickvals[d] NE ' ')
+            ; Determine Doppler tick mark locations
+            (*(*info).plotaxes).xrefdoptickloc[d] = $
+              PTR_NEW(CRISPEX_PLOTAXES_XDOPTICKLOC(xdoptickvals, wherenonempty, $
+              vdop_xrange, xrange))
+            IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
+              (*(*info).plotswitch).xrefdoptick_reset = 0
+          ENDIF
+          FOR k=0,N_ELEMENTS(*(*(*info).plotaxes).xrefdoptickloc[d])-1 DO BEGIN
+            PLOTS,[1.,1.]*(*(*(*info).plotaxes).xrefdoptickloc[d])[k], $
+              [t_upp_y,-xtlen_major_fac*(*(*info).plotaxes).refspxticklen*(t_upp_y-t_low_y)+$
+              t_upp_y], $
+              COLOR=(*(*info).plotparams).plotcol
+          ENDFOR
+          ; Add the labels
+          AXIS, XAXIS=1, XRANGE=vdop_xrange, /XS, $
+            XTICKNAME=*(*(*info).plotaxes).xrefdoptickvals[d], $
+            COLOR=(*(*info).plotparams).plotcol, $
+            XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).refspxticklen, $
+            XTICKINTERVAL=(*(*(*info).plotaxes).xrefdoptickinterval)[0], XMINOR=-1
+        ENDIF ELSE $
+          ; Else plot Doppler axis with automatic tick mark settings
+        	AXIS, XAXIS=1, XTICKLEN=(*(*info).plotaxes).refspxticklen, XRANGE=vdop_xrange, $
+            XSTYLE=1, XTITLE=topxtitle, COLOR = (*(*info).plotparams).plotcol
       ENDIF ELSE $
   			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).refspxticklen, XRANGE = xrange, XSTYLE=1, $
           XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol, $
@@ -2921,9 +3130,11 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
   ELSE $
     title = ''
   ; Set axes parameters depending on # of diagnostics
-  IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
+  IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
     xticklen = 1E-9   & xtitle = ''
     xtickname = REPLICATE(' ',60)
+    xtlen_basic_fac = 0.5
+    xtlen_major_fac = 0.8
     IF KEYWORD_SET(NO_AXES) THEN BEGIN
       yticklen = 1E-9 & ytitle = ''
       ytickname = REPLICATE(' ',60)
@@ -2937,8 +3148,10 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
     xtitle = (*(*info).plottitles).spxtitle
     yticklen = (*(*info).plotaxes).spyticklen
     ytitle = (*(*info).plottitles).spytitle
+    xtlen_basic_fac = 1.
     xtickname = ''  & ytickname = ''
   ENDELSE
+  xticklen = xtlen_basic_fac * (*(*info).plotaxes).spxticklen
   t_low_y = (*(*info).dispparams).t_low_main
   t_upp_y = (*(*info).dispparams).t_upp_main
   xrange = [(*(*info).dataparams).lps[(*(*info).dispparams).lp_low], $
@@ -2959,7 +3172,7 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
     YR = [t_low_y,t_upp_y], /YS, XR=xrange, $
     XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
   	YTICKLEN = yticklen, YTITLE = ytitle, YTICKNAME = ytickname, $
-    XTICKLEN = xticklen, XTITLE = xtitle, XTICKNAME = xtickname, $
+    XTICKLEN = 1E-9, XTITLE = xtitle, XTICKNAME = REPLICATE(' ',60), $
     POS = [(*(*info).plotpos).spx0,(*(*info).plotpos).spy0,$
            (*(*info).plotpos).spx1,(*(*info).plotpos).spy1], $
     BACKGROUND=(*(*info).plotparams).bgplotcol, COLOR=(*(*info).plotparams).plotcol, $
@@ -2973,11 +3186,11 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
     diag_range = diag_ratio * (*(*info).plotpos).xplspw 
     whererangemin = WHERE(diag_widths EQ MIN(diag_widths, /NAN))
     ; Plot xtitle(s)
-    IF ((*(*info).intparams).ndiagnostics GT 1) THEN $
+    IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN $
       XYOUTS,(*(*info).plotpos).xplspw/2.+(*(*info).plotpos).spx0,$
         (*(*info).plotpos).spy0/3.,(*(*info).plottitles).spxtitle,ALIGNMENT=0.5, $
         COLOR = (*(*info).plotparams).plotcol,/NORMAL
-    ; Loop over all diagnostics for plotting of detailed spectrum
+    ; Loop over all diagnostics for plotting of axes boxes
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
       disp_idx = (WHERE((*(*info).intparams).disp_diagnostics EQ 1))[d]
       ; Determine xrange to display
@@ -2996,11 +3209,35 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
         /NODATA, YR=[t_low_y,t_upp_y], $
   			/YS, XRANGE=xrange, XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
         POS = [spx0,(*(*info).plotpos).spy0,spx1,(*(*info).plotpos).spy1], $
-        YTICKLEN=(*(*info).plotaxes).spyticklen, XTICKLEN=(*(*info).plotaxes).spxticklen, $
-        YTICKNAME=REPLICATE(' ',60), $;XTICKNAME=xtickname, $
-        XTICKINTERVAL=(*(*info).plotaxes).xtickinterval, $;,XMINOR=, $
+        YTICKLEN=(*(*info).plotaxes).spyticklen, $
+        XTICKLEN=xticklen, YTICKNAME=REPLICATE(' ',60), XTICKNAME=xtickname, $
+        XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0], $
         BACKGROUND = (*(*info).plotparams).bgplotcol, COLOR = (*(*info).plotparams).plotcol,$
-        /NOERASE
+        /NOERASE, XTICK_GET=xtickvals, $
+        XMINOR=(0-((*(*info).intparams).ndisp_diagnostics GT 1))
+      ; In case of multiple diagnostics
+      IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+        ; Redraw x-axis with custom labelling
+        IF (*(*info).plotswitch).xtick_reset THEN BEGIN
+          (*(*info).plotaxes).xtickvals[d] = $
+            PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xtickvals, $
+            TICKSEP=(*(*(*info).plotaxes).xtickinterval)[1]))
+          IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
+            (*(*info).plotswitch).xtick_reset = 0
+        ENDIF
+        wherenonempty = WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ')
+        FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+          PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[wherenonempty[k]]), $
+            [t_low_y,xtlen_major_fac*(t_upp_y-t_low_y)*(*(*info).plotaxes).spxticklen+$
+            t_low_y], $
+            COLOR=(*(*info).plotparams).plotcol
+        ENDFOR
+        AXIS, XAXIS=0, XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).spxticklen, $
+          XRANGE=xrange, /XS, $
+          XTICKNAME=*(*(*info).plotaxes).xtickvals[d], XMINOR=-1, $
+          COLOR=(*(*info).plotparams).plotcol, $
+          XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0]
+      ENDIF
       ; Display Doppler top axis if Doppler set, else regular top axis
   		IF ((*(*info).plotswitch).v_dop_set EQ 1) THEN BEGIN
         IF (d EQ 0) THEN $
@@ -3009,13 +3246,46 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
             (*(*info).plotpos).spy0/5.*3+(*(*info).plotpos).spy1, topxtitle, $
             ALIGNMENT=0.5, COLOR = (*(*info).plotparams).plotcol,/NORMAL
         topxtitle = ''
-  			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).spxticklen, $
-          XRANGE = vdop_xrange, XSTYLE=1, $
-          COLOR=(*(*info).plotparams).plotcol, XTITLE=topxtitle, $
-          XTICKINTERVAL=(*(*info).plotaxes).xdoptickinterval
+        ;Draw top axis
+        IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+          ; Plot the initial tick marks and get the tick vals
+          AXIS, XAXIS=1, XRANGE=vdop_xrange, $
+            XSTYLE=1, XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol,$
+            XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], XTICKNAME=REPLICATE(' ',60), $
+            XTICK_GET=xdoptickvals, XTICKLEN=1E-9
+          ; Redraw x-axis with custom labelling
+          IF (*(*info).plotswitch).xdoptick_reset THEN BEGIN
+            (*(*info).plotaxes).xdoptickvals[d] = $
+              PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xdoptickvals, $
+              TICKSEP=(*(*(*info).plotaxes).xdoptickinterval)[1],$
+              /DOPPLER))
+            wherenonempty = WHERE(*(*(*info).plotaxes).xdoptickvals[d] NE ' ')
+            ; Determine Doppler tick mark locations
+            (*(*info).plotaxes).xdoptickloc[d] = $
+              PTR_NEW(CRISPEX_PLOTAXES_XDOPTICKLOC(xdoptickvals, wherenonempty, $
+              vdop_xrange, xrange))
+            IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
+              (*(*info).plotswitch).xdoptick_reset = 0
+          ENDIF
+          FOR k=0,N_ELEMENTS(*(*(*info).plotaxes).xdoptickloc[d])-1 DO BEGIN
+            PLOTS,[1.,1.]*(*(*(*info).plotaxes).xdoptickloc[d])[k], $
+              [t_upp_y,-xtlen_major_fac*(*(*info).plotaxes).spxticklen*(t_upp_y-t_low_y)+$
+              t_upp_y], $
+              COLOR=(*(*info).plotparams).plotcol
+          ENDFOR
+          ; Add the labels
+          AXIS, XAXIS=1, XRANGE=vdop_xrange, /XS, $
+            XTICKNAME=*(*(*info).plotaxes).xdoptickvals[d], $
+            COLOR=(*(*info).plotparams).plotcol, $
+            XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).spxticklen, $
+            XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], XMINOR=-1
+        ENDIF ELSE $
+          ; Else plot Doppler axis with automatic tick mark settings
+        	AXIS, XAXIS=1, XTICKLEN=(*(*info).plotaxes).spxticklen, XRANGE=vdop_xrange, $
+            XSTYLE=1, XTITLE=topxtitle, COLOR = (*(*info).plotparams).plotcol
       ENDIF ELSE $
-  			AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).spxticklen, XRANGE = xrange, XSTYLE=1, $
-          XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol, $
+  			AXIS, XAXIS=1, XTICKLEN=(*(*info).plotaxes).spxticklen, XRANGE=xrange, XSTYLE=1, $
+          XTITLE=topxtitle, COLOR=(*(*info).plotparams).plotcol, $
           XTICKNAME=REPLICATE(' ',60)
     ENDFOR
   ENDIF
@@ -3924,22 +4194,33 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
     ENDFOR
     order = FLOOR(ALOG10(lambda_widths))
     int_widths = FLOOR(lambda_widths/10^FLOAT(order))*10^FLOAT(order)
-    wheremax = WHERE(int_widths EQ MAX(int_widths, /NAN))
-    ; Have at least two tickmarks per range for the biggest range
-    xtickinterval = int_widths[wheremax]/2.
+    wheremin = WHERE(int_widths EQ MIN(int_widths, /NAN, MAX=int_widths_max))
+    wheremax = WHERE(int_widths EQ int_widths_max)
+    ; Have at least two major tickmarks per range for the smallest range
+    xtickint_def = (int_widths[wheremin]/2.)[0]
+    xtickinterval = [xtickint_def, (int_widths[wheremax])[0]]
     doporder = FLOOR(ALOG10(dop_widths))
     int_dopwidths = FLOOR(dop_widths/10^FLOAT(doporder))*10^FLOAT(doporder)
-    wheredopmax = WHERE(int_dopwidths EQ MAX(int_dopwidths, /NAN))
-    ; Have at least two tickmarks per range for the biggest range
-    xdoptickinterval = int_dopwidths[wheredopmax]/2.
+    wheredopmin = WHERE(int_dopwidths EQ MIN(int_dopwidths, /NAN, MAX=int_dopwidths_max))
+    wheredopmax = WHERE(int_dopwidths EQ int_dopwidths_max)
+    ; Have at least two major tickmarks per range for the smallest range
+    xdoptickint_def = (int_dopwidths[wheredopmin]/2.)[0]
+    xdoptickinterval = [xdoptickint_def, (int_dopwidths[wheredopmax])[0]]
+    IF (ABS((xtickinterval[0]*2.)/xtickinterval[1]) GT 0.3) THEN BEGIN
+      xtickinterval /= 2.
+      xdoptickinterval[0] /= 2.
+    ENDIF
+    ; Convert xtickinterval[1] to number of tickmarks, instead of tick value difference
+    xtickinterval[1] = ROUND(xtickinterval[1]/(xtickinterval[0] > 1.))
+    xdoptickinterval[1] = ROUND(xdoptickinterval[1]/((2.*xdoptickinterval[0]) > 1.))
   ENDIF ELSE BEGIN
     xtickinterval = 0
     xdoptickinterval = 0
   ENDELSE
   ; Save results to appropriate variables
   IF KEYWORD_SET(MAIN) THEN BEGIN
-    (*(*info).plotaxes).xtickinterval = xtickinterval[0]
-    (*(*info).plotaxes).xdoptickinterval = xdoptickinterval[0]
+    *(*(*info).plotaxes).xtickinterval = xtickinterval
+    *(*(*info).plotaxes).xdoptickinterval = xdoptickinterval
     ; Determine proportional spectral window sizes
     *(*(*info).intparams).wheredispdiag = wheredisp
     *(*(*info).intparams).diag_widths = diag_widths
@@ -3951,9 +4232,11 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
     IF (*(*info).winswitch).showphis THEN $
       *(*(*info).plotaxes).diag_range_phis = *(*(*info).plotaxes).diag_ratio * $
         (*(*info).plotpos).phisxplspw
+    (*(*info).plotswitch).xtick_reset = 1
+    (*(*info).plotswitch).xdoptick_reset = 1
   ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
-    (*(*info).plotaxes).xreftickinterval = xtickinterval[0]
-    (*(*info).plotaxes).xrefdoptickinterval = xdoptickinterval[0]
+    *(*(*info).plotaxes).xreftickinterval = xtickinterval
+    *(*(*info).plotaxes).xrefdoptickinterval = xdoptickinterval
     ; Determine proportional spectral window sizes
     *(*(*info).intparams).wheredisprefdiag = wheredisp 
     *(*(*info).intparams).refdiag_widths = diag_widths
@@ -3962,6 +4245,8 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
     IF (*(*info).winswitch).showrefsp THEN $
       *(*(*info).plotaxes).refdiag_range_sp = *(*(*info).plotaxes).refdiag_ratio * $
         (*(*info).plotpos).refxplspw 
+    (*(*info).plotswitch).xreftick_reset = 1
+    (*(*info).plotswitch).xrefdoptick_reset = 1
   ENDIF
 END
 
@@ -4590,16 +4875,15 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
    			ms = 1
    		ENDIF
       ; Set x-axes parameters depending on # of diagnostics
-      IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-        xticklen = 1E-9
-        xtitle = ''
+      IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+        xtlen_basic_fac = 0.5
+        xtlen_major_fac = 0.8
         xtickname = REPLICATE(' ',60)
       ENDIF ELSE BEGIN
-        xticklen = (*(*info).plotaxes).lsxticklen
-        xtitle = (*(*info).plottitles).spxtitle
+        xtlen_basic_fac = 1.
         xtickname = ''
-        yticklen = (*(*info).plotaxes).lsyticklen
       ENDELSE
+      xticklen = xtlen_basic_fac * (*(*info).plotaxes).lsxticklen
       IF (*(*info).plotswitch).v_dop_set THEN topxtitle = 'Doppler velocity [km/s]'
       ; Get data for display
   		IF ((*(*info).dataswitch).spfile EQ 1) THEN $
@@ -4615,7 +4899,7 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
       IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showls) THEN BEGIN
         WSET, (*(*info).winids).lswid
-        ; Determine xrange to display
+        ; Determine xrange to display and xticklen
         IF ((*(*info).intparams).ndiagnostics GT 1) THEN $
           xrange = (*(*info).dataparams).lps[[$
             (*(*info).intparams).diag_start[(*(*(*info).intparams).wheredispdiag)[d]],$
@@ -4637,6 +4921,7 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           ytickname = REPLICATE(' ',60)
           ytitle = ''
         ENDELSE
+        ; Scaling of xticklen
         ; Determine lower left corner position of plot
         lsx0 = ((*(*info).plotpos).lsx0)[i] + offset
         lsx1 = diag_range_ls[d] + lsx0
@@ -4645,12 +4930,16 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           spec[lp_lower:lp_upper]*(*(*info).scaling).mult_val[$
           (*(*(*info).intparams).wheredispdiag)[d]], $
           /NORM, CHARSIZE=1, YS=1, YR=[ls_low_y,ls_upp_y], $
-          XR=xrange, YTICKNAME=ytickname, XTICKINTERVAL=(*(*info).plotaxes).xtickinterval, $
+          XR=xrange, YTICKNAME=ytickname, $
+          XMINOR=(0-((*(*info).intparams).ndisp_diagnostics GT 1)), $
+          XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0], $
+          XTICKNAME=xtickname, XTICK_GET=xtickvals, $
           XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
           BACKGROUND = (*(*info).plotparams).bgplotcol, $
           XTITLE = xtitle, YTITLE=ytitle, $
           POSITION = [lsx0,((*(*info).plotpos).lsy0)[i],lsx1,((*(*info).plotpos).lsy1)[i]], $
-          XTICKLEN = (*(*info).plotaxes).lsxticklen, YTICKLEN = (*(*info).plotaxes).lsyticklen, $
+          XTICKLEN = xticklen, $
+          YTICKLEN = (*(*info).plotaxes).lsyticklen, $
           COLOR = (*(*info).plotparams).plotcol, LINE=3, $
           NOERASE=((((*(*info).intparams).ndiagnostics GT 1) AND (d GT 0)) OR (i GT 0))
         IF ((*(*info).scaling).mult_val[(*(*(*info).intparams).wheredispdiag)[d]] NE 1) THEN BEGIN
@@ -4671,6 +4960,27 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           ; Set range for Doppler axis
           vdop_xrange = (*(*(*info).plotaxes).v_dop[(*(*(*info).intparams).wheredispdiag)[d]])[$
             [0,(*(*(*info).intparams).diag_widths)[d]-1]]
+          IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+            ; Redraw x-axis with custom labelling
+            IF (*(*info).plotswitch).xtick_reset THEN BEGIN
+              (*(*info).plotaxes).xtickvals[d] = $
+                PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xtickvals, $
+                TICKSEP=(*(*(*info).plotaxes).xtickinterval)[1]))
+              IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
+                (*(*info).plotswitch).xtick_reset = 0
+            ENDIF
+            wherenonempty = WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ')
+            FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+              PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[wherenonempty[k]]), $
+                [ls_low_y,xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).lsxticklen+$
+                ls_low_y], $
+                COLOR=(*(*info).plotparams).plotcol
+            ENDFOR
+            AXIS, XAXIS=0, XTICKLEN=1E-9, XRANGE=xrange, /XS, $
+              XTICKNAME=*(*(*info).plotaxes).xtickvals[d], $
+              COLOR=(*(*info).plotparams).plotcol, $
+              XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0]
+          ENDIF
         ENDIF ELSE $
           vdop_xrange = (*(*(*info).plotaxes).v_dop[0])[$
             [(*(*info).dispparams).lp_low,(*(*info).dispparams).lp_upp]]
@@ -4690,9 +5000,43 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
             topxtitle = ''
           ENDIF 
           ; Draw top axis
-    	  	AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).lsxticklen, XRANGE=vdop_xrange, XSTYLE=1, $
-    	  		XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol,$
-            XTICKINTERVAL=(*(*info).plotaxes).xdoptickinterval
+          IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+            ; Plot the initial tick marks and get the tick vals
+      	  	AXIS, XAXIS=1, XRANGE=vdop_xrange, $
+              XSTYLE=1, XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol,$
+              XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], XTICKNAME=REPLICATE(' ',60), $
+              XTICK_GET=xdoptickvals, XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).lsxticklen, $
+              XMINOR=-1
+            ; Redraw x-axis with custom labelling
+            IF (*(*info).plotswitch).xdoptick_reset THEN BEGIN
+              (*(*info).plotaxes).xdoptickvals[d] = $
+                PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xdoptickvals, $
+                TICKSEP=(*(*(*info).plotaxes).xdoptickinterval)[1],$
+                /DOPPLER))
+              wherenonempty = WHERE(*(*(*info).plotaxes).xdoptickvals[d] NE ' ')
+              ; Determine Doppler tick mark locations
+              (*(*info).plotaxes).xdoptickloc[d] = $
+                PTR_NEW(CRISPEX_PLOTAXES_XDOPTICKLOC(xdoptickvals, wherenonempty, $
+                vdop_xrange, [(*(*info).dataparams).lps[lp_lower], $
+                (*(*info).dataparams).lps[lp_upper]]))
+              IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
+                (*(*info).plotswitch).xdoptick_reset = 0
+            ENDIF
+            wherenonempty = WHERE(*(*(*info).plotaxes).xdoptickvals[d] NE ' ')
+            FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+              PLOTS,[1.,1.]*(*(*(*info).plotaxes).xdoptickloc[d])[k], $
+                [ls_upp_y,-xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).lsxticklen+$
+                ls_upp_y], $
+                COLOR=(*(*info).plotparams).plotcol
+            ENDFOR
+            ; Add the labels
+            AXIS, XAXIS=1, XTICKLEN=1E-9, XRANGE=vdop_xrange, /XS, $
+              XTICKNAME=*(*(*info).plotaxes).xdoptickvals[d], $
+              COLOR=(*(*info).plotparams).plotcol, $
+              XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], XMINOR=-1
+          ENDIF ELSE $
+      	  	AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).lsxticklen, XRANGE=vdop_xrange, $
+              XSTYLE=1, XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol;,$
         ENDIF 
         ; Overplot detailed spectrum
     		OPLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
@@ -4835,16 +5179,15 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
 	  	refms = 1
 	  ENDIF
     ; Set x-axes parameters depending on # of diagnostics
-    IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
-      xticklen = 1E-9
-      xtitle = ''
+    IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
+      xtlen_basic_fac = 0.5
+      xtlen_major_fac = 0.8
       xtickname = REPLICATE(' ',60)
     ENDIF ELSE BEGIN
-      xticklen = (*(*info).plotaxes).reflsxticklen
-      xtitle = (*(*info).plottitles).refspxtitle
+      xtlen_basic_fac = 1.
       xtickname = ''
-      yticklen = (*(*info).plotaxes).reflsyticklen
     ENDELSE
+    xticklen = xtlen_basic_fac * (*(*info).plotaxes).reflsxticklen
     IF (*(*info).plotswitch).v_dop_set_ref THEN topxtitle = 'Doppler velocity [km/s]'
     ; Get data for display
     IF ((*(*info).dataswitch).refspfile EQ 1) THEN $
@@ -4889,12 +5232,15 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
       PLOT, (*(*info).dataparams).reflps[lp_ref_lower:lp_ref_upper],$
         refspec[lp_ref_lower:lp_ref_upper]*(*(*info).scaling).mult_val[mult_idx], $
         /NORM, CHARSIZE=1, YS=1, YR=[ls_low_y,ls_upp_y], $
-        XR=xrange, YTICKNAME=ytickname, XTICKINTERVAL=(*(*info).plotaxes).xreftickinterval,$
-        XSTYLE = (*(*info).plotswitch).v_dop_set_ref * 8 + 1, $
+        XR=xrange, YTICKNAME=ytickname, $
+        XMINOR=(0-((*(*info).intparams).ndisp_refdiagnostics GT 1)), $
+        XTICKINTERVAL=(*(*(*info).plotaxes).xreftickinterval)[0], $
+        XTICKNAME=xtickname, XSTYLE = (*(*info).plotswitch).v_dop_set_ref * 8 + 1, $
         XTICK_GET=xtickvals, BACKGROUND = (*(*info).plotparams).bgplotcol, $
         XTITLE = xtitle, YTITLE=ytitle, $
         POSITION = [reflsx0,((*(*info).plotpos).reflsy0),reflsx1,((*(*info).plotpos).reflsy1)], $
-        XTICKLEN = (*(*info).plotaxes).reflsxticklen, YTICKLEN = (*(*info).plotaxes).reflsyticklen, $
+        XTICKLEN = xticklen, $
+        YTICKLEN = (*(*info).plotaxes).reflsyticklen, $
         COLOR = (*(*info).plotparams).plotcol, LINE=3, $
         NOERASE=(((*(*info).intparams).nrefdiagnostics GT 1) AND (d GT 0))
         IF ((*(*info).scaling).mult_val[mult_idx] NE 1) THEN BEGIN
@@ -4911,7 +5257,34 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           XYOUTS,((*(*info).plotpos).reflsx1-(*(*info).plotpos).reflsx0)/2.+(*(*info).plotpos).reflsx0,$
             (*(*info).plotpos).reflsy0/3.,(*(*info).plottitles).refspxtitle,ALIGNMENT=0.5, $
             COLOR=(*(*info).plotparams).plotcol, /NORMAL
-      ENDIF
+        ; Set range for Doppler axis
+        vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[$
+          (*(*(*info).intparams).wheredisprefdiag)[d]])[$
+          [0,(*(*(*info).intparams).refdiag_widths)[d]-1]]
+        IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
+          ; Redraw x-axis with custom labelling
+          IF (*(*info).plotswitch).xreftick_reset THEN BEGIN
+            (*(*info).plotaxes).xreftickvals[d] = $
+              PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xtickvals, $
+              TICKSEP=(*(*(*info).plotaxes).xreftickinterval)[1]))
+            IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
+              (*(*info).plotswitch).xreftick_reset = 0
+          ENDIF
+          wherenonempty = WHERE(*(*(*info).plotaxes).xreftickvals[d] NE ' ')
+          FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+            PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xreftickvals[d])[wherenonempty[k]]), $
+              [ls_low_y,xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).reflsxticklen+$
+              ls_low_y], $
+              COLOR=(*(*info).plotparams).plotcol
+          ENDFOR
+          AXIS, XAXIS=0, XTICKLEN=1E-9, XRANGE=xrange, /XS, $
+            XTICKNAME=*(*(*info).plotaxes).xreftickvals[d], $
+            COLOR=(*(*info).plotparams).plotcol, $
+            XTICKINTERVAL=(*(*(*info).plotaxes).xreftickinterval)[0]
+        ENDIF
+      ENDIF ELSE $
+        vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[0])[$
+          [(*(*info).dispparams).lp_ref_low,(*(*info).dispparams).lp_ref_upp]]
       ; Display Doppler velocities on top axis if info available
       IF ((*(*info).plotswitch).v_dop_set_ref EQ 1) THEN BEGIN
         IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
@@ -4921,12 +5294,44 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           topxtitle = ''
         ENDIF 
         ; Draw top axis
-      	AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).reflsxticklen, $
-              XRANGE=[(*(*(*info).plotaxes).v_dop_ref[(*(*(*info).intparams).wheredisprefdiag)[d]])[0], $
-              (*(*(*info).plotaxes).v_dop_ref[(*(*(*info).intparams).wheredisprefdiag)[d]])[$
-                (*(*(*info).intparams).refdiag_widths)[d]-1]], XSTYLE=1, $
-      		XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol,$
-          XTICKINTERVAL=(*(*info).plotaxes).xrefdoptickinterval
+        IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
+          ; Plot the initial tick marks and get the tick vals
+    	  	AXIS, XAXIS=1, XRANGE=vdop_xrange, $
+            XSTYLE=1, XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol,$
+            XTICKINTERVAL=(*(*(*info).plotaxes).xrefdoptickinterval)[0], $
+            XTICKNAME=REPLICATE(' ',60), XTICK_GET=xdoptickvals, $
+            XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).reflsxticklen, $
+            XMINOR=-1
+          ; Redraw x-axis with custom labelling
+          IF (*(*info).plotswitch).xrefdoptick_reset THEN BEGIN
+            (*(*info).plotaxes).xrefdoptickvals[d] = $
+              PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xdoptickvals, $
+              TICKSEP=(*(*(*info).plotaxes).xrefdoptickinterval)[1],$
+              /DOPPLER))
+            wherenonempty = WHERE(*(*(*info).plotaxes).xrefdoptickvals[d] NE ' ')
+            ; Determine Doppler tick mark locations
+            (*(*info).plotaxes).xrefdoptickloc[d] = $
+              PTR_NEW(CRISPEX_PLOTAXES_XDOPTICKLOC(xdoptickvals, wherenonempty, $
+              vdop_xrange, [(*(*info).dataparams).reflps[lp_ref_lower], $
+              (*(*info).dataparams).reflps[lp_ref_upper]]))
+            IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
+              (*(*info).plotswitch).xrefdoptick_reset = 0
+          ENDIF
+          wherenonempty = WHERE(*(*(*info).plotaxes).xrefdoptickvals[d] NE ' ')
+          FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+            PLOTS,[1.,1.]*(*(*(*info).plotaxes).xrefdoptickloc[d])[k], $
+              [ls_upp_y,-xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).reflsxticklen+$
+              ls_upp_y], $
+              COLOR=(*(*info).plotparams).plotcol
+          ENDFOR
+          ; Add the labels
+          AXIS, XAXIS=1, XTICKLEN=1E-9, XRANGE=vdop_xrange, /XS, $
+            XTICKNAME=*(*(*info).plotaxes).xrefdoptickvals[d], $
+            COLOR=(*(*info).plotparams).plotcol, $
+            XTICKINTERVAL=(*(*(*info).plotaxes).xrefdoptickinterval)[0], XMINOR=-1
+        ENDIF ELSE $
+      	  AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).lsxticklen, XRANGE=vdop_xrange, $
+            XSTYLE=1, XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol;,$
       ENDIF 
       ; Overplot detailed spectrum
     	OPLOT, (*(*info).dataparams).reflps[lp_ref_lower:lp_ref_upper], $
@@ -14741,7 +15146,13 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		restloopxticklen:spxticklen, restloopyticklen:spyticklen, $
 		retrdetxticklen:spxticklen, retrdetyticklen:spyticklen, $
 		intxticklen:intxticklen, intyticklen:intyticklen, $
-    xtickinterval:0, xdoptickinterval:0, xreftickinterval:0, xrefdoptickinterval:0, $
+    xtickinterval:PTR_NEW(0.), xdoptickinterval:PTR_NEW(0.), $
+    xtickvals:PTRARR(hdr.ndiagnostics), $ 
+    xdoptickvals:PTRARR(hdr.ndiagnostics), xdoptickloc:PTRARR(hdr.ndiagnostics), $
+    xreftickinterval:PTR_NEW(0.), xrefdoptickinterval:PTR_NEW(0.), $
+    xreftickvals:PTRARR(hdr.nrefdiagnostics), $ 
+    xrefdoptickvals:PTRARR(hdr.nrefdiagnostics), $
+    xrefdoptickloc:PTRARR(hdr.nrefdiagnostics), $
 		ls_low_y:ls_low_y, ls_upp_y:ls_upp_y, ls_yrange:ls_yrange, $		
 		ls_low_y_ref:ls_low_y_ref, ls_upp_y_ref:ls_upp_y_ref, ls_yrange_ref:ls_yrange_ref, $
 		int_low_y:int_low_y, int_upp_y:int_upp_y, int_low_t:t_first, int_upp_t:t_last, $
@@ -14787,7 +15198,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 ;--------------------------------------------------------------------------------- PLOT SWITCHES
 	plotswitch = { $
 		heightset:heightset, refheightset:refheightset, multichannel:hdr.multichannel, scalestokes:scalestokes, $
-		v_dop_set:hdr.v_dop_set[0], v_dop_set_ref:hdr.v_dop_set[1], subtract:0, ref_subtract:0 $						
+		v_dop_set:hdr.v_dop_set[0], v_dop_set_ref:hdr.v_dop_set[1], subtract:0, ref_subtract:0, $				
+    xtick_reset:1, xdoptick_reset:1, xreftick_reset:1, xrefdoptick_reset:1 $
 	}
 ;--------------------------------------------------------------------------------- PLOT TITLES
 	plottitles = { $
