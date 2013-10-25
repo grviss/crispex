@@ -172,8 +172,9 @@
 ;
 ; RESTRICTIONS:
 ;   Requires the following procedures and functions:
-;     Functions: IRIS_HISTO_OPT() [general; included in SolarSoft]
-;                READFITS()       [if reading FITS cubes]
+;     Procedures: FITS_OPEN, FITS_CLOSE [if reading FITS cubes]
+;     Functions:  IRIS_HISTO_OPT()      [general; included in SolarSoft]
+;                 READFITS()            [if reading FITS cubes]
 ;
 ; PROCEDURE:
 ;   In default setting, four windows are opened, one control panel and three subsidiary windows 
@@ -8569,7 +8570,14 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
 ; Incorporated functionality into CRISPEX on 29-May-2013 and extended subsequently
   hdr1 = ''   ; initialise header placeholders
   hdr2 = ''
+  ; Get number of data axes
   naxis = SXPAR(header,'NAXIS*')
+  ; Get number of extensions
+  FITS_OPEN, filename, fcb
+  next = fcb.nextend
+  FITS_CLOSE, filename
+  FREE_LUN, fcb.unit
+  ; Determine cube type
   CASE (strsplit(SXPAR(header,'CTYPE2'),' ',/extract))[0] OF
     'y': sortorder = INDGEN(4)       ; CRISPEX imcube
     'HPLT-TAN': sortorder = INDGEN(3); IRIS SJI-file
@@ -8620,7 +8628,6 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ; Assign values to variables
   dx = cdelt[sortorder[0]]
   dy = cdelt[sortorder[1]]
-;  IF (nt GT 1) THEN BEGIN
   IF (N_ELEMENTS(naxis) EQ 4) THEN BEGIN
     dt = cdelt[sortorder[3]]
     tlab = STRTRIM(ctype[sortorder[3]],2)
@@ -8628,18 +8635,17 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ENDIF ELSE BEGIN
     dt = 0
     tlab = 't'
-;    tunit = '[s]'
+    tunit = 's' ; Assume default timing in seconds
   ENDELSE
   tini_col = 0    ; Default raster timing column
   IF ~KEYWORD_SET(SJICUBE) THEN BEGIN
     ; Get time array (assuming each raster is co-temporal)
-    IF (nt GE 1) THEN BEGIN
+    IF ((nt GE 1) AND (next GE 2)) THEN BEGIN
       tarr = READFITS(filename, hdr2, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
       ntarrdims = SIZE(tarr,/N_DIMENSIONS)
       tarr_raster = tarr
       tval = SXPAR(header, 'CRVAL4')    ; tini_col = toffset_main/ref defaults to CRVAL4
       dum = MIN(ABS(tarr-tval),wheretval, /NAN)
-;      wheretval = (WHERE(tarr EQ tval))[0]
       IF (wheretval EQ -1) THEN BEGIN
         nrasterpos = (SIZE(tarr))[ntarrdims-1]
         tini_col = FLOOR(nrasterpos/2.)
@@ -8678,7 +8684,10 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     tfactor = 1.
   tunit = 's'
   tarr_sel *= REPLICATE(tfactor,nt)
-  tarr_raster *= REPLICATE(tfactor,(SIZE(tarr_raster))[1],nt)
+  IF (SIZE(tarr_raster,/N_DIMENSIONS) NE 0) THEN $
+    tarr_raster *= REPLICATE(tfactor,(SIZE(tarr_raster))[1],nt) $
+  ELSE $
+    tarr_raster = tarr_sel
   ; Determine plot labels
   xlab = STRTRIM(ctype[sortorder[0]],2)
   ylab = STRTRIM(ctype[sortorder[1]],2)
