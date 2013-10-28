@@ -771,6 +771,35 @@ FUNCTION CRISPEX_SCALING_DESCALE, data, bscale, bzero
   RETURN, floatdata
 END
 
+
+;------------------------- SLIDER FUNCTION
+FUNCTION CRISPEX_SLIDER_LP_DIAG, event, lp_diag_all, REFERENCE=reference, BLINK=blink
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+  IF KEYWORD_SET(REFERENCE) THEN BEGIN
+    disp_diag = WHERE((*(*info).intparams).refdisp_diagnostics EQ 1)
+    lp = (*(*info).dataparams).lp_ref
+    diag_start = (*(*info).intparams).refdiag_start
+    diag_width = (*(*info).intparams).refdiag_width
+  ENDIF ELSE BEGIN
+    disp_diag = WHERE((*(*info).intparams).disp_diagnostics EQ 1)
+    IF KEYWORD_SET(BLINK) THEN $
+      lp = (*(*info).pbparams).lp_blink $
+    ELSE $
+      lp = (*(*info).dataparams).lp
+    diag_start = (*(*info).intparams).diag_start
+    diag_width = (*(*info).intparams).diag_width
+  ENDELSE
+  disp_diff = lp_diag_all - disp_diag
+  constraint_low = WHERE(disp_diff GT 0, count, COMPLEMENT=constraint_upp) 
+  disp_low_next = (disp_diag[constraint_low])[$
+    (WHERE(disp_diff[constraint_low] EQ MIN(disp_diff[constraint_low])))[0]]
+  disp_upp_next = (disp_diag[constraint_upp])[$
+    (WHERE(ABS(disp_diff[constraint_upp]) EQ MIN(ABS(disp_diff[constraint_upp]))))[0]]
+  dist_low = lp - (diag_start[disp_low_next]+diag_width[disp_low_next]-1)
+  dist_upp = ABS(lp - diag_start[disp_upp_next])
+  RETURN, [dist_low,dist_upp,disp_low_next,disp_upp_next]
+END
+
 ;------------------------- PLOTAXES FUNCTION
 FUNCTION CRISPEX_PLOTAXES_XTICKVALS_SELECT, xtickvals_in, TICKSEP=ticksep, DOPPLER=doppler
   ; Mark every TICKSEP-th major tickmark, if total # < TICKSEP: mark the middle one
@@ -7470,6 +7499,8 @@ PRO CRISPEX_PB_BG, event
             (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink $
           ELSE $
             (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink_init
+          (*(*info).intparams).lp_diag_all = $
+            TOTAL((*(*info).dataparams).lp GE (*(*info).intparams).diag_start)-1
 			  ENDIF ELSE IF (*(*info).pbparams).imrefmode THEN BEGIN
 					(*(*info).winids).imrefdisp = ABS((*(*info).winids).imrefdisp-1)
 				ENDIF ELSE RETURN
@@ -7483,8 +7514,10 @@ PRO CRISPEX_PB_BG, event
             (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink $
           ELSE $
             (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink_init
+          (*(*info).intparams).lp_diag_all = $
+            TOTAL((*(*info).dataparams).lp GE (*(*info).intparams).diag_start)-1
 					WIDGET_CONTROL,(*(*info).ctrlscp).lp_slider, SET_VALUE = (*(*info).dataparams).lp
-			  	ENDIF ELSE IF (*(*info).pbparams).imrefmode THEN BEGIN
+			  ENDIF ELSE IF (*(*info).pbparams).imrefmode THEN BEGIN
 					(*(*info).winids).imrefdisp = ABS((*(*info).winids).imrefdisp-1)
 				ENDIF
 				CASE (*(*info).pbparams).lmode OF
@@ -7715,7 +7748,7 @@ PRO CRISPEX_PB_SPECTBLINK, event
 	(*(*info).pbparams).spmode = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).imref_blink_but, SENSITIVE=ABS((*(*info).pbparams).spmode-1)
 	IF (*(*info).pbparams).spmode THEN BEGIN
-		(*(*info).pbparams).spmode = 1	&	(*(*info).pbparams).spdirection = 1
+		(*(*info).pbparams).spdirection = 1
     (*(*info).pbparams).lp_blink_init = (*(*info).dataparams).lp
 		IF ((*(*info).feedbparams).count_pbstats EQ 0) THEN (*(*info).feedbparams).pbstats = SYSTIME(/SECONDS)
 		WIDGET_CONTROL, (*(*info).pbparams).bg, TIMER = 0.0
@@ -11830,17 +11863,17 @@ PRO CRISPEX_SLIDER_LP_UPDATE, event, OVERRIDE_DIAGNOSTIC=override_diagnostic, $
   ; Determine whether lp falls in not displayed diagnostic window, act accordingly
   lp_diag_all = TOTAL((*(*info).dataparams).lp GE (*(*info).intparams).diag_start)-1
   IF ((*(*info).intparams).disp_diagnostics[lp_diag_all] EQ 0) THEN BEGIN
-    ; Determine distance to lower and upper boundaries of current diagnostic window
-    dist_low = (*(*info).dataparams).lp - (*(*info).intparams).diag_start[lp_diag_all]
-    dist_upp = ABS((*(*info).dataparams).lp - ((*(*info).intparams).diag_start[lp_diag_all]+$
-      (*(*info).intparams).diag_width[lp_diag_all]-1))
-    IF (((dist_low LT dist_upp) AND KEYWORD_SET(OVERRIDE_DIAGNOSTIC)) OR $
-        ((dist_low GE dist_upp) AND ~KEYWORD_SET(OVERRIDE_DIAGNOSTIC))) THEN BEGIN
-      (*(*info).dataparams).lp = (*(*info).intparams).diag_start[lp_diag_all+1]
-      lp_diag_all += 1
+    ; Determine distance to upper and lower boundaries of closest displayed diagnostics window
+    ; 0=dist_low, 1=dist_upp, 2=disp_low_next, 3=disp_upp_next
+    dist_low_upp = CRISPEX_SLIDER_LP_DIAG(event, lp_diag_all) 
+    IF (((dist_low_upp[0] LT dist_low_upp[1]) AND KEYWORD_SET(OVERRIDE_DIAGNOSTIC)) OR $
+        ((dist_low_upp[0] GE dist_low_upp[1]) AND ~KEYWORD_SET(OVERRIDE_DIAGNOSTIC))) THEN BEGIN
+      (*(*info).dataparams).lp = (*(*info).intparams).diag_start[dist_low_upp[3]]
+      lp_diag_all = dist_low_upp[3]
     ENDIF ELSE BEGIN
-      (*(*info).dataparams).lp = (*(*info).intparams).diag_start[lp_diag_all]-1 
-      lp_diag_all -= 1
+      (*(*info).dataparams).lp = (*(*info).intparams).diag_start[dist_low_upp[2]]+$
+        (*(*info).intparams).diag_width[dist_low_upp[2]]-1 
+      lp_diag_all = dist_low_upp[2]
     ENDELSE
   ENDIF
   (*(*info).intparams).lp_diag_all = lp_diag_all
@@ -11849,16 +11882,16 @@ PRO CRISPEX_SLIDER_LP_UPDATE, event, OVERRIDE_DIAGNOSTIC=override_diagnostic, $
   ; Determine whether lp_ref falls in not displayed diagnostic window, act accordingly
   lp_ref_diag_all = TOTAL((*(*info).dataparams).lp_ref GE (*(*info).intparams).refdiag_start)-1
   IF ((*(*info).intparams).disp_refdiagnostics[lp_ref_diag_all] EQ 0) THEN BEGIN
-    ; Determine distance to lower and upper boundaries of current diagnostic window
-    dist_low = (*(*info).dataparams).lp_ref - (*(*info).intparams).refdiag_start[lp_ref_diag_all]
-    dist_upp = ABS((*(*info).dataparams).lp_ref - ((*(*info).intparams).refdiag_start[lp_ref_diag_all]+$
-      (*(*info).intparams).refdiag_width[lp_ref_diag_all]-1))
-    IF (dist_low LT dist_upp) THEN BEGIN
-      (*(*info).dataparams).lp_ref = (*(*info).intparams).refdiag_start[lp_ref_diag_all+1]
-      lp_ref_diag_all += 1
+    ; Determine distance to upper and lower boundaries of closest displayed diagnostics window
+    ; 0=dist_low, 1=dist_upp, 2=disp_low_next, 3=disp_upp_next
+    dist_low_upp = CRISPEX_SLIDER_LP_DIAG(event, lp_diag_all, /REFERENCE)
+    IF (dist_low_upp[0] GE dist_low_upp[1]) THEN BEGIN
+      (*(*info).dataparams).lp_ref = (*(*info).intparams).refdiag_start[dist_low_upp[3]]
+      lp_ref_diag_all = dist_low_upp[3]
     ENDIF ELSE BEGIN
-      (*(*info).dataparams).lp_ref = (*(*info).intparams).refdiag_start[lp_ref_diag_all]-1 
-      lp_ref_diag_all -= 1
+      (*(*info).dataparams).lp_ref = (*(*info).intparams).refdiag_start[dist_low_upp[2]]+$
+        (*(*info).intparams).refdiag_width[dist_low_upp[2]]-1 
+      lp_ref_diag_all = dist_low_upp[2]
     ENDELSE
   ENDIF
   (*(*info).intparams).lp_ref_diag_all = lp_ref_diag_all
@@ -11891,8 +11924,20 @@ PRO CRISPEX_SLIDER_SPECTBLINK, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lp_blink = event.VALUE
+  lp_blink_diag_all = TOTAL((*(*info).pbparams).lp_blink GE (*(*info).intparams).diag_start)-1
+  IF ((*(*info).intparams).disp_diagnostics[lp_blink_diag_all] EQ 0) THEN BEGIN
+    ; Determine distance to upper and lower boundaries of closest displayed diagnostics window
+    ; 0=dist_low, 1=dist_upp, 2=disp_low_next, 3=disp_upp_next
+    dist_low_upp = CRISPEX_SLIDER_LP_DIAG(event, lp_blink_diag_all, /BLINK) 
+    IF (dist_low_upp[0] GE dist_low_upp[1]) THEN $
+      (*(*info).pbparams).lp_blink = (*(*info).intparams).diag_start[dist_low_upp[3]] $
+    ELSE  $
+      (*(*info).pbparams).lp_blink = (*(*info).intparams).diag_start[dist_low_upp[2]]+$
+        (*(*info).intparams).diag_width[dist_low_upp[2]]-1 
+  ENDIF
   WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
     SENSITIVE=((*(*info).pbparams).lp_blink NE (*(*info).dataparams).lp)
+  WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_VALUE=(*(*info).pbparams).lp_blink
   (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink
   CRISPEX_SLIDER_LP_UPDATE, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
