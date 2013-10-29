@@ -4786,11 +4786,15 @@ PRO CRISPEX_DRAW_IMREF_BLINK, event
 		CRISPEX_DRAW_SUBCOLOR, event, 0, color_txt, minimum, maximum;, xyrange=[10,70,5,20]
 		IF (color_txt GE 122) THEN txtcol = 0 ELSE txtcol = 255
     label = 'Main'
-    time = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t]
+    time_val = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t]
 	ENDELSE
-	IF (SIZE((*(*info).plotaxes).dt,/TYPE) NE 2) THEN $ 
-    time = STRING(time_val, FORMAT='(F'+STRTRIM(FLOOR(ALOG10(time_val))+4,2)+'.2)')+' s' $
-  ELSE $
+	IF (SIZE((*(*info).plotaxes).dt,/TYPE) NE 2) THEN BEGIN
+    IF (time_val EQ 0.) THEN $
+      ndigits = 4 $
+    ELSE $
+      ndigits = FLOOR(ALOG10(time_val))+4
+    time = STRING(time_val, FORMAT='(F'+STRTRIM(ndigits,2)+'.2)')+' s'
+  ENDIF ELSE $
     time = STRTRIM(time_val, 2)
   XYOUTS, 10, 10, label+' image, t='+time,/DEVICE, COLOR=txtcol
 END
