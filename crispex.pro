@@ -9677,19 +9677,22 @@ PRO CRISPEX_RETRIEVE_LOOP_MENU, event, set_but_array
 			sel_but = WIDGET_BUTTON(sel_buts, VALUE = but_val, UVALUE = eventval[i], EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_MENU_EVENT', UNAME = name) 
 			IF (N_ELEMENTS(set_but_array) GT 0) THEN WIDGET_CONTROL, sel_but, SET_BUTTON = set_but_array[i]
 			RESTORE,(*(*(*info).retrparams).clfiles)[i]
+      ; Support for different saving methods of xp and yp points
+      IF (SIZE(x_coords,/N_DIMENSIONS) EQ 2) THEN x_coords = REFORM(x_coords[0,*])
+      IF (SIZE(y_coords,/N_DIMENSIONS) EQ 2) THEN y_coords = REFORM(y_coords[0,*])
 			IF (i EQ 0) THEN BEGIN
-				*(*(*info).retrparams).xlp_restored = REFORM(x_coords[0,*])
-				*(*(*info).retrparams).ylp_restored = REFORM(y_coords[0,*])
+				*(*(*info).retrparams).xlp_restored = x_coords
+				*(*(*info).retrparams).ylp_restored = y_coords
 				*(*(*info).retrparams).xlr_restored = x_loop_pts
 				*(*(*info).retrparams).ylr_restored = y_loop_pts
-				*(*(*info).retrparams).lpsizes = [0, LONG((SIZE(REFORM(x_coords[0,*])))[1])]
+				*(*(*info).retrparams).lpsizes = [0, LONG((SIZE(x_coords))[1])]
 				*(*(*info).retrparams).lrsizes = [0, LONG((SIZE(REFORM(x_loop_pts)))[1])]
 			ENDIF ELSE BEGIN
-				*(*(*info).retrparams).xlp_restored = [*(*(*info).retrparams).xlp_restored, REFORM(x_coords[0,*])]
-				*(*(*info).retrparams).ylp_restored = [*(*(*info).retrparams).ylp_restored, REFORM(y_coords[0,*])]
+				*(*(*info).retrparams).xlp_restored = [*(*(*info).retrparams).xlp_restored, x_coords]
+				*(*(*info).retrparams).ylp_restored = [*(*(*info).retrparams).ylp_restored, y_coords]
 				*(*(*info).retrparams).xlr_restored = [*(*(*info).retrparams).xlr_restored, x_loop_pts]
 				*(*(*info).retrparams).ylr_restored = [*(*(*info).retrparams).ylr_restored, y_loop_pts]
-				singlepsize = (SIZE(REFORM(x_coords[0,*])))[1]
+				singlepsize = (SIZE(x_coords))[1]
 				singlersize = (SIZE(REFORM(x_loop_pts)))[1]
 				*(*(*info).retrparams).lpsizes = [*(*(*info).retrparams).lpsizes, (*(*(*info).retrparams).lpsizes)[i]+LONG(singlepsize)]
 				*(*(*info).retrparams).lrsizes = [*(*(*info).retrparams).lrsizes, (*(*(*info).retrparams).lrsizes)[i]+LONG(singlersize)]
@@ -12130,7 +12133,12 @@ PRO CRISPEX_UPDATE_SPSLICE, event
         (*(*info).scaling).maximum[(*(*(*info).intparams).wheredispdiag)[d]])
         (*(*info).scaling).spslice_min[(*(*(*info).intparams).wheredispdiag)[d]] = minmax[0]
         (*(*info).scaling).spslice_max[(*(*(*info).intparams).wheredispdiag)[d]] = minmax[1]
-    ENDIF
+    ENDIF ELSE BEGIN
+      IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN $
+        minmax = [(*(*info).scaling).imagemin, (*(*info).scaling).imagemax] $
+      ELSE $
+        minmax = [(*(*info).scaling).imagemin_curr, (*(*info).scaling).imagemax_curr]
+    ENDELSE
     tmp_disp = BYTSCL(tmp_disp, MIN=minmax[0], MAX=minmax[1], /NAN)
     IF (d EQ 0) THEN $
       final_disp = tmp_disp $
@@ -12174,7 +12182,12 @@ PRO CRISPEX_UPDATE_REFSPSLICE, event
         (*(*info).scaling).minimum[sel_idx],(*(*info).scaling).maximum[sel_idx])
         (*(*info).scaling).spslice_min[sel_idx] = refminmax[0]
         (*(*info).scaling).spslice_max[sel_idx] = refminmax[1]
-    ENDIF
+    ENDIF ELSE BEGIN
+      IF ((*(*(*info).scaling).imagescale)[1] EQ 0) THEN $
+        refminmax = [(*(*info).scaling).refmin, (*(*info).scaling).refmax] $
+      ELSE $
+        refminmax = [(*(*info).scaling).refmin_curr, (*(*info).scaling).refmax_curr]
+    ENDELSE
     tmp_disp = BYTSCL(tmp_disp, MIN=refminmax[0], MAX=refminmax[1], /NAN)
     IF (d EQ 0) THEN $
       final_disp = tmp_disp $
