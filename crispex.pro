@@ -7302,11 +7302,11 @@ PRO CRISPEX_LOOP_GET_EXACT_SLICE, event, extractdata, xrs, yrs, xps, yps, w_lpts
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info			
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF KEYWORD_SET(IM) THEN BEGIN
-    tlow = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).tlow]
-    tupp = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).tupp]
+    tlow = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).t_low]
+    tupp = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).t_upp]
   ENDIF ELSE BEGIN
-    tlow = (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).tlow]
-    tupp = (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).tupp]
+    tlow = (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).t_low]
+    tupp = (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).t_upp]
   ENDELSE
 	IF KEYWORD_SET(NO_NLP) THEN BEGIN
 ;		FOR t=(*(*info).dispparams).t_low,(*(*info).dispparams).t_upp DO BEGIN    
