@@ -10508,37 +10508,103 @@ PRO CRISPEX_SESSION_RESTORE, event
 			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).winswitch, winswitch
 			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).zooming, zooming
 			; Reset controls on control panel given the control switches and other parameters
-			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Resetting control panel controls...'
-			; Temporal
-			WIDGET_CONTROL, (*(*info).ctrlscp).t_slider, SET_VALUE = (*(*info).dispparams).t, SET_SLIDER_MIN = (*(*info).dispparams).t_low, SET_SLIDER_MAX = (*(*info).dispparams).t_upp, $
+			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, $
+        feedback_text='Resetting control panel controls...'
+      ; ==================== Always visible controls ====================
+      ; Playback controls
+			WIDGET_CONTROL, (*(*info).ctrlscp).t_slider, SET_VALUE = (*(*info).dispparams).t, $
+        SET_SLIDER_MIN=(*(*info).dispparams).t_low, $
+        SET_SLIDER_MAX=(*(*info).dispparams).t_upp, $
 				SENSITIVE = ((*(*info).dataparams).nt GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).lower_t_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_low,2), SENSITIVE = ((*(*info).dataparams).nt GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).upper_t_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_upp,2), SENSITIVE = ((*(*info).dataparams).nt GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).reset_trange_but, SENSITIVE = ((*(*info).dispparams).t_range NE (*(*info).dataparams).nt)
-			WIDGET_CONTROL, (*(*info).ctrlscp).t_speed_slider, SET_VALUE = (*(*info).pbparams).t_speed, SENSITIVE = ((*(*info).dataparams).nt GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).t_step_slider, SET_SLIDER_MAX = (*(*info).dispparams).t_range - 1, SET_VALUE = (*(*info).pbparams).t_step, $
-				SENSITIVE = (((*(*info).dispparams).t_range - 1 NE 1) AND (*(*info).dataparams).nt GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).imref_blink_but, SET_BUTTON = (*(*info).winswitch).showimref, SENSITIVE = (*(*info).dataswitch).reffile
-			; Spectral
-			WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, SET_VALUE = STRTRIM((*(*info).dispparams).lp_low,2), SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, SET_VALUE = STRTRIM((*(*info).dispparams).lp_upp,2), SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, SENSITIVE = ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp)
-			WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_VALUE = (*(*info).dataparams).lp, SET_SLIDER_MIN = (*(*info).dispparams).lp_low, SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, $
+			CRISPEX_PB_BUTTONS_SET, event, $
+        bwd_set=((*(*info).pbparams).direction EQ -1), $
+        pause_set=((*(*info).pbparams).mode EQ 'PAUSE'), $
+        fwd_set=((*(*info).pbparams).direction EQ 1), $
+				loop_set=((*(*info).pbparams).lmode EQ 'LOOP'),	$
+        cycle_set=((*(*info).pbparams).lmode EQ 'CYCLE'), $
+        blink_set=((*(*info).pbparams).lmode EQ 'BLINK')
+      ; Spectral control
+			WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_VALUE = (*(*info).dataparams).lp, $
+        SET_SLIDER_MIN = (*(*info).dispparams).lp_low, $
+        SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, $
 				SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-  	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_SLIDER_MIN=(*(*info).dispparams).lp_low, $
-      SET_SLIDER_MAX=(*(*info).dispparams).lp_upp, SET_VALUE=(*(*info).dataparams).lp, $
-      SENSITIVE=(((*(*info).dispparams).lp_range-1) NE 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, SET_BUTTON = (*(*info).pbparams).spmode, SENSITIVE = (((*(*info).dataparams).nlp GT 1) AND ((*(*info).winswitch).showimref EQ 0))
-			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SET_BUTTON = ((*(*info).ctrlsswitch).lp_ref_lock AND ((*(*info).dataparams).refnlp GT 1)), $
-				SENSITIVE = (((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND ((*(*info).dataparams).refnlp GT 1))
-			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, SET_VALUE = (*(*info).dataparams).lp_ref, SENSITIVE = ((*(*info).dataswitch).refspfile AND ABS((*(*info).ctrlsswitch).lp_ref_lock-1))
-			CRISPEX_PB_BUTTONS_SET, event, bwd_set=((*(*info).pbparams).direction EQ -1), pause_set=((*(*info).pbparams).mode EQ 'PAUSE'), fwd_set=((*(*info).pbparams).direction EQ 1), $
-				loop_set=((*(*info).pbparams).lmode EQ 'LOOP'),	cycle_set=((*(*info).pbparams).lmode EQ 'CYCLE'), blink_set=((*(*info).pbparams).lmode EQ 'BLINK')
+      ; Cursor lock controls
+			WIDGET_CONTROL, (*(*info).ctrlscp).lock_button, SET_BUTTON = (*(*info).curs).lockset
+			WIDGET_CONTROL, (*(*info).ctrlscp).unlock_button, $
+        SET_BUTTON = ABS((*(*info).curs).lockset-1)
+      ; ==================== Playback Tab ====================
+			WIDGET_CONTROL, (*(*info).ctrlscp).lower_t_text, $
+        SET_VALUE = STRTRIM((*(*info).dispparams).t_low,2), $
+        SENSITIVE = ((*(*info).dataparams).nt GT 1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).upper_t_text, $
+        SET_VALUE = STRTRIM((*(*info).dispparams).t_upp,2), $
+        SENSITIVE = ((*(*info).dataparams).nt GT 1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).reset_trange_but, $
+        SENSITIVE = ((*(*info).dispparams).t_range NE (*(*info).dataparams).nt)
+			WIDGET_CONTROL, (*(*info).ctrlscp).t_speed_slider, $
+        SET_VALUE = (*(*info).pbparams).t_speed, SENSITIVE = ((*(*info).dataparams).nt GT 1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).t_step_slider, $
+        SET_SLIDER_MAX = (*(*info).dispparams).t_range - 1, $
+        SET_VALUE = (*(*info).pbparams).t_step, $
+				SENSITIVE = (((*(*info).dispparams).t_range - 1 NE 1) AND $
+                      (*(*info).dataparams).nt GT 1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).imref_blink_but, $
+        SET_BUTTON = (*(*info).winswitch).showimref, $
+        SENSITIVE = (*(*info).dataswitch).reffile
+      ; Master timing
+      showdata = [((*(*info).dataswitch).reffile OR (*(*info).dataswitch).sjifile), $
+        (*(*info).dataswitch).reffile, (*(*info).dataswitch).sjifile]
+      nrasterdims = [SIZE((*(*info).dataparams).tarr_raster_main,/N_DIMENSIONS), $
+                      SIZE((*(*info).dataparams).tarr_raster_ref,/N_DIMENSIONS), 1]
+      FOR i=0,N_ELEMENTS(master_time_labels)-1 DO $
+        WIDGET_CONTROL, (*(*info).ctrlscp).master_time_ids[i], $
+        SET_BUTTON=(i EQ (*(*info).dispparams).master_time), $
+        SENSITIVE=(showdata[i] AND (nrasterdims[i] GE 1))
+      WIDGET_CONTROL, (*(*info).ctrlscp).time_offset_slider, $
+        SENSITIVE=(((nrasterdims[(*(*info).dispparams).master_time] EQ 1) AND $
+          ((*(*info).dataparams).nt EQ 1) AND ((*(*info).dataparams).nx GT 1)) OR $
+          (nrasterdims[(*(*info).dispparams).master_time] EQ 2)), $
+        SET_VALUE=([(*(*info).dispparams).toffset_main, $
+          (*(*info).dispparams).toffset_ref, 0])[(*(*info).dispparams).master_time]
+      ; ==================== Spectral Tab ====================
+      ; Spectral range
+			WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, $
+        SET_VALUE = STRTRIM((*(*info).dispparams).lp_low,2), $
+        SENSITIVE = ((*(*info).dataparams).nlp GT 1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, $
+        SET_VALUE = STRTRIM((*(*info).dispparams).lp_upp,2), $
+        SENSITIVE = ((*(*info).dataparams).nlp GT 1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, $
+        SENSITIVE = ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp)
+      ; Spectral blink
+    	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, $
+        SET_SLIDER_MIN=(*(*info).dispparams).lp_low, $
+        SET_SLIDER_MAX=(*(*info).dispparams).lp_upp, SET_VALUE=(*(*info).dataparams).lp, $
+        SENSITIVE=(((*(*info).dispparams).lp_range-1) NE 1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
+        SET_BUTTON=(*(*info).pbparams).spmode, $
+        SENSITIVE=(((*(*info).dataparams).nlp GT 1) AND $
+                   ((*(*info).winswitch).showimref EQ 0))
+      ; Reference spectrum
+			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, $
+        SET_BUTTON=((*(*info).ctrlsswitch).lp_ref_lock AND $
+                   ((*(*info).dataparams).refnlp GT 1)), $
+				SENSITIVE=(((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND $
+                   ((*(*info).dataparams).refnlp GT 1))
+			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, $
+        SET_VALUE = (*(*info).dataparams).lp_ref, $
+        SENSITIVE = ((*(*info).dataswitch).refspfile AND $
+                    ABS((*(*info).ctrlsswitch).lp_ref_lock-1))
+      ; Spectrum along slit
+			WIDGET_CONTROL, (*(*info).ctrlscp).phi_slider, $
+        SET_VALUE = (*(*info).phiparams).angle, SENSITIVE = (*(*info).winswitch).showphis
+			WIDGET_CONTROL, (*(*info).ctrlscp).nphi_slider, $
+        SET_VALUE = (*(*info).phiparams).nphi_set, $
+        SENSITIVE = (*(*info).winswitch).showphis
 			; ==================== Spatial Tab ====================
       ; Set cursor sliders and lock/unlock buttons
-			CRISPEX_COORDSLIDERS_SET, ABS((*(*info).curs).lockset-1), ABS((*(*info).curs).lockset-1), event
-			WIDGET_CONTROL, (*(*info).ctrlscp).lock_button, SET_BUTTON = (*(*info).curs).lockset
-			WIDGET_CONTROL, (*(*info).ctrlscp).unlock_button, SET_BUTTON = ABS((*(*info).curs).lockset-1)
+			CRISPEX_COORDSLIDERS_SET, ABS((*(*info).curs).lockset-1), $
+        ABS((*(*info).curs).lockset-1), event
       ; Set zooming buttons
 			IF ((*(*info).zooming).factor NE 1) THEN CRISPEX_ZOOM, event, /NO_DRAW
       set_zoomfac = CRISPEX_BGROUP_ZOOMFAC_SET(event, /NO_DRAW, /NO_UPDATE_SLIDERS, $
@@ -10548,7 +10614,7 @@ PRO CRISPEX_SESSION_RESTORE, event
         SENSITIVE = ((*(*info).zooming).factor NE 1)
 			WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SET_VALUE = (*(*info).zooming).ypos, $
         SENSITIVE = ((*(*info).zooming).factor NE 1)
-			; ==================== Stokes Tab ====================
+			; ==================== Diagnostics Tab ====================
       FOR i=0,N_ELEMENTS((*(*info).stokesparams).button_labels)-1 DO BEGIN
         ; Stokes parameter available in data?
         stokes_enabled = (WHERE(((*(*info).stokesparams).labels) EQ $
@@ -10571,48 +10637,124 @@ PRO CRISPEX_SESSION_RESTORE, event
       ENDFOR
 			IF ((*(*info).dataparams).nlp EQ 1) THEN $
         WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[0], SET_BUTTON = 0
+      ; Spectral window settings
+      IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
+        set = [((*(*info).intparams).ndisp_diagnostics EQ $
+                (*(*info).intparams).ndiagnostics),$
+                ((*(*info).intparams).disp_diagnostics EQ $
+                  REPLICATE(1,(*(*info).intparams).ndiagnostics))]
+        sens = [((*(*info).intparams).ndisp_diagnostics NE $
+                (*(*info).intparams).ndiagnostics),$
+                (((*(*info).intparams).disp_diagnostics NE $
+                  REPLICATE(1,(*(*info).intparams).ndiagnostics)) OR $
+                (((*(*info).intparams).disp_diagnostics EQ $
+                  REPLICATE(1,(*(*info).intparams).ndiagnostics)) AND $
+                 ((*(*info).intparams).ndisp_diagnostics NE 1)))]
+        FOR i=0,(*(*info).intparams).ndiagnostics DO $
+          WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i], SENSITIVE=sens[i], $
+            SET_BUTTON=set[i]
+      ENDIF
+      IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
+        refset = [((*(*info).intparams).ndisp_refdiagnostics EQ $
+                    (*(*info).intparams).nrefdiagnostics),$
+                ((*(*info).intparams).disp_refdiagnostics EQ $
+                  REPLICATE(1,(*(*info).intparams).nrefdiagnostics))]
+        refsens = [((*(*info).intparams).ndisp_refdiagnostics NE $
+                    (*(*info).intparams).nrefdiagnostics),$
+                (((*(*info).intparams).disp_refdiagnostics NE $
+                  REPLICATE(1,(*(*info).intparams).nrefdiagnostics)) OR $
+                (((*(*info).intparams).disp_refdiagnostics EQ $
+                  REPLICATE(1,(*(*info).intparams).nrefdiagnostics)) AND $
+                 ((*(*info).intparams).ndisp_refdiagnostics NE 1)))]
+        FOR i=0,(*(*info).intparams).nrefdiagnostics DO $
+          WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[i], $
+            SENSITIVE=refsens[i], SET_BUTTON=refset[i]
+      ENDIF
 			; ==================== Displays Tab ====================
-			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_im_but, SET_BUTTON = ABS((*(*info).ctrlsswitch).imrefdetspect-1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_ref_but, SET_BUTTON = (*(*info).ctrlsswitch).imrefdetspect, SENSITIVE = (*(*info).dataswitch).refspfile
+			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_im_but, $
+        SET_BUTTON = ABS((*(*info).ctrlsswitch).imrefdetspect-1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_ref_but, $
+        SET_BUTTON = (*(*info).ctrlsswitch).imrefdetspect, $
+        SENSITIVE = (*(*info).dataswitch).refspfile
 			CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
-			WIDGET_CONTROL, (*(*info).ctrlscp).sp_toggle_but, SET_BUTTON = (*(*info).winswitch).showsp
-			WIDGET_CONTROL, (*(*info).ctrlscp).phis_toggle_but, SET_BUTTON = (*(*info).winswitch).showphis
-			WIDGET_CONTROL, (*(*info).ctrlscp).refsp_toggle_but, SET_BUTTON = (*(*info).winswitch).showrefsp, SENSITIVE = (*(*info).dataswitch).refspfile
-			WIDGET_CONTROL, (*(*info).ctrlscp).int_toggle_but, SET_BUTTON = (*(*info).winswitch).showint, SENSITIVE = (*(*info).dataswitch).spfile
-			WIDGET_CONTROL, (*(*info).ctrlscp).reference_but, SET_BUTTON = (*(*info).winswitch).showref, SENSITIVE = (*(*info).dataswitch).reffile
-			WIDGET_CONTROL, (*(*info).ctrlscp).doppler_but, SET_BUTTON = (*(*info).winswitch).showdop, SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).param_but, SET_BUTTON = (*(*info).winswitch).showparam
-			; Scaling
+			WIDGET_CONTROL, (*(*info).ctrlscp).sp_toggle_but, $
+        SET_BUTTON = (*(*info).winswitch).showsp
+			WIDGET_CONTROL, (*(*info).ctrlscp).phis_toggle_but, $
+        SET_BUTTON = (*(*info).winswitch).showphis
+			WIDGET_CONTROL, (*(*info).ctrlscp).refsp_toggle_but, $
+        SET_BUTTON = (*(*info).winswitch).showrefsp, $
+        SENSITIVE = (*(*info).dataswitch).refspfile
+			WIDGET_CONTROL, (*(*info).ctrlscp).int_toggle_but, $
+        SET_BUTTON = (*(*info).winswitch).showint, $
+        SENSITIVE = (*(*info).dataswitch).spfile
+			WIDGET_CONTROL, (*(*info).ctrlscp).reference_but, $
+        SET_BUTTON = (*(*info).winswitch).showref, SENSITIVE = (*(*info).dataswitch).reffile
+			WIDGET_CONTROL, (*(*info).ctrlscp).doppler_but, $
+        SET_BUTTON = (*(*info).winswitch).showdop, $
+        SENSITIVE = ((*(*info).dataparams).nlp GT 1)
+			; ==================== Scaling Tab ====================
       WIDGET_CONTROL, (*(*info).ctrlscp).scaling_cbox, $
         SET_COMBOBOX_SELECT=(*(*info).scaling).imrefscaling
 			CRISPEX_SCALING_SET_BOXBUTTONS, event
 			CRISPEX_SCALING_SET_SLIDERS, event
-			; Slits
-			WIDGET_CONTROL, (*(*info).ctrlscp).phi_slider, SET_VALUE = (*(*info).phiparams).angle, SENSITIVE = (*(*info).winswitch).showphis
-			WIDGET_CONTROL, (*(*info).ctrlscp).nphi_slider, SET_VALUE = (*(*info).phiparams).nphi_set, SENSITIVE = (*(*info).winswitch).showphis
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, SET_BUTTON = ((*(*info).loopparams).np GE 2), SENSITIVE = ABS((*(*info).meas).spatial_measurement-1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_feedb_but, SET_BUTTON = (*(*info).overlayswitch).looppath_feedback
-			WIDGET_CONTROL, (*(*info).ctrlscp).rem_loop_pt_but, SENSITIVE = ((*(*info).loopparams).np GE 3)
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_slice_but, SENSITIVE = (ABS((*(*info).winswitch).showloop-1) AND ABS((*(*info).meas).spatial_measurement-1) AND ((*(*info).loopparams).np GE 2))
-			; Miscellaneous
-			WIDGET_CONTROL, (*(*info).ctrlscp).overlay_but, SET_BUTTON = (*(*info).loopswitch).restore_loops
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_all, SET_BUTTON = (*(*info).overlayswitch).overlalways, SENSITIVE = (*(*info).loopswitch).restore_loops
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, SET_BUTTON = ABS((*(*info).overlayswitch).overlalways-1), SENSITIVE = (*(*info).loopswitch).restore_loops
-			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_0, SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 0)
-			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_1, SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_2, SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 2)
-			WIDGET_CONTROL, (*(*info).ctrlscp).measure_but, SET_BUTTON = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, SENSITIVE = (*(*info).meas).spatial_measurement
-	    WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, SENSITIVE = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, SET_VALUE = STRTRIM((*(*info).meas).arcsecpix,2), SENSITIVE = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_lab, SENSITIVE = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, SENSITIVE = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_lab, SENSITIVE = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_text, SENSITIVE = (*(*info).meas).spatial_measurement
+			; ==================== Analysis Tab ====================
+			; Space-time diagram
+			WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, $
+        SET_BUTTON = ((*(*info).loopparams).np GE 2), $
+        SENSITIVE = ABS((*(*info).meas).spatial_measurement-1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).loop_feedb_but, $
+        SET_BUTTON = (*(*info).overlayswitch).looppath_feedback
+			WIDGET_CONTROL, (*(*info).ctrlscp).rem_loop_pt_but, $
+        SENSITIVE = ((*(*info).loopparams).np GE 3)
+			WIDGET_CONTROL, (*(*info).ctrlscp).loop_slice_but, $
+        SENSITIVE = (ABS((*(*info).winswitch).showloop-1) AND $
+        ABS((*(*info).meas).spatial_measurement-1) AND ((*(*info).loopparams).np GE 2))
+      ; Measurement
+			WIDGET_CONTROL, (*(*info).ctrlscp).measure_but, $
+        SET_BUTTON = (*(*info).meas).spatial_measurement
+			WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, $
+        SENSITIVE = (*(*info).meas).spatial_measurement
+	    WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, $
+        SENSITIVE = (*(*info).meas).spatial_measurement
+			WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, $
+        SET_VALUE = STRTRIM((*(*info).meas).arcsecpix,2), $
+        SENSITIVE = (*(*info).meas).spatial_measurement
+			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_lab, $
+        SENSITIVE = (*(*info).meas).spatial_measurement
+			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, $
+        SENSITIVE = (*(*info).meas).spatial_measurement
+			WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_lab, $
+        SENSITIVE = (*(*info).meas).spatial_measurement
+			WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_text, $
+        SENSITIVE = (*(*info).meas).spatial_measurement
+			; ==================== Overlays Tab ====================
 			; Mask
-			WIDGET_CONTROL, (*(*info).ctrlscp).masks_overlay_ct_cbox, SET_COMBOBOX_SELECT = (*(*info).overlayparams).maskct, SENSITIVE = (*(*info).overlayswitch).mask
-			WIDGET_CONTROL, (*(*info).ctrlscp).masks_overlay_col_slid, SET_VALUE = (*(*info).overlayparams).maskcolor, SENSITIVE = (*(*info).overlayswitch).mask
+			WIDGET_CONTROL, (*(*info).ctrlscp).masks_overlay_ct_cbox, $
+        SET_COMBOBOX_SELECT = (*(*info).overlayparams).maskct, $
+        SENSITIVE = (*(*info).overlayswitch).mask
+			WIDGET_CONTROL, (*(*info).ctrlscp).masks_overlay_col_slid, $
+        SET_VALUE = (*(*info).overlayparams).maskcolor, $
+        SENSITIVE = (*(*info).overlayswitch).mask
 			CRISPEX_MASK_BUTTONS_SET, event
+      ; Loop overlays
+			WIDGET_CONTROL, (*(*info).ctrlscp).overlay_but, $
+        SET_BUTTON = (*(*info).loopswitch).restore_loops
+			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_all, $
+        SET_BUTTON = (*(*info).overlayswitch).overlalways, $
+        SENSITIVE = (*(*info).loopswitch).restore_loops
+			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, $
+        SET_BUTTON = ABS((*(*info).overlayswitch).overlalways-1), $
+        SENSITIVE = (*(*info).loopswitch).restore_loops
+			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_0, $
+        SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 0)
+			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_1, $
+        SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 1)
+			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_2, $
+        SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 2)
+      ; Raster overlays
+      WIDGET_CONTROL, (*(*info).ctrlscp).raster_button, $
+        SENSITIVE=(*(*info).dataswitch).sjifile, $
+        SET_BUTTON=(*(*info).overlayswitch).sjiraster
 			IF (*(*info).meas).spatial_measurement THEN CRISPEX_MEASURE_CALC, event
 			; Open windows for replotting and replot
 			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Opening windows and refreshing displays...'
