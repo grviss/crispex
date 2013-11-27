@@ -1337,11 +1337,10 @@ PRO CRISPEX_COORDS_TRANSFORM_XY, event, MAIN2SJI=main2sji
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF KEYWORD_SET(MAIN2SJI) THEN BEGIN
+    ; Get xsji value directly from xyrastersji array
     (*(*info).dataparams).xsji = $
-      (*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,0] + $
-      ((*(*info).dataparams).x * (*(*info).dataparams).dx / (*(*info).dataparams).sjidx - $
-      ((*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,0] - $
-      (*(*info).dispparams).xyrastersji[0,0])) 
+      (*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,0]
+    ; Get ysji value based on xyrastersji array-value and add offset
     (*(*info).dataparams).ysji = $
       (*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,1] + $
       ((*(*info).dataparams).y * (*(*info).dataparams).dy / (*(*info).dataparams).sjidy - $
@@ -4209,20 +4208,12 @@ PRO CRISPEX_DRAW_RASTER_OVERLAYS, event
   FOR i=0,N_ELEMENTS((*(*info).dispparams).rastercont[*,0])-1 DO BEGIN
     xlow = ((*(*info).dispparams).rastercont[i,0] - (*(*info).zooming).xsjipos) * $
       (*(*info).winsizes).sjiwinx / ((*(*info).dataparams).d_sjinx+1)
-    xupp = ((*(*info).dispparams).rastercont[i,2] - (*(*info).zooming).xsjipos) * $
-      (*(*info).winsizes).sjiwinx / ((*(*info).dataparams).d_sjinx+1)
     ylow = ((*(*info).dispparams).rastercont[i,1] - (*(*info).zooming).ysjipos) * $
       (*(*info).winsizes).sjiwiny / ((*(*info).dataparams).d_sjiny+1)
-    yupp = ((*(*info).dispparams).rastercont[i,3] - (*(*info).zooming).ysjipos) * $
+    yupp = ((*(*info).dispparams).rastercont[i,2] - (*(*info).zooming).ysjipos) * $
       (*(*info).winsizes).sjiwiny / ((*(*info).dataparams).d_sjiny+1)
-    ; plot lower vertical boundary
+    ; plot raster position
     PLOTS, REPLICATE(xlow,2), [ylow,yupp], COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
-    ; plot upper horizontal boundary
-    PLOTS, [xlow,xupp], REPLICATE(yupp,2), COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
-    ; plot upper vertical boundary
-    PLOTS, REPLICATE(xupp,2), [ylow,yupp], COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
-    ; plot lower horizontal boundary
-    PLOTS, [xlow,xupp], REPLICATE(ylow,2), COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
   ENDFOR
 	LOADCT, 0, /SILENT
 END
@@ -6708,14 +6699,12 @@ PRO CRISPEX_IO_OPEN_SJICUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
     hdr_out.lunsji = lunsji
 	  hdr_out.sjislice	= PTR_NEW(BYTARR(hdr_out.sjinx,hdr_out.sjiny))
     nrasters = N_ELEMENTS(hdr_out.xyrastersji[*,0])
-    rastercont = FLTARR(nrasters,4)
-    raster_width = hdr_out.dx / FLOAT(hdr_out.sjidx)
+    rastercont = FLTARR(nrasters,3)
     raster_height = hdr_out.ny * (hdr_out.dy / FLOAT(hdr_out.sjidy))
     FOR i=0,nrasters-1 DO BEGIN
       rastercont[i,0] = hdr_out.xyrastersji[i,0]
       rastercont[i,1] = hdr_out.xyrastersji[i,1]
-      rastercont[i,2] = hdr_out.xyrastersji[i,0]+raster_width
-      rastercont[i,3] = hdr_out.xyrastersji[i,1]+raster_height
+      rastercont[i,2] = hdr_out.xyrastersji[i,1]+raster_height
     ENDFOR
     hdr_out = CREATE_STRUCT(hdr_out, 'rastercont', rastercont)
     CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, SJICUBE=hdr_out.sjifilename
@@ -12708,13 +12697,15 @@ PRO CRISPEX_UPDATE_SX, event
         ((*(*info).dataparams).d_nx+1)
 	sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
         ((*(*info).dataparams).d_nx+1)
-	sxsji = ((*(*info).dataparams).xsji - (*(*info).zooming).xsjipos) * $
-            (*(*info).winsizes).sjiwinx / ((*(*info).dataparams).d_sjinx+1)
 	(*(*info).curs).sxlock = sx 
 	(*(*info).curs).sx = (*(*info).curs).sxlock
-	(*(*info).curs).sxsji = sxsji
 	*(*(*info).overlayparams).sxp = sxp 
 	*(*(*info).overlayparams).sxr = sxr 
+  IF (*(*info).winswitch).showsji THEN BEGIN
+  	sxsji = ((*(*info).dataparams).xsji - (*(*info).zooming).xsjipos) * $
+              (*(*info).winsizes).sjiwinx / ((*(*info).dataparams).d_sjinx+1)
+  	(*(*info).curs).sxsji = sxsji
+  ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET,event,[(*(*info).dataparams).x,(*(*info).curs).sxlock,(*(*info).curs).sx],$
       labels=['x','sxlock','sx']
@@ -12730,13 +12721,15 @@ PRO CRISPEX_UPDATE_SY, event
         ((*(*info).dataparams).d_ny+1)
 	syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
         ((*(*info).dataparams).d_ny+1)
-	sysji = ((*(*info).dataparams).ysji - (*(*info).zooming).ysjipos) * $
-            (*(*info).winsizes).sjiwiny / ((*(*info).dataparams).d_sjinx+1)
 	(*(*info).curs).sylock = sy 
 	(*(*info).curs).sy = (*(*info).curs).sylock
-	(*(*info).curs).sysji = sysji
 	*(*(*info).overlayparams).syp = syp 
 	*(*(*info).overlayparams).syr = syr 
+  IF (*(*info).winswitch).showsji THEN BEGIN
+  	sysji = ((*(*info).dataparams).ysji - (*(*info).zooming).ysjipos) * $
+              (*(*info).winsizes).sjiwiny / ((*(*info).dataparams).d_sjinx+1)
+  	(*(*info).curs).sysji = sysji
+  ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET,event,[(*(*info).dataparams).y,(*(*info).curs).sylock,(*(*info).curs).sy],$
       labels=['y','sylock','sy']
