@@ -1498,12 +1498,26 @@ PRO CRISPEX_DISPWIDS, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).winswitch).dispwids = ABS((*(*info).winswitch).dispwids-1)
 	WIDGET_CONTROL,(*(*info).ctrlscp).dispwid, SET_BUTTON = (*(*info).winswitch).dispwids
-	tlbarr = [(*(*info).winids).imtlb,(*(*info).winids).sptlb,(*(*info).winids).lstlb,(*(*info).winids).reftlb,(*(*info).winids).refsptlb,(*(*info).winids).reflstlb,(*(*info).winids).imreftlb,(*(*info).winids).doptlb, $
-		(*(*info).winids).phistlb,*(*(*info).winids).restlooptlb,(*(*info).winids).retrdettlb,(*(*info).winids).looptlb,(*(*info).winids).reflooptlb,(*(*info).winids).inttlb]
-	widarr = [(*(*info).winids).imwid,(*(*info).winids).spwid,(*(*info).winids).lswid,(*(*info).winids).refwid,(*(*info).winids).refspwid,(*(*info).winids).reflswid,(*(*info).winids).imrefwid,(*(*info).winids).dopwid, $
-		(*(*info).winids).phiswid,*(*(*info).winids).restloopwid,(*(*info).winids).retrdetwid,(*(*info).winids).loopwid,(*(*info).winids).refloopwid,(*(*info).winids).intwid]
-	title_arr = [(*(*info).winids).imwintitle,(*(*info).winids).spwintitle,(*(*info).winids).lswintitle,(*(*info).winids).refwintitle,(*(*info).winids).refspwintitle,(*(*info).winids).reflswintitle,$
-		(*(*info).winids).imrefwintitle,(*(*info).winids).dopwintitle, (*(*info).winids).phiswintitle,*(*(*info).winids).restloopwintitle,(*(*info).winids).retrdetwintitle,(*(*info).winids).loopwintitle,$
+	tlbarr = [(*(*info).winids).root,(*(*info).winids).sptlb,$
+    (*(*info).winids).lstlb,(*(*info).winids).reftlb,$
+    (*(*info).winids).refsptlb,(*(*info).winids).reflstlb,$
+    (*(*info).winids).imreftlb,(*(*info).winids).doptlb, $
+		(*(*info).winids).phistlb,*(*(*info).winids).restlooptlb,$
+    (*(*info).winids).retrdettlb,(*(*info).winids).looptlb,$
+    (*(*info).winids).reflooptlb,(*(*info).winids).inttlb]
+	widarr = [(*(*info).winids).imwid,(*(*info).winids).spwid,$
+    (*(*info).winids).lswid,(*(*info).winids).refwid,$
+    (*(*info).winids).refspwid,(*(*info).winids).reflswid,$
+    (*(*info).winids).imrefwid,(*(*info).winids).dopwid, $
+		(*(*info).winids).phiswid,*(*(*info).winids).restloopwid,$
+    (*(*info).winids).retrdetwid,(*(*info).winids).loopwid,$
+    (*(*info).winids).refloopwid,(*(*info).winids).intwid]
+	title_arr = [(*(*info).winids).imwintitle,(*(*info).winids).spwintitle,$
+    (*(*info).winids).lswintitle,(*(*info).winids).refwintitle,$
+    (*(*info).winids).refspwintitle,(*(*info).winids).reflswintitle,$
+		(*(*info).winids).imrefwintitle,(*(*info).winids).dopwintitle, $
+    (*(*info).winids).phiswintitle,*(*(*info).winids).restloopwintitle,$
+    (*(*info).winids).retrdetwintitle,(*(*info).winids).loopwintitle,$
 		(*(*info).winids).refloopwintitle,(*(*info).winids).intwintitle]
 	wherenot0 = WHERE(tlbarr NE 0, count)
 	IF ((*(*info).winswitch).dispwids AND (count GT 0)) THEN BEGIN
@@ -1511,7 +1525,8 @@ PRO CRISPEX_DISPWIDS, event
       WIDGET_CONTROL,tlbarr[wherenot0[i]], $
         BASE_SET_TITLE = STRTRIM(widarr[wherenot0[i]],2)+' - '+title_arr[wherenot0[i]]
 	ENDIF ELSE BEGIN
-		FOR i=0,count-1 DO WIDGET_CONTROL,tlbarr[wherenot0[i]], BASE_SET_TITLE = title_arr[wherenot0[i]]
+		FOR i=0,count-1 DO $
+      WIDGET_CONTROL,tlbarr[wherenot0[i]], BASE_SET_TITLE = title_arr[wherenot0[i]]
 	ENDELSE
 END
 
@@ -13268,7 +13283,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 				CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'No CRISPEX instance tracking file ('+instfilename+$
                                                ') found in '+dir_settings+'. Creating file.'
 			ENDIF
-			where_crispex = -1
+			count = 0
 			OPENW, unit2, dir_settings+instfilename, WIDTH = 360, /GET_LUN
 			PRINTF, unit2, '# routine_name	version		revision	ID'
 		ENDELSE
