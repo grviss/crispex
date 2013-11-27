@@ -510,29 +510,25 @@ FUNCTION CRISPEX_BGROUP_STOKES_SELECT_XY, event, NO_DRAW=no_draw;, SET_STOKES=se
   ENDIF
 END
 
-FUNCTION CRISPEX_BGROUP_ZOOMFAC_SET, event, NO_DRAW=no_draw, NO_UPDATE_SLIDERS=no_update_sliders, $
-                              SET_FACTOR_IDX=set_factor_idx, UNSET_FACTOR_IDX=unset_factor_idx
+FUNCTION CRISPEX_BGROUP_ZOOMFAC_SET, event, NO_DRAW=no_draw, $
+          NO_UPDATE_SLIDERS=no_update_sliders, SET_FACTOR_IDX=set_factor_idx, $
+          UNSET_FACTOR_IDX=unset_factor_idx
 ; Sets the zoomfactor and changes options and paramters accordingly
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (N_ELEMENTS(SET_FACTOR_IDX) EQ 1) THEN BEGIN
     idx = set_factor_idx   & select = 1B
-    IF (N_ELEMENTS(UNSET_FACTOR_IDX) EQ 1) THEN (*(*info).zooming).factorswitch[unset_factor_idx]= 0B
+    IF (N_ELEMENTS(UNSET_FACTOR_IDX) EQ 1) THEN $
+      (*(*info).zooming).factorswitch[unset_factor_idx]= 0B
   ENDIF ELSE BEGIN
     idx = event.VALUE & select = BYTE(event.SELECT)
   ENDELSE
   (*(*info).zooming).factorswitch[idx] = select
   (*(*info).zooming).factor = ((*(*info).zooming).factors)[idx]
-;  IF ((*(*info).zooming).handle_extreme NE 2) THEN BEGIN
-    IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
-      (*(*info).zooming).xpos = 0	&	(*(*info).zooming).ypos = 0
-    ENDIF
-;    sensitive = [0,0]
-;  ENDIF ELSE $
-;    sensitive = [(((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio GT 1) OR $
-;                  ((*(*info).zooming).factor NE 1)),$
-;                 (((*(*info).zooming).handle_extreme EQ 2) AND ((*(*info).data).ratio LT 1) OR $
-;                  ((*(*info).zooming).factor NE 1))]
+  IF ((*(*info).zooming).factor EQ 1) THEN BEGIN
+    (*(*info).zooming).xpos = 0	&	(*(*info).zooming).ypos = 0
+  ENDIF
   sensitive = [(((*(*info).dataparams).nx NE 1) AND ((*(*info).zooming).factor NE 1)),$
     ((*(*info).zooming).factor NE 1)]
   CRISPEX_ZOOM_CURSORPOS, event, cursor_x, cursor_y
@@ -1351,12 +1347,12 @@ PRO CRISPEX_COORDS_TRANSFORM_XY, event, MAIN2SJI=main2sji
       ((*(*info).dataparams).y * (*(*info).dataparams).dy / (*(*info).dataparams).sjidy - $
       ((*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,1] - $
       (*(*info).dispparams).xyrastersji[0,1])) 
-		sxsji = (*(*info).dataparams).xsji * (*(*info).winsizes).sjiwinx / $
-          ((*(*info).dataparams).sjinx)
-	  (*(*info).curs).sxsji = sxsji
-		sysji = (*(*info).dataparams).ysji * (*(*info).winsizes).sjiwiny / $
-          ((*(*info).dataparams).sjiny)
-	  (*(*info).curs).sysji = sysji
+	  (*(*info).curs).sxsji = $
+      ((*(*info).dataparams).xsji - (*(*info).zooming).xsjipos) * $
+      (*(*info).winsizes).sjiwinx / ((*(*info).dataparams).d_sjinx+1)
+	  (*(*info).curs).sysji = $
+		  ((*(*info).dataparams).ysji - (*(*info).zooming).ysjipos) * $
+          (*(*info).winsizes).sjiwiny / ((*(*info).dataparams).d_sjiny+1)
   ENDIF
 END
 
@@ -3155,7 +3151,14 @@ PRO CRISPEX_DISPLAYS_SJI_TOGGLE, event, NO_DRAW=no_draw
 		CRISPEX_WINDOW, (*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny, $
       (*(*info).winids).root, title, sjitlb, sjiwid, $
       (*(*info).winsizes).lsxoffset+(*(*info).winsizes).lswinx+(*(*info).winsizes).xdelta, 0, $
-      DRAWID = sjidrawid, DRAWBASE = sjidrawbase
+      DRAWID = sjidrawid, DRAWBASE = sjidrawbase, $
+      /SCROLL, XSCROLL=xscroll, YSCROLL=yscroll, /SJI
+    (*(*info).ctrlssji).xsjipos_slider = xscroll
+    (*(*info).ctrlssji).ysjipos_slider = yscroll
+    WIDGET_CONTROL, (*(*info).ctrlssji).xsjipos_slider, $
+      SET_VALUE=(*(*info).zooming).xsjipos, SENSITIVE=((*(*info).zooming).factor NE 1)
+    WIDGET_CONTROL, (*(*info).ctrlssji).ysjipos_slider, $
+      SET_VALUE=(*(*info).zooming).ysjipos, SENSITIVE=((*(*info).zooming).factor NE 1)
 		(*(*info).winids).sjitlb = sjitlb		&	(*(*info).winids).sjiwid = sjiwid	
     (*(*info).winids).sjidrawid = sjidrawid
 		(*(*info).winids).sjidrawbase = sjidrawbase	&	(*(*info).winids).sjiwintitle = title
@@ -3163,6 +3166,7 @@ PRO CRISPEX_DISPLAYS_SJI_TOGGLE, event, NO_DRAW=no_draw
 			CRISPEX_UPDATE_T, event
 			CRISPEX_DRAW_SJI, event
 		ENDIF
+    WIDGET_CONTROL, sjitlb, SET_UVALUE=info
 	ENDIF ELSE BEGIN
 		WIDGET_CONTROL, (*(*info).winids).sjitlb, /DESTROY
 		(*(*info).winids).sjitlb = 0
@@ -4205,14 +4209,14 @@ PRO CRISPEX_DRAW_RASTER_OVERLAYS, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	LOADCT, (*(*info).overlayparams).maskct, /SILENT
   FOR i=0,N_ELEMENTS((*(*info).dispparams).rastercont[*,0])-1 DO BEGIN
-    xlow = (*(*info).dispparams).rastercont[i,0] * (*(*info).winsizes).sjiwinx / $
-      ((*(*info).dataparams).sjinx)
-    xupp = (*(*info).dispparams).rastercont[i,2] * (*(*info).winsizes).sjiwinx / $
-      ((*(*info).dataparams).sjinx)
-    ylow = (*(*info).dispparams).rastercont[i,1] * (*(*info).winsizes).sjiwiny / $
-      ((*(*info).dataparams).sjiny)
-    yupp = (*(*info).dispparams).rastercont[i,3] * (*(*info).winsizes).sjiwiny / $
-      ((*(*info).dataparams).sjiny)
+    xlow = ((*(*info).dispparams).rastercont[i,0] - (*(*info).zooming).xsjipos) * $
+      (*(*info).winsizes).sjiwinx / ((*(*info).dataparams).d_sjinx+1)
+    xupp = ((*(*info).dispparams).rastercont[i,2] - (*(*info).zooming).xsjipos) * $
+      (*(*info).winsizes).sjiwinx / ((*(*info).dataparams).d_sjinx+1)
+    ylow = ((*(*info).dispparams).rastercont[i,1] - (*(*info).zooming).ysjipos) * $
+      (*(*info).winsizes).sjiwiny / ((*(*info).dataparams).d_sjiny+1)
+    yupp = ((*(*info).dispparams).rastercont[i,3] - (*(*info).zooming).ysjipos) * $
+      (*(*info).winsizes).sjiwiny / ((*(*info).dataparams).d_sjiny+1)
     ; plot lower vertical boundary
     PLOTS, REPLICATE(xlow,2), [ylow,yupp], COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
     ; plot upper horizontal boundary
@@ -4613,10 +4617,12 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	x_low = (*(*info).zooming).xpos
 	y_low = (*(*info).zooming).ypos
-  d_nx = (*(*info).dataparams).d_nx
-  d_ny = (*(*info).dataparams).d_ny
-  x_upp = (*(*info).zooming).xpos + d_nx
-  y_upp = (*(*info).zooming).ypos + d_ny
+  x_upp = (*(*info).zooming).xpos + (*(*info).dataparams).d_nx
+  y_upp = (*(*info).zooming).ypos + (*(*info).dataparams).d_ny
+	xsji_low = (*(*info).zooming).xsjipos
+	ysji_low = (*(*info).zooming).ysjipos
+  xsji_upp = (*(*info).zooming).xsjipos + (*(*info).dataparams).d_sjinx
+  ysji_upp = (*(*info).zooming).ysjipos + (*(*info).dataparams).d_sjiny
   ; sel = 0 -> main
   ; sel = 1 -> reference
   ; sel = 2 -> doppler
@@ -4683,7 +4689,8 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
     ENDIF
   ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
    ; sel = 3
-    IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN selected_data = *(*(*info).data).sjislice 
+    IF (N_ELEMENTS(SELECTED_DATA) LT 1) THEN $
+      selected_data = (*(*(*info).data).sjislice)[xsji_low:xsji_upp,ysji_low:ysji_upp]
     IF ((*(*(*info).scaling).imagescale)[sel] EQ 0) THEN BEGIN
       minimum = (*(*info).scaling).sjimin
       maximum = (*(*info).scaling).sjimax
@@ -12242,16 +12249,28 @@ PRO CRISPEX_SLIDER_X, event
 	ENDIF ELSE CRISPEX_DRAW, event
 END
 
-PRO CRISPEX_SLIDER_XPOS, event
-; Handles change in x-slider
+PRO CRISPEX_SLIDER_XPOS, event, SJI=sji
+; Handles change in xpos-slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).zooming).xpos = event.VALUE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF KEYWORD_SET(SJI) THEN $
+    (*(*info).zooming).xsjipos = event.VALUE $
+  ELSE $
+    (*(*info).zooming).xpos = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).xpos], labels=['xpos']
 	CRISPEX_UPDATE_SX, event
 	CRISPEX_UPDATE_T, event
 	CRISPEX_DRAW, event
+END
+
+PRO CRISPEX_SLIDER_XPOS_SJI, event
+; Handles change in xpos-slider
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  CRISPEX_SLIDER_XPOS, event, /SJI
 END
 
 PRO CRISPEX_SLIDER_Y, event
@@ -12272,17 +12291,30 @@ PRO CRISPEX_SLIDER_Y, event
 	ENDIF ELSE CRISPEX_DRAW, event
 END
 
-PRO CRISPEX_SLIDER_YPOS, event
+PRO CRISPEX_SLIDER_YPOS, event, SJI=sji
 ; Handles change in y-slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).zooming).ypos = event.VALUE
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF KEYWORD_SET(SJI) THEN $
+    (*(*info).zooming).ysjipos = event.VALUE $
+  ELSE $
+    (*(*info).zooming).ypos = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).ypos], labels=['ypos']
 	CRISPEX_UPDATE_SY, event
 	CRISPEX_UPDATE_T, event
 	CRISPEX_DRAW, event
 END
+
+PRO CRISPEX_SLIDER_YPOS_SJI, event
+; Handles change in ypos-slider
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  CRISPEX_SLIDER_YPOS, event, /SJI
+END
+
 
 ;========================= UPDATE SLICES AND PARAMETERS PROCEDURES
 PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw, NO_PHIS=no_phis, SSP_UPDATE=ssp_update, $
@@ -12678,8 +12710,8 @@ PRO CRISPEX_UPDATE_SX, event
         ((*(*info).dataparams).d_nx+1)
 	sxr = (*(*(*info).loopparams).xr - (*(*info).zooming).xpos) * (*(*info).winsizes).xywinx / $
         ((*(*info).dataparams).d_nx+1)
-	sxsji = (*(*info).dataparams).xsji * (*(*info).winsizes).sjiwinx / $
-        ((*(*info).dataparams).sjinx+1)
+	sxsji = ((*(*info).dataparams).xsji - (*(*info).zooming).xsjipos) * $
+            (*(*info).winsizes).sjiwinx / ((*(*info).dataparams).d_sjinx+1)
 	(*(*info).curs).sxlock = sx 
 	(*(*info).curs).sx = (*(*info).curs).sxlock
 	(*(*info).curs).sxsji = sxsji
@@ -12700,8 +12732,8 @@ PRO CRISPEX_UPDATE_SY, event
         ((*(*info).dataparams).d_ny+1)
 	syr = (*(*(*info).loopparams).yr - (*(*info).zooming).ypos) * (*(*info).winsizes).xywiny / $
         ((*(*info).dataparams).d_ny+1)
-	sysji = (*(*info).dataparams).ysji * (*(*info).winsizes).sjiwiny / $
-        ((*(*info).dataparams).sjiny+1)
+	sysji = ((*(*info).dataparams).ysji - (*(*info).zooming).ysjipos) * $
+            (*(*info).winsizes).sjiwiny / ((*(*info).dataparams).d_sjinx+1)
 	(*(*info).curs).sylock = sy 
 	(*(*info).curs).sy = (*(*info).curs).sylock
 	(*(*info).curs).sysji = sysji
@@ -12833,7 +12865,7 @@ END
 PRO CRISPEX_WINDOW, xsize, ysize, leader, title, base, wid, xoffset, yoffset, DRAWID = drawid, $
                     DRAWBASE =disp, XSCROLL = xscroll, YSCROLL = yscroll, SCROLL = scroll, $
                     RESIZING = resizing, RES_HANDLER = res_handler, $
-                    NO_TLB_KILL_REQUEST=no_tlb_kill_request
+                    NO_TLB_KILL_REQUEST=no_tlb_kill_request, SJI=sji
 ; Sets up the display windows
 	IF (N_ELEMENTS(RESIZING) EQ 0) THEN resizing = 0
 	IF (N_ELEMENTS(LEADER) EQ 0) THEN $
@@ -12850,14 +12882,23 @@ PRO CRISPEX_WINDOW, xsize, ysize, leader, title, base, wid, xoffset, yoffset, DR
   ENDIF ELSE draw_verslid_base = disp
 	drawid = WIDGET_DRAW(draw_verslid_base, XSIZE = xsize, YSIZE = ysize, RETAIN = 2)
   IF KEYWORD_SET(SCROLL) THEN BEGIN
+    IF KEYWORD_SET(SJI) THEN BEGIN
+      xscroll_pro = 'CRISPEX_SLIDER_XPOS_SJI'
+      yscroll_pro = 'CRISPEX_SLIDER_YPOS_SJI'
+    ENDIF ELSE BEGIN
+      xscroll_pro = 'CRISPEX_SLIDER_XPOS'
+      yscroll_pro = 'CRISPEX_SLIDER_YPOS'
+    ENDELSE
     yscroll = WIDGET_SLIDER(draw_verslid_base,VALUE=0,MIN=0,MAX=1,/SUPPRESS,/DRAG,$
-                            EVENT_PRO='CRISPEX_SLIDER_YPOS',/VERTICAL, YSIZE=ysize)
+                            EVENT_PRO=yscroll_pro,/VERTICAL, YSIZE=ysize)
     xscroll = WIDGET_SLIDER(draw_horslid_base,VALUE=0,MIN=0,MAX=1,/SUPPRESS,/DRAG,$
-                            EVENT_PRO='CRISPEX_SLIDER_XPOS', XSIZE=xsize)
+                            EVENT_PRO=xscroll_pro, XSIZE=xsize)
   ENDIF
 	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET=xoffset, TLB_SET_YOFFSET=yoffset
 	IF (N_ELEMENTS(RES_HANDLER) GT 0) THEN $
-    XMANAGER, 'CRISPEX', base, EVENT_HANDLER = res_handler, /NO_BLOCK
+    XMANAGER, 'CRISPEX', base, EVENT_HANDLER = res_handler, /NO_BLOCK $
+  ELSE $
+    XMANAGER, 'CRISPEX', base, /NO_BLOCK
 	WIDGET_CONTROL, drawid, GET_VALUE = wid
 END
 
@@ -12935,17 +12976,26 @@ END
 PRO CRISPEX_ZOOM, event, NO_DRAW=no_draw
 ; Handles the zoom event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_UPDATE_SX, event
 	CRISPEX_UPDATE_SY, event
 	IF (*(*info).overlayswitch).loopslit THEN CRISPEX_ZOOM_LOOP, event
 	IF ((*(*info).meas).np GE 1) THEN CRISPEX_ZOOM_MEAS, event
 	xposconstr 	= ((*(*info).dataparams).nx-1) - (*(*info).dataparams).d_nx
 	yposconstr	= ((*(*info).dataparams).ny-1) - (*(*info).dataparams).d_ny
-	WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SET_SLIDER_MIN = 0, SET_SLIDER_MAX = xposconstr,$
-                  SET_VALUE = (*(*info).zooming).xpos 
-	WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SET_SLIDER_MIN = 0, SET_SLIDER_MAX = yposconstr,$
-                  SET_VALUE = (*(*info).zooming).ypos 
+	WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SET_SLIDER_MIN = 0, $
+    SET_SLIDER_MAX = xposconstr,SET_VALUE = (*(*info).zooming).xpos 
+	WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SET_SLIDER_MIN = 0, $
+    SET_SLIDER_MAX = yposconstr,SET_VALUE = (*(*info).zooming).ypos 
+  IF ((*(*info).winids).sjitlb NE 0) THEN BEGIN
+  	xsjiposconstr = ((*(*info).dataparams).sjinx-1) - (*(*info).dataparams).d_sjinx
+  	ysjiposconstr	= ((*(*info).dataparams).sjiny-1) - (*(*info).dataparams).d_sjiny
+  	WIDGET_CONTROL, (*(*info).ctrlssji).xsjipos_slider, SET_SLIDER_MIN = 0, $
+      SET_SLIDER_MAX = xsjiposconstr,SET_VALUE = (*(*info).zooming).xsjipos 
+  	WIDGET_CONTROL, (*(*info).ctrlssji).ysjipos_slider, SET_SLIDER_MIN = 0, $
+      SET_SLIDER_MAX = ysjiposconstr,SET_VALUE = (*(*info).zooming).ysjipos 
+  ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).factor,xposconstr,yposconstr], $
                          labels=['Zoomfactor','Maximum xpos','Maximum ypos']
@@ -12976,10 +13026,10 @@ PRO CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SE
     sensitive = REPLICATE(sensitive,2)  $
   ELSE IF (N_ELEMENTS(SENSITIVE) LT 1) THEN $
     sensitive = [1,1]
-  nx_max = (*(*info).dataparams).nx-1
-  ny_max = (*(*info).dataparams).ny-1
-	(*(*info).dataparams).d_nx = ((*(*info).dataparams).nx / (*(*info).zooming).factor) < nx_max
-	(*(*info).dataparams).d_ny = ((*(*info).dataparams).ny / (*(*info).zooming).factor) < ny_max
+	(*(*info).dataparams).d_nx = ((*(*info).dataparams).nx / (*(*info).zooming).factor) < $
+    ((*(*info).dataparams).nx-1)
+	(*(*info).dataparams).d_ny = ((*(*info).dataparams).ny / (*(*info).zooming).factor) < $
+    ((*(*info).dataparams).ny-1)
 	(*(*info).phiparams).d_nphi_set = (*(*info).phiparams).nphi_set / (*(*info).zooming).factor
 	(*(*info).zooming).xpos = (cursor_x - (*(*info).dataparams).d_nx / 2.) > 0
 	(*(*info).zooming).ypos = (cursor_y - (*(*info).dataparams).d_ny / 2.) > 0
@@ -12989,13 +13039,42 @@ PRO CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, SE
     (*(*info).zooming).ypos = (((*(*info).dataparams).ny-1) - (*(*info).dataparams).d_ny) > 0
 	(*(*info).zooming).xpos = FIX((*(*info).zooming).xpos)
 	(*(*info).zooming).ypos = FIX((*(*info).zooming).ypos)
+  ; Setting variables for SJI
+	(*(*info).dataparams).d_sjinx = $
+    ((*(*info).dataparams).sjinx / (*(*info).zooming).factor) < $
+      ((*(*info).dataparams).sjinx-1)
+	(*(*info).dataparams).d_sjiny = $
+    ((*(*info).dataparams).sjiny / (*(*info).zooming).factor) < $
+      ((*(*info).dataparams).sjiny-1)
+	(*(*info).zooming).xsjipos = ((*(*info).dataparams).xsji - $
+    (*(*info).dataparams).d_sjinx / 2.) > 0
+	(*(*info).zooming).ysjipos = ((*(*info).dataparams).ysji - $
+    (*(*info).dataparams).d_sjiny / 2.) > 0
+	IF (((*(*info).zooming).xsjipos+(*(*info).dataparams).d_sjinx) GE $
+    (*(*info).dataparams).sjinx) THEN $
+    (*(*info).zooming).xsjipos = $
+      (((*(*info).dataparams).sjinx-1) - (*(*info).dataparams).d_sjinx) > 0
+	IF (((*(*info).zooming).ysjipos+(*(*info).dataparams).d_sjiny) GE $
+    (*(*info).dataparams).sjiny) THEN $
+    (*(*info).zooming).ysjipos = (((*(*info).dataparams).sjiny-1) - $
+      (*(*info).dataparams).d_sjiny) > 0
+	(*(*info).zooming).xsjipos = FIX((*(*info).zooming).xsjipos)
+	(*(*info).zooming).ysjipos = FIX((*(*info).zooming).ysjipos)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).zooming).xpos, (*(*info).zooming).ypos, $
       (*(*info).dataparams).d_nx, (*(*info).dataparams).d_ny], labels=['xpos','ypos','d_nx','d_ny']
+  ; Set main/reference x/ypos sliders
 	WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SENSITIVE = sensitive[0], $
     SET_VALUE = (*(*info).zooming).xpos
 	WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SENSITIVE = sensitive[1], $
     SET_VALUE = (*(*info).zooming).ypos
+  ; Set SJI x/ypos sliders
+  IF ((*(*info).winids).sjitlb NE 0) THEN BEGIN
+  	WIDGET_CONTROL, (*(*info).ctrlssji).xsjipos_slider, SENSITIVE = sensitive[0], $
+      SET_VALUE = (*(*info).zooming).xsjipos
+  	WIDGET_CONTROL, (*(*info).ctrlssji).ysjipos_slider, SENSITIVE = sensitive[1], $
+      SET_VALUE = (*(*info).zooming).ysjipos
+  ENDIF
 END
 
 PRO CRISPEX_ZOOMFAC_DECR, event
@@ -15244,6 +15323,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		path_textlab:0, savopt_path_textlab:0, overlays_num_but:0, overlays_curs_but:0, overlays_thick_slider:0, $
 		overlays_pts_but:0, overlays_symsize_slider:0, overlays_asecbar_but:0, overlays_asecbar_slider:0 $
 	}
+;--------------------------------------------------------------------------------- SJI CONTROLS
+	ctrlssji = { $
+		xsjipos_slider:0, ysjipos_slider:0 $
+	}
 ;--------------------------------------------------------------------------------- CONTROL SWITCHES
 	ctrlsswitch = { $
 		imrefdetspect:0, lp_ref_lock:lp_ref_lock, bwd_insensitive:1, fwd_insensitive:1 $
@@ -15279,6 +15362,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     ; Spatial dimensions
 		x:x_start, y:y_start, d_nx:hdr.nx, d_ny:hdr.ny, nx:hdr.nx, ny:hdr.ny, $							
     sjinx:hdr.sjinx, sjiny:hdr.sjiny, sjidx:hdr.sjidx, sjidy:hdr.sjidy, $
+    d_sjinx:hdr.sjinx, d_sjiny:hdr.sjiny, $
     xsji:xsji_start, ysji:ysji_start, tarr_sji:hdr.tarr_sji, $;tarr_main:hdr.tarr_main, tarr_ref:hdr.tarr_ref, $
     tarr_raster_main:hdr.tarr_raster_main, tarr_raster_ref:hdr.tarr_raster_ref, $
 		lc:hdr.lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp, refnlp:hdr.refnlp,$	
@@ -15655,7 +15739,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- ZOOMING 
 	zooming = { $
-		factor:zoomfactors[0], factorswitch:factorswitch, factors:zoomfactors, xpos:0., ypos:0. $
+		factor:zoomfactors[0], factorswitch:factorswitch, factors:zoomfactors, $
+    xpos:0., ypos:0., xsjipos:0., ysjipos:0. $
 	}
 ;--------------------------------------------------------------------------------- DEFINE INFO POINTER
 	info = { $
@@ -15670,6 +15755,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		ctrlspref:PTR_NEW(ctrlspref, /NO_COPY), $
 		ctrlsrestore:PTR_NEW(ctrlsrestore, /NO_COPY), $
 		ctrlssav:PTR_NEW(ctrlssav, /NO_COPY), $
+		ctrlssji:PTR_NEW(ctrlssji, /NO_COPY), $
 		ctrlsswitch:PTR_NEW(ctrlsswitch, /NO_COPY), $
 		curs:PTR_NEW(curs, /NO_COPY), $
 		data:PTR_NEW(data, /NO_COPY), $
