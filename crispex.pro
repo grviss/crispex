@@ -3712,8 +3712,7 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
       t_sel = wherene0[count-1] $
     ELSE $
       t_sel = 0
-;    (*(*info).dispparams).t_upp_main = tarr_main_sel[(WHERE(tarr_main_sel NE 0))[-1]] ;Fix tarr[-1]=0
-    (*(*info).dispparams).t_upp_main = tarr_main_sel[wherene0[t_sel]] ;Fix tarr[-1]=0
+    (*(*info).dispparams).t_upp_main = tarr_main_sel[t_sel] ;Fix tarr[-1]=0
   ENDIF
   IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN
     ; Set real lower/upper time values for reference
@@ -3725,8 +3724,7 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
       t_sel = wherene0[count-1] $
     ELSE $
       t_sel = 0
-;    (*(*info).dispparams).t_upp_ref = tarr_ref[(WHERE(tarr_ref NE 0))[-1]] ;Fix tarr[-1]=0
-    (*(*info).dispparams).t_upp_ref = tarr_ref[wherene0[t_sel]] ;Fix tarr[-1]=0
+    (*(*info).dispparams).t_upp_ref = tarr_ref[t_sel] ;Fix tarr[-1]=0
   ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).t_low,(*(*info).dispparams).t_upp], $
