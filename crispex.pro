@@ -634,7 +634,7 @@ FUNCTION CRISPEX_FITSPOINTER, filename, header, EXTEN_NO=exten_no, SILENT=silent
            MESSAGE,'Warning-Invalid characters in header',/INF,NoPrint=Silent
            block[w] = STRING(REPLICATE(32b, 80))
       ENDIF
-      w = where(strcmp(block,'END     ',8), Nend)
+      w = WHERE(STRCMP(block,'END     ',8), Nend)
       IF (headerblock EQ 1) || ((ext EQ exten_no) && (doheader)) THEN BEGIN
         IF Nend GT 0 THEN  BEGIN
           IF headerblock EQ 1 THEN header = block[0:w[0]]   $
@@ -767,7 +767,7 @@ END
 FUNCTION CRISPEX_SCALING_DESCALE, data, bscale, bzero
   missing = WHERE(data EQ -32768,count)
   floatdata = FLOAT(data)*bscale+bzero
-  IF(count GT 0) THEN floatdata[missing] = !VALUES.F_NAN
+  IF (count GT 0) THEN floatdata[missing] = !VALUES.F_NAN
   RETURN, floatdata
 END
 
@@ -775,6 +775,7 @@ END
 ;------------------------- SLIDER FUNCTION
 FUNCTION CRISPEX_SLIDER_LP_DIAG, event, lp_diag_all, REFERENCE=reference, BLINK=blink
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   IF KEYWORD_SET(REFERENCE) THEN BEGIN
     disp_diag = WHERE((*(*info).intparams).refdisp_diagnostics EQ 1)
     lp = (*(*info).dataparams).lp_ref
@@ -790,7 +791,7 @@ FUNCTION CRISPEX_SLIDER_LP_DIAG, event, lp_diag_all, REFERENCE=reference, BLINK=
     diag_width = (*(*info).intparams).diag_width
   ENDELSE
   disp_diff = lp_diag_all - disp_diag
-  constraint_low = WHERE(disp_diff GT 0, count, COMPLEMENT=constraint_upp) 
+  constraint_low = WHERE(disp_diff GT 0, COMPLEMENT=constraint_upp) 
   disp_low_next = (disp_diag[constraint_low])[$
     (WHERE(disp_diff[constraint_low] EQ MIN(disp_diff[constraint_low])))[0]]
   disp_upp_next = (disp_diag[constraint_upp])[$
@@ -806,9 +807,14 @@ FUNCTION CRISPEX_PLOTAXES_XTICKVALS_SELECT, xtickvals_in, TICKSEP=ticksep, DOPPL
   IF (N_ELEMENTS(TICKSEP) NE 1) THEN ticksep = 4.
   nxtickvals = N_ELEMENTS(xtickvals_in)
   nticks_select = FLOOR(nxtickvals/ticksep+1) > 1
-  IF KEYWORD_SET(DOPPLER) THEN $
-    wheremiddle = (WHERE(xtickvals_in EQ 0.))[0] $
-  ELSE $
+  IF KEYWORD_SET(DOPPLER) THEN BEGIN
+    whereeq0 = WHERE(xtickvals_in EQ 0., count)
+    IF (count GT 0) THEN $
+      wheremiddle = whereeq0[0] $
+    ELSE $
+      wheremiddle = FLOOR(nxtickvals/2.)
+;    wheremiddle = (WHERE(xtickvals_in EQ 0.))[0] $
+  ENDIF ELSE $
     wheremiddle = FLOOR(nxtickvals/2.)
   ; Check whether able to fit multiple major tickmarks
   IF ((wheremiddle GT ticksep/2.) OR $
@@ -819,7 +825,7 @@ FUNCTION CRISPEX_PLOTAXES_XTICKVALS_SELECT, xtickvals_in, TICKSEP=ticksep, DOPPL
     IF ~KEYWORD_SET(DOPPLER) THEN diffarray -= ticksep/2.
     selarray = (INDGEN(nxtickvals))[wheremiddle] + diffarray
     whereselarray = WHERE((selarray GE 0) AND (selarray LT nxtickvals), count)
-    IF (count NE 0) THEN $
+    IF (count GT 0) THEN $
       whereselect = selarray[whereselarray] $
     ELSE $
       whereselect = wheremiddle
@@ -1078,16 +1084,18 @@ PRO CRISPEX_CLOSE_CLEAN_INSTANCE_FILE, dir_inst_write, dir_inst, hostname, curr_
 				routine_name[i] = splitline[0]
 				instance_id[i] = splitline[3]
 			ENDFOR
-			where_crispex = WHERE(routine_name EQ 'CRISPEX')
-			sel_instance_id = instance_id[where_crispex]
-			clean_line = WHERE(sel_instance_id EQ curr_instance_id)+1
-			first_part = datarr[0:(clean_line-1)]
-			IF (clean_line NE (nlines-1)) THEN BEGIN
-				last_part = datarr[(clean_line+1):(nlines-1)] 
-				rewritten_arr = [first_part,last_part]
-			ENDIF ELSE rewritten_arr = first_part
-			OPENW, unit, instfile[0], WIDTH = 360, /GET_LUN
-			FOR i=0,nlines-2 DO PRINTF, unit,rewritten_arr[i]
+			where_crispex = WHERE(routine_name EQ 'CRISPEX', count)
+      IF (count GT 0) THEN BEGIN    ; Only clean if CRISPEX instance in file
+  			sel_instance_id = instance_id[where_crispex]
+  			clean_line = WHERE(sel_instance_id EQ curr_instance_id)+1
+  			first_part = datarr[0:(clean_line-1)]
+  			IF (clean_line NE (nlines-1)) THEN BEGIN
+  				last_part = datarr[(clean_line+1):(nlines-1)] 
+  				rewritten_arr = [first_part,last_part]
+  			ENDIF ELSE rewritten_arr = first_part
+  			OPENW, unit, instfile[0], WIDTH = 360, /GET_LUN
+  			FOR i=0,nlines-2 DO PRINTF, unit,rewritten_arr[i]
+      ENDIF
 			FREE_LUN, unit
 		ENDIF
 	ENDIF
@@ -1502,11 +1510,13 @@ PRO CRISPEX_DISPWIDS, event
 	title_arr = [(*(*info).winids).imwintitle,(*(*info).winids).spwintitle,(*(*info).winids).lswintitle,(*(*info).winids).refwintitle,(*(*info).winids).refspwintitle,(*(*info).winids).reflswintitle,$
 		(*(*info).winids).imrefwintitle,(*(*info).winids).dopwintitle, (*(*info).winids).phiswintitle,*(*(*info).winids).restloopwintitle,(*(*info).winids).retrdetwintitle,(*(*info).winids).loopwintitle,$
 		(*(*info).winids).refloopwintitle,(*(*info).winids).intwintitle]
-	wherenot0 = WHERE(tlbarr NE 0)
-	IF (*(*info).winswitch).dispwids THEN BEGIN
-		FOR i=0,N_ELEMENTS(wherenot0)-1 DO WIDGET_CONTROL,tlbarr[wherenot0[i]], BASE_SET_TITLE = STRTRIM(widarr[wherenot0[i]],2)+' - '+title_arr[wherenot0[i]]
+	wherenot0 = WHERE(tlbarr NE 0, count)
+	IF ((*(*info).winswitch).dispwids AND (count GT 0)) THEN BEGIN
+		FOR i=0,count-1 DO $
+      WIDGET_CONTROL,tlbarr[wherenot0[i]], $
+        BASE_SET_TITLE = STRTRIM(widarr[wherenot0[i]],2)+' - '+title_arr[wherenot0[i]]
 	ENDIF ELSE BEGIN
-		FOR i=0,N_ELEMENTS(wherenot0)-1 DO WIDGET_CONTROL,tlbarr[wherenot0[i]], BASE_SET_TITLE = title_arr[wherenot0[i]]
+		FOR i=0,count-1 DO WIDGET_CONTROL,tlbarr[wherenot0[i]], BASE_SET_TITLE = title_arr[wherenot0[i]]
 	ENDELSE
 END
 
@@ -1594,38 +1604,44 @@ PRO CRISPEX_DISPLAYS_HEADER, event
   hdrlen = [STRLEN((*(*(*(*info).dataparams).hdrs[0])[0])[0]), $
             STRLEN((*(*(*(*info).dataparams).hdrs[1])[0])[0]), $
             STRLEN((*(*(*(*info).dataparams).hdrs[2])[0])[0])]
-  wherefileset = WHERE((hdrlen GT 0) EQ 1)
-  FOR i=0,N_ELEMENTS(wherefileset)-1 DO BEGIN
-    exte_idx = INDGEN((*(*info).dataparams).next[wherefileset[i]])
-    tmp_vals = REPLICATE(files[wherefileset[i]],(*(*info).dataparams).next[wherefileset[i]])+$
-      REPLICATE('Extension ',(*(*info).dataparams).next[wherefileset[i]])+$
-      STRTRIM(exte_idx,2)
-    tmp_uvals = [[REPLICATE(wherefileset[i],(*(*info).dataparams).next[wherefileset[i]])],[exte_idx]]
-    IF (i EQ 0) THEN BEGIN
-      vals = tmp_vals 
-      uvals = tmp_uvals
-    ENDIF ELSE BEGIN
-      vals = [vals,tmp_vals]
-      uvals = [uvals,tmp_uvals]
-    ENDELSE
-  ENDFOR
-	base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+$
-    ': File headers', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, $
-    /TLB_KILL_REQUEST_EVENTS)
-	disp = WIDGET_BASE(base, /COLUMN)
-  (*(*info).ctrlshdr).header_select = WIDGET_COMBOBOX(disp, VALUE=vals, UVALUE=uvals, $
-    EVENT_PRO='CRISPEX_DISPLAYS_HEADER_SELECT')
-  text_base = WIDGET_BASE(disp, /COLUMN)
-  (*(*info).ctrlshdr).header_txt = WIDGET_TEXT(text_base, $
-    VALUE=(*(*(*(*info).dataparams).hdrs[0])[0]), XSIZE=CEIL(MAX(hdrlen)*1.1), $
-    YSIZE=CEIL(MAX(hdrlen)/2.), /SCROLL, /WRAP)
-  close_base = WIDGET_BASE(disp, /ALIGN_CENTER)
-  close_button = WIDGET_BUTTON(close_base, VALUE='Close', EVENT_PRO='CRISPEX_CLOSE_EVENT_WINDOW')
-	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = (*(*info).winsizes).lsxoffset, $
-    TLB_SET_YOFFSET = (*(*info).winsizes).lswiny+1.5*(*(*info).winsizes).ydelta
-	WIDGET_CONTROL, base, SET_UVALUE = info
-	XMANAGER, 'CRISPEX', base, /NO_BLOCK
-  (*(*info).winids).headertlb = base
+  wherefileset = WHERE((hdrlen GT 0) EQ 1, count)
+  IF (count GT 0) THEN BEGIN
+    FOR i=0,count-1 DO BEGIN
+      exte_idx = INDGEN((*(*info).dataparams).next[wherefileset[i]])
+      tmp_vals = REPLICATE(files[wherefileset[i]],(*(*info).dataparams).next[wherefileset[i]])+$
+        REPLICATE('Extension ',(*(*info).dataparams).next[wherefileset[i]])+$
+        STRTRIM(exte_idx,2)
+      tmp_uvals = [[REPLICATE(wherefileset[i],(*(*info).dataparams).next[wherefileset[i]])],[exte_idx]]
+      IF (i EQ 0) THEN BEGIN
+        vals = tmp_vals 
+        uvals = tmp_uvals
+      ENDIF ELSE BEGIN
+        vals = [vals,tmp_vals]
+        uvals = [uvals,tmp_uvals]
+      ENDELSE
+    ENDFOR
+  	base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+$
+      ': File headers', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, $
+      /TLB_KILL_REQUEST_EVENTS)
+  	disp = WIDGET_BASE(base, /COLUMN)
+    (*(*info).ctrlshdr).header_select = WIDGET_COMBOBOX(disp, VALUE=vals, UVALUE=uvals, $
+      EVENT_PRO='CRISPEX_DISPLAYS_HEADER_SELECT')
+    text_base = WIDGET_BASE(disp, /COLUMN)
+    (*(*info).ctrlshdr).header_txt = WIDGET_TEXT(text_base, $
+      VALUE=(*(*(*(*info).dataparams).hdrs[0])[0]), XSIZE=CEIL(MAX(hdrlen)*1.1), $
+      YSIZE=CEIL(MAX(hdrlen)/2.), /SCROLL, /WRAP)
+    close_base = WIDGET_BASE(disp, /ALIGN_CENTER)
+    close_button = WIDGET_BUTTON(close_base, VALUE='Close', EVENT_PRO='CRISPEX_CLOSE_EVENT_WINDOW')
+  	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = (*(*info).winsizes).lsxoffset, $
+      TLB_SET_YOFFSET = (*(*info).winsizes).lswiny+1.5*(*(*info).winsizes).ydelta
+  	WIDGET_CONTROL, base, SET_UVALUE = info
+  	XMANAGER, 'CRISPEX', base, /NO_BLOCK
+    (*(*info).winids).headertlb = base
+  ENDIF ELSE BEGIN
+  	CRISPEX_WINDOW_OK, event,'ERROR!','No file headers to display.', $
+  		OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
+  	(*(*info).winids).errtlb = tlb
+  ENDELSE 
 END
 
 PRO CRISPEX_DISPLAYS_HEADER_SELECT, event
@@ -1687,11 +1703,13 @@ PRO CRISPEX_DISPLAYS_INT_MENU, event, set_but_array
 	button_base = WIDGET_BASE(disp2, COLUMN=2, /GRID_LAYOUT, /ALIGN_CENTER)
 	(*(*info).ctrlsint).int_sel_save = WIDGET_BUTTON(button_base, VALUE = 'Save selected', EVENT_PRO = 'CRISPEX_INT_SAVE')
 	closebut = WIDGET_BUTTON(button_base, VALUE = 'Close', EVENT_PRO = 'CRISPEX_DISPLAYS_INT_MENU_CLOSE')
-	IF (N_ELEMENTS(WHERE(*(*(*info).intparams).sel_diagnostics EQ 1)) EQ (*(*info).dataparams).nlp) THEN WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_all, /SET_BUTTON ELSE $
-		IF (TOTAL(WHERE(*(*(*info).intparams).sel_diagnostics EQ 1)) EQ -1) THEN BEGIN
-				WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_none, /SET_BUTTON
-				WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, SENSITIVE = 0
-		ENDIF
+  wheresel = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1, count)
+	IF (count EQ (*(*info).dataparams).nlp) THEN $
+    WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_all, /SET_BUTTON $
+  ELSE IF (count GT 0) THEN BEGIN
+	  WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_none, /SET_BUTTON
+	  WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, SENSITIVE = 0
+  ENDIF
 	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = (*(*info).winsizes).spxoffset, $
     TLB_SET_YOFFSET = 0 
 	WIDGET_CONTROL, base, SET_UVALUE = info
@@ -1719,10 +1737,10 @@ PRO CRISPEX_DISPLAYS_INT_BUTTON_CONDITION, event
 ; Handles the update of buttons after selection
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1)
-	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, SENSITIVE = ((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))
-	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_none, SET_BUTTON = ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1)
-	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_all, SET_BUTTON = (((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) AND (N_ELEMENTS(condition) EQ (*(*info).dataparams).nlp))
+	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1, count)
+	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, SENSITIVE = (count GT 0)
+	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_none, SET_BUTTON = ABS((count GT 0)-1)
+	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_all, SET_BUTTON = (count EQ (*(*info).dataparams).nlp)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) AND (N_ELEMENTS(condition) EQ (*(*info).dataparams).nlp)),$
 		ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1),((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))], labels=['All selected','None selected','Save enabled']
 END
@@ -2224,6 +2242,7 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
           COLOR = (*(*info).plotparams).plotcol,/NORMAL
     ; Loop over all diagnostics for plotting of detailed spectrum
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
+      ; No need to check for count: there is always at least one diagnostic displayed 
       disp_idx = (WHERE((*(*info).intparams).disp_diagnostics EQ 1))[d]
       ; Determine xrange to display
       IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
@@ -2259,14 +2278,16 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
           IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
             (*(*info).plotswitch).xtick_reset = 0
         ENDIF
-        wherenonempty = WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ')
-        FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-          PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[wherenonempty[k]]), $
-            [(*(*info).plotaxes).phis_yrange[0], xtlen_major_fac*$
-            ((*(*info).plotaxes).phis_yrange[1]-(*(*info).plotaxes).phis_yrange[0])*$
-            (*(*info).plotaxes).phisxticklen+(*(*info).plotaxes).phis_yrange[0]], $
-            COLOR=(*(*info).plotparams).plotcol
-        ENDFOR
+        wherenonempty = WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ', count)
+        IF (count GT 0) THEN BEGIN
+          FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+            PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[wherenonempty[k]]), $
+              [(*(*info).plotaxes).phis_yrange[0], xtlen_major_fac*$
+              ((*(*info).plotaxes).phis_yrange[1]-(*(*info).plotaxes).phis_yrange[0])*$
+              (*(*info).plotaxes).phisxticklen+(*(*info).plotaxes).phis_yrange[0]], $
+              COLOR=(*(*info).plotparams).plotcol
+          ENDFOR
+        ENDIF
         AXIS, XAXIS=0, XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).phisxticklen, $
           XRANGE=phis_xrange, /XS, $
           XTICKNAME=*(*(*info).plotaxes).xtickvals[d], XMINOR=-1, $
@@ -2495,18 +2516,18 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_SELECT, event
 ;	print,event.INDEX,(*(*info).winswitch).showrestloop
 	IF (event.INDEX GT 0) THEN BEGIN
 		(*(*info).winswitch).showrestloop = 1
-		sel_disp_loop = WHERE(*(*(*info).restoreparams).disp_loopnr EQ (event.INDEX-1))
-		IF (TOTAL(sel_disp_loop) GE 0) THEN BEGIN			; If the selected loop is being displayed, it should be destroyed
+		sel_disp_loop = WHERE(*(*(*info).restoreparams).disp_loopnr EQ (event.INDEX-1), count)
+    IF (count GT 0) THEN BEGIN ; If the selected loop is being displayed, it should be destroyed
 			WIDGET_CONTROL, (*(*(*info).winids).restlooptlb)[sel_disp_loop], /DESTROY
 			list_values[event.INDEX] = 'Display time slice '+STRTRIM(event.INDEX-1,2)
 			WIDGET_CONTROL, (*(*info).ctrlsrestore).disp_list, SET_VALUE = list_values, SET_COMBOBOX_SELECT = event.INDEX
 			(*(*(*info).winids).restlooptlb)[sel_disp_loop] = 0
-			wherenot0 = WHERE(*(*(*info).winids).restlooptlb NE 0, COMPLEMENT=where0)
+			wherenot0 = WHERE(*(*(*info).winids).restlooptlb NE 0, count, COMPLEMENT=where0)
 			where0 = where0[0]
 			old_restricted_t_range = TOTAL(*(*(*info).dispswitch).restricted_t_range)
 			old_restricted_lp_range = TOTAL(*(*(*info).dispswitch).restricted_lp_range)
 			old_restricted_lp_ref_range = TOTAL(*(*(*info).dispswitch).restricted_lp_ref_range)
-			IF (TOTAL(wherenot0) NE -1) THEN BEGIN
+      IF (count GT 0) THEN BEGIN
 				*(*(*info).winids).restlooptlb = (*(*(*info).winids).restlooptlb)[wherenot0]
 				*(*(*info).winids).restloopwid = (*(*(*info).winids).restloopwid)[wherenot0]
 				*(*(*info).winids).restloopdrawid = (*(*(*info).winids).restloopdrawid)[wherenot0]
@@ -2517,8 +2538,8 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_SELECT, event
 				*(*(*info).dispswitch).restricted_lp_ref_range = (*(*(*info).dispswitch).restricted_lp_ref_range)[wherenot0]
 				*(*(*info).restoreparams).disp_slices = (*(*(*info).restoreparams).disp_slices)[wherenot0]
 				*(*(*info).restoreparams).disp_ref_slices = (*(*(*info).restoreparams).disp_ref_slices)[wherenot0]
-				sel_reorder = WHERE(wherenot0 GT where0)
-				IF (sel_reorder[0] NE -1) THEN BEGIN
+				sel_reorder = WHERE(wherenot0 GT where0, count)
+        IF (count GT 0) THEN BEGIN
 					FOR k=0,N_ELEMENTS(sel_reorder)-1 DO BEGIN
 						*(*(*(*info).loopsdata).rest_loopslice[where0+k]) = *(*(*(*info).loopsdata).rest_loopslice[wherenot0[sel_reorder[k]]])
 						*(*(*(*info).loopsdata).rest_loopslab[where0+k]) = *(*(*(*info).loopsdata).rest_loopslab[wherenot0[sel_reorder[k]]])
@@ -2991,13 +3012,15 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
           IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
             (*(*info).plotswitch).xreftick_reset = 0
         ENDIF
-        wherenonempty = WHERE(*(*(*info).plotaxes).xreftickvals[d] NE ' ')
-        FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-          PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xreftickvals[d])[wherenonempty[k]]), $
-            [t_low_y,xtlen_major_fac*(t_upp_y-t_low_y)*(*(*info).plotaxes).refspxticklen+$
-            t_low_y], $
-            COLOR=(*(*info).plotparams).plotcol
-        ENDFOR
+        wherenonempty = WHERE(*(*(*info).plotaxes).xreftickvals[d] NE ' ', count)
+        IF (count GT 0) THEN BEGIN
+          FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+            PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xreftickvals[d])[wherenonempty[k]]), $
+              [t_low_y,xtlen_major_fac*(t_upp_y-t_low_y)*(*(*info).plotaxes).refspxticklen+$
+              t_low_y], $
+              COLOR=(*(*info).plotparams).plotcol
+          ENDFOR
+        ENDIF
         AXIS, XAXIS=0, XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).refspxticklen, $
           XRANGE=xrange, /XS, $
           XTICKNAME=*(*(*info).plotaxes).xreftickvals[d], XMINOR=-1, $
@@ -3214,7 +3237,6 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
       WHERE((*(*info).intparams).disp_diagnostics EQ 1)]
     diag_ratio = diag_widths / FLOAT(TOTAL(diag_widths))
     diag_range = diag_ratio * (*(*info).plotpos).xplspw 
-    whererangemin = WHERE(diag_widths EQ MIN(diag_widths, /NAN))
     ; Plot xtitle(s)
     IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN $
       XYOUTS,(*(*info).plotpos).xplspw/2.+(*(*info).plotpos).spx0,$
@@ -3255,13 +3277,15 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
           IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
             (*(*info).plotswitch).xtick_reset = 0
         ENDIF
-        wherenonempty = WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ')
-        FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-          PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[wherenonempty[k]]), $
-            [t_low_y,xtlen_major_fac*(t_upp_y-t_low_y)*(*(*info).plotaxes).spxticklen+$
-            t_low_y], $
-            COLOR=(*(*info).plotparams).plotcol
-        ENDFOR
+        wherenonempty = WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ', count)
+        IF (count GT 0) THEN BEGIN
+          FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+            PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[wherenonempty[k]]), $
+              [t_low_y,xtlen_major_fac*(t_upp_y-t_low_y)*(*(*info).plotaxes).spxticklen+$
+              t_low_y], $
+              COLOR=(*(*info).plotparams).plotcol
+          ENDFOR
+        ENDIF
         AXIS, XAXIS=0, XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).spxticklen, $
           XRANGE=xrange, /XS, $
           XTICKNAME=*(*(*info).plotaxes).xtickvals[d], XMINOR=-1, $
@@ -3679,14 +3703,26 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
     (*(*info).dispparams).t_low_main = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_low]
     tarr_main_sel = (*(*(*info).dispparams).tarr_main)[$
       (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
-    (*(*info).dispparams).t_upp_main = tarr_main_sel[(WHERE(tarr_main_sel NE 0))[-1]] ;Fix tarr[-1]=0
+    wherene0 = WHERE(tarr_main_sel NE 0, count)
+    IF (count NE 0) THEN $
+      t_sel = wherene0[count-1] $
+    ELSE $
+      t_sel = 0
+;    (*(*info).dispparams).t_upp_main = tarr_main_sel[(WHERE(tarr_main_sel NE 0))[-1]] ;Fix tarr[-1]=0
+    (*(*info).dispparams).t_upp_main = tarr_main_sel[wherene0[t_sel]] ;Fix tarr[-1]=0
   ENDIF
   IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN
     ; Set real lower/upper time values for reference
     (*(*info).dispparams).t_low_ref = (*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t_low]
     tarr_ref = (*(*(*info).dispparams).tarr_ref)[$
       (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
-    (*(*info).dispparams).t_upp_ref = tarr_ref[(WHERE(tarr_ref NE 0))[-1]] ;Fix tarr[-1]=0
+    wherene0 = WHERE(tarr_ref NE 0, count)
+    IF (count NE 0) THEN $
+      t_sel = wherene0[count-1] $
+    ELSE $
+      t_sel = 0
+;    (*(*info).dispparams).t_upp_ref = tarr_ref[(WHERE(tarr_ref NE 0))[-1]] ;Fix tarr[-1]=0
+    (*(*info).dispparams).t_upp_ref = tarr_ref[wherene0[t_sel]] ;Fix tarr[-1]=0
   ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).t_low,(*(*info).dispparams).t_upp], $
@@ -4108,13 +4144,15 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS, event, no_number=no_number, thick=thick, $
                                                   SYMSIZE=symsize
 			detdrawn = (*(*info).detparams).nr_dets
 		ENDIF ELSE IF (((*(*info).overlayswitch).det_overlay_all EQ 0) AND $
-                   (N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) THEN BEGIN
-				indices = WHERE((*(*(*info).detparams).sel_dets) EQ 1)
-				FOR m=0,N_ELEMENTS(condition)-1 DO $
-          CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS, event, indices[m], low, upp, $
-                                                    NO_NUMBER=no_number, THICK=thick, $
-                                                    NO_ENDPOINTS=no_endpoints, SYMSIZE=symsize
-				detdrawn = N_ELEMENTS(indices)
+                    (conditioncount GT 0)) THEN BEGIN
+				indices = WHERE((*(*(*info).detparams).sel_dets) EQ 1, count)
+        IF (count GT 0) THEN BEGIN
+  				FOR m=0,N_ELEMENTS(condition)-1 DO $
+            CRISPEX_DRAW_RETRIEVED_DET_LOOP_OVERLAYS, event, indices[m], low, upp, $
+                                                      NO_NUMBER=no_number, THICK=thick, $
+                                                      NO_ENDPOINTS=no_endpoints, SYMSIZE=symsize
+  				detdrawn = N_ELEMENTS(indices)
+        ENDIF ELSE detdrawn = 0
 		ENDIF ELSE detdrawn = 0
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
       CRISPEX_VERBOSE_GET, event, [(*(*info).detparams).nr_dets,conditioncount,detdrawn], $
@@ -4210,6 +4248,7 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
     v_dop = (*(*info).plotaxes).v_dop_ref
   ENDIF
   ; Determine settings from displayed diagnostics
+  ; disp_diagnostics will always have at least 1 element non-zero
   wheredisp = WHERE(disp_diagnostics EQ 1)
   diag_widths = diag_width[wheredisp]
   diag_starts = diag_start[wheredisp]
@@ -4654,8 +4693,8 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
     ENDIF
   ENDIF
   IF ((*(*info).scaling).gamma[scale_idx] NE 1.) THEN BEGIN
-    wherelt0 = WHERE(selected_data LT 0)
-    IF (wherelt0[0] EQ -1) THEN $
+    wherelt0 = WHERE(selected_data LT 0, count)
+    IF (count LE 0) THEN $
       selected_data = (TEMPORARY(selected_data))^(*(*info).scaling).gamma[scale_idx] $
     ELSE BEGIN
       selected_data = (TEMPORARY(ABS(selected_data)))^(*(*info).scaling).gamma[scale_idx]
@@ -4825,7 +4864,7 @@ PRO CRISPEX_DRAW_INT, event
 ;	title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]
 	int_low_y = (*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s] 
 	int_upp_y = (*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s]
-	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1)
+	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1, count)
 	PLOT, FINDGEN((*(*info).dataparams).nt)*(*(*info).plotaxes).dt, $
     FINDGEN((*(*info).dataparams).nt), /NODATA, /NORM, CHARSIZE=1, YR=[int_low_y, int_upp_y], $
     XR = [(*(*info).plotaxes).int_low_t*(*(*info).plotaxes).dt, $
@@ -4836,7 +4875,7 @@ PRO CRISPEX_DRAW_INT, event
     POSITION = [(*(*info).plotpos).intx0,(*(*info).plotpos).inty0,$
                 (*(*info).plotpos).intx1,(*(*info).plotpos).inty1], $
     XTICKLEN = (*(*info).plotaxes).intxticklen, YTICKLEN = (*(*info).plotaxes).intyticklen
-	IF (condition[0] NE -1) THEN BEGIN
+  IF (count GT 0) THEN BEGIN
 		selcol = (*(*(*info).intparams).selcol_diagnostics)[condition]
 		FOR i=0,N_ELEMENTS(condition)-1 DO BEGIN
 			IF (*(*info).dataswitch).spfile THEN BEGIN
@@ -4881,7 +4920,7 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Determine current diagnostic window LP is in
   lp_diag = TOTAL((*(*info).dataparams).lp GE *(*(*info).intparams).diag_starts)-1
- ; Loop over all Stokes parameters for detailed spectrum plots
+ ; Loop over all selected Stokes parameters (will always be at least 1) for detailed spectrum plots
 	FOR i=0,TOTAL((*(*info).stokesparams).select_sp)-1 DO BEGIN
     IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showls) THEN BEGIN
    		s = (WHERE((*(*info).stokesparams).select_sp EQ 1))[i]
@@ -5003,13 +5042,15 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
               IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
                 (*(*info).plotswitch).xtick_reset = 0
             ENDIF
-            wherenonempty = WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ')
-            FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-              PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[wherenonempty[k]]), $
-                [ls_low_y,xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).lsxticklen+$
-                ls_low_y], $
-                COLOR=(*(*info).plotparams).plotcol
-            ENDFOR
+            wherenonempty = WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ', count)
+            IF (count GT 0) THEN BEGIN
+              FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+                PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[wherenonempty[k]]), $
+                  [ls_low_y,xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).lsxticklen+$
+                  ls_low_y], $
+                  COLOR=(*(*info).plotparams).plotcol
+              ENDFOR
+            ENDIF
             AXIS, XAXIS=0, XTICKLEN=1E-9, XRANGE=xrange, /XS, $
               XTICKNAME=*(*(*info).plotaxes).xtickvals[d], $
               COLOR=(*(*info).plotparams).plotcol, $
@@ -5056,13 +5097,15 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
               IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
                 (*(*info).plotswitch).xdoptick_reset = 0
             ENDIF
-            wherenonempty = WHERE(*(*(*info).plotaxes).xdoptickvals[d] NE ' ')
-            FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-              PLOTS,[1.,1.]*(*(*(*info).plotaxes).xdoptickloc[d])[k], $
-                [ls_upp_y,-xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).lsxticklen+$
-                ls_upp_y], $
-                COLOR=(*(*info).plotparams).plotcol
-            ENDFOR
+            wherenonempty = WHERE(*(*(*info).plotaxes).xdoptickvals[d] NE ' ', count)
+            IF (count GT 0) THEN BEGIN
+              FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+                PLOTS,[1.,1.]*(*(*(*info).plotaxes).xdoptickloc[d])[k], $
+                  [ls_upp_y,-xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).lsxticklen+$
+                  ls_upp_y], $
+                  COLOR=(*(*info).plotparams).plotcol
+              ENDFOR
+            ENDIF
             ; Add the labels
             AXIS, XAXIS=1, XTICKLEN=1E-9, XRANGE=vdop_xrange, /XS, $
               XTICKNAME=*(*(*info).plotaxes).xdoptickvals[d], $
@@ -5304,13 +5347,15 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
             IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
               (*(*info).plotswitch).xreftick_reset = 0
           ENDIF
-          wherenonempty = WHERE(*(*(*info).plotaxes).xreftickvals[d] NE ' ')
-          FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-            PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xreftickvals[d])[wherenonempty[k]]), $
-              [ls_low_y,xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).reflsxticklen+$
-              ls_low_y], $
-              COLOR=(*(*info).plotparams).plotcol
-          ENDFOR
+          wherenonempty = WHERE(*(*(*info).plotaxes).xreftickvals[d] NE ' ', count)
+          IF (count GT 0) THEN BEGIN
+            FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+              PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xreftickvals[d])[wherenonempty[k]]), $
+                [ls_low_y,xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).reflsxticklen+$
+                ls_low_y], $
+                COLOR=(*(*info).plotparams).plotcol
+            ENDFOR
+          ENDIF
           AXIS, XAXIS=0, XTICKLEN=1E-9, XRANGE=xrange, /XS, $
             XTICKNAME=*(*(*info).plotaxes).xreftickvals[d], $
             COLOR=(*(*info).plotparams).plotcol, $
@@ -5351,13 +5396,15 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
             IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
               (*(*info).plotswitch).xrefdoptick_reset = 0
           ENDIF
-          wherenonempty = WHERE(*(*(*info).plotaxes).xrefdoptickvals[d] NE ' ')
-          FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-            PLOTS,[1.,1.]*(*(*(*info).plotaxes).xrefdoptickloc[d])[k], $
-              [ls_upp_y,-xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).reflsxticklen+$
-              ls_upp_y], $
-              COLOR=(*(*info).plotparams).plotcol
-          ENDFOR
+          wherenonempty = WHERE(*(*(*info).plotaxes).xrefdoptickvals[d] NE ' ', count)
+          IF (count GT 0) THEN BEGIN
+            FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+              PLOTS,[1.,1.]*(*(*(*info).plotaxes).xrefdoptickloc[d])[k], $
+                [ls_upp_y,-xtlen_major_fac*(ls_upp_y-ls_low_y)*(*(*info).plotaxes).reflsxticklen+$
+                ls_upp_y], $
+                COLOR=(*(*info).plotparams).plotcol
+            ENDFOR
+          ENDIF
           ; Add the labels
           AXIS, XAXIS=1, XTICKLEN=1E-9, XRANGE=vdop_xrange, /XS, $
             XTICKNAME=*(*(*info).plotaxes).xrefdoptickvals[d], $
@@ -5954,21 +6001,23 @@ PRO CRISPEX_INT_SAVE, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	CRISPEX_SAVE_DETERMINE_FILENAME, event, outfilename=intfilename, /tlab, ext='cint'
-	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1)
-	intensities = FLTARR((*(*info).dispparams).t_range,N_ELEMENTS(condition))
-	avg_intensity = FLTARR(N_ELEMENTS(condition))
-	FOR i=0,N_ELEMENTS(condition)-1 DO BEGIN
-		intensities[0,i] = REFORM( ( ( *(*(*info).data).spdata)[ FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * (*(*info).dataparams).ns + FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns + $
-			(*(*info).dataparams).s ] )[condition[i],(*(*info).dispparams).t_low:(*(*info).dispparams).t_upp] )
-		avg_intensity[i] = MEAN(intensities[*,i], /NAN)
-	ENDFOR
-	diagnostics = ((*(*info).intparams).diagnostics)[condition]
-	x = (*(*info).dataparams).x		&	y = (*(*info).dataparams).y
-	nt = (*(*info).dispparams).t_range	& 	dt = (*(*info).plotaxes).dt
-	t_low = (*(*info).dispparams).t_low	&	t_upp = (*(*info).dispparams).t_upp
-	t_saved = (*(*info).dispparams).t	&	crispex_version = [(*(*info).versioninfo).version_number, (*(*info).versioninfo).revision_number]
-	SAVE, crispex_version, intensities, avg_intensity, diagnostics, nt, dt, t_low, t_upp, t_saved, x, y, FILENAME=(*(*info).paths).opath+intfilename
-	PRINT, 'Written: '+(*(*info).paths).opath+intfilename+'.cint'
+	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1, count)
+  IF (count GT 0) THEN BEGIN
+  	intensities = FLTARR((*(*info).dispparams).t_range,N_ELEMENTS(condition))
+  	avg_intensity = FLTARR(N_ELEMENTS(condition))
+  	FOR i=0,N_ELEMENTS(condition)-1 DO BEGIN
+  		intensities[0,i] = REFORM( ( ( *(*(*info).data).spdata)[ FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * (*(*info).dataparams).ns + FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns + $
+  			(*(*info).dataparams).s ] )[condition[i],(*(*info).dispparams).t_low:(*(*info).dispparams).t_upp] )
+  		avg_intensity[i] = MEAN(intensities[*,i], /NAN)
+  	ENDFOR
+  	diagnostics = ((*(*info).intparams).diagnostics)[condition]
+  	x = (*(*info).dataparams).x		&	y = (*(*info).dataparams).y
+  	nt = (*(*info).dispparams).t_range	& 	dt = (*(*info).plotaxes).dt
+  	t_low = (*(*info).dispparams).t_low	&	t_upp = (*(*info).dispparams).t_upp
+  	t_saved = (*(*info).dispparams).t	&	crispex_version = [(*(*info).versioninfo).version_number, (*(*info).versioninfo).revision_number]
+  	SAVE, crispex_version, intensities, avg_intensity, diagnostics, nt, dt, t_low, t_upp, t_saved, x, y, FILENAME=(*(*info).paths).opath+intfilename
+  	PRINT, 'Written: '+(*(*info).paths).opath+intfilename+'.cint'
+  ENDIF
 END
 
 
@@ -6350,25 +6399,25 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
 			RETURN
 		ENDIF ELSE BEGIN
 			stokes_select_sp = INTARR(hdr_out.ns)
-			IF ((WHERE(stokes_labels EQ 'I') GE 0) AND $
-          (WHERE(stokes_labels EQ 'I') LE hdr_out.imns-1)) THEN BEGIN
+      wherestokesi = WHERE(stokes_labels EQ 'I', icount)
+      wherestokesq = WHERE(stokes_labels EQ 'Q', qcount)
+      wherestokesu = WHERE(stokes_labels EQ 'U', ucount)
+      wherestokesv = WHERE(stokes_labels EQ 'V', vcount)
+      IF (icount GT 0) THEN BEGIN
 				hdr_out.stokes_enabled[0] = 1 
-				stokes_select_sp[WHERE(stokes_labels EQ 'I')] = 1
-			ENDIF 
-			IF ((WHERE(stokes_labels EQ 'Q') GE 0) AND $
-          (WHERE(stokes_labels EQ 'Q') LE hdr_out.imns-1)) THEN BEGIN
+				stokes_select_sp[wherestokesi] = 1
+			ENDIF
+      IF (qcount GT 0) THEN BEGIN
 				hdr_out.stokes_enabled[1] = 1 
-				stokes_select_sp[WHERE(stokes_labels EQ 'Q')] = 1
+				stokes_select_sp[wherestokesq] = 1
 			ENDIF 
-			IF ((WHERE(stokes_labels EQ 'U') GE 0) AND $
-          (WHERE(stokes_labels EQ 'U') LE hdr_out.imns-1)) THEN BEGIN
+      IF (ucount GT 0) THEN BEGIN
 				hdr_out.stokes_enabled[2] = 1 
-				stokes_select_sp[WHERE(stokes_labels EQ 'U')] = 1
+				stokes_select_sp[wherestokesu] = 1
 			ENDIF 
-			IF ((WHERE(stokes_labels EQ 'V') GE 0) AND $
-          (WHERE(stokes_labels EQ 'V') LE hdr_out.imns-1)) THEN BEGIN
+      IF (vcount GT 0) THEN BEGIN
 				hdr_out.stokes_enabled[3] = 1 
-				stokes_select_sp[WHERE(stokes_labels EQ 'V')] = 1
+				stokes_select_sp[wherestokesv] = 1
 			ENDIF
 		ENDELSE
 	ENDIF ELSE BEGIN
@@ -6916,7 +6965,8 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
     IF ((lcase EQ 1) OR (lcase EQ 3)) THEN $            ; First read parameters from LINE_CENTER
       lc = line_center[0,d] $
     ELSE BEGIN              ; Or determine from mean spectrum if line centre position is not supplied
-      IF (WHERE(TAG_NAMES(hdr_out) EQ STRUPCASE(tag2)) EQ -1) THEN $          ; Check whether LPS exists
+      wheretag2 = WHERE(TAG_NAMES(hdr_out) EQ STRUPCASE(tag2), count)
+      IF (count LE 0) THEN $    ; Check whether tag2 exists, if non-existent
         lc = ( WHERE( spec_select EQ MIN(spec_select, /NAN) ) )[0] $
       ELSE BEGIN
         IF (d EQ 0) THEN lc = hdr_out.lc ELSE lc = hdr_out.reflc
@@ -6972,7 +7022,8 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
       hdr_out.reflps = lps_select   
       tag = 'v_dop_ref'
     ENDELSE
-    IF (WHERE(TAG_NAMES(hdr_out) EQ STRUPCASE(tag2)) EQ -1) THEN BEGIN
+    wheretag2 = WHERE(TAG_NAMES(hdr_out) EQ STRUPCASE(tag2), count)
+    IF (count LE 0) THEN BEGIN
       lc_sel = lc
       hdr_out = CREATE_STRUCT(hdr_out, tag, v_dop, tag2, lc_sel)
     ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, tag, v_dop)
@@ -7117,13 +7168,15 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
     reform_norm_spect = REFORM(norm_spect[*,0])
     hdr_out = CREATE_STRUCT(hdr_out, 'mainspec', norm_spect, 'spectrum', reform_norm_spect, $
                                      'ms', norm_factor)
-    IF (WHERE(TAG_NAMES(hdr_out) EQ 'LPS') NE -1) THEN BEGIN          ; Check whether LPS exists
+    wherelps = WHERE(TAG_NAMES(hdr_out) EQ 'LPS', count)
+    IF (count GT 0) THEN BEGIN
       IF (TOTAL(hdr_out.lps) EQ 0) THEN hdr_out.lps = FINDGEN(hdr_out.nlp)
     ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'lps', FINDGEN(hdr_out.nlp))
   ENDIF
   IF KEYWORD_SET(REFCUBE) THEN BEGIN    ; Fill the related REFCUBE variables with results
     hdr_out = CREATE_STRUCT(hdr_out, 'refspec', norm_spect, 'refms', norm_factor)
-    IF (WHERE(TAG_NAMES(hdr_out) EQ 'REFLPS') NE -1) THEN BEGIN       ; Check whether REFLPS exists
+    wherereflps = WHERE(TAG_NAMES(hdr_out) EQ 'REFLPS', count) 
+    IF (count GT 0) THEN BEGIN
       IF (TOTAL(hdr_out.reflps) EQ 0) THEN hdr_out.reflps = FINDGEN(hdr_out.refnlp)
     ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'reflps', FINDGEN(hdr_out.refnlp))
   ENDIF
@@ -7563,8 +7616,9 @@ PRO CRISPEX_PB_BG, event
 	CRISPEX_UPDATE_T, event
 	IF (*(*info).pbparams).spmode THEN CRISPEX_UPDATE_LP, event
 	IF (*(*info).dispparams).phislice_update THEN $
-    CRISPEX_UPDATE_SLICES, event, /NO_DRAW, SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
-      REFSSP_UPDATE=((*(*info).dataswitch).refspfile EQ 0)
+    CRISPEX_UPDATE_SLICES, event, /NO_DRAW, $
+      SSP_UPDATE=(((*(*info).dataswitch).spfile EQ 0) AND ((*(*info).pbparams).spmode EQ 0)), $
+      REFSSP_UPDATE=(((*(*info).dataswitch).refspfile EQ 0) AND ((*(*info).pbparams).spmode EQ 0))
 	CRISPEX_DRAW, event
 	IF (((*(*info).feedbparams).verbosity)[4] EQ 1) THEN BEGIN
 		(*(*info).feedbparams).count_pbstats += 1
@@ -7775,20 +7829,22 @@ PRO CRISPEX_PHISLIT_DIRECTION, event
 	x_maxpts = COS(!DTOR * (*(*info).phiparams).angle) * (FINDGEN( 2 * (*(*info).phiparams).nphi/2) - (*(*info).phiparams).nphi/2) + FIX((*(*info).dataparams).x)
 	y_maxpts = SIN(!DTOR * (*(*info).phiparams).angle) * (FINDGEN( 2 * (*(*info).phiparams).nphi/2) - (*(*info).phiparams).nphi/2) + FIX((*(*info).dataparams).y)
 	wmax = WHERE((x_maxpts GE 0 ) AND (x_maxpts LE (*(*info).dispparams).x_last) AND (y_maxpts GE 0) AND (y_maxpts LE (*(*info).dispparams).y_last), nwmax)
-	thex = REBIN(x_maxpts[wmax], nwmax, 2)
-	they = REBIN(y_maxpts[wmax], nwmax, 2)
-	thep = REBIN(FINDGEN(1,2), nwmax, 2)
-	*(*(*info).data).indices = INTERPOLATE( *(*(*info).data).indexmap, thex, they, thep)
-	search = WHERE(((*(*(*info).data).indices)[*,0] EQ FIX((*(*info).dataparams).x)) AND ((*(*(*info).data).indices)[*,1] EQ FIX((*(*info).dataparams).y)))
-	(*(*info).phiparams).curindex = search[0]
-	(*(*info).phiparams).maxindex = (SIZE(wmax))[1]
-	IF ((*(*info).phiparams).curindex GT 1) OR ((*(*info).phiparams).curindex NE (*(*info).phiparams).maxindex-1) THEN BEGIN
-		IF (*(*info).ctrlsswitch).bwd_insensitive THEN WIDGET_CONTROL, (*(*info).ctrlscp).bwd_move_slit, SENSITIVE = 1
-		IF (*(*info).ctrlsswitch).fwd_insensitive THEN WIDGET_CONTROL, (*(*info).ctrlscp).fwd_move_slit, SENSITIVE = 1
-	ENDIF ELSE IF ((*(*info).phiparams).curindex LT 1) OR ((*(*info).phiparams).curindex EQ (*(*info).phiparams).maxindex-1) THEN BEGIN
-		IF ((*(*info).ctrlsswitch).bwd_insensitive EQ 0) THEN WIDGET_CONTROL, (*(*info).ctrlscp).bwd_move_slit, SENSITIVE = 0
-		IF ((*(*info).ctrlsswitch).fwd_insensitive EQ 0) THEN WIDGET_CONTROL, (*(*info).ctrlscp).fwd_move_slit, SENSITIVE = 0
-	ENDIF
+  IF (nwmax GT 0) THEN BEGIN
+  	thex = REBIN(x_maxpts[wmax], nwmax, 2)
+  	they = REBIN(y_maxpts[wmax], nwmax, 2)
+  	thep = REBIN(FINDGEN(1,2), nwmax, 2)
+  	*(*(*info).data).indices = INTERPOLATE( *(*(*info).data).indexmap, thex, they, thep)
+  	search = WHERE(((*(*(*info).data).indices)[*,0] EQ FIX((*(*info).dataparams).x)) AND ((*(*(*info).data).indices)[*,1] EQ FIX((*(*info).dataparams).y)))
+  	(*(*info).phiparams).curindex = search[0]
+  	(*(*info).phiparams).maxindex = (SIZE(wmax))[1]
+  	IF ((*(*info).phiparams).curindex GT 1) OR ((*(*info).phiparams).curindex NE (*(*info).phiparams).maxindex-1) THEN BEGIN
+  		IF (*(*info).ctrlsswitch).bwd_insensitive THEN WIDGET_CONTROL, (*(*info).ctrlscp).bwd_move_slit, SENSITIVE = 1
+  		IF (*(*info).ctrlsswitch).fwd_insensitive THEN WIDGET_CONTROL, (*(*info).ctrlscp).fwd_move_slit, SENSITIVE = 1
+  	ENDIF ELSE IF ((*(*info).phiparams).curindex LT 1) OR ((*(*info).phiparams).curindex EQ (*(*info).phiparams).maxindex-1) THEN BEGIN
+  		IF ((*(*info).ctrlsswitch).bwd_insensitive EQ 0) THEN WIDGET_CONTROL, (*(*info).ctrlscp).bwd_move_slit, SENSITIVE = 0
+  		IF ((*(*info).ctrlsswitch).fwd_insensitive EQ 0) THEN WIDGET_CONTROL, (*(*info).ctrlscp).fwd_move_slit, SENSITIVE = 0
+  	ENDIF
+  ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).x,(*(*info).dataparams).y,(*(*info).phiparams).curindex,(*(*info).phiparams).maxindex], $
 		labels=['x','y','current index', 'maximum index']
 END
@@ -8714,8 +8770,8 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ENDELSE
   ; Determine tfactor and set time units to seconds
   common_tunit = [(tunit EQ 's'),(tunit EQ 'ms'),(tunit EQ 'hs')]
-  where_common_tunit = WHERE(common_tunit EQ 1)
-  IF (where_common_tunit NE -1) THEN $
+  where_common_tunit = WHERE(common_tunit EQ 1, count)
+  IF (count GT 0) THEN $
     tfactor = ([1,0.001,100.])[where_common_tunit] $
   ELSE $
     tfactor = 1.
@@ -8739,18 +8795,20 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     lam = (FINDGEN(nlp)+1-crpix[sortorder[2]])*cdelt[sortorder[2]]+crval[sortorder[2]]
   ENDELSE
   lcval = crval[sortorder[2]]
-  lc = (WHERE(lam EQ lcval))[0]
-  IF (lc EQ -1) THEN lc = 0
+  lc = (WHERE(lam EQ lcval, count))[0]
+  IF (count NE 1) THEN lc = 0
   ; Determine number of diagnostics
   ndiagnostics = SXPAR(header,'NWIN')
   IF (ndiagnostics GT 0) THEN BEGIN
     wstart = SXPAR(header,'WSTART*')
     wwidth = SXPAR(header,'WWIDTH*')
     wdesc = SXPAR(header,'WDESC*')
-    whereselect = WHERE(wdesc NE '')
-    wstart = wstart[whereselect]
-    wwidth = wwidth[whereselect]
-    diagnostics = wdesc[whereselect]
+    whereselect = WHERE(wdesc NE '', count)
+    IF (count GT 0) THEN BEGIN
+      wstart = wstart[whereselect]
+      wwidth = wwidth[whereselect]
+      diagnostics = wdesc[whereselect]
+    ENDIF ELSE diagnostics = wdesc
   ENDIF ELSE BEGIN
     wstart = 0
     wwidth = nlp
@@ -8963,9 +9021,9 @@ PRO CRISPEX_RESTORE_LOOPS_BUTTON_CONDITION, event
 ; Handles the update of buttons after selection
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	condition = WHERE(*(*(*info).restoreparams).sel_loops EQ 1)
-	WIDGET_CONTROL, (*(*info).ctrlsrestore).sel_none, SET_BUTTON = ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1)
-	WIDGET_CONTROL, (*(*info).ctrlsrestore).sel_all, SET_BUTTON = (((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) AND (N_ELEMENTS(condition) EQ (*(*info).restoreparams).cfilecount))
+	condition = WHERE(*(*(*info).restoreparams).sel_loops EQ 1, count)
+	WIDGET_CONTROL, (*(*info).ctrlsrestore).sel_none, SET_BUTTON = ABS((count GT 0)-1)
+	WIDGET_CONTROL, (*(*info).ctrlsrestore).sel_all, SET_BUTTON = (count EQ (*(*info).restoreparams).cfilecount)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) AND (N_ELEMENTS(condition) EQ (*(*info).restoreparams).cfilecount)),$
 		ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1),N_ELEMENTS(condition)-(TOTAL(condition) EQ -1)], labels=['All selected','None selected','Total selected']
 END
@@ -9296,10 +9354,10 @@ PRO CRISPEX_RETRIEVE_DET_MENU_EVENT, event
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	(*(*(*info).detparams).sel_dets)[eventval] = ( (*(*(*info).detparams).sel_dets)[eventval] EQ 0) 
-	condition = WHERE(*(*(*info).detparams).sel_dets EQ 1)
-	WIDGET_CONTROL, (*(*info).ctrlsdet).get_dets, SENSITIVE = ((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))
-	WIDGET_CONTROL, (*(*info).ctrlsdet).sel_all, SET_BUTTON = (((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) AND (N_ELEMENTS(condition) EQ (*(*info).detparams).nr_dets))
-	WIDGET_CONTROL, (*(*info).ctrlsdet).sel_none, SET_BUTTON = ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1)
+	condition = WHERE(*(*(*info).detparams).sel_dets EQ 1, count)
+	WIDGET_CONTROL, (*(*info).ctrlsdet).get_dets, SENSITIVE = (count GT 0)
+	WIDGET_CONTROL, (*(*info).ctrlsdet).sel_all, SET_BUTTON = (count EQ (*(*info).detparams).nr_dets)
+	WIDGET_CONTROL, (*(*info).ctrlsdet).sel_none, SET_BUTTON = ABS((count GT 0)-1)
 	IF ((*(*info).overlayswitch).det_overlay_all EQ 0) THEN CRISPEX_DRAW, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).detparams).sel_dets)[eventval],$
 		(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) AND (N_ELEMENTS(condition) EQ (*(*info).restoreparams).cfilecount)),ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1),$
@@ -9425,76 +9483,78 @@ PRO CRISPEX_RETRIEVE_DET_SEL_LOOPS, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	IF ((*(*info).paths).opath_write EQ 1) THEN BEGIN
-		*(*(*info).detparams).sel_loops = WHERE(*(*(*info).detparams).sel_dets EQ 1)
-		(*(*info).detparams).nr_sel_loops = N_ELEMENTS(*(*(*info).detparams).sel_loops)
-		IF ((*(*info).savswitch).pos_dets EQ 2) THEN BEGIN
-			IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
-				CRISPEX_ESTIMATE_TIME_WINDOW, event
-				CRISPEX_ESTIMATE_TIME_CALCULATION, event
-			ENDIF
-			time = 0
-			FOR i=0,(*(*info).detparams).nr_sel_loops-1 DO BEGIN
-				w_loop_pts = (*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]+1]-(*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]]
-				sub_time = (*(*info).feedbparams).estimate_time * w_loop_pts/FLOAT((*(*info).feedbparams).estimate_lx) * (*(*info).detparams).width * ((*(*info).detparams).delta_t_up + $
-					(*(*info).detparams).delta_t_dn + 1) * CEIL((*(*info).savswitch).det_imref_only/2.)
-				time = time + sub_time
-			ENDFOR
-			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
-			(*(*info).savswitch).cont = 4
-			CRISPEX_SAVE_WARNING_YESNO, event,STRTRIM((*(*info).detparams).nr_sel_loops,2)+' detection(s) selected. Saving the exact loop slice(s) may take' ,$
-				'up to about '+STRTRIM(CEIL(time/denom),2)+units+'. Do you wish to continue saving?', OK_EVENT='CRISPEX_SAVE_LOOPSL_CONTINUE', CANCEL_EVENT='CRISPEX_SAVE_LOOPSL_ABORT'
-			IF ((*(*info).winswitch).estimate_win EQ 1) THEN BEGIN
-				WIDGET_CONTROL, (*(*info).winids).estimatetlb, /DESTROY
-				(*(*info).winids).estimatetlb = 0
-				(*(*info).winswitch).estimate_win = 0
-			ENDIF
-		ENDIF ELSE IF ((*(*info).savswitch).pos_dets EQ 1) THEN BEGIN
-			IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
-				CRISPEX_ESTIMATE_TIME_WINDOW, event
-				CRISPEX_ESTIMATE_TIME_CALCULATION, event
-			ENDIF
-			time = 0
-			FOR i=0,(*(*info).detparams).nr_sel_loops-1 DO BEGIN
-				w_loop_pts = (*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]+1]-(*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]]
-				sub_im_time = (*(*info).feedbparams).estimate_time * w_loop_pts/FLOAT((*(*info).feedbparams).estimate_lx) * (*(*info).dataparams).nlp * (*(*info).detparams).width * $
-					((*(*info).detparams).delta_t_up + (*(*info).detparams).delta_t_dn + 1)
-				IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN sub_ref_time = sub_im_time/(*(*info).dataparams).nlp ELSE sub_ref_time = sub_im_time
-				IF ((*(*info).savswitch).det_imref_only EQ 1) THEN sub_time = sub_im_time ELSE IF ((*(*info).savswitch).det_imref_only EQ 2) THEN sub_time = sub_ref_time ELSE sub_time = sub_im_time + sub_ref_time
-				time += sub_time
-			ENDFOR
-			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
-			(*(*info).savswitch).cont = 5
-			CRISPEX_SAVE_WARNING_YESNO, event, STRTRIM((*(*info).detparams).nr_sel_loops,2)+' detection(s) selected. Saving the exact loop slab(s) may take',$
-				'up to about '+STRTRIM(CEIL(time/denom),2)+units+'. Do you wish to continue saving?', OK_EVENT='CRISPEX_SAVE_LOOPSL_CONTINUE', CANCEL_EVENT='CRISPEX_SAVE_LOOPSL_ABORT'
-			IF ((*(*info).winswitch).estimate_win EQ 1) THEN BEGIN
-				WIDGET_CONTROL, (*(*info).winids).estimatetlb, /DESTROY
-				(*(*info).winids).estimatetlb = 0
-				(*(*info).winswitch).estimate_win = 0
-			ENDIF
-		ENDIF ELSE IF ((*(*info).savswitch).pos_dets EQ 3) THEN BEGIN
-			IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
-				CRISPEX_ESTIMATE_TIME_WINDOW, event
-				CRISPEX_ESTIMATE_TIME_CALCULATION, event
-			ENDIF
-			time = 0
-			FOR i=0,(*(*info).detparams).nr_sel_loops-1 DO BEGIN
-				w_loop_pts = (*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]+1]-(*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]]
-				sub_im_time = (*(*info).feedbparams).estimate_time * w_loop_pts/FLOAT((*(*info).feedbparams).estimate_lx) * ((*(*info).detparams).lp_up-(*(*info).detparams).lp_dn+1) * $
-					(*(*info).detparams).width * ((*(*info).detparams).delta_t_up + (*(*info).detparams).delta_t_dn + 1)
-				IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN sub_ref_time = sub_im_time/((*(*info).detparams).lp_up-(*(*info).detparams).lp_dn+1) ELSE sub_ref_time = sub_im_time
-				IF ((*(*info).savswitch).det_imref_only EQ 1) THEN sub_time = sub_im_time ELSE IF ((*(*info).savswitch).det_imref_only EQ 2) THEN sub_time = sub_ref_time ELSE sub_time = sub_im_time + sub_ref_time
-				time += sub_time
-			ENDFOR
-			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
-			(*(*info).savswitch).cont = 5
-			CRISPEX_SAVE_WARNING_YESNO, event, STRTRIM((*(*info).detparams).nr_sel_loops,2)+' detection(s) selected. Saving the exact loop slab(s) may take',$
-				'up to about '+STRTRIM(CEIL(time/denom),2)+units+'. Do you wish to continue saving?', OK_EVENT='CRISPEX_SAVE_LOOPSL_CONTINUE', CANCEL_EVENT='CRISPEX_SAVE_LOOPSL_ABORT'
-			IF ((*(*info).winswitch).estimate_win EQ 1) THEN BEGIN
-				WIDGET_CONTROL, (*(*info).winids).estimatetlb, /DESTROY
-				(*(*info).winids).estimatetlb = 0
-				(*(*info).winswitch).estimate_win = 0
-			ENDIF
-		ENDIF ELSE RETURN
+		*(*(*info).detparams).sel_loops = WHERE(*(*(*info).detparams).sel_dets EQ 1, count)
+		(*(*info).detparams).nr_sel_loops = count
+    IF (count GT 0) THEN BEGIN
+  		IF ((*(*info).savswitch).pos_dets EQ 2) THEN BEGIN
+  			IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
+  				CRISPEX_ESTIMATE_TIME_WINDOW, event
+  				CRISPEX_ESTIMATE_TIME_CALCULATION, event
+  			ENDIF
+  			time = 0
+  			FOR i=0,(*(*info).detparams).nr_sel_loops-1 DO BEGIN
+  				w_loop_pts = (*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]+1]-(*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]]
+  				sub_time = (*(*info).feedbparams).estimate_time * w_loop_pts/FLOAT((*(*info).feedbparams).estimate_lx) * (*(*info).detparams).width * ((*(*info).detparams).delta_t_up + $
+  					(*(*info).detparams).delta_t_dn + 1) * CEIL((*(*info).savswitch).det_imref_only/2.)
+  				time = time + sub_time
+  			ENDFOR
+  			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
+  			(*(*info).savswitch).cont = 4
+  			CRISPEX_SAVE_WARNING_YESNO, event,STRTRIM((*(*info).detparams).nr_sel_loops,2)+' detection(s) selected. Saving the exact loop slice(s) may take' ,$
+  				'up to about '+STRTRIM(CEIL(time/denom),2)+units+'. Do you wish to continue saving?', OK_EVENT='CRISPEX_SAVE_LOOPSL_CONTINUE', CANCEL_EVENT='CRISPEX_SAVE_LOOPSL_ABORT'
+  			IF ((*(*info).winswitch).estimate_win EQ 1) THEN BEGIN
+  				WIDGET_CONTROL, (*(*info).winids).estimatetlb, /DESTROY
+  				(*(*info).winids).estimatetlb = 0
+  				(*(*info).winswitch).estimate_win = 0
+  			ENDIF
+  		ENDIF ELSE IF ((*(*info).savswitch).pos_dets EQ 1) THEN BEGIN
+  			IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
+  				CRISPEX_ESTIMATE_TIME_WINDOW, event
+  				CRISPEX_ESTIMATE_TIME_CALCULATION, event
+  			ENDIF
+  			time = 0
+  			FOR i=0,(*(*info).detparams).nr_sel_loops-1 DO BEGIN
+  				w_loop_pts = (*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]+1]-(*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]]
+  				sub_im_time = (*(*info).feedbparams).estimate_time * w_loop_pts/FLOAT((*(*info).feedbparams).estimate_lx) * (*(*info).dataparams).nlp * (*(*info).detparams).width * $
+  					((*(*info).detparams).delta_t_up + (*(*info).detparams).delta_t_dn + 1)
+  				IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN sub_ref_time = sub_im_time/(*(*info).dataparams).nlp ELSE sub_ref_time = sub_im_time
+  				IF ((*(*info).savswitch).det_imref_only EQ 1) THEN sub_time = sub_im_time ELSE IF ((*(*info).savswitch).det_imref_only EQ 2) THEN sub_time = sub_ref_time ELSE sub_time = sub_im_time + sub_ref_time
+  				time += sub_time
+  			ENDFOR
+  			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
+  			(*(*info).savswitch).cont = 5
+  			CRISPEX_SAVE_WARNING_YESNO, event, STRTRIM((*(*info).detparams).nr_sel_loops,2)+' detection(s) selected. Saving the exact loop slab(s) may take',$
+  				'up to about '+STRTRIM(CEIL(time/denom),2)+units+'. Do you wish to continue saving?', OK_EVENT='CRISPEX_SAVE_LOOPSL_CONTINUE', CANCEL_EVENT='CRISPEX_SAVE_LOOPSL_ABORT'
+  			IF ((*(*info).winswitch).estimate_win EQ 1) THEN BEGIN
+  				WIDGET_CONTROL, (*(*info).winids).estimatetlb, /DESTROY
+  				(*(*info).winids).estimatetlb = 0
+  				(*(*info).winswitch).estimate_win = 0
+  			ENDIF
+  		ENDIF ELSE IF ((*(*info).savswitch).pos_dets EQ 3) THEN BEGIN
+  			IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
+  				CRISPEX_ESTIMATE_TIME_WINDOW, event
+  				CRISPEX_ESTIMATE_TIME_CALCULATION, event
+  			ENDIF
+  			time = 0
+  			FOR i=0,(*(*info).detparams).nr_sel_loops-1 DO BEGIN
+  				w_loop_pts = (*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]+1]-(*(*(*info).detparams).lrsizes)[(*(*(*info).detparams).sel_loops)[i]]
+  				sub_im_time = (*(*info).feedbparams).estimate_time * w_loop_pts/FLOAT((*(*info).feedbparams).estimate_lx) * ((*(*info).detparams).lp_up-(*(*info).detparams).lp_dn+1) * $
+  					(*(*info).detparams).width * ((*(*info).detparams).delta_t_up + (*(*info).detparams).delta_t_dn + 1)
+  				IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN sub_ref_time = sub_im_time/((*(*info).detparams).lp_up-(*(*info).detparams).lp_dn+1) ELSE sub_ref_time = sub_im_time
+  				IF ((*(*info).savswitch).det_imref_only EQ 1) THEN sub_time = sub_im_time ELSE IF ((*(*info).savswitch).det_imref_only EQ 2) THEN sub_time = sub_ref_time ELSE sub_time = sub_im_time + sub_ref_time
+  				time += sub_time
+  			ENDFOR
+  			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
+  			(*(*info).savswitch).cont = 5
+  			CRISPEX_SAVE_WARNING_YESNO, event, STRTRIM((*(*info).detparams).nr_sel_loops,2)+' detection(s) selected. Saving the exact loop slab(s) may take',$
+  				'up to about '+STRTRIM(CEIL(time/denom),2)+units+'. Do you wish to continue saving?', OK_EVENT='CRISPEX_SAVE_LOOPSL_CONTINUE', CANCEL_EVENT='CRISPEX_SAVE_LOOPSL_ABORT'
+  			IF ((*(*info).winswitch).estimate_win EQ 1) THEN BEGIN
+  				WIDGET_CONTROL, (*(*info).winids).estimatetlb, /DESTROY
+  				(*(*info).winids).estimatetlb = 0
+  				(*(*info).winswitch).estimate_win = 0
+  			ENDIF
+  		ENDIF ELSE RETURN
+    ENDIF
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).detparams).nr_sel_loops,(*(*info).savswitch).cont],labels=['Number of detections','Saving procedure']
 	ENDIF
 END
@@ -9741,10 +9801,10 @@ PRO CRISPEX_RETRIEVE_LOOP_MENU_EVENT, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	(*(*(*info).retrparams).sel_loops)[eventval] = ( (*(*(*info).retrparams).sel_loops)[eventval] EQ 0)
-	condition = WHERE(*(*(*info).retrparams).sel_loops EQ 1)
-	WIDGET_CONTROL, (*(*info).ctrlsloop).get_loops, SENSITIVE = ((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))
-	WIDGET_CONTROL, (*(*info).ctrlsloop).sel_all, SET_BUTTON = (((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) AND (N_ELEMENTS(condition) EQ (*(*info).retrparams).clfilecount)) 
-	WIDGET_CONTROL, (*(*info).ctrlsloop).sel_none, SET_BUTTON = ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1)
+	condition = WHERE(*(*(*info).retrparams).sel_loops EQ 1, count)
+	WIDGET_CONTROL, (*(*info).ctrlsloop).get_loops, SENSITIVE = (count GT 0)
+	WIDGET_CONTROL, (*(*info).ctrlsloop).sel_all, SET_BUTTON = (count EQ (*(*info).retrparams).clfilecount) 
+	WIDGET_CONTROL, (*(*info).ctrlsloop).sel_none, SET_BUTTON = ABS((count GT 0)-1)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).retrparams).sel_loops)[eventval],$
 		(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) AND (N_ELEMENTS(condition) EQ (*(*info).retrparams).clfilecount)),ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1),$
 		N_ELEMENTS(condition)-(TOTAL(condition) EQ -1)], labels=['Retrieved loop ID','Retreived loop selected','All selected','None selected','Total selected']
@@ -9772,54 +9832,57 @@ PRO CRISPEX_RETRIEVE_LOOP_MENU_CONTINUE, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	IF ((*(*info).paths).opath_write EQ 1) THEN BEGIN
-		*(*(*info).retrparams).retrieve_files = (*(*(*info).retrparams).clfiles)[WHERE(*(*(*info).retrparams).sel_loops EQ 1)]
-		(*(*info).retrparams).retrieve_filecount = N_ELEMENTS(*(*(*info).retrparams).retrieve_files)
-		IF ((*(*info).savswitch).all_pos_loops EQ 0) THEN BEGIN
-			IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
-				CRISPEX_ESTIMATE_TIME_WINDOW, event
-				CRISPEX_ESTIMATE_TIME_CALCULATION, event
-			ENDIF
-			time = 0
-			FOR i=0,(*(*info).retrparams).retrieve_filecount-1 DO BEGIN
-				RESTORE,(*(*(*info).retrparams).retrieve_files)[i]
-				sub_time = (*(*info).feedbparams).estimate_time * N_ELEMENTS(w_loop_pts)/FLOAT((*(*info).feedbparams).estimate_lx) * (*(*info).dispparams).t_range * CEIL((*(*info).savswitch).imref_only/2.)
-				time += sub_time
-			ENDFOR
-			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
-			(*(*info).savswitch).cont = 1
-			CRISPEX_SAVE_WARNING_YESNO, event, STRTRIM((*(*info).retrparams).retrieve_filecount,2)+' *clsav file(s) selected. Saving the exact loop slice(s) may take',$
-				'up to about '+STRTRIM(CEIL(time/denom),2)+units+' and equally named (approximated) loop','slice(s) may be overwritten. Do you wish to continue saving?', $
-				OK_EVENT='CRISPEX_SAVE_LOOPSL_CONTINUE', CANCEL_EVENT='CRISPEX_SAVE_LOOPSL_ABORT'
-			IF ((*(*info).winswitch).estimate_win EQ 1) THEN BEGIN
-				WIDGET_CONTROL, (*(*info).winids).estimatetlb, /DESTROY
-				(*(*info).winids).estimatetlb = 0
-				(*(*info).winswitch).estimate_win = 0
-			ENDIF
-		ENDIF ELSE IF (*(*info).savswitch).all_pos_loops THEN BEGIN
-			IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
-				CRISPEX_ESTIMATE_TIME_WINDOW, event
-				CRISPEX_ESTIMATE_TIME_CALCULATION, event
-			ENDIF
-			time = 0
-			FOR i=0,(*(*info).retrparams).retrieve_filecount-1 DO BEGIN
-				RESTORE,(*(*(*info).retrparams).retrieve_files)[i]
-				sub_im_time = (*(*info).feedbparams).estimate_time * N_ELEMENTS(w_loop_pts)/FLOAT((*(*info).feedbparams).estimate_lx) * (*(*info).dataparams).nlp * (*(*info).dispparams).t_range
-				IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN sub_ref_time = (*(*info).feedbparams).estimate_time * N_ELEMENTS(w_loop_pts)/FLOAT((*(*info).feedbparams).estimate_lx) * $
-					(*(*info).dispparams).t_range ELSE sub_ref_time = sub_im_time
-				IF ((*(*info).savswitch).imref_only EQ 1) THEN sub_time = sub_im_time ELSE IF ((*(*info).savswitch).imref_only EQ 2) THEN sub_time = sub_ref_time ELSE sub_time = sub_im_time + sub_ref_time
-				time += sub_time
-			ENDFOR
-			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
-			(*(*info).savswitch).cont = 2
-			CRISPEX_SAVE_WARNING_YESNO, event, STRTRIM((*(*info).retrparams).retrieve_filecount,2)+' *clsav file(s) selected. Saving the exact loop slab(s) may take',$
-				'up to about '+STRTRIM(CEIL(time/denom),2)+units+' and equally named (approximated) loop','slab(s) may be overwritten. Do you wish to continue saving?',$
-				OK_EVENT='CRISPEX_SAVE_LOOPSL_CONTINUE', CANCEL_EVENT='CRISPEX_SAVE_LOOPSL_ABORT'
-			IF ((*(*info).winswitch).estimate_win EQ 1) THEN BEGIN
-				WIDGET_CONTROL, (*(*info).winids).estimatetlb, /DESTROY
-				(*(*info).winids).estimatetlb = 0
-				(*(*info).winswitch).estimate_win = 0
-			ENDIF
-		ENDIF ELSE RETURN
+    whereretr = WHERE(*(*(*info).retrparams).sel_loops EQ 1, count)
+    IF (count GT 0) THEN BEGIN
+  		*(*(*info).retrparams).retrieve_files = (*(*(*info).retrparams).clfiles)[whereretr]
+  		(*(*info).retrparams).retrieve_filecount = N_ELEMENTS(*(*(*info).retrparams).retrieve_files)
+  		IF ((*(*info).savswitch).all_pos_loops EQ 0) THEN BEGIN
+  			IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
+  				CRISPEX_ESTIMATE_TIME_WINDOW, event
+  				CRISPEX_ESTIMATE_TIME_CALCULATION, event
+  			ENDIF
+  			time = 0
+  			FOR i=0,(*(*info).retrparams).retrieve_filecount-1 DO BEGIN
+  				RESTORE,(*(*(*info).retrparams).retrieve_files)[i]
+  				sub_time = (*(*info).feedbparams).estimate_time * N_ELEMENTS(w_loop_pts)/FLOAT((*(*info).feedbparams).estimate_lx) * (*(*info).dispparams).t_range * CEIL((*(*info).savswitch).imref_only/2.)
+  				time += sub_time
+  			ENDFOR
+  			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
+  			(*(*info).savswitch).cont = 1
+  			CRISPEX_SAVE_WARNING_YESNO, event, STRTRIM((*(*info).retrparams).retrieve_filecount,2)+' *clsav file(s) selected. Saving the exact loop slice(s) may take',$
+  				'up to about '+STRTRIM(CEIL(time/denom),2)+units+' and equally named (approximated) loop','slice(s) may be overwritten. Do you wish to continue saving?', $
+  				OK_EVENT='CRISPEX_SAVE_LOOPSL_CONTINUE', CANCEL_EVENT='CRISPEX_SAVE_LOOPSL_ABORT'
+  			IF ((*(*info).winswitch).estimate_win EQ 1) THEN BEGIN
+  				WIDGET_CONTROL, (*(*info).winids).estimatetlb, /DESTROY
+  				(*(*info).winids).estimatetlb = 0
+  				(*(*info).winswitch).estimate_win = 0
+  			ENDIF
+  		ENDIF ELSE IF (*(*info).savswitch).all_pos_loops THEN BEGIN
+  			IF ((*(*info).feedbparams).estimate_run EQ 0) THEN BEGIN
+  				CRISPEX_ESTIMATE_TIME_WINDOW, event
+  				CRISPEX_ESTIMATE_TIME_CALCULATION, event
+  			ENDIF
+  			time = 0
+  			FOR i=0,(*(*info).retrparams).retrieve_filecount-1 DO BEGIN
+  				RESTORE,(*(*(*info).retrparams).retrieve_files)[i]
+  				sub_im_time = (*(*info).feedbparams).estimate_time * N_ELEMENTS(w_loop_pts)/FLOAT((*(*info).feedbparams).estimate_lx) * (*(*info).dataparams).nlp * (*(*info).dispparams).t_range
+  				IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN sub_ref_time = (*(*info).feedbparams).estimate_time * N_ELEMENTS(w_loop_pts)/FLOAT((*(*info).feedbparams).estimate_lx) * $
+  					(*(*info).dispparams).t_range ELSE sub_ref_time = sub_im_time
+  				IF ((*(*info).savswitch).imref_only EQ 1) THEN sub_time = sub_im_time ELSE IF ((*(*info).savswitch).imref_only EQ 2) THEN sub_time = sub_ref_time ELSE sub_time = sub_im_time + sub_ref_time
+  				time += sub_time
+  			ENDFOR
+  			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
+  			(*(*info).savswitch).cont = 2
+  			CRISPEX_SAVE_WARNING_YESNO, event, STRTRIM((*(*info).retrparams).retrieve_filecount,2)+' *clsav file(s) selected. Saving the exact loop slab(s) may take',$
+  				'up to about '+STRTRIM(CEIL(time/denom),2)+units+' and equally named (approximated) loop','slab(s) may be overwritten. Do you wish to continue saving?',$
+  				OK_EVENT='CRISPEX_SAVE_LOOPSL_CONTINUE', CANCEL_EVENT='CRISPEX_SAVE_LOOPSL_ABORT'
+  			IF ((*(*info).winswitch).estimate_win EQ 1) THEN BEGIN
+  				WIDGET_CONTROL, (*(*info).winids).estimatetlb, /DESTROY
+  				(*(*info).winids).estimatetlb = 0
+  				(*(*info).winswitch).estimate_win = 0
+  			ENDIF
+  		ENDIF ELSE RETURN
+    ENDIF
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).retrparams).retrieve_filecount,(*(*info).savswitch).cont],labels=['Number of retrieved loops','Saving procedure']
 	ENDIF
 END
@@ -10365,8 +10428,8 @@ PRO CRISPEX_SESSION_RESTORE_EVENT, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	(*(*(*info).sesparams).sessions)[eventval] = ( (*(*(*info).sesparams).sessions)[eventval] EQ 0) 
-	condition = WHERE(*(*(*info).sesparams).sessions EQ 1)
-	WIDGET_CONTROL, (*(*info).sesparams).rest_sessions, SENSITIVE = ((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) 
+	condition = WHERE(*(*(*info).sesparams).sessions EQ 1, count)
+	WIDGET_CONTROL, (*(*info).sesparams).rest_sessions, SENSITIVE = (count GT 0)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).retrparams).sel_loops)[eventval]], labels=['Restored session ID','Restored session selected']
 END
 
@@ -10410,499 +10473,509 @@ PRO CRISPEX_SESSION_RESTORE, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, /HOURGLASS
 	CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=0, feedback_text='Restoring session file and checking version...', /SESSION
-	restore_session = (*(*(*info).sesparams).csesfiles)[WHERE(*(*(*info).sesparams).sessions EQ 1)]
-	RESTORE, restore_session
-	; Check revision number
-	IF (N_ELEMENTS(versioninfo) GT 0) THEN cont = (versioninfo.revision_number GE '546') ELSE cont = 0
-	IF cont THEN BEGIN
-		IF (((*(*info).dataparams).imfilename EQ dataparams.imfilename) AND ((*(*info).dataparams).spfilename EQ dataparams.spfilename) AND $
-			((*(*info).dataparams).refimfilename EQ dataparams.refimfilename) AND ((*(*info).dataparams).refspfilename EQ dataparams.refspfilename)) THEN BEGIN
-			; Kill all open windows (except control panel and main image window)
-			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Closing open windows...'
-			IF ((*(*info).winids).sptlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).sptlb, /DESTROY 
-				(*(*info).winids).sptlb = 0 
-			ENDIF
-			IF ((*(*info).winids).lstlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).lstlb, /DESTROY
-				(*(*info).winids).lstlb = 0 
-			ENDIF
-			IF ((*(*info).winids).phistlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).phistlb, /DESTROY 
-				(*(*info).winids).phistlb = 0 
-			ENDIF
-			IF ((*(*info).winids).reftlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).reftlb, /DESTROY 
-				(*(*info).winids).reftlb = 0 
-			ENDIF
-			IF ((*(*info).winids).doptlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).doptlb, /DESTROY 
-				(*(*info).winids).doptlb = 0 
-			ENDIF
-			IF ((*(*info).winids).imreftlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).imreftlb, /DESTROY 
-				(*(*info).winids).imreftlb = 0 
-			ENDIF
-			IF (TOTAL(*(*(*info).winids).restlooptlb) NE 0) THEN BEGIN 
-				FOR i=0,N_ELEMENTS(*(*(*info).winids).restlooptlb)-1 DO WIDGET_CONTROL, (*(*(*info).winids).restlooptlb)[i], /DESTROY
-				(*(*info).winids).restlooptlb = PTR_NEW(0) 
-			ENDIF
-			IF ((*(*info).winids).retrdettlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).retrdettlb, /DESTROY 
-				(*(*info).winids).retrdettlb = 0 
-			ENDIF
-			IF ((*(*info).winids).looptlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).looptlb, /DESTROY 
-				(*(*info).winids).looptlb = 0 
-			ENDIF
-			IF ((*(*info).winids).reflooptlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).reflooptlb, /DESTROY 
-				(*(*info).winids).reflooptlb = 0 
-			ENDIF
-			IF ((*(*info).winids).refsptlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).refsptlb, /DESTROY 
-				(*(*info).winids).refsptlb = 0 
-			ENDIF
-			IF ((*(*info).winids).reflstlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).reflstlb, /DESTROY 
-				(*(*info).winids).reflstlb = 0 
-			ENDIF
-			IF ((*(*info).winids).inttlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).inttlb, /DESTROY 
-				(*(*info).winids).inttlb = 0 
-			ENDIF
-			IF ((*(*info).winids).paramtlb NE 0) THEN BEGIN 
-				WIDGET_CONTROL, (*(*info).winids).paramtlb, /DESTROY 
-				(*(*info).winids).paramtlb = 0 
-			ENDIF
-			; Restore all parameters, for each parameter checking whether the number of subparameters has changed (if revision_number on session file differs from current CRISPEX)
-			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Restoring session variables...'
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).ctrlsswitch, ctrlsswitch
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).curs, curs
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).dataparams, dataparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).dataswitch, dataswitch
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).detparams, detparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).dispparams, dispparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).dispswitch, dispswitch
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).intparams, intparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).ioparams, ioparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).loopparams, loopparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).loopswitch, loopswitch
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).meas, meas
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).overlayparams, overlayparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).overlayswitch, overlayswitch
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).paramswitch, paramswitch
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).pbparams, pbparams, NO_RESTORE='BG'
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).phiparams, phiparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plotaxes, plotaxes
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plotparams, plotparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plotpos, plotpos
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plotswitch, plotswitch
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plottitles, plottitles
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).restoreparams, restoreparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).retrparams, retrparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).scaling, scaling
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).savswitch, savswitch
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).stokesparams, stokesparams
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).winsizes, winsizes
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).winswitch, winswitch
-			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).zooming, zooming
-			; Reset controls on control panel given the control switches and other parameters
-			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, $
-        feedback_text='Resetting control panel controls...'
-      ; ==================== Always visible controls ====================
-      ; Playback controls
-			WIDGET_CONTROL, (*(*info).ctrlscp).t_slider, SET_VALUE = (*(*info).dispparams).t, $
-        SET_SLIDER_MIN=(*(*info).dispparams).t_low, $
-        SET_SLIDER_MAX=(*(*info).dispparams).t_upp, $
-				SENSITIVE = ((*(*info).dataparams).nt GT 1)
-			CRISPEX_PB_BUTTONS_SET, event, $
-        bwd_set=((*(*info).pbparams).direction EQ -1), $
-        pause_set=((*(*info).pbparams).mode EQ 'PAUSE'), $
-        fwd_set=((*(*info).pbparams).direction EQ 1), $
-				loop_set=((*(*info).pbparams).lmode EQ 'LOOP'),	$
-        cycle_set=((*(*info).pbparams).lmode EQ 'CYCLE'), $
-        blink_set=((*(*info).pbparams).lmode EQ 'BLINK')
-      ; Spectral control
-			WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_VALUE = (*(*info).dataparams).lp, $
-        SET_SLIDER_MIN = (*(*info).dispparams).lp_low, $
-        SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, $
-				SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-      ; Cursor lock controls
-			WIDGET_CONTROL, (*(*info).ctrlscp).lock_button, SET_BUTTON = (*(*info).curs).lockset
-			WIDGET_CONTROL, (*(*info).ctrlscp).unlock_button, $
-        SET_BUTTON = ABS((*(*info).curs).lockset-1)
-      ; ==================== Playback Tab ====================
-			WIDGET_CONTROL, (*(*info).ctrlscp).lower_t_text, $
-        SET_VALUE = STRTRIM((*(*info).dispparams).t_low,2), $
-        SENSITIVE = ((*(*info).dataparams).nt GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).upper_t_text, $
-        SET_VALUE = STRTRIM((*(*info).dispparams).t_upp,2), $
-        SENSITIVE = ((*(*info).dataparams).nt GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).reset_trange_but, $
-        SENSITIVE = ((*(*info).dispparams).t_range NE (*(*info).dataparams).nt)
-			WIDGET_CONTROL, (*(*info).ctrlscp).t_speed_slider, $
-        SET_VALUE = (*(*info).pbparams).t_speed, SENSITIVE = ((*(*info).dataparams).nt GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).t_step_slider, $
-        SET_SLIDER_MAX = (*(*info).dispparams).t_range - 1, $
-        SET_VALUE = (*(*info).pbparams).t_step, $
-				SENSITIVE = (((*(*info).dispparams).t_range - 1 NE 1) AND $
-                      (*(*info).dataparams).nt GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).imref_blink_but, $
-        SET_BUTTON = (*(*info).winswitch).showimref, $
-        SENSITIVE = (*(*info).dataswitch).reffile
-      ; Master timing
-      showdata = [((*(*info).dataswitch).reffile OR (*(*info).dataswitch).sjifile), $
-        (*(*info).dataswitch).reffile, (*(*info).dataswitch).sjifile]
-      nrasterdims = [SIZE((*(*info).dataparams).tarr_raster_main,/N_DIMENSIONS), $
-                      SIZE((*(*info).dataparams).tarr_raster_ref,/N_DIMENSIONS), 1]
-      FOR i=0,N_ELEMENTS(master_time_labels)-1 DO $
-        WIDGET_CONTROL, (*(*info).ctrlscp).master_time_ids[i], $
-        SET_BUTTON=(i EQ (*(*info).dispparams).master_time), $
-        SENSITIVE=(showdata[i] AND (nrasterdims[i] GE 1))
-      WIDGET_CONTROL, (*(*info).ctrlscp).time_offset_slider, $
-        SENSITIVE=(((nrasterdims[(*(*info).dispparams).master_time] EQ 1) AND $
-          ((*(*info).dataparams).nt EQ 1) AND ((*(*info).dataparams).nx GT 1)) OR $
-          (nrasterdims[(*(*info).dispparams).master_time] EQ 2)), $
-        SET_VALUE=([(*(*info).dispparams).toffset_main, $
-          (*(*info).dispparams).toffset_ref, 0])[(*(*info).dispparams).master_time]
-      ; ==================== Spectral Tab ====================
-      ; Spectral range
-			WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, $
-        SET_VALUE = STRTRIM((*(*info).dispparams).lp_low,2), $
-        SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, $
-        SET_VALUE = STRTRIM((*(*info).dispparams).lp_upp,2), $
-        SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, $
-        SENSITIVE = ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp)
-      ; Spectral blink
-    	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, $
-        SET_SLIDER_MIN=(*(*info).dispparams).lp_low, $
-        SET_SLIDER_MAX=(*(*info).dispparams).lp_upp, SET_VALUE=(*(*info).dataparams).lp, $
-        SENSITIVE=(((*(*info).dispparams).lp_range-1) NE 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
-        SET_BUTTON=(*(*info).pbparams).spmode, $
-        SENSITIVE=(((*(*info).dataparams).nlp GT 1) AND $
-                   ((*(*info).winswitch).showimref EQ 0))
-      ; Reference spectrum
-			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, $
-        SET_BUTTON=((*(*info).ctrlsswitch).lp_ref_lock AND $
-                   ((*(*info).dataparams).refnlp GT 1)), $
-				SENSITIVE=(((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND $
-                   ((*(*info).dataparams).refnlp GT 1))
-			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, $
-        SET_VALUE = (*(*info).dataparams).lp_ref, $
-        SENSITIVE = ((*(*info).dataswitch).refspfile AND $
-                    ABS((*(*info).ctrlsswitch).lp_ref_lock-1))
-      ; Spectrum along slit
-			WIDGET_CONTROL, (*(*info).ctrlscp).phi_slider, $
-        SET_VALUE = (*(*info).phiparams).angle, SENSITIVE = (*(*info).winswitch).showphis
-			WIDGET_CONTROL, (*(*info).ctrlscp).nphi_slider, $
-        SET_VALUE = (*(*info).phiparams).nphi_set, $
-        SENSITIVE = (*(*info).winswitch).showphis
-			; ==================== Spatial Tab ====================
-      ; Set cursor sliders and lock/unlock buttons
-			CRISPEX_COORDSLIDERS_SET, ABS((*(*info).curs).lockset-1), $
-        ABS((*(*info).curs).lockset-1), event
-      ; Set zooming buttons
-			IF ((*(*info).zooming).factor NE 1) THEN CRISPEX_ZOOM, event, /NO_DRAW
-      set_zoomfac = CRISPEX_BGROUP_ZOOMFAC_SET(event, /NO_DRAW, /NO_UPDATE_SLIDERS, $
-        SET_FACTOR=WHERE((*(*info).zooming).factors EQ (*(*info).zooming).factor))
-      ; Set scrolling sliders
-			WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SET_VALUE = (*(*info).zooming).xpos, $
-        SENSITIVE = ((*(*info).zooming).factor NE 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SET_VALUE = (*(*info).zooming).ypos, $
-        SENSITIVE = ((*(*info).zooming).factor NE 1)
-			; ==================== Diagnostics Tab ====================
-      FOR i=0,N_ELEMENTS((*(*info).stokesparams).button_labels)-1 DO BEGIN
-        ; Stokes parameter available in data?
-        stokes_enabled = (WHERE(((*(*info).stokesparams).labels) EQ $
-                                 (*(*info).stokesparams).button_labels[i]) GE 0)
-        ; Stokes parameter selected for detailed spectrum plot?
-			  stokes_sp_select = (*(*info).stokesparams).labels[$
-                           (WHERE((*(*info).stokesparams).select_sp EQ 1))]
-        ; Determine setting of buttons accordingly
-        stokes_sp_set = (WHERE(stokes_sp_select EQ (*(*info).stokesparams).button_labels[i]) GE 0)
-        ; Total number of selected Stokes parameters for detailed spectrum plot?
-        total_sp_select = TOTAL((*(*info).stokesparams).select_sp)
-        ; Set Stokes image buttons
-        WIDGET_CONTROL, (*(*info).ctrlscp).stokes_button_ids[i], SENSITIVE=stokes_enabled, $
-          SET_BUTTON = (((*(*info).stokesparams).labels)[(*(*info).dataparams).s] EQ $
-                         (*(*info).stokesparams).button_labels[i])
-        ; Set Stokes detailed spectrum buttons
-        WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[i], SET_BUTTON=stokes_sp_set, $
-          SENSITIVE=(stokes_enabled AND ((total_sp_select GT 1) OR $
-                                         (total_sp_select AND ABS(stokes_sp_set-1))))
-      ENDFOR
-			IF ((*(*info).dataparams).nlp EQ 1) THEN $
-        WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[0], SET_BUTTON = 0
-      ; Spectral window settings
-      IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-        set = [((*(*info).intparams).ndisp_diagnostics EQ $
-                (*(*info).intparams).ndiagnostics),$
-                ((*(*info).intparams).disp_diagnostics EQ $
-                  REPLICATE(1,(*(*info).intparams).ndiagnostics))]
-        sens = [((*(*info).intparams).ndisp_diagnostics NE $
-                (*(*info).intparams).ndiagnostics),$
-                (((*(*info).intparams).disp_diagnostics NE $
-                  REPLICATE(1,(*(*info).intparams).ndiagnostics)) OR $
-                (((*(*info).intparams).disp_diagnostics EQ $
-                  REPLICATE(1,(*(*info).intparams).ndiagnostics)) AND $
-                 ((*(*info).intparams).ndisp_diagnostics NE 1)))]
-        FOR i=0,(*(*info).intparams).ndiagnostics DO $
-          WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i], SENSITIVE=sens[i], $
-            SET_BUTTON=set[i]
-      ENDIF
-      IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
-        refset = [((*(*info).intparams).ndisp_refdiagnostics EQ $
-                    (*(*info).intparams).nrefdiagnostics),$
-                ((*(*info).intparams).disp_refdiagnostics EQ $
-                  REPLICATE(1,(*(*info).intparams).nrefdiagnostics))]
-        refsens = [((*(*info).intparams).ndisp_refdiagnostics NE $
-                    (*(*info).intparams).nrefdiagnostics),$
-                (((*(*info).intparams).disp_refdiagnostics NE $
-                  REPLICATE(1,(*(*info).intparams).nrefdiagnostics)) OR $
-                (((*(*info).intparams).disp_refdiagnostics EQ $
-                  REPLICATE(1,(*(*info).intparams).nrefdiagnostics)) AND $
-                 ((*(*info).intparams).ndisp_refdiagnostics NE 1)))]
-        FOR i=0,(*(*info).intparams).nrefdiagnostics DO $
-          WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[i], $
-            SENSITIVE=refsens[i], SET_BUTTON=refset[i]
-      ENDIF
-			; ==================== Displays Tab ====================
-			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_im_but, $
-        SET_BUTTON = ABS((*(*info).ctrlsswitch).imrefdetspect-1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_ref_but, $
-        SET_BUTTON = (*(*info).ctrlsswitch).imrefdetspect, $
-        SENSITIVE = (*(*info).dataswitch).refspfile
-			CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
-			WIDGET_CONTROL, (*(*info).ctrlscp).sp_toggle_but, $
-        SET_BUTTON = (*(*info).winswitch).showsp
-			WIDGET_CONTROL, (*(*info).ctrlscp).phis_toggle_but, $
-        SET_BUTTON = (*(*info).winswitch).showphis
-			WIDGET_CONTROL, (*(*info).ctrlscp).refsp_toggle_but, $
-        SET_BUTTON = (*(*info).winswitch).showrefsp, $
-        SENSITIVE = (*(*info).dataswitch).refspfile
-			WIDGET_CONTROL, (*(*info).ctrlscp).int_toggle_but, $
-        SET_BUTTON = (*(*info).winswitch).showint, $
-        SENSITIVE = (*(*info).dataswitch).spfile
-			WIDGET_CONTROL, (*(*info).ctrlscp).reference_but, $
-        SET_BUTTON = (*(*info).winswitch).showref, SENSITIVE = (*(*info).dataswitch).reffile
-			WIDGET_CONTROL, (*(*info).ctrlscp).doppler_but, $
-        SET_BUTTON = (*(*info).winswitch).showdop, $
-        SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-			; ==================== Scaling Tab ====================
-      WIDGET_CONTROL, (*(*info).ctrlscp).scaling_cbox, $
-        SET_COMBOBOX_SELECT=(*(*info).scaling).imrefscaling
-			CRISPEX_SCALING_SET_BOXBUTTONS, event
-			CRISPEX_SCALING_SET_SLIDERS, event
-			; ==================== Analysis Tab ====================
-			; Space-time diagram
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, $
-        SET_BUTTON = ((*(*info).loopparams).np GE 2), $
-        SENSITIVE = ABS((*(*info).meas).spatial_measurement-1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_feedb_but, $
-        SET_BUTTON = (*(*info).overlayswitch).looppath_feedback
-			WIDGET_CONTROL, (*(*info).ctrlscp).rem_loop_pt_but, $
-        SENSITIVE = ((*(*info).loopparams).np GE 3)
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_slice_but, $
-        SENSITIVE = (ABS((*(*info).winswitch).showloop-1) AND $
-        ABS((*(*info).meas).spatial_measurement-1) AND ((*(*info).loopparams).np GE 2))
-      ; Measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).measure_but, $
-        SET_BUTTON = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, $
-        SENSITIVE = (*(*info).meas).spatial_measurement
-	    WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, $
-        SENSITIVE = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, $
-        SET_VALUE = STRTRIM((*(*info).meas).arcsecpix,2), $
-        SENSITIVE = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_lab, $
-        SENSITIVE = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, $
-        SENSITIVE = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_lab, $
-        SENSITIVE = (*(*info).meas).spatial_measurement
-			WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_text, $
-        SENSITIVE = (*(*info).meas).spatial_measurement
-			; ==================== Overlays Tab ====================
-			; Mask
-			WIDGET_CONTROL, (*(*info).ctrlscp).masks_overlay_ct_cbox, $
-        SET_COMBOBOX_SELECT = (*(*info).overlayparams).maskct, $
-        SENSITIVE = (*(*info).overlayswitch).mask
-			WIDGET_CONTROL, (*(*info).ctrlscp).masks_overlay_col_slid, $
-        SET_VALUE = (*(*info).overlayparams).maskcolor, $
-        SENSITIVE = (*(*info).overlayswitch).mask
-			CRISPEX_MASK_BUTTONS_SET, event
-      ; Loop overlays
-			WIDGET_CONTROL, (*(*info).ctrlscp).overlay_but, $
-        SET_BUTTON = (*(*info).loopswitch).restore_loops
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_all, $
-        SET_BUTTON = (*(*info).overlayswitch).overlalways, $
-        SENSITIVE = (*(*info).loopswitch).restore_loops
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, $
-        SET_BUTTON = ABS((*(*info).overlayswitch).overlalways-1), $
-        SENSITIVE = (*(*info).loopswitch).restore_loops
-			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_0, $
-        SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 0)
-			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_1, $
-        SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 1)
-			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_2, $
-        SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 2)
-      ; Raster overlays
-      WIDGET_CONTROL, (*(*info).ctrlscp).raster_button, $
-        SENSITIVE=(*(*info).dataswitch).sjifile, $
-        SET_BUTTON=(*(*info).overlayswitch).sjiraster
-			IF (*(*info).meas).spatial_measurement THEN CRISPEX_MEASURE_CALC, event
-			; Open windows for replotting and replot
-			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Opening windows and refreshing displays...'
-			IF (*(*info).winswitch).showref THEN BEGIN
-				(*(*info).winswitch).showref = 0
-				CRISPEX_DISPLAYS_REF_TOGGLE, event, /NO_DRAW
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDIF
-			IF (*(*info).winswitch).showdop THEN BEGIN
-				(*(*info).winswitch).showdop = 0
-				CRISPEX_DISPLAYS_DOPPLER_TOGGLE, event, /NO_DRAW
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDIF
-			IF (*(*info).winswitch).showimref THEN BEGIN
-				(*(*info).winswitch).showimref = 0
-				CRISPEX_DISPLAYS_IMREFBLINK_TOGGLE, event
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDIF
-			IF (*(*info).winswitch).showsp THEN BEGIN
-				(*(*info).winswitch).showsp = 0
-				CRISPEX_DISPLAYS_SP_TOGGLE, event, /NO_DRAW
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDIF
-			IF (*(*info).winswitch).showrefsp THEN BEGIN
-				(*(*info).winswitch).showrefsp = 0
-				CRISPEX_DISPLAYS_REFSP_TOGGLE, event, /NO_DRAW
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDIF
-			showimref_ls = [(*(*info).winswitch).showls, (*(*info).winswitch).showrefls]
-			FOR i = 0,1 DO BEGIN
-				IF showimref_ls[i] THEN BEGIN
-					set_imrefdetspect = (*(*info).ctrlsswitch).imrefdetspect
-					(*(*info).ctrlsswitch).imrefdetspect = i
-					IF (i EQ 0) THEN (*(*info).winswitch).showls = 0 ELSE (*(*info).winswitch).showrefls = 0
-					CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, /NO_DRAW
-					WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-					(*(*info).ctrlsswitch).imrefdetspect = set_imrefdetspect
-				ENDIF
-			ENDFOR
-			IF (*(*info).winswitch).showint THEN BEGIN
-				(*(*info).winswitch).showint = 0
-				CRISPEX_DISPLAYS_INT_TOGGLE, event, /NO_DRAW
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDIF
-			old_cfilecount = (*(*info).restoreparams).cfilecount
-			CRISPEX_FIND_CSAV, event
-			IF ((*(*info).loopswitch).restore_loops AND ((*(*info).restoreparams).cfilecount EQ old_cfilecount)) THEN BEGIN
-				CRISPEX_RESTORE_LOOPS_MENU, event, *(*(*info).restoreparams).sel_loops
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-				WIDGET_CONTROL, (*(*info).ctrlsrestore).sel_all, SET_BUTTON = (TOTAL(*(*(*info).restoreparams).sel_loops) EQ N_ELEMENTS(*(*(*info).restoreparams).sel_loops))
-				WIDGET_CONTROL, (*(*info).ctrlsrestore).sel_none, SET_BUTTON = (TOTAL(*(*(*info).restoreparams).sel_loops) EQ 0)
-				WIDGET_CONTROL, (*(*info).ctrlsrestore).disp_list, GET_VALUE = list_values
-				IF (*(*info).winswitch).showrestloop THEN BEGIN
-					FOR i=0,N_ELEMENTS(*(*(*info).restoreparams).disp_loopnr)-1 DO BEGIN
-						list_values[(*(*(*info).restoreparams).disp_loopnr)[i]+1] = 'Hide time slice '+STRTRIM((*(*(*info).restoreparams).disp_loopnr)[i],2)
-						(*(*info).restoreparams).disp_loopfile = (*(*(*info).restoreparams).cfiles)[(*(*(*info).restoreparams).disp_loopnr)[i]]
-						CRISPEX_DISPLAYS_RESTORE_LOOPSLAB, event, /NO_DRAW, INDEX=i
-					ENDFOR
-				ENDIF ELSE FOR i=1,N_ELEMENTS(list_values)-1 DO list_values[i] = 'Display time slice '+STRTRIM(i-1,2)
-				WIDGET_CONTROL, (*(*info).ctrlsrestore).disp_list, SET_VALUE = list_values, SET_COMBOBOX_SELECT = (*(*(*info).restoreparams).disp_loopnr)[0]+1
-			ENDIF ELSE BEGIN			; Add error message
-				(*(*info).loopswitch).restore_loops = 0	
-				(*(*info).winswitch).showrestloop = 0
-			ENDELSE
-			old_clfilecount = (*(*info).retrparams).clfilecount
-			CRISPEX_FIND_CLSAV, event
-			IF ((*(*info).loopswitch).retrieve_loops AND ((*(*info).retrparams).clfilecount EQ old_clfilecount)) THEN BEGIN
-				CRISPEX_RETRIEVE_LOOP_MENU, event, *(*(*info).retrparams).sel_loops
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-				WIDGET_CONTROL, (*(*info).ctrlsloop).sel_all, SET_BUTTON = (TOTAL(*(*(*info).retrparams).sel_loops) EQ N_ELEMENTS(*(*(*info).retrparams).sel_loops))
-				WIDGET_CONTROL, (*(*info).ctrlsloop).sel_none, SET_BUTTON = (TOTAL(*(*(*info).retrparams).sel_loops) EQ 0)
-				WIDGET_CONTROL, (*(*info).ctrlsloop).all_pos, SET_BUTTON = (*(*info).savswitch).all_pos_loops
-				WIDGET_CONTROL, (*(*info).ctrlsloop).saved_pos, SET_BUTTON = ABS((*(*info).savswitch).all_pos_loops-1)
-				WIDGET_CONTROL, (*(*info).ctrlsloop).del_files, SET_BUTTON = (*(*info).savswitch).delete_clsav
-				WIDGET_CONTROL, (*(*info).ctrlsloop).keep_files, SET_BUTTON = ABS((*(*info).savswitch).delete_clsav-1)
-				WIDGET_CONTROL, (*(*info).ctrlsloop).save_imonly, SET_BUTTON = ((*(*info).savswitch).imref_only EQ 1)
-				WIDGET_CONTROL, (*(*info).ctrlsloop).save_refonly, SET_BUTTON = ((*(*info).savswitch).imref_only EQ 2)
-				WIDGET_CONTROL, (*(*info).ctrlsloop).save_imref, SET_BUTTON = ((*(*info).savswitch).imref_only EQ 3)
-			ENDIF ELSE (*(*info).loopswitch).retrieve_loops = 0	; Add error message
-			detfile = FILE_SEARCH((*(*info).detparams).detfilename, COUNT=detcount)
-			IF ((*(*info).loopswitch).retrieve_detfile AND (detcount EQ 1)) THEN BEGIN
-				CRISPEX_RETRIEVE_DET_FILE_MENU, event, *(*(*info).detparams).sel_dets, DETFILENAME=(*(*info).detparams).detfilename, /NO_DRAW
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-				WIDGET_CONTROL, (*(*info).ctrlsdet).sel_all, SET_BUTTON = (TOTAL(*(*(*info).detparams).sel_dets) EQ N_ELEMENTS(*(*(*info).detparams).sel_dets))
-				WIDGET_CONTROL, (*(*info).ctrlsdet).sel_none, SET_BUTTON = (TOTAL(*(*(*info).detparams).sel_dets) EQ 0)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).disp_list, SET_COMBOBOX_SELECT = (*(*info).detparams).idx+1
-				WIDGET_CONTROL, (*(*info).ctrlsdet).overlay_all, SET_BUTTON = (*(*info).overlayswitch).det_overlay_all
-				WIDGET_CONTROL, (*(*info).ctrlsdet).overlay_sel, SET_BUTTON = ABS((*(*info).overlayswitch).det_overlay_all-1)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).width_slider, SET_VALUE = (*(*info).detparams).width
-				WIDGET_CONTROL, (*(*info).ctrlsdet).all_pos, SET_BUTTON = ((*(*info).savswitch).pos_dets EQ 1)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).saved_pos, SET_BUTTON = ((*(*info).savswitch).pos_dets EQ 2)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).sel_range_pos, SET_BUTTON = ((*(*info).savswitch).pos_dets EQ 3)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmin_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmax_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).refdlpmin_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).refdlpmax_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).save_imonly, SET_BUTTON = ((*(*info).savswitch).det_imref_only EQ 1)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).save_refonly, SET_BUTTON = ((*(*info).savswitch).det_imref_only EQ 2)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).save_imref, SET_BUTTON = ((*(*info).savswitch).det_imref_only EQ 3)
-				WIDGET_CONTROL, (*(*info).ctrlsdet).get_dets, SENSITIVE = (TOTAL(*(*(*info).detparams).sel_dets) GE 1)
-				IF (*(*info).winswitch).showretrdet THEN CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB, event, /NO_DRAW
-				CRISPEX_DISPRANGE_LP_RANGE, event
-				CRISPEX_UPDATE_LP, event
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDIF ELSE (*(*info).loopswitch).retrieve_detfile = 0	; Add error message
-			IF (*(*info).winswitch).showloop THEN BEGIN
-				CRISPEX_DISPLAYS_LOOPSLAB, event, /NO_DRAW
-				IF (*(*info).winswitch).showrefloop THEN CRISPEX_DISPLAYS_REFLOOPSLAB, event, /NO_DRAW
-				CRISPEX_UPDATE_LP, event
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDIF
-			IF (*(*info).winswitch).showphis THEN BEGIN
-				(*(*info).winswitch).showphis = 0
-				IF ((*(*info).dataparams).nt EQ 1) THEN CRISPEX_UPDATE_T, event
-				CRISPEX_DISPLAYS_PHIS_TOGGLE, event
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDIF ELSE BEGIN
-				CRISPEX_UPDATE_T, event
-				CRISPEX_DRAW, event
-				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
-			ENDELSE
-			; Menu
-			IF (*(*info).winswitch).dispwids THEN BEGIN
-				(*(*info).winswitch).dispwids = 0
-				CRISPEX_DISPWIDS, event
-			ENDIF
-			CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
-			(*(*(*info).sesparams).sessions)[WHERE(*(*(*info).sesparams).sessions EQ 1)] = 0
-			WIDGET_CONTROL, (*(*info).winids).restsestlb, /DESTROY
-			(*(*info).winids).restsestlb = 0
-		ENDIF ELSE BEGIN
-			CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
-			CRISPEX_WINDOW_OK, event,'ERROR!',$
-        'Unable to restore earlier session due to incompatibility '+$
-        'between currently and earlier loaded data.',$
-				OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
-			(*(*info).winids).errtlb = tlb
-		ENDELSE
-	ENDIF ELSE BEGIN
-		CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
-		IF (N_ELEMENTS(versioninfo) GT 0) THEN message4 = 'Session was saved with CRISPEX v'+versioninfo.version_number+' (rev '+versioninfo.revision_number+').' ELSE message4 = ''
-		CRISPEX_WINDOW_OK, event,'ERROR!',$
-      'Unable to restore earlier session due to incompatibility between '+$
-      'saved and expected session save file format. Running version of '+$
-			'CRISPEX requires a session saved with CRISPEX v1.6 (rev 542) or later. '+$
-      message4, OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
-		(*(*info).winids).errtlb = tlb
-	ENDELSE
+  wheresessel = WHERE(*(*(*info).sesparams).sessions EQ 1, count)
+  IF (count GT 0) THEN BEGIN
+  	restore_session = (*(*(*info).sesparams).csesfiles)[wheresessel]
+  	RESTORE, restore_session
+  	; Check revision number
+  	IF (N_ELEMENTS(versioninfo) GT 0) THEN cont = (versioninfo.revision_number GE '546') ELSE cont = 0
+  	IF cont THEN BEGIN
+  		IF (((*(*info).dataparams).imfilename EQ dataparams.imfilename) AND ((*(*info).dataparams).spfilename EQ dataparams.spfilename) AND $
+  			((*(*info).dataparams).refimfilename EQ dataparams.refimfilename) AND ((*(*info).dataparams).refspfilename EQ dataparams.refspfilename)) THEN BEGIN
+  			; Kill all open windows (except control panel and main image window)
+  			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Closing open windows...'
+  			IF ((*(*info).winids).sptlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).sptlb, /DESTROY 
+  				(*(*info).winids).sptlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).lstlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).lstlb, /DESTROY
+  				(*(*info).winids).lstlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).phistlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).phistlb, /DESTROY 
+  				(*(*info).winids).phistlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).reftlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).reftlb, /DESTROY 
+  				(*(*info).winids).reftlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).doptlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).doptlb, /DESTROY 
+  				(*(*info).winids).doptlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).imreftlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).imreftlb, /DESTROY 
+  				(*(*info).winids).imreftlb = 0 
+  			ENDIF
+  			IF (TOTAL(*(*(*info).winids).restlooptlb) NE 0) THEN BEGIN 
+  				FOR i=0,N_ELEMENTS(*(*(*info).winids).restlooptlb)-1 DO WIDGET_CONTROL, (*(*(*info).winids).restlooptlb)[i], /DESTROY
+  				(*(*info).winids).restlooptlb = PTR_NEW(0) 
+  			ENDIF
+  			IF ((*(*info).winids).retrdettlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).retrdettlb, /DESTROY 
+  				(*(*info).winids).retrdettlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).looptlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).looptlb, /DESTROY 
+  				(*(*info).winids).looptlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).reflooptlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).reflooptlb, /DESTROY 
+  				(*(*info).winids).reflooptlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).refsptlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).refsptlb, /DESTROY 
+  				(*(*info).winids).refsptlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).reflstlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).reflstlb, /DESTROY 
+  				(*(*info).winids).reflstlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).inttlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).inttlb, /DESTROY 
+  				(*(*info).winids).inttlb = 0 
+  			ENDIF
+  			IF ((*(*info).winids).paramtlb NE 0) THEN BEGIN 
+  				WIDGET_CONTROL, (*(*info).winids).paramtlb, /DESTROY 
+  				(*(*info).winids).paramtlb = 0 
+  			ENDIF
+  			; Restore all parameters, for each parameter checking whether the number of subparameters has changed (if revision_number on session file differs from current CRISPEX)
+  			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Restoring session variables...'
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).ctrlsswitch, ctrlsswitch
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).curs, curs
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).dataparams, dataparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).dataswitch, dataswitch
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).detparams, detparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).dispparams, dispparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).dispswitch, dispswitch
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).intparams, intparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).ioparams, ioparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).loopparams, loopparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).loopswitch, loopswitch
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).meas, meas
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).overlayparams, overlayparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).overlayswitch, overlayswitch
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).paramswitch, paramswitch
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).pbparams, pbparams, NO_RESTORE='BG'
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).phiparams, phiparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plotaxes, plotaxes
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plotparams, plotparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plotpos, plotpos
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plotswitch, plotswitch
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plottitles, plottitles
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).restoreparams, restoreparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).retrparams, retrparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).scaling, scaling
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).savswitch, savswitch
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).stokesparams, stokesparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).winsizes, winsizes
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).winswitch, winswitch
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).zooming, zooming
+  			; Reset controls on control panel given the control switches and other parameters
+  			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, $
+          feedback_text='Resetting control panel controls...'
+        ; ==================== Always visible controls ====================
+        ; Playback controls
+  			WIDGET_CONTROL, (*(*info).ctrlscp).t_slider, SET_VALUE = (*(*info).dispparams).t, $
+          SET_SLIDER_MIN=(*(*info).dispparams).t_low, $
+          SET_SLIDER_MAX=(*(*info).dispparams).t_upp, $
+  				SENSITIVE = ((*(*info).dataparams).nt GT 1)
+  			CRISPEX_PB_BUTTONS_SET, event, $
+          bwd_set=((*(*info).pbparams).direction EQ -1), $
+          pause_set=((*(*info).pbparams).mode EQ 'PAUSE'), $
+          fwd_set=((*(*info).pbparams).direction EQ 1), $
+  				loop_set=((*(*info).pbparams).lmode EQ 'LOOP'),	$
+          cycle_set=((*(*info).pbparams).lmode EQ 'CYCLE'), $
+          blink_set=((*(*info).pbparams).lmode EQ 'BLINK')
+        ; Spectral control
+  			WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_VALUE = (*(*info).dataparams).lp, $
+          SET_SLIDER_MIN = (*(*info).dispparams).lp_low, $
+          SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, $
+  				SENSITIVE = ((*(*info).dataparams).nlp GT 1)
+        ; Cursor lock controls
+  			WIDGET_CONTROL, (*(*info).ctrlscp).lock_button, SET_BUTTON = (*(*info).curs).lockset
+  			WIDGET_CONTROL, (*(*info).ctrlscp).unlock_button, $
+          SET_BUTTON = ABS((*(*info).curs).lockset-1)
+        ; ==================== Playback Tab ====================
+  			WIDGET_CONTROL, (*(*info).ctrlscp).lower_t_text, $
+          SET_VALUE = STRTRIM((*(*info).dispparams).t_low,2), $
+          SENSITIVE = ((*(*info).dataparams).nt GT 1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).upper_t_text, $
+          SET_VALUE = STRTRIM((*(*info).dispparams).t_upp,2), $
+          SENSITIVE = ((*(*info).dataparams).nt GT 1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).reset_trange_but, $
+          SENSITIVE = ((*(*info).dispparams).t_range NE (*(*info).dataparams).nt)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).t_speed_slider, $
+          SET_VALUE = (*(*info).pbparams).t_speed, SENSITIVE = ((*(*info).dataparams).nt GT 1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).t_step_slider, $
+          SET_SLIDER_MAX = (*(*info).dispparams).t_range - 1, $
+          SET_VALUE = (*(*info).pbparams).t_step, $
+  				SENSITIVE = (((*(*info).dispparams).t_range - 1 NE 1) AND $
+                        (*(*info).dataparams).nt GT 1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).imref_blink_but, $
+          SET_BUTTON = (*(*info).winswitch).showimref, $
+          SENSITIVE = (*(*info).dataswitch).reffile
+        ; Master timing
+        showdata = [((*(*info).dataswitch).reffile OR (*(*info).dataswitch).sjifile), $
+          (*(*info).dataswitch).reffile, (*(*info).dataswitch).sjifile]
+        nrasterdims = [SIZE((*(*info).dataparams).tarr_raster_main,/N_DIMENSIONS), $
+                        SIZE((*(*info).dataparams).tarr_raster_ref,/N_DIMENSIONS), 1]
+        FOR i=0,N_ELEMENTS(master_time_labels)-1 DO $
+          WIDGET_CONTROL, (*(*info).ctrlscp).master_time_ids[i], $
+          SET_BUTTON=(i EQ (*(*info).dispparams).master_time), $
+          SENSITIVE=(showdata[i] AND (nrasterdims[i] GE 1))
+        WIDGET_CONTROL, (*(*info).ctrlscp).time_offset_slider, $
+          SENSITIVE=(((nrasterdims[(*(*info).dispparams).master_time] EQ 1) AND $
+            ((*(*info).dataparams).nt EQ 1) AND ((*(*info).dataparams).nx GT 1)) OR $
+            (nrasterdims[(*(*info).dispparams).master_time] EQ 2)), $
+          SET_VALUE=([(*(*info).dispparams).toffset_main, $
+            (*(*info).dispparams).toffset_ref, 0])[(*(*info).dispparams).master_time]
+        ; ==================== Spectral Tab ====================
+        ; Spectral range
+  			WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, $
+          SET_VALUE = STRTRIM((*(*info).dispparams).lp_low,2), $
+          SENSITIVE = ((*(*info).dataparams).nlp GT 1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, $
+          SET_VALUE = STRTRIM((*(*info).dispparams).lp_upp,2), $
+          SENSITIVE = ((*(*info).dataparams).nlp GT 1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, $
+          SENSITIVE = ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp)
+        ; Spectral blink
+      	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, $
+          SET_SLIDER_MIN=(*(*info).dispparams).lp_low, $
+          SET_SLIDER_MAX=(*(*info).dispparams).lp_upp, SET_VALUE=(*(*info).dataparams).lp, $
+          SENSITIVE=(((*(*info).dispparams).lp_range-1) NE 1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
+          SET_BUTTON=(*(*info).pbparams).spmode, $
+          SENSITIVE=(((*(*info).dataparams).nlp GT 1) AND $
+                     ((*(*info).winswitch).showimref EQ 0))
+        ; Reference spectrum
+  			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, $
+          SET_BUTTON=((*(*info).ctrlsswitch).lp_ref_lock AND $
+                     ((*(*info).dataparams).refnlp GT 1)), $
+  				SENSITIVE=(((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND $
+                     ((*(*info).dataparams).refnlp GT 1))
+  			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, $
+          SET_VALUE = (*(*info).dataparams).lp_ref, $
+          SENSITIVE = ((*(*info).dataswitch).refspfile AND $
+                      ABS((*(*info).ctrlsswitch).lp_ref_lock-1))
+        ; Spectrum along slit
+  			WIDGET_CONTROL, (*(*info).ctrlscp).phi_slider, $
+          SET_VALUE = (*(*info).phiparams).angle, SENSITIVE = (*(*info).winswitch).showphis
+  			WIDGET_CONTROL, (*(*info).ctrlscp).nphi_slider, $
+          SET_VALUE = (*(*info).phiparams).nphi_set, $
+          SENSITIVE = (*(*info).winswitch).showphis
+  			; ==================== Spatial Tab ====================
+        ; Set cursor sliders and lock/unlock buttons
+  			CRISPEX_COORDSLIDERS_SET, ABS((*(*info).curs).lockset-1), $
+          ABS((*(*info).curs).lockset-1), event
+        ; Set zooming buttons
+  			IF ((*(*info).zooming).factor NE 1) THEN CRISPEX_ZOOM, event, /NO_DRAW
+        set_zoomfac = CRISPEX_BGROUP_ZOOMFAC_SET(event, /NO_DRAW, /NO_UPDATE_SLIDERS, $
+          SET_FACTOR=WHERE((*(*info).zooming).factors EQ (*(*info).zooming).factor))
+        ; Set scrolling sliders
+  			WIDGET_CONTROL, (*(*info).ctrlscp).xpos_slider, SET_VALUE = (*(*info).zooming).xpos, $
+          SENSITIVE = ((*(*info).zooming).factor NE 1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SET_VALUE = (*(*info).zooming).ypos, $
+          SENSITIVE = ((*(*info).zooming).factor NE 1)
+  			; ==================== Diagnostics Tab ====================
+        FOR i=0,N_ELEMENTS((*(*info).stokesparams).button_labels)-1 DO BEGIN
+          ; Stokes parameter available in data?
+          stokes_enabled = (WHERE(((*(*info).stokesparams).labels) EQ $
+                                   (*(*info).stokesparams).button_labels[i]) GE 0)
+          ; Stokes parameter selected for detailed spectrum plot?
+          wherestokes_sp = WHERE((*(*info).stokesparams).select_sp EQ 1, count)
+          IF (count GT 0) THEN $
+  			    stokes_sp_select = (*(*info).stokesparams).labels[wherestokes_sp] $
+          ELSE $
+  			    stokes_sp_select = ''
+          ; Determine setting of buttons accordingly
+          stokes_sp_set = (WHERE(stokes_sp_select EQ (*(*info).stokesparams).button_labels[i]) GE 0)
+          ; Total number of selected Stokes parameters for detailed spectrum plot?
+          total_sp_select = TOTAL((*(*info).stokesparams).select_sp)
+          ; Set Stokes image buttons
+          WIDGET_CONTROL, (*(*info).ctrlscp).stokes_button_ids[i], SENSITIVE=stokes_enabled, $
+            SET_BUTTON = (((*(*info).stokesparams).labels)[(*(*info).dataparams).s] EQ $
+                           (*(*info).stokesparams).button_labels[i])
+          ; Set Stokes detailed spectrum buttons
+          WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[i], SET_BUTTON=stokes_sp_set, $
+            SENSITIVE=(stokes_enabled AND ((total_sp_select GT 1) OR $
+                                           (total_sp_select AND ABS(stokes_sp_set-1))))
+        ENDFOR
+  			IF ((*(*info).dataparams).nlp EQ 1) THEN $
+          WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[0], SET_BUTTON = 0
+        ; Spectral window settings
+        IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
+          set = [((*(*info).intparams).ndisp_diagnostics EQ $
+                  (*(*info).intparams).ndiagnostics),$
+                  ((*(*info).intparams).disp_diagnostics EQ $
+                    REPLICATE(1,(*(*info).intparams).ndiagnostics))]
+          sens = [((*(*info).intparams).ndisp_diagnostics NE $
+                  (*(*info).intparams).ndiagnostics),$
+                  (((*(*info).intparams).disp_diagnostics NE $
+                    REPLICATE(1,(*(*info).intparams).ndiagnostics)) OR $
+                  (((*(*info).intparams).disp_diagnostics EQ $
+                    REPLICATE(1,(*(*info).intparams).ndiagnostics)) AND $
+                   ((*(*info).intparams).ndisp_diagnostics NE 1)))]
+          FOR i=0,(*(*info).intparams).ndiagnostics DO $
+            WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i], SENSITIVE=sens[i], $
+              SET_BUTTON=set[i]
+        ENDIF
+        IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
+          refset = [((*(*info).intparams).ndisp_refdiagnostics EQ $
+                      (*(*info).intparams).nrefdiagnostics),$
+                  ((*(*info).intparams).disp_refdiagnostics EQ $
+                    REPLICATE(1,(*(*info).intparams).nrefdiagnostics))]
+          refsens = [((*(*info).intparams).ndisp_refdiagnostics NE $
+                      (*(*info).intparams).nrefdiagnostics),$
+                  (((*(*info).intparams).disp_refdiagnostics NE $
+                    REPLICATE(1,(*(*info).intparams).nrefdiagnostics)) OR $
+                  (((*(*info).intparams).disp_refdiagnostics EQ $
+                    REPLICATE(1,(*(*info).intparams).nrefdiagnostics)) AND $
+                   ((*(*info).intparams).ndisp_refdiagnostics NE 1)))]
+          FOR i=0,(*(*info).intparams).nrefdiagnostics DO $
+            WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[i], $
+              SENSITIVE=refsens[i], SET_BUTTON=refset[i]
+        ENDIF
+  			; ==================== Displays Tab ====================
+  			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_im_but, $
+          SET_BUTTON = ABS((*(*info).ctrlsswitch).imrefdetspect-1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_ref_but, $
+          SET_BUTTON = (*(*info).ctrlsswitch).imrefdetspect, $
+          SENSITIVE = (*(*info).dataswitch).refspfile
+  			CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
+  			WIDGET_CONTROL, (*(*info).ctrlscp).sp_toggle_but, $
+          SET_BUTTON = (*(*info).winswitch).showsp
+  			WIDGET_CONTROL, (*(*info).ctrlscp).phis_toggle_but, $
+          SET_BUTTON = (*(*info).winswitch).showphis
+  			WIDGET_CONTROL, (*(*info).ctrlscp).refsp_toggle_but, $
+          SET_BUTTON = (*(*info).winswitch).showrefsp, $
+          SENSITIVE = (*(*info).dataswitch).refspfile
+  			WIDGET_CONTROL, (*(*info).ctrlscp).int_toggle_but, $
+          SET_BUTTON = (*(*info).winswitch).showint, $
+          SENSITIVE = (*(*info).dataswitch).spfile
+  			WIDGET_CONTROL, (*(*info).ctrlscp).reference_but, $
+          SET_BUTTON = (*(*info).winswitch).showref, SENSITIVE = (*(*info).dataswitch).reffile
+  			WIDGET_CONTROL, (*(*info).ctrlscp).doppler_but, $
+          SET_BUTTON = (*(*info).winswitch).showdop, $
+          SENSITIVE = ((*(*info).dataparams).nlp GT 1)
+  			; ==================== Scaling Tab ====================
+        WIDGET_CONTROL, (*(*info).ctrlscp).scaling_cbox, $
+          SET_COMBOBOX_SELECT=(*(*info).scaling).imrefscaling
+  			CRISPEX_SCALING_SET_BOXBUTTONS, event
+  			CRISPEX_SCALING_SET_SLIDERS, event
+  			; ==================== Analysis Tab ====================
+  			; Space-time diagram
+  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, $
+          SET_BUTTON = ((*(*info).loopparams).np GE 2), $
+          SENSITIVE = ABS((*(*info).meas).spatial_measurement-1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_feedb_but, $
+          SET_BUTTON = (*(*info).overlayswitch).looppath_feedback
+  			WIDGET_CONTROL, (*(*info).ctrlscp).rem_loop_pt_but, $
+          SENSITIVE = ((*(*info).loopparams).np GE 3)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_slice_but, $
+          SENSITIVE = (ABS((*(*info).winswitch).showloop-1) AND $
+          ABS((*(*info).meas).spatial_measurement-1) AND ((*(*info).loopparams).np GE 2))
+        ; Measurement
+  			WIDGET_CONTROL, (*(*info).ctrlscp).measure_but, $
+          SET_BUTTON = (*(*info).meas).spatial_measurement
+  			WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, $
+          SENSITIVE = (*(*info).meas).spatial_measurement
+  	    WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, $
+          SENSITIVE = (*(*info).meas).spatial_measurement
+  			WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, $
+          SET_VALUE = STRTRIM((*(*info).meas).arcsecpix,2), $
+          SENSITIVE = (*(*info).meas).spatial_measurement
+  			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_lab, $
+          SENSITIVE = (*(*info).meas).spatial_measurement
+  			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, $
+          SENSITIVE = (*(*info).meas).spatial_measurement
+  			WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_lab, $
+          SENSITIVE = (*(*info).meas).spatial_measurement
+  			WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_text, $
+          SENSITIVE = (*(*info).meas).spatial_measurement
+  			; ==================== Overlays Tab ====================
+  			; Mask
+  			WIDGET_CONTROL, (*(*info).ctrlscp).masks_overlay_ct_cbox, $
+          SET_COMBOBOX_SELECT = (*(*info).overlayparams).maskct, $
+          SENSITIVE = (*(*info).overlayswitch).mask
+  			WIDGET_CONTROL, (*(*info).ctrlscp).masks_overlay_col_slid, $
+          SET_VALUE = (*(*info).overlayparams).maskcolor, $
+          SENSITIVE = (*(*info).overlayswitch).mask
+  			CRISPEX_MASK_BUTTONS_SET, event
+        ; Loop overlays
+  			WIDGET_CONTROL, (*(*info).ctrlscp).overlay_but, $
+          SET_BUTTON = (*(*info).loopswitch).restore_loops
+  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_all, $
+          SET_BUTTON = (*(*info).overlayswitch).overlalways, $
+          SENSITIVE = (*(*info).loopswitch).restore_loops
+  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, $
+          SET_BUTTON = ABS((*(*info).overlayswitch).overlalways-1), $
+          SENSITIVE = (*(*info).loopswitch).restore_loops
+  			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_0, $
+          SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 0)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_1, $
+          SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 1)
+  			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_2, $
+          SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 2)
+        ; Raster overlays
+        WIDGET_CONTROL, (*(*info).ctrlscp).raster_button, $
+          SENSITIVE=(*(*info).dataswitch).sjifile, $
+          SET_BUTTON=(*(*info).overlayswitch).sjiraster
+  			IF (*(*info).meas).spatial_measurement THEN CRISPEX_MEASURE_CALC, event
+  			; Open windows for replotting and replot
+  			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Opening windows and refreshing displays...'
+  			IF (*(*info).winswitch).showref THEN BEGIN
+  				(*(*info).winswitch).showref = 0
+  				CRISPEX_DISPLAYS_REF_TOGGLE, event, /NO_DRAW
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  			ENDIF
+  			IF (*(*info).winswitch).showdop THEN BEGIN
+  				(*(*info).winswitch).showdop = 0
+  				CRISPEX_DISPLAYS_DOPPLER_TOGGLE, event, /NO_DRAW
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  			ENDIF
+  			IF (*(*info).winswitch).showimref THEN BEGIN
+  				(*(*info).winswitch).showimref = 0
+  				CRISPEX_DISPLAYS_IMREFBLINK_TOGGLE, event
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  			ENDIF
+  			IF (*(*info).winswitch).showsp THEN BEGIN
+  				(*(*info).winswitch).showsp = 0
+  				CRISPEX_DISPLAYS_SP_TOGGLE, event, /NO_DRAW
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  			ENDIF
+  			IF (*(*info).winswitch).showrefsp THEN BEGIN
+  				(*(*info).winswitch).showrefsp = 0
+  				CRISPEX_DISPLAYS_REFSP_TOGGLE, event, /NO_DRAW
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  			ENDIF
+  			showimref_ls = [(*(*info).winswitch).showls, (*(*info).winswitch).showrefls]
+  			FOR i = 0,1 DO BEGIN
+  				IF showimref_ls[i] THEN BEGIN
+  					set_imrefdetspect = (*(*info).ctrlsswitch).imrefdetspect
+  					(*(*info).ctrlsswitch).imrefdetspect = i
+  					IF (i EQ 0) THEN (*(*info).winswitch).showls = 0 ELSE (*(*info).winswitch).showrefls = 0
+  					CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, /NO_DRAW
+  					WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  					(*(*info).ctrlsswitch).imrefdetspect = set_imrefdetspect
+  				ENDIF
+  			ENDFOR
+  			IF (*(*info).winswitch).showint THEN BEGIN
+  				(*(*info).winswitch).showint = 0
+  				CRISPEX_DISPLAYS_INT_TOGGLE, event, /NO_DRAW
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  			ENDIF
+  			old_cfilecount = (*(*info).restoreparams).cfilecount
+  			CRISPEX_FIND_CSAV, event
+  			IF ((*(*info).loopswitch).restore_loops AND ((*(*info).restoreparams).cfilecount EQ old_cfilecount)) THEN BEGIN
+  				CRISPEX_RESTORE_LOOPS_MENU, event, *(*(*info).restoreparams).sel_loops
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  				WIDGET_CONTROL, (*(*info).ctrlsrestore).sel_all, SET_BUTTON = (TOTAL(*(*(*info).restoreparams).sel_loops) EQ N_ELEMENTS(*(*(*info).restoreparams).sel_loops))
+  				WIDGET_CONTROL, (*(*info).ctrlsrestore).sel_none, SET_BUTTON = (TOTAL(*(*(*info).restoreparams).sel_loops) EQ 0)
+  				WIDGET_CONTROL, (*(*info).ctrlsrestore).disp_list, GET_VALUE = list_values
+  				IF (*(*info).winswitch).showrestloop THEN BEGIN
+  					FOR i=0,N_ELEMENTS(*(*(*info).restoreparams).disp_loopnr)-1 DO BEGIN
+  						list_values[(*(*(*info).restoreparams).disp_loopnr)[i]+1] = 'Hide time slice '+STRTRIM((*(*(*info).restoreparams).disp_loopnr)[i],2)
+  						(*(*info).restoreparams).disp_loopfile = (*(*(*info).restoreparams).cfiles)[(*(*(*info).restoreparams).disp_loopnr)[i]]
+  						CRISPEX_DISPLAYS_RESTORE_LOOPSLAB, event, /NO_DRAW, INDEX=i
+  					ENDFOR
+  				ENDIF ELSE FOR i=1,N_ELEMENTS(list_values)-1 DO list_values[i] = 'Display time slice '+STRTRIM(i-1,2)
+  				WIDGET_CONTROL, (*(*info).ctrlsrestore).disp_list, SET_VALUE = list_values, SET_COMBOBOX_SELECT = (*(*(*info).restoreparams).disp_loopnr)[0]+1
+  			ENDIF ELSE BEGIN			; Add error message
+  				(*(*info).loopswitch).restore_loops = 0	
+  				(*(*info).winswitch).showrestloop = 0
+  			ENDELSE
+  			old_clfilecount = (*(*info).retrparams).clfilecount
+  			CRISPEX_FIND_CLSAV, event
+  			IF ((*(*info).loopswitch).retrieve_loops AND ((*(*info).retrparams).clfilecount EQ old_clfilecount)) THEN BEGIN
+  				CRISPEX_RETRIEVE_LOOP_MENU, event, *(*(*info).retrparams).sel_loops
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  				WIDGET_CONTROL, (*(*info).ctrlsloop).sel_all, SET_BUTTON = (TOTAL(*(*(*info).retrparams).sel_loops) EQ N_ELEMENTS(*(*(*info).retrparams).sel_loops))
+  				WIDGET_CONTROL, (*(*info).ctrlsloop).sel_none, SET_BUTTON = (TOTAL(*(*(*info).retrparams).sel_loops) EQ 0)
+  				WIDGET_CONTROL, (*(*info).ctrlsloop).all_pos, SET_BUTTON = (*(*info).savswitch).all_pos_loops
+  				WIDGET_CONTROL, (*(*info).ctrlsloop).saved_pos, SET_BUTTON = ABS((*(*info).savswitch).all_pos_loops-1)
+  				WIDGET_CONTROL, (*(*info).ctrlsloop).del_files, SET_BUTTON = (*(*info).savswitch).delete_clsav
+  				WIDGET_CONTROL, (*(*info).ctrlsloop).keep_files, SET_BUTTON = ABS((*(*info).savswitch).delete_clsav-1)
+  				WIDGET_CONTROL, (*(*info).ctrlsloop).save_imonly, SET_BUTTON = ((*(*info).savswitch).imref_only EQ 1)
+  				WIDGET_CONTROL, (*(*info).ctrlsloop).save_refonly, SET_BUTTON = ((*(*info).savswitch).imref_only EQ 2)
+  				WIDGET_CONTROL, (*(*info).ctrlsloop).save_imref, SET_BUTTON = ((*(*info).savswitch).imref_only EQ 3)
+  			ENDIF ELSE (*(*info).loopswitch).retrieve_loops = 0	; Add error message
+  			detfile = FILE_SEARCH((*(*info).detparams).detfilename, COUNT=detcount)
+  			IF ((*(*info).loopswitch).retrieve_detfile AND (detcount EQ 1)) THEN BEGIN
+  				CRISPEX_RETRIEVE_DET_FILE_MENU, event, *(*(*info).detparams).sel_dets, DETFILENAME=(*(*info).detparams).detfilename, /NO_DRAW
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).sel_all, SET_BUTTON = (TOTAL(*(*(*info).detparams).sel_dets) EQ N_ELEMENTS(*(*(*info).detparams).sel_dets))
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).sel_none, SET_BUTTON = (TOTAL(*(*(*info).detparams).sel_dets) EQ 0)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).disp_list, SET_COMBOBOX_SELECT = (*(*info).detparams).idx+1
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).overlay_all, SET_BUTTON = (*(*info).overlayswitch).det_overlay_all
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).overlay_sel, SET_BUTTON = ABS((*(*info).overlayswitch).det_overlay_all-1)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).width_slider, SET_VALUE = (*(*info).detparams).width
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).all_pos, SET_BUTTON = ((*(*info).savswitch).pos_dets EQ 1)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).saved_pos, SET_BUTTON = ((*(*info).savswitch).pos_dets EQ 2)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).sel_range_pos, SET_BUTTON = ((*(*info).savswitch).pos_dets EQ 3)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmin_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).dlpmax_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).refdlpmin_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).refdlpmax_text, SENSITIVE = ((*(*info).savswitch).pos_dets EQ 3)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).save_imonly, SET_BUTTON = ((*(*info).savswitch).det_imref_only EQ 1)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).save_refonly, SET_BUTTON = ((*(*info).savswitch).det_imref_only EQ 2)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).save_imref, SET_BUTTON = ((*(*info).savswitch).det_imref_only EQ 3)
+  				WIDGET_CONTROL, (*(*info).ctrlsdet).get_dets, SENSITIVE = (TOTAL(*(*(*info).detparams).sel_dets) GE 1)
+  				IF (*(*info).winswitch).showretrdet THEN CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB, event, /NO_DRAW
+  				CRISPEX_DISPRANGE_LP_RANGE, event
+  				CRISPEX_UPDATE_LP, event
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  			ENDIF ELSE (*(*info).loopswitch).retrieve_detfile = 0	; Add error message
+  			IF (*(*info).winswitch).showloop THEN BEGIN
+  				CRISPEX_DISPLAYS_LOOPSLAB, event, /NO_DRAW
+  				IF (*(*info).winswitch).showrefloop THEN CRISPEX_DISPLAYS_REFLOOPSLAB, event, /NO_DRAW
+  				CRISPEX_UPDATE_LP, event
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  			ENDIF
+  			IF (*(*info).winswitch).showphis THEN BEGIN
+  				(*(*info).winswitch).showphis = 0
+  				IF ((*(*info).dataparams).nt EQ 1) THEN CRISPEX_UPDATE_T, event
+  				CRISPEX_DISPLAYS_PHIS_TOGGLE, event
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  			ENDIF ELSE BEGIN
+  				CRISPEX_UPDATE_T, event
+  				CRISPEX_DRAW, event
+  				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
+  			ENDELSE
+  			; Menu
+  			IF (*(*info).winswitch).dispwids THEN BEGIN
+  				(*(*info).winswitch).dispwids = 0
+  				CRISPEX_DISPWIDS, event
+  			ENDIF
+  			CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
+  			(*(*(*info).sesparams).sessions)[WHERE(*(*(*info).sesparams).sessions EQ 1)] = 0
+  			WIDGET_CONTROL, (*(*info).winids).restsestlb, /DESTROY
+  			(*(*info).winids).restsestlb = 0
+  		ENDIF ELSE BEGIN
+  			CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
+  			CRISPEX_WINDOW_OK, event,'ERROR!',$
+          'Unable to restore earlier session due to incompatibility '+$
+          'between currently and earlier loaded data.',$
+  				OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
+  			(*(*info).winids).errtlb = tlb
+  		ENDELSE
+  	ENDIF ELSE BEGIN
+  		CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
+  		IF (N_ELEMENTS(versioninfo) GT 0) THEN message4 = 'Session was saved with CRISPEX v'+versioninfo.version_number+' (rev '+versioninfo.revision_number+').' ELSE message4 = ''
+  		CRISPEX_WINDOW_OK, event,'ERROR!',$
+        'Unable to restore earlier session due to incompatibility between '+$
+        'saved and expected session save file format. Running version of '+$
+  			'CRISPEX requires a session saved with CRISPEX v1.6 (rev 542) or later. '+$
+        message4, OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
+  		(*(*info).winids).errtlb = tlb
+  	ENDELSE
+  ENDIF ELSE BEGIN
+  	CRISPEX_WINDOW_OK, event,'ERROR!','No session selected for restore.', $
+  		OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
+  	(*(*info).winids).errtlb = tlb
+  ENDELSE
 END
 
 ;================================================================================= SAVE LOOPSLICE/SLAB PROCEDURES
@@ -11458,9 +11531,9 @@ PRO CRISPEX_SAVE_CHECK_FILENAME, event, extension, ok_event, midtension=midtensi
 	IF (N_ELEMENTS(midtension) GT 0) THEN midtension = midtension ELSE midtension = ''
 	full_session_filename = session_filename+midtension+'.'+extension
 	compressedfilename = STRCOMPRESS(full_session_filename, /REMOVE_ALL)
-	existing = WHERE(STRPOS(csesfiles,(*(*info).paths).opath+full_session_filename) EQ 0)
-	IF (existing EQ -1) AND (session_filename NE '') AND (compressedfilename EQ full_session_filename)  AND ((*(*info).paths).opath_write EQ 1) THEN CRISPEX_SAVE_CONTINUE, event, session_filename $
-	ELSE IF (existing EQ -1) AND (session_filename EQ '') OR (compressedfilename NE full_session_filename) THEN BEGIN
+	existing = WHERE(STRPOS(csesfiles,(*(*info).paths).opath+full_session_filename) EQ 0, count)
+	IF (count LE 0) AND (session_filename NE '') AND (compressedfilename EQ full_session_filename)  AND ((*(*info).paths).opath_write EQ 1) THEN CRISPEX_SAVE_CONTINUE, event, session_filename $
+	ELSE IF (count LE 0) AND (session_filename EQ '') OR (compressedfilename NE full_session_filename) THEN BEGIN
 		CRISPEX_WINDOW_OK, event,'ERROR!',$
       'Invalid filename. Please enter a filename of '+$
       'at least one character and without any white spaces.',$
@@ -12346,26 +12419,27 @@ PRO CRISPEX_UPDATE_SSP, event
 ; Handles updating the detailed spectrum
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-  wheres = WHERE((*(*info).stokesparams).select_sp EQ 1) 
-
-	FOR i=0,TOTAL((*(*info).stokesparams).select_sp)-1 DO BEGIN
-  		IF ((*(*info).dataswitch).spfile EQ 1) THEN BEGIN
-        spidx = FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * $
-                    (*(*info).dataparams).ns + $
-  				      FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns + wheres[i]  
-  			ssp = ( ( *(*(*info).data).spdata)[spidx] )
-  		ENDIF ELSE BEGIN    ; If no spectral cube supplied, determine from image cube
-  			IF (*(*info).dataswitch).onecube THEN $
-				  ssp = (*(*(*info).data).sspscan)[$
-            FIX((*(*info).dataparams).x),FIX((*(*info).dataparams).y),$
-            (wheres[i] * (*(*info).dataparams).nlp):((wheres[i]+1) * (*(*info).dataparams).nlp - 1)]  $
-        ELSE $
-				  ssp = (*(*(*info).data).scan)[$
-            FIX((*(*info).dataparams).x),FIX((*(*info).dataparams).y),$
-            (wheres[i] * (*(*info).dataparams).nlp):((wheres[i]+1) * (*(*info).dataparams).nlp -1)]
-  		ENDELSE
-    (*(*info).data).ssp_cur[i] = PTR_NEW(ssp)
-  ENDFOR
+  wheres = WHERE((*(*info).stokesparams).select_sp EQ 1, count) 
+  IF (count GT 0) THEN BEGIN
+  	FOR i=0,TOTAL((*(*info).stokesparams).select_sp)-1 DO BEGIN
+    		IF ((*(*info).dataswitch).spfile EQ 1) THEN BEGIN
+          spidx = FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * $
+                      (*(*info).dataparams).ns + $
+    				      FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns + wheres[i]  
+    			ssp = ( ( *(*(*info).data).spdata)[spidx] )
+    		ENDIF ELSE BEGIN    ; If no spectral cube supplied, determine from image cube
+    			IF (*(*info).dataswitch).onecube THEN $
+  				  ssp = (*(*(*info).data).sspscan)[$
+              FIX((*(*info).dataparams).x),FIX((*(*info).dataparams).y),$
+              (wheres[i] * (*(*info).dataparams).nlp):((wheres[i]+1) * (*(*info).dataparams).nlp - 1)]  $
+          ELSE $
+  				  ssp = (*(*(*info).data).scan)[$
+              FIX((*(*info).dataparams).x),FIX((*(*info).dataparams).y),$
+              (wheres[i] * (*(*info).dataparams).nlp):((wheres[i]+1) * (*(*info).dataparams).nlp -1)]
+    		ENDELSE
+      (*(*info).data).ssp_cur[i] = PTR_NEW(ssp)
+    ENDFOR
+  ENDIF
 END
 
 PRO CRISPEX_UPDATE_REFSSP, event
@@ -12713,7 +12787,7 @@ END
 PRO CRISPEX_VERBOSE_GET_ROUTINE, event, rname, IGNORE_LAST=ignore_last
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	prespace = STRJOIN(REPLICATE('  ',SCOPE_LEVEL()-2))
-  rname = (SCOPE_TRACEBACK(/STRUCTURE))[-2].ROUTINE
+  rname = (SCOPE_TRACEBACK(/STRUCTURE))[N_ELEMENTS(SCOPE_TRACEBACK(/STRUCTURE))-2].ROUTINE
 	IF KEYWORD_SET(IGNORE_LAST) THEN (*(*info).feedbparams).last_routine = ''
 	IF ((rname NE (*(*info).feedbparams).last_routine) AND $
     ((*(*info).feedbparams).last_routine_count GT 0)) THEN PRINT,''
@@ -13117,7 +13191,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 				routine_name[i] = splitline[0]
 				instance_id[i] = splitline[3]
 			ENDFOR
-			where_crispex = WHERE(routine_name EQ 'CRISPEX')
+			where_crispex = WHERE(routine_name EQ 'CRISPEX', count)
 			OPENU, unit2, dir_settings+instfilename, WIDTH = 360, /GET_LUN, /APPEND
 		ENDIF ELSE BEGIN              ; If no inst file present for current hostname, make one
 			IF (verbosity[1] EQ 1) THEN BEGIN
@@ -13128,7 +13202,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 			OPENW, unit2, dir_settings+instfilename, WIDTH = 360, /GET_LUN
 			PRINTF, unit2, '# routine_name	version		revision	ID'
 		ENDELSE
-		IF (where_crispex[0] NE -1) THEN $
+		IF (count GT 0) THEN $
       set_instance_id = STRTRIM((instance_id[where_crispex])[WHERE(instance_id[where_crispex] EQ $
                         MAX(instance_id[where_crispex], /NAN))] + 1,2) $
     ELSE $
@@ -14773,10 +14847,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 		  t_idx_val = WIDGET_LABEL(params_main_base, VALUE=STRING(LONG(t_start),$
         FORMAT=t_idx_format), /ALIGN_RIGHT)
       IF dt_set THEN BEGIN
-        IF (hdr.mainnt GT 1) THEN $
-          t_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_main[$
-            (WHERE(hdr.tarr_main GT 0))[-1]]))+3,2)+'.1)' $
-        ELSE $
+        IF (hdr.mainnt GT 1) THEN BEGIN
+          wheretgt0 = WHERE(hdr.tarr_main GT 0, count)
+          IF (count GT 0) THEN $
+            t_sel = wheretgt0[count-1] $
+          ELSE $
+            t_sel = 0
+          t_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_main[t_sel]))+3,2)+'.1)' 
+        ENDIF ELSE $
           t_real_format = '(F3.1)'
         t_real_txt = STRING(hdr.tarr_main[t_start], FORMAT=t_real_format)
 		    t_real_val = WIDGET_LABEL(params_main_base, VALUE=t_real_txt, /ALIGN_RIGHT)
@@ -14786,8 +14864,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
         t_real_val = 0
       ENDELSE
       IF raster_time_fb THEN BEGIN
-        t_raster_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_main[x_start,$
-          (WHERE(hdr.tarr_raster_main[x_start,*] GT 0))[-1]]))+3,2)+'.1)'
+        ; Check where raster times greater than 0
+        wheretgt0 = WHERE(hdr.tarr_raster_main[x_start,*] GT 0, count)
+        IF (count GT 0) THEN $
+          t_sel = wheretgt0[count-1] $
+        ELSE $
+          t_sel = 0
+        t_raster_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_main[$
+          x_start,t_sel]))+3,2)+'.1)'
         t_raster_real_txt = STRING(hdr.tarr_raster_main[x_start,t_start], $
           FORMAT=t_raster_real_format)
       ENDIF ELSE BEGIN
@@ -14810,8 +14894,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
       ENDELSE
 		  t_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_idx_txt, /ALIGN_RIGHT)
       IF ((hdr.refnt GT 1) AND dt_set) THEN BEGIN
-        t_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_ref[$
-          (WHERE(hdr.tarr_ref GT 0))[-1]]))+3,2)+'.1)'
+        wheretgt0 = WHERE(hdr.tarr_ref GT 0, count)
+        IF (count GT 0) THEN $
+          t_sel = wheretgt0[count-1] $
+        ELSE $
+          t_sel = 0
+        t_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_ref[t_sel]))+3,2)+'.1)'
         t_ref_real_txt = STRING(hdr.tarr_ref[t_start], FORMAT=t_ref_real_format)
       ENDIF ELSE BEGIN
         t_ref_real_format = ''
@@ -14822,8 +14910,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
         t_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_real_txt, $
           /ALIGN_RIGHT)
       IF ((hdr.refnt GT 1) AND refraster_time_fb) THEN BEGIN
+        ; Check where raster times greater than 0
+        wheretgt0 = WHERE(hdr.tarr_raster_ref[x_start,*] GT 0, count)
+        IF (count GT 0) THEN $
+          t_sel = wheretgt0[count-1] $
+        ELSE $
+          t_sel = 0
         t_raster_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_ref[$
-          x_start,(WHERE(hdr.tarr_raster_ref[x_start,*] GT 0))[-1]]))+3,2)+'.1)'
+          x_start,t_sel]))+3,2)+'.1)'
         t_raster_ref_real_txt = STRING(hdr.tarr_raster_ref[x_start,t_start], $
           FORMAT=t_raster_ref_real_format)
       ENDIF ELSE BEGIN
@@ -14844,8 +14938,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
         t_sji_idx_txt = 'N/A'
       ENDELSE
       IF ((hdr.sjint GT 1) AND dt_set) THEN BEGIN
-        t_sji_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_sji[$
-          (WHERE(hdr.tarr_sji GT 0))[-1]]))+3,2)+'.1)'
+        wheretgt0 = WHERE(hdr.tarr_sji GT 0, count)
+        IF (count GT 0) THEN $
+          t_sel = wheretgt0[count-1] $
+        ELSE $
+          t_sel = 0
+        t_sji_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_sji[t_sel]))+3,2)+'.1)'
+;        t_sji_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_sji[$
+;          (WHERE(hdr.tarr_sji GT 0))[-1]]))+3,2)+'.1)'
         t_sji_real_txt = STRING(hdr.tarr_sji[hdr.tsel_sji[t_start]], $
           FORMAT=t_sji_real_format)
       ENDIF ELSE BEGIN
@@ -15229,8 +15329,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     tarr_ref:PTR_NEW(hdr.tarr_ref[hdr.tsel_ref]), $
     tarr_sji:PTR_NEW(hdr.tarr_sji[hdr.tsel_sji]), $
     t:t_start, t_main:hdr.tsel_main[0], t_ref:hdr.tsel_ref[0], t_sji:hdr.tsel_sji[0], $
-    t_low_main:hdr.tarr_main[0], t_upp_main:hdr.tarr_main[hdr.mainnt-1], $
-    t_low_ref:hdr.tarr_ref[0], t_upp_ref:hdr.tarr_ref[hdr.refnt-1], $
+    t_low_main:hdr.tarr_main[0], t_upp_main:hdr.tarr_main[(hdr.mainnt-1)>0], $
+    t_low_ref:hdr.tarr_ref[0], t_upp_ref:hdr.tarr_ref[(hdr.refnt-1)>0], $
     toffset_main:hdr.toffset_main, toffset_ref:hdr.toffset_ref, $
     sjibscale:hdr.sjibscale, sjibzero:hdr.sjibzero $
 	}
