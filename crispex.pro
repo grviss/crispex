@@ -1799,8 +1799,8 @@ PRO CRISPEX_DISPLAYS_INT_MENU, event, XOFFSET=xoffset, YOFFSET=yoffset
 	closebut = WIDGET_BUTTON(button_base, VALUE='   Close   ', $
     EVENT_PRO='CRISPEX_DISPLAYS_INT_MENU_CLOSE')
   ; Start managing
-  IF (N_ELEMENTS(XOFFSET) NE 1) THEN xoffset = (*(*info).winsizes).spxoffset
-  IF (N_ELEMENTS(YOFFSET) NE 1) THEN yoffset = 0
+  IF (N_ELEMENTS(XOFFSET) NE 1) THEN xoffset = (*(*info).winsizes).aboutxoffset
+  IF (N_ELEMENTS(YOFFSET) NE 1) THEN yoffset = (*(*info).winsizes).aboutyoffset
 	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET=xoffset, TLB_SET_YOFFSET=yoffset
 	WIDGET_CONTROL, base, SET_UVALUE = info
 	XMANAGER, 'CRISPEX', base, /NO_BLOCK
@@ -14374,7 +14374,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                             (STRLEN((*hdr.hdrs_sji[0])[0]) GT 0)))
 	restore_session		  = WIDGET_BUTTON(filemenu, VALUE='Load session...', $
                           EVENT_PRO='CRISPEX_SESSION_RESTORE_WINDOW')
-	save_session		    = WIDGET_BUTTON(filemenu, VALUE='Save current...', $
+	save_session		    = WIDGET_BUTTON(filemenu, VALUE='Save session...', $
                           EVENT_PRO='CRISPEX_SESSION_SAVE_WINDOW')
 	save_as_menu		    = WIDGET_BUTTON(filemenu, VALUE='Save as', /SEPARATOR, /MENU)
 	save_as_png_menu	  = WIDGET_BUTTON(save_as_menu, VALUE='PNG', /MENU)
@@ -14429,7 +14429,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                           SENSITIVE=hdr.showref)
   ; Analysis                       
   analysismenu        = WIDGET_BUTTON(menubar, VALUE='Analysis', /MENU)
-  timeslicemenu		    = WIDGET_BUTTON(analysismenu, VALUE = 'Save current space-time diagram', $
+	int_toggle_but		  = WIDGET_BUTTON(analysismenu, VALUE = 'Lightcurve plot', $
+                          EVENT_PRO='CRISPEX_DISPLAYS_INT_TOGGLE', SENSITIVE=(hdr.mainnt GT 1))
+  spacetimemenu       = WIDGET_BUTTON(analysismenu, VALUE='Space-time diagram options', /MENU)
+  timeslicemenu		    = WIDGET_BUTTON(spacetimemenu, VALUE = 'Save current space-time diagram', $
                           /MENU, SENSITIVE=0)
 	approxmenu		      = WIDGET_BUTTON(timeslicemenu, VALUE = 'Approximated loop', /MENU)
 	save_app_slab_but	  = WIDGET_BUTTON(approxmenu, VALUE='All '+STRLOWCASE(sp_h[heightset])+$
@@ -14441,17 +14444,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                           ' positions', EVENT_PRO='CRISPEX_SAVE_EXACT_LOOPSLAB_CHECK')
 	save_ex_slice_but	  = WIDGET_BUTTON(interpolmenu, VALUE='Current '+STRLOWCASE(sp_h[heightset])+$
                           ' position', EVENT_PRO='CRISPEX_SAVE_EXACT_LOOPSLICE')
-	save_loop_pts		    = WIDGET_BUTTON(analysismenu, VALUE='Save current path for later retrieval', $
+	save_loop_pts		    = WIDGET_BUTTON(spacetimemenu, VALUE='Save current path for later retrieval', $
                           EVENT_PRO='CRISPEX_SAVE_LOOP_PTS', SENSITIVE=0)
-	sel_saved_loop		  = WIDGET_BUTTON(analysismenu, VALUE='Save from selected path(s)', /SEPARATOR, $
+	sel_saved_loop		  = WIDGET_BUTTON(spacetimemenu, VALUE='Save from selected path(s)', /SEPARATOR, $
                           EVENT_PRO='CRISPEX_RETRIEVE_LOOP_MENU', SENSITIVE=0)
-	all_saved_loop		  = WIDGET_BUTTON(analysismenu, VALUE='Save from all paths', /MENU, SENSITIVE=0)
+	all_saved_loop		  = WIDGET_BUTTON(spacetimemenu, VALUE='Save from all paths', /MENU, SENSITIVE=0)
 	all_saved_all_pos	  = WIDGET_BUTTON(all_saved_loop, VALUE='At all '+STRLOWCASE(sp_h[heightset])+$
                           ' positions', EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLAB')
 	all_saved_sel_pos	  = WIDGET_BUTTON(all_saved_loop, VALUE = 'At saved '+$
                           STRLOWCASE(sp_h[heightset])+' position', $
                           EVENT_PRO='CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLICE')
-	det_file_loop		    = WIDGET_BUTTON(analysismenu, VALUE='From detection file...', $
+	det_file_loop		    = WIDGET_BUTTON(spacetimemenu, VALUE='From detection file...', $
                           EVENT_PRO='CRISPEX_RETRIEVE_DET_FILE_MENU')
   ; Help
   helpmenu            = WIDGET_BUTTON(menubar, VALUE='Help', /MENU)
@@ -14773,22 +14776,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
   displays_divider1   = CRISPEX_WIDGET_DIVIDER(display_tab)
   ; Other displays base
 	other_label		      = WIDGET_LABEL(display_tab, VALUE = 'Other displays:', /ALIGN_LEFT)
-	other_disp		      = WIDGET_BASE(display_tab, /ROW)
-	slices_label		    = WIDGET_LABEL(other_disp, VALUE = 'Slices:')
-	other_buts		      = WIDGET_BASE(other_disp, /ROW, /NONEXCLUSIVE)
-	sp_toggle_but		    = WIDGET_BUTTON(other_buts, VALUE = lp_h_capital[heightset]+'-t', $
-                          EVENT_PRO = 'CRISPEX_DISPLAYS_SP_TOGGLE', $
-                          TOOLTIP = 'Toggle display temporal '+STRLOWCASE(but_tooltip[heightset]))
-	phis_toggle_but		  = WIDGET_BUTTON(other_buts, VALUE = lp_h_capital[heightset]+'-Phi', $
-                          EVENT_PRO = 'CRISPEX_DISPLAYS_PHIS_TOGGLE', $
-                          TOOLTIP = 'Toggle display '+STRLOWCASE(but_tooltip[heightset])+' along a slit')
-	refsp_toggle_but	  = WIDGET_BUTTON(other_buts, VALUE='Reference '+lp_h_capital[refheightset]+'-t',$
-                          EVENT_PRO = 'CRISPEX_DISPLAYS_REFSP_TOGGLE', $        
-                          TOOLTIP = 'Toggle display reference temporal '+$
-                          STRLOWCASE(but_tooltip[refheightset]))
-	int_toggle_but		  = WIDGET_BUTTON(other_buts, VALUE = 'I-t', $
-                          EVENT_PRO='CRISPEX_DISPLAYS_INT_TOGGLE', SENSITIVE=(hdr.mainnt GT 1), $
-                          TOOLTIP = 'Toggle display intensity versus time plot')
 	images_disp		      = WIDGET_BASE(display_tab, /ROW)
 	images_label		    = WIDGET_LABEL(images_disp, VALUE = 'Images:')
 	images_buts		      = WIDGET_BASE(images_disp, /ROW, /NONEXCLUSIVE)
@@ -14803,6 +14790,18 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
                           EVENT_PRO='CRISPEX_DISPLAYS_SJI_TOGGLE', SENSITIVE = hdr.sjifile, $
                           TOOLTIP='Toggle display slit-jaw image')
   WIDGET_CONTROL, sji_but, SET_BUTTON = hdr.sjifile
+	other_disp		      = WIDGET_BASE(display_tab, /COLUMN, /NONEXCLUSIVE)
+	sp_toggle_but		    = WIDGET_BUTTON(other_disp, VALUE = but_tooltip[heightset]+'-time diagram', $
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_SP_TOGGLE', $
+                          TOOLTIP = 'Toggle display temporal '+STRLOWCASE(but_tooltip[heightset]))
+	phis_toggle_but		  = WIDGET_BUTTON(other_disp, VALUE = but_tooltip[heightset]+' along a slit', $
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_PHIS_TOGGLE', $
+                          TOOLTIP = 'Toggle display '+STRLOWCASE(but_tooltip[heightset])+' along a slit')
+	refsp_toggle_but	  = WIDGET_BUTTON(other_disp, VALUE='Reference '+$$
+                          STRLOWCASE(but_tooltip[refheightset])+'-time diagram',$
+                          EVENT_PRO = 'CRISPEX_DISPLAYS_REFSP_TOGGLE', $        
+                          TOOLTIP = 'Toggle display reference temporal '+$
+                          STRLOWCASE(but_tooltip[refheightset]))
   displays_divider2   = CRISPEX_WIDGET_DIVIDER(display_tab)
 
   ; ==================== Scaling Tab ====================
