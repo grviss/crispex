@@ -550,6 +550,33 @@ FUNCTION CRISPEX_BGROUP_MASK_OVERLAY, event
 	CRISPEX_DRAW, event
 END
 
+FUNCTION CRISPEX_BGROUP_INT_SEL_ALLNONE, event
+; Handles the change in plotting of selected diagnostics
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+  select_all = ABS(event.VALUE-1) ;  event.VALUE = 0: select all, 1: select none
+  IF select_all THEN $
+  	*(*(*info).intparams).seldisp_diagnostics = $
+      REPLICATE(1,N_ELEMENTS(*(*(*info).intparams).seldisp_diagnostics)) $
+  ELSE $
+  	*(*(*info).intparams).seldisp_diagnostics = $
+      REPLICATE(0,N_ELEMENTS(*(*(*info).intparams).seldisp_diagnostics))
+	FOR i=0,N_ELEMENTS(*(*(*info).intparams).seldisp_diagnostics)-1 DO BEGIN
+    btname = 'int_sel_bt_'+STRTRIM(i,2)   ; (De)select button name
+    dgname = 'int_sel_dg_'+STRTRIM(i,2)   ; Diagnostics combobox name
+    lpname = 'int_sel_lp_'+STRTRIM(i,2)   ; Wavelength combobox name
+    lsname = 'int_sel_ls_'+STRTRIM(i,2)   ; Line-style combobox name
+    clname = 'int_sel_cl_'+STRTRIM(i,2)   ; Color combobox name
+		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME=btname), SET_BUTTON=select_all
+		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME=dgname), SENSITIVE=select_all
+		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME=lpname), SENSITIVE=select_all
+		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME=lsname), SENSITIVE=select_all
+		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME=clname), SENSITIVE=select_all
+	ENDFOR		
+	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, SENSITIVE=select_all
+	CRISPEX_DRAW_INT, event
+END
+
 ;------------------------- READ BMP BUTTONS FUNCTION
 FUNCTION CRISPEX_READ_BMP_BUTTONS, filename, srcdir
 ; Handles the reading of (button) BMP files
@@ -1663,82 +1690,147 @@ PRO CRISPEX_DISPLAYS_HEADER_SELECT, event
     SET_VALUE=(*(*(*(*info).dataparams).hdrs[uvals[event.INDEX,0]])[uvals[event.INDEX,1]])
 END
 
-PRO CRISPEX_DISPLAYS_INT_MENU, event, set_but_array
-; Sets up the intensity-time plot options menu
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	WIDGET_CONTROL,/HOURGLASS
-	eventval = INDGEN((*(*info).dataparams).nlp)
-	base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Intensity-time plot options', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
-	disp = WIDGET_BASE(base, /COLUMN)
-	disp2 = WIDGET_BASE(disp, /COLUMN, /FRAME)
-	sel_allnone = WIDGET_BASE(disp2, /ROW)
-	sel_allnone_lab = WIDGET_LABEL(sel_allnone, VALUE = 'Plot selected diagnostics:', /ALIGN_LEFT)
-	sel_allnone_buts = WIDGET_BASE(sel_allnone, /ROW, /EXCLUSIVE)
-	(*(*info).ctrlsint).int_sel_all = WIDGET_BUTTON(sel_allnone_buts, VALUE = 'All', EVENT_PRO = 'CRISPEX_DISPLAYS_INT_SEL_ALL')
-	(*(*info).ctrlsint).int_sel_none = WIDGET_BUTTON(sel_allnone_buts, VALUE = 'None', EVENT_PRO = 'CRISPEX_DISPLAYS_INT_SEL_NONE')
-	IF ((*(*info).dataparams).nlp GT 10) THEN sel_opts = WIDGET_BASE(disp2, /COLUMN, Y_SCROLL_SIZE = 440) ELSE sel_opts = WIDGET_BASE(disp2, /COLUMN)
-	uniq_cols = ((*(*info).intparams).collab_diagnostics)[UNIQ((*(*info).intparams).collab_diagnostics)]
-	FOR i=0,(*(*info).dataparams).nlp-1 DO BEGIN
-		sel_subopts = WIDGET_BASE(sel_opts, /ROW)
-		sel_buts = WIDGET_BASE(sel_subopts, /NONEXCLUSIVE)
-		name = 'int_sel_but_'+STRTRIM(i,2)
-		but_val = ((*(*info).intparams).diagnostics)[i]
-		sel_but = WIDGET_BUTTON(sel_buts, VALUE = but_val, UVALUE = eventval[i], EVENT_PRO = 'CRISPEX_DISPLAYS_INT_MENU_EVENT', UNAME = name)
-		WIDGET_CONTROL, sel_but, SET_BUTTON = ((*(*(*info).intparams).sel_diagnostics)[i] EQ 1)
-		lname = 'int_sel_line_'+STRTRIM(i,2)
-		sel_line_list = WIDGET_COMBOBOX(sel_subopts, VALUE = ((*(*info).intparams).linlab_diagnostics)[0:5], UVALUE = eventval[i], /DYNAMIC_RESIZE, EVENT_PRO = 'CRISPEX_DISPLAYS_INT_SEL_LINE', UNAME = lname)
-		WIDGET_CONTROL, sel_line_list, SET_COMBOBOX_SELECT = ((*(*(*info).intparams).lines_diagnostics)[i] MOD 6), SENSITIVE = ((*(*(*info).intparams).sel_diagnostics)[i] EQ 1) 
-		cname = 'int_sel_cols_'+STRTRIM(i,2)
-		sel_cols_list = WIDGET_COMBOBOX(sel_subopts, VALUE = uniq_cols, UVALUE = eventval[i], EVENT_PRO = 'CRISPEX_DISPLAYS_INT_SEL_COLS', UNAME = cname)
-		WIDGET_CONTROL, sel_cols_list, SET_COMBOBOX_SELECT = WHERE(uniq_cols EQ ((*(*info).intparams).collab_diagnostics)[(*(*(*info).intparams).selcol_diagnostics)[i]]), $
-			SENSITIVE = ((*(*(*info).intparams).sel_diagnostics)[i] EQ 1) 
-	ENDFOR
-	disp_label = WIDGET_LABEL(disp2, VALUE = 'Display options:', /ALIGN_LEFT)
-	yrange_base = WIDGET_BASE(disp2, /ROW)
-	lower_y_label = WIDGET_LABEL(yrange_base, VALUE = 'Lower y-value:')
-	(*(*info).ctrlsint).lower_y_int_text = WIDGET_TEXT(yrange_base, VALUE = STRTRIM((*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s],2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_INT_LOW')
-	upper_y_label = WIDGET_LABEL(yrange_base, VALUE = 'Upper y-value:')
-	(*(*info).ctrlsint).upper_y_int_text = WIDGET_TEXT(yrange_base, VALUE = STRTRIM((*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s],2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_INT_UPP')
-	trange_base = WIDGET_BASE(disp2, /ROW)
-	lower_t_label = WIDGET_LABEL(trange_base, VALUE = 'Lower t-index:')
-	(*(*info).ctrlsint).lower_t_int_text = WIDGET_TEXT(trange_base, VALUE = STRTRIM((*(*info).plotaxes).int_low_t,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_INT_T_LOW')
-	upper_t_label = WIDGET_LABEL(trange_base, VALUE = 'Upper t-index:')
-	(*(*info).ctrlsint).upper_t_int_text = WIDGET_TEXT(trange_base, VALUE = STRTRIM((*(*info).plotaxes).int_upp_t,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_INT_T_UPP')
-	(*(*info).ctrlsint).reset_trange_but = WIDGET_BUTTON(disp2, VALUE = 'Reset temporal boundaries', EVENT_PRO = 'CRISPEX_DISPRANGE_INT_T_RESET', $
-		SENSITIVE = (((*(*info).plotaxes).int_upp_t-(*(*info).plotaxes).int_low_t+1) NE (*(*info).dataparams).nt))
-	lock_base = WIDGET_BASE(disp2, /ROW, /NONEXCLUSIVE)
-	lock_t_range = WIDGET_BUTTON(lock_base, VALUE = 'Lock main to intensity-time temporal range', EVENT_PRO = 'CRISPEX_DISPRANGE_INT_LOCK_T')
-	WIDGET_CONTROL, lock_t_range, SET_BUTTON = (*(*info).intparams).lock_t
-	button_base = WIDGET_BASE(disp2, COLUMN=2, /GRID_LAYOUT, /ALIGN_CENTER)
-	(*(*info).ctrlsint).int_sel_save = WIDGET_BUTTON(button_base, VALUE = 'Save selected', EVENT_PRO = 'CRISPEX_INT_SAVE')
-	closebut = WIDGET_BUTTON(button_base, VALUE = 'Close', EVENT_PRO = 'CRISPEX_DISPLAYS_INT_MENU_CLOSE')
-  wheresel = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1, count)
-	IF (count EQ (*(*info).dataparams).nlp) THEN $
-    WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_all, /SET_BUTTON $
-  ELSE IF (count GT 0) THEN BEGIN
-	  WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_none, /SET_BUTTON
-	  WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, SENSITIVE = 0
+PRO CRISPEX_DISPLAYS_INT_MENU, event, XOFFSET=xoffset, YOFFSET=yoffset
+; Sets up the lightcurve plot options menu
+  WIDGET_CONTROL, event.TOP, GET_UVALUE=info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  nsel_diagnostics = N_ELEMENTS(*(*(*info).intparams).sel_diagnostics)
+;  print,(*(*info).dataparams).lp,(*(*info).intparams).lp_diag_all
+  IF (nsel_diagnostics EQ 1) THEN BEGIN
+    (*(*(*info).intparams).sel_diagnostics)[0] = (*(*info).intparams).lp_diag_all
+    (*(*(*info).intparams).sellp_diagnostics)[0] = (*(*info).dataparams).lp
   ENDIF
-	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = (*(*info).winsizes).spxoffset, $
-    TLB_SET_YOFFSET = 0 
+	eventval = INDGEN(nsel_diagnostics)
+	base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+$
+    ': Lightcurve plot options', GROUP_LEADER = (*(*info).winids).root, $
+    TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
+	disp = WIDGET_BASE(base, /COLUMN)
+  top_opts = WIDGET_BASE(disp, /ROW)
+	sel_allnone = WIDGET_BASE(top_opts, /ROW, /ALIGN_LEFT)
+	sel_allnone_lab = WIDGET_LABEL(sel_allnone, VALUE = 'Plot selected diagnostics:', $
+    /ALIGN_LEFT)
+	sel_allnone_buts = CW_BGROUP(sel_allnone, ['All','None'], BUTTON_UVALUE=INDGEN(2), $
+    IDS=sel_allnone_ids, /EXCLUSIVE, /ROW, EVENT_FUNC='CRISPEX_BGROUP_INT_SEL_ALLNONE', $
+    /NO_RELEASE)
+  ; Set buttons
+  set_allnone_buts = [(TOTAL(*(*(*info).intparams).seldisp_diagnostics) EQ $
+    N_ELEMENTS(*(*(*info).intparams).sel_diagnostics)), $
+    (TOTAL(*(*(*info).intparams).seldisp_diagnostics) EQ 0)]
+  FOR i=0,N_ELEMENTS(sel_allnone_ids)-1 DO $
+    WIDGET_CONTROL, sel_allnone_ids[i], SET_BUTTON=set_allnone_buts[i]
+  (*(*info).ctrlsint).sel_allnone_ids = sel_allnone_ids
+  ; Y-range input boxes
+	yrange_base = WIDGET_BASE(top_opts, /ROW, /ALIGN_RIGHT)
+	lower_y_label = WIDGET_LABEL(yrange_base, VALUE = '     Y-range:')
+	(*(*info).ctrlsint).lower_y_int_text = WIDGET_TEXT(yrange_base, $
+    VALUE=STRTRIM((*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s],2), $
+    /EDITABLE, XSIZE=5, EVENT_PRO='CRISPEX_DISPRANGE_INT_LOW')
+	upper_y_label = WIDGET_LABEL(yrange_base, VALUE = '-')
+	(*(*info).ctrlsint).upper_y_int_text = WIDGET_TEXT(yrange_base, $
+    VALUE=STRTRIM((*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s],2), $
+    /EDITABLE, XSIZE=5, EVENT_PRO='CRISPEX_DISPRANGE_INT_UPP')
+  topdivider = CRISPEX_WIDGET_DIVIDER(disp)
+  selopts_base = WIDGET_BASE(disp,/COLUMN, Y_SCROLL_SIZE=(nsel_diagnostics GT 11)*400, $
+    X_SCROLL_SIZE=(nsel_diagnostics GT 11)*550) 
+  ; Line style combobox labels
+  ls_labels = STRTRIM(INDGEN(6),2)+' ('+(*(*info).intparams).linlab_diagnostics+')'
+  FOR i=0,nsel_diagnostics-1 DO BEGIN
+    ; Button names
+    btname = 'int_sel_bt_'+STRTRIM(i,2)   ; (De)select button name
+    dgname = 'int_sel_dg_'+STRTRIM(i,2)   ; Diagnostics combobox name
+    lpname = 'int_sel_lp_'+STRTRIM(i,2)   ; Wavelength combobox name
+    lsname = 'int_sel_ls_'+STRTRIM(i,2)   ; Line-style combobox name
+    clname = 'int_sel_cl_'+STRTRIM(i,2)   ; Color combobox name
+    ; Wavelength combobox labels
+    lp_labels = LINDGEN((*(*(*info).intparams).diag_widths)[$
+      (*(*(*info).intparams).sel_diagnostics)[i]])+$
+      (*(*(*info).intparams).diag_starts)[$
+      (*(*(*info).intparams).sel_diagnostics)[i]]
+    IF (*(*info).plotswitch).v_dop_set THEN $
+      lp_labels = STRTRIM(lp_labels,2)+' ('+STRTRIM((*(*info).dataparams).lps[$
+        lp_labels[0]:lp_labels[N_ELEMENTS(lp_labels)-1]],2)+')' $
+    ELSE $
+      lp_labels = STRTRIM(lp_labels,2)
+    ; Actual buttons and comboboxes
+    sel_subopts = WIDGET_BASE(selopts_base, /ROW)
+    sel_buts = WIDGET_BASE(sel_subopts, /NONEXCLUSIVE)
+    sel_but = WIDGET_BUTTON(sel_buts, VALUE='', UVALUE=eventval[i], $
+      EVENT_PRO='CRISPEX_DISPLAYS_INT_MENU_EVENT', UNAME=btname)
+    (*(*info).ctrlsint).dg_box = WIDGET_COMBOBOX(sel_subopts, VALUE=(*(*info).intparams).diagnostics, $
+      UVALUE=eventval[i], /DYNAMIC_RESIZE, EVENT_PRO='CRISPEX_DISPLAYS_INT_SEL_DIAG', $
+      UNAME=dgname)
+    (*(*info).ctrlsint).lp_box = WIDGET_COMBOBOX(sel_subopts, VALUE=lp_labels,$
+      UVALUE=eventval[i], /DYNAMIC_RESIZE, EVENT_PRO='CRISPEX_DISPLAYS_INT_SEL_LP', $
+      UNAME=lpname)
+    (*(*info).ctrlsint).ls_box = WIDGET_COMBOBOX(sel_subopts, VALUE=ls_labels, $
+      UVALUE=eventval[i], /DYNAMIC_RESIZE, EVENT_PRO='CRISPEX_DISPLAYS_INT_SEL_LINE', $
+      UNAME=lsname)
+    (*(*info).ctrlsint).cl_box = WIDGET_COMBOBOX(sel_subopts, $
+      VALUE=(*(*info).intparams).collab_diagnostics, $
+      UVALUE=eventval[i], /DYNAMIC_RESIZE, EVENT_PRO='CRISPEX_DISPLAYS_INT_SEL_COLS', $
+      UNAME=clname)
+    ; Set buttons: select display buttons
+    WIDGET_CONTROL, sel_but, SET_BUTTON=(*(*(*info).intparams).seldisp_diagnostics)[i]
+    WIDGET_CONTROL, (*(*info).ctrlsint).dg_box, $
+      SET_COMBOBOX_SELECT=(*(*(*info).intparams).sel_diagnostics)[i],$
+      SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[i]
+    WIDGET_CONTROL, (*(*info).ctrlsint).lp_box, $
+      SET_COMBOBOX_SELECT=(*(*(*info).intparams).sellp_diagnostics)[i]-$
+      (*(*(*info).intparams).diag_starts)[(*(*(*info).intparams).sel_diagnostics)[i]],$
+      SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[i]
+    WIDGET_CONTROL, (*(*info).ctrlsint).ls_box, $
+      SET_COMBOBOX_SELECT=(*(*(*info).intparams).sellines_diagnostics)[i],$
+      SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[i]
+    WIDGET_CONTROL, (*(*info).ctrlsint).cl_box, $
+      SET_COMBOBOX_SELECT=(*(*(*info).intparams).selcol_diagnostics)[i],$
+      SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[i]
+  ENDFOR
+  add_base = WIDGET_BASE(selopts_base, /ROW, /ALIGN_RIGHT, GRID_LAYOUT=2)
+  (*(*info).ctrlsint).remove_button = WIDGET_BUTTON(add_base, VALUE='Remove last lightcurve',$
+    EVENT_PRO='CRISPEX_DISPLAYS_INT_REMOVE', $
+    SENSITIVE=(N_ELEMENTS(*(*(*info).intparams).sel_diagnostics) GT 1))
+  add_button = WIDGET_BUTTON(add_base, VALUE='Add lightcurve',$
+    EVENT_PRO='CRISPEX_DISPLAYS_INT_ADD')
+  bottomdivider = CRISPEX_WIDGET_DIVIDER(disp)
+	button_base = WIDGET_BASE(disp, COLUMN=2, /GRID_LAYOUT, /ALIGN_CENTER)
+	(*(*info).ctrlsint).int_sel_save = WIDGET_BUTTON(button_base, VALUE='   Save   ', $
+    EVENT_PRO='CRISPEX_INT_SAVE')
+	closebut = WIDGET_BUTTON(button_base, VALUE='   Close   ', $
+    EVENT_PRO='CRISPEX_DISPLAYS_INT_MENU_CLOSE')
+  ; Start managing
+  IF (N_ELEMENTS(XOFFSET) NE 1) THEN xoffset = (*(*info).winsizes).spxoffset
+  IF (N_ELEMENTS(YOFFSET) NE 1) THEN yoffset = 0
+	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET=xoffset, TLB_SET_YOFFSET=yoffset
 	WIDGET_CONTROL, base, SET_UVALUE = info
 	XMANAGER, 'CRISPEX', base, /NO_BLOCK
 	(*(*info).winids).intmenutlb = base
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).intmenutlb], labels=['intmenutlb']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).intmenutlb], labels=['intmenutlb']
 END
 
 PRO CRISPEX_DISPLAYS_INT_MENU_EVENT, event
-; Handles the selection of diagnostics to be shown in the intensity-time plot
+; Handles the selection of diagnostics to be shown in the lightcurve plot
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
-	(*(*(*info).intparams).sel_diagnostics)[eventval] = ( (*(*(*info).intparams).sel_diagnostics)[eventval] EQ 0) 
-	lname = 'int_sel_line_'+STRTRIM(eventval,2)
-	WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME = lname), SENSITIVE = (*(*(*info).intparams).sel_diagnostics)[eventval]
-	cname = 'int_sel_cols_'+STRTRIM(eventval,2)
-	WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME = cname), SENSITIVE = (*(*(*info).intparams).sel_diagnostics)[eventval]
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).intparams).sel_diagnostics)[eventval]], labels=['Diagnostic ID','Diagnostic selected']
+	(*(*(*info).intparams).seldisp_diagnostics)[eventval] = $
+    ( (*(*(*info).intparams).seldisp_diagnostics)[eventval] EQ 0) 
+  dgname = 'int_sel_dg_'+STRTRIM(eventval,2)   ; Diagnostics combobox name
+  lpname = 'int_sel_lp_'+STRTRIM(eventval,2)   ; Wavelength combobox name
+  lsname = 'int_sel_ls_'+STRTRIM(eventval,2)   ; Line-style combobox name
+  clname = 'int_sel_cl_'+STRTRIM(eventval,2)   ; Color combobox name
+	WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME=dgname), $
+    SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[eventval]
+	WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME=lpname), $
+    SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[eventval]
+	WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME=lsname), $
+    SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[eventval]
+	WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME=clname), $
+    SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[eventval]
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).intparams).sel_diagnostics)[eventval]], $
+      labels=['Diagnostic ID','Diagnostic selected']
 	CRISPEX_DISPLAYS_INT_BUTTON_CONDITION, event
 	CRISPEX_DRAW, event
 END
@@ -1747,12 +1839,68 @@ PRO CRISPEX_DISPLAYS_INT_BUTTON_CONDITION, event
 ; Handles the update of buttons after selection
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1, count)
+	condition = WHERE(*(*(*info).intparams).seldisp_diagnostics EQ 1, count)
 	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, SENSITIVE = (count GT 0)
-	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_none, SET_BUTTON = ABS((count GT 0)-1)
-	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_all, SET_BUTTON = (count EQ (*(*info).dataparams).nlp)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1)) AND (N_ELEMENTS(condition) EQ (*(*info).dataparams).nlp)),$
-		ABS(((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))-1),((N_ELEMENTS(condition) GT 0) AND (TOTAL(condition) NE -1))], labels=['All selected','None selected','Save enabled']
+  WIDGET_CONTROL, (*(*info).ctrlsint).sel_allnone_ids[1], $
+    SET_BUTTON=(count EQ 0)
+  WIDGET_CONTROL, (*(*info).ctrlsint).sel_allnone_ids[0], $
+    SET_BUTTON=(count EQ N_ELEMENTS(*(*(*info).intparams).seldisp_diagnostics))
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(count EQ N_ELEMENTS(*(*(*info).intparams).seldisp_diagnostics)), $
+      (count EQ 0), (count GT 0)], labels=['All selected','None selected','Save enabled']
+END
+
+PRO CRISPEX_DISPLAYS_INT_ADD, event
+; Handles adding a lightcurve
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info, /NO_COPY
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  nsel_diagnostics = N_ELEMENTS(*(*(*info).intparams).sel_diagnostics)
+  *(*(*info).intparams).sel_diagnostics = $
+    [*(*(*info).intparams).sel_diagnostics,(*(*info).intparams).lp_diag_all]
+  *(*(*info).intparams).seldisp_diagnostics = $
+    [*(*(*info).intparams).seldisp_diagnostics,1B]
+  *(*(*info).intparams).sellp_diagnostics = $
+    [*(*(*info).intparams).sellp_diagnostics,(*(*info).dataparams).lp]
+  *(*(*info).intparams).sellines_diagnostics = $
+    [*(*(*info).intparams).sellines_diagnostics,$
+    (((*(*(*info).intparams).sellines_diagnostics)[nsel_diagnostics-1]+1) MOD $
+      N_ELEMENTS((*(*info).intparams).linlab_diagnostics))]
+  *(*(*info).intparams).selcol_diagnostics = $
+    [*(*(*info).intparams).selcol_diagnostics,$
+    (((*(*(*info).intparams).selcol_diagnostics)[nsel_diagnostics-1]+1) MOD $
+      N_ELEMENTS((*(*info).intparams).collab_diagnostics))]
+  geometry = WIDGET_INFO((*(*info).winids).intmenutlb, /GEOMETRY)
+  WIDGET_CONTROL, (*(*info).winids).root, SET_UVALUE=info
+  WIDGET_CONTROL, event.TOP, /DESTROY
+  event.TOP = (*(*info).winids).root
+  CRISPEX_DISPLAYS_INT_MENU, event, XOFFSET=geometry.XOFFSET, $
+    YOFFSET=geometry.YOFFSET-22   ; Empirically determined correction 
+  CRISPEX_DRAW_INT, event
+END
+
+PRO CRISPEX_DISPLAYS_INT_REMOVE, event
+; Handles adding a lightcurve
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info, /NO_COPY
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  nsel_diagnostics = N_ELEMENTS(*(*(*info).intparams).sel_diagnostics)
+  *(*(*info).intparams).sel_diagnostics = (*(*(*info).intparams).sel_diagnostics)[0:nsel_diagnostics-2]
+  *(*(*info).intparams).seldisp_diagnostics = $
+    (*(*(*info).intparams).seldisp_diagnostics)[0:nsel_diagnostics-2]
+  *(*(*info).intparams).sellp_diagnostics = $
+    (*(*(*info).intparams).sellp_diagnostics)[0:nsel_diagnostics-2]
+  *(*(*info).intparams).sellines_diagnostics = $
+    (*(*(*info).intparams).sellines_diagnostics)[0:nsel_diagnostics-2]
+  *(*(*info).intparams).selcol_diagnostics = $
+    (*(*(*info).intparams).selcol_diagnostics)[0:nsel_diagnostics-2]
+  geometry = WIDGET_INFO((*(*info).winids).intmenutlb, /GEOMETRY)
+  WIDGET_CONTROL, (*(*info).winids).root, SET_UVALUE=info
+  WIDGET_CONTROL, event.TOP, /DESTROY
+  event.TOP = (*(*info).winids).root
+  CRISPEX_DISPLAYS_INT_MENU, event, XOFFSET=geometry.XOFFSET, $
+    YOFFSET=geometry.YOFFSET-22   ; Empirically determined correction 
+  CRISPEX_DRAW_INT, event
 END
 
 PRO CRISPEX_DISPLAYS_INT_MENU_CLOSE, event
@@ -1768,57 +1916,70 @@ PRO CRISPEX_DISPLAYS_INT_MENU_CLOSE, event
 	(*(*info).winswitch).showint = 0
 END
 
-PRO CRISPEX_DISPLAYS_INT_SEL_ALL, event
-; Handles selection of all intensity versus time plots
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	*(*(*info).intparams).sel_diagnostics = REPLICATE(1,(*(*info).dataparams).nlp)
-	FOR i=0,(*(*info).dataparams).nlp-1 DO BEGIN
-		name = 'int_sel_but_'+STRTRIM(i,2)
-		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME = name), SET_BUTTON = 1
-		lname = 'int_sel_line_'+STRTRIM(i,2)
-		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME = lname), /SENSITIVE
-		cname = 'int_sel_cols_'+STRTRIM(i,2)
-		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME = cname), /SENSITIVE
-	ENDFOR		
-	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, /SENSITIVE
-	CRISPEX_DRAW_INT, event
-END
-
 PRO CRISPEX_DISPLAYS_INT_SEL_COLS, event
 ; Handles selection of linestyle of intensity versus time plot
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
-	IF ( (*(*(*info).intparams).sel_diagnostics)[eventval] EQ 1) THEN (*(*(*info).intparams).selcol_diagnostics)[eventval] = event.INDEX
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).intparams).selcol_diagnostics)[eventval]], labels=['Diagnostic ID','Color index selected']
+	IF ( (*(*(*info).intparams).seldisp_diagnostics)[eventval] EQ 1) THEN $
+    (*(*(*info).intparams).selcol_diagnostics)[eventval] = event.INDEX
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, $
+      [eventval,(*(*(*info).intparams).selcol_diagnostics)[eventval]], $
+      labels=['Diagnostic ID','Color index selected']
 	CRISPEX_DRAW_INT, event
 END
 
 PRO CRISPEX_DISPLAYS_INT_SEL_LINE, event
 ; Handles selection of linestyle of intensity versus time plot
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
-	IF ( (*(*(*info).intparams).sel_diagnostics)[eventval] EQ 1) THEN (*(*(*info).intparams).lines_diagnostics)[eventval] = event.INDEX
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).intparams).lines_diagnostics)[eventval]], labels=['Diagnostic ID','Linestyle selected']
+	IF ( (*(*(*info).intparams).seldisp_diagnostics)[eventval] EQ 1) THEN $
+    (*(*(*info).intparams).sellines_diagnostics)[eventval] = event.INDEX
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, $
+      [eventval,(*(*(*info).intparams).sellines_diagnostics)[eventval]], $
+      labels=['Diagnostic ID','Linestyle selected']
 	CRISPEX_DRAW_INT, event
 END
 
-PRO CRISPEX_DISPLAYS_INT_SEL_NONE, event
-; Handles selection of none intensity versus time plots
+PRO CRISPEX_DISPLAYS_INT_SEL_DIAG, event
+; Handles selection of linestyle of intensity versus time plot
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	*(*(*info).intparams).sel_diagnostics = REPLICATE(0,(*(*info).dataparams).nlp)
-	FOR i=0,(*(*info).dataparams).nlp-1 DO BEGIN
-		name = 'int_sel_but_'+STRTRIM(i,2)
-		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME = name), SET_BUTTON = 0
-		lname = 'int_sel_line_'+STRTRIM(i,2)
-		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME = lname), SENSITIVE = 0
-		cname = 'int_sel_cols_'+STRTRIM(i,2)
-		WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME = cname), SENSITIVE = 0
-	ENDFOR		
-	WIDGET_CONTROL, (*(*info).ctrlsint).int_sel_save, SENSITIVE = 0
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
+	IF ( (*(*(*info).intparams).seldisp_diagnostics)[eventval] EQ 1) THEN $
+    (*(*(*info).intparams).sel_diagnostics)[eventval] = event.INDEX
+  ; Adjust possible wavelengths
+  lp_labels = LINDGEN((*(*(*info).intparams).diag_widths)[$
+    (*(*(*info).intparams).sel_diagnostics)[eventval]])+$
+    (*(*(*info).intparams).diag_starts)[$
+    (*(*(*info).intparams).sel_diagnostics)[eventval]]
+  IF (*(*info).plotswitch).v_dop_set THEN $
+    lp_labels = STRTRIM(lp_labels,2)+' ('+STRTRIM((*(*info).dataparams).lps[$
+      lp_labels[0]:lp_labels[N_ELEMENTS(lp_labels)-1]],2)+')'
+  ; Change wavelength combobox accordingly
+	WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME='int_sel_lp_'+STRTRIM(eventval,2)), $
+    SET_VALUE=lp_labels, SET_COMBOBOX_SELECT=0
+  ; Change actual wavelength variable to reflect adjustment
+  (*(*(*info).intparams).sellp_diagnostics)[eventval] = $
+    (*(*(*info).intparams).diag_starts)[(*(*(*info).intparams).sel_diagnostics)[eventval]]
+	CRISPEX_DRAW_INT, event
+END
+
+PRO CRISPEX_DISPLAYS_INT_SEL_LP, event
+; Handles selection of linestyle of intensity versus time plot
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
+	IF ( (*(*(*info).intparams).seldisp_diagnostics)[eventval] EQ 1) THEN $
+    (*(*(*info).intparams).sellp_diagnostics)[eventval] = event.INDEX+$
+      (*(*(*info).intparams).diag_starts)[(*(*(*info).intparams).sel_diagnostics)[eventval]]
 	CRISPEX_DRAW_INT, event
 END
 
@@ -1850,7 +2011,7 @@ PRO CRISPEX_DISPLAYS_INT_TOGGLE, event, NO_DRAW=no_draw
 	(*(*info).winswitch).showint = event.SELECT
 	IF (*(*info).winswitch).showint THEN BEGIN
 		CRISPEX_DISPLAYS_INT_MENU, event
-		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Intensity-time plot'
+		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Lightcurve plot'
 		CRISPEX_WINDOW, (*(*info).winsizes).intxres, (*(*info).winsizes).intyres, (*(*info).winids).root, title, inttlb, intwid, (*(*info).winsizes).lsxoffset, 0, DRAWID = intdrawid, $
 			RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_INT_RESIZE'
 		(*(*info).winids).inttlb = inttlb	&	(*(*info).winids).intwid = intwid	&	(*(*info).winids).intdrawid = intdrawid
@@ -4875,11 +5036,11 @@ PRO CRISPEX_DRAW_INT, event
 ;	title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]
 	int_low_y = (*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s] 
 	int_upp_y = (*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s]
-	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1, count)
-	PLOT, FINDGEN((*(*info).dataparams).nt)*(*(*info).plotaxes).dt, $
-    FINDGEN((*(*info).dataparams).nt), /NODATA, /NORM, CHARSIZE=1, YR=[int_low_y, int_upp_y], $
-    XR = [(*(*info).plotaxes).int_low_t*(*(*info).plotaxes).dt, $
-    (*(*info).plotaxes).int_upp_t*(*(*info).plotaxes).dt], /YS, /XS, $
+	condition = WHERE(*(*(*info).intparams).seldisp_diagnostics EQ 1, count)
+  ; Create plot box axes
+  PLOT, *(*(*info).dispparams).tarr_main, *(*(*info).dispparams).tarr_main, $
+    /NODATA, /NORM, CHARSIZE=1, YR=[int_low_y, int_upp_y], $
+    XR = [(*(*info).dispparams).t_low_main,(*(*info).dispparams).t_upp_main], /YS, /XS, $
     XTITLE = (*(*info).plottitles).spytitle, YTITLE = 'Counts/Mean Counts', $
     BACKGROUND = (*(*info).plotparams).bgplotcol, COLOR = (*(*info).plotparams).plotcol, $
     LINESTYLE = 0, $
@@ -4888,38 +5049,45 @@ PRO CRISPEX_DRAW_INT, event
     XTICKLEN = (*(*info).plotaxes).intxticklen, YTICKLEN = (*(*info).plotaxes).intyticklen
   IF (count GT 0) THEN BEGIN
 		selcol = (*(*(*info).intparams).selcol_diagnostics)[condition]
+    ; For each lightcurve to be plotted, get lightcurve
 		FOR i=0,N_ELEMENTS(condition)-1 DO BEGIN
 			IF (*(*info).dataswitch).spfile THEN BEGIN
 				ssp = REFORM( ( ( *(*(*info).data).spdata)[ $
           FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * (*(*info).dataparams).ns + $
           FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns + $
-					(*(*info).dataparams).s ] )[condition[i],*] )
+					(*(*info).dataparams).s ] )[$
+          (*(*(*info).intparams).sellp_diagnostics)[condition[i]],*] )
 			ENDIF ELSE BEGIN
 				ssp = FLTARR((*(*info).dataparams).nt)
 				FOR t=0,(*(*info).dataparams).nt-1 DO BEGIN
 					ssp[t] = ((*(*(*info).data).imagedata)[$
             t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
             (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
-						(*(*info).dataparams).lp])[(*(*info).dataparams).x,(*(*info).dataparams).y]
+						(*(*(*info).intparams).sellp_diagnostics)[condition[i]]])[$
+            (*(*info).dataparams).x,(*(*info).dataparams).y]
 				ENDFOR
 			ENDELSE
 			avgdint = ssp / ABS(MEAN(ssp, /NAN))
 			LOADCT, 12, /SILENT
 			plotcol = ((*(*info).intparams).colors_diagnostics)[selcol[i]]
-			OPLOT, FINDGEN((*(*info).dataparams).nt)*(*(*info).plotaxes).dt, avgdint, COLOR=plotcol, $
-        LINESTYLE = (*(*(*info).intparams).lines_diagnostics)[condition[i]]
+      ; Plot lightcurve
+			OPLOT, *(*(*info).dispparams).tarr_main, avgdint, COLOR=plotcol, $
+        LINESTYLE = (*(*(*info).intparams).sellines_diagnostics)[condition[i]]
 			LOADCT, 0, /SILENT
 		ENDFOR
 	ENDIF
-	t_range = (*(*info).plotaxes).int_upp_t - (*(*info).plotaxes).int_low_t + 1
   IF (*(*info).plotswitch).multichannel THEN $
-	  XYOUTS,(t_range*(*(*info).plotaxes).dt)*0.1+(*(*info).plotaxes).int_low_t*(*(*info).plotaxes).dt, $
-    (int_upp_y-int_low_y)*0.9+int_low_y, 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s], $
-    COLOR = (*(*info).plotparams).plotcol
-	IF (((*(*info).dispparams).t GE (*(*info).plotaxes).int_low_t) AND $
-      ((*(*info).dispparams).t LE (*(*info).plotaxes).int_upp_t)) THEN $
-    PLOTS, [1,1] * (*(*info).dispparams).t * (*(*info).plotaxes).dt, [int_upp_y, int_low_y], $
+	  XYOUTS,0.1*( (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_upp] - $
+      (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_low] + 1 ) + $
+      (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_low], $
+      (int_upp_y-int_low_y)*0.9+int_low_y, $
+      'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s], $
       COLOR = (*(*info).plotparams).plotcol
+  ; Overplot time indicator
+	IF (((*(*info).dispparams).t GE (*(*info).dispparams).t_low) AND $
+      ((*(*info).dispparams).t LE (*(*info).dispparams).t_upp)) THEN $
+    PLOTS, [1,1] * (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t], $
+      [int_upp_y, int_low_y], COLOR = (*(*info).plotparams).plotcol
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).intwid,int_low_y,int_upp_y], $
                           labels=['Window ID for draw','Lower y-value','Upper y-value']
@@ -6005,32 +6173,39 @@ PRO CRISPEX_HELP_SHORTCUTS, event
   XMANAGER, 'CRISPEX', base, /NO_BLOCK
 END
 
-;================================================================================= INTENSITY-TIME SAVE PROCEDURES
+;==================== LIGHTCURVE SAVE PROCEDURES
 PRO CRISPEX_INT_SAVE, event
-; Handles the actual saving of the intensity-time plots
+; Handles the actual saving of the lightcurve plots
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_SAVE_CHECK_PATH_WRITE, event
 	CRISPEX_SAVE_DETERMINE_FILENAME, event, outfilename=intfilename, /tlab, ext='cint'
-	condition = WHERE(*(*(*info).intparams).sel_diagnostics EQ 1, count)
+	condition = WHERE(*(*(*info).intparams).seldisp_diagnostics EQ 1, count)
   IF (count GT 0) THEN BEGIN
-  	intensities = FLTARR((*(*info).dispparams).t_range,N_ELEMENTS(condition))
+  	lightcurve = FLTARR((*(*info).dispparams).t_range,N_ELEMENTS(condition))
   	avg_intensity = FLTARR(N_ELEMENTS(condition))
   	FOR i=0,N_ELEMENTS(condition)-1 DO BEGIN
-  		intensities[0,i] = REFORM( ( ( *(*(*info).data).spdata)[ FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * (*(*info).dataparams).ns + FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns + $
-  			(*(*info).dataparams).s ] )[condition[i],(*(*info).dispparams).t_low:(*(*info).dispparams).t_upp] )
-  		avg_intensity[i] = MEAN(intensities[*,i], /NAN)
+  		lightcurve[0,i] = REFORM( ( ( *(*(*info).data).spdata)[ $
+        FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * (*(*info).dataparams).ns + $
+        FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns + $
+  			(*(*info).dataparams).s ] )[$
+        (*(*(*info).intparams).sellp_diagnostics)[condition[i]],$
+          (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp] )
+  		avg_intensity[i] = MEAN(lightcurve[*,i], /NAN)
   	ENDFOR
-  	diagnostics = ((*(*info).intparams).diagnostics)[condition]
-  	x = (*(*info).dataparams).x		&	y = (*(*info).dataparams).y
-  	nt = (*(*info).dispparams).t_range	& 	dt = (*(*info).plotaxes).dt
-  	t_low = (*(*info).dispparams).t_low	&	t_upp = (*(*info).dispparams).t_upp
-  	t_saved = (*(*info).dispparams).t	&	crispex_version = [(*(*info).versioninfo).version_number, (*(*info).versioninfo).revision_number]
-  	SAVE, crispex_version, intensities, avg_intensity, diagnostics, nt, dt, t_low, t_upp, t_saved, x, y, FILENAME=(*(*info).paths).opath+intfilename
-  	PRINT, 'Written: '+(*(*info).paths).opath+intfilename+'.cint'
+    diagnostics = (*(*info).intparams).diagnostics[(*(*(*info).intparams).sel_diagnostics)[condition]]
+  	x = (*(*info).dataparams).x		                &	y = (*(*info).dataparams).y
+  	nt = (*(*info).dispparams).t_range	          & dt = (*(*info).plotaxes).dt
+  	t_low_idx = (*(*info).dispparams).t_low	      &	t_upp_idx = (*(*info).dispparams).t_upp
+    t_array_full = *(*(*info).dispparams).tarr_main
+  	t_saved_idx = (*(*info).dispparams).t	  
+    crispex_version = [(*(*info).versioninfo).version_number, (*(*info).versioninfo).revision_number]
+  	SAVE, crispex_version, lightcurve, avg_intensity, diagnostics, nt, dt, $
+      t_low_idx, t_upp_idx, t_array_full, t_saved_idx, x, y, $
+      FILENAME=(*(*info).paths).opath+intfilename
+  	PRINT, 'Written: '+(*(*info).paths).opath+intfilename
   ENDIF
 END
-
 
 ;================================================================================= INTERRUPT PROCEDURE
 PRO CRISPEX_INTERRUPT, event
@@ -6460,19 +6635,25 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, SINGLE_CUBE=single_c
 ;			diagnostics[ndiag:(hdr_out.nlp-1)] = REPLICATE('Undefined',(hdr_out.nlp-ndiag))
 ;		ENDIF 
 ;	ENDIF ELSE diagnostics = REPLICATE('SST ',hdr_out.nlp)+STRTRIM(INDGEN(hdr_out.nlp),2)
-	sel_diagnostics = REPLICATE(1,hdr_out.nlp)
-	lines_diagnostics = (INDGEN(hdr_out.nlp) MOD 6)
-	FOR i=0,FLOOR(hdr_out.nlp/6.) DO BEGIN
-		IF (i EQ 0) THEN selcol_diagnostics = REPLICATE(i,6) ELSE $
-			IF (i EQ (FLOOR(hdr_out.nlp/6.))) THEN BEGIN
-				IF (hdr_out.nlp/6. NE FLOOR(hdr_out.nlp/6.)) THEN selcol_diagnostics = [selcol_diagnostics,$
-        REPLICATE(i,ROUND((hdr_out.nlp/6.-FLOOR(hdr_out.nlp/6.))*6))] 
-			ENDIF ELSE selcol_diagnostics = [selcol_diagnostics, REPLICATE(i,6)]
-	ENDFOR
+  sel_diagnostics = INDGEN(1)
+  sellines_diagnostics = INDGEN(1)
+  selcol_diagnostics = INDGEN(1)
+  sellp_diagnostics = LINDGEN(1)
+;	sel_diagnostics = REPLICATE(1,hdr_out.nlp)
+;	lines_diagnostics = (INDGEN(hdr_out.nlp) MOD 6)
+;	FOR i=0,FLOOR(hdr_out.nlp/6.) DO BEGIN
+;		IF (i EQ 0) THEN selcol_diagnostics = REPLICATE(i,6) ELSE $
+;			IF (i EQ (FLOOR(hdr_out.nlp/6.))) THEN BEGIN
+;				IF (hdr_out.nlp/6. NE FLOOR(hdr_out.nlp/6.)) THEN selcol_diagnostics = [selcol_diagnostics,$
+;        REPLICATE(i,ROUND((hdr_out.nlp/6.-FLOOR(hdr_out.nlp/6.))*6))] 
+;			ENDIF ELSE selcol_diagnostics = [selcol_diagnostics, REPLICATE(i,6)]
+;	ENDFOR
   tsel_main = LINDGEN(hdr_out.mainnt)
 ;  hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics, 'sel_diagnostics', sel_diagnostics, $
   hdr_out = CREATE_STRUCT(hdr_out, 'sel_diagnostics', sel_diagnostics, $
-    'lines_diagnostics', lines_diagnostics, 'selcol_diagnostics', selcol_diagnostics, $
+    'sellines_diagnostics', sellines_diagnostics, $
+    'selcol_diagnostics', selcol_diagnostics, $
+    'sellp_diagnostics', sellp_diagnostics, $
     'tsel_main', tsel_main)
   CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_out, HDR_OUT=hdr_out
 END
@@ -13816,8 +13997,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	reflsxticklen 	= ticklen / reflsheight
 	reflsyticklen 	= ticklen / reflswidth
 
-  ; ==================== Intensity-time window ====================
-  ; Set intensity-time window parameters
+  ; ==================== Lightcurve window ====================
+  ; Set lightcurve window parameters
 	intwidth 	= (xsize/lswinx - (lsmargin + lswall))
 	intheight 	= intwidth * 2D / (1 + SQRT(5))
 	intwinx		= lswinx
@@ -15275,8 +15456,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- INT CONTROLS 
 	ctrlsint = { $
-		int_sel_all:0, int_sel_none:0, int_sel_save:0, lower_y_int_text:0, upper_y_int_text:0, $
-		lower_t_int_text:0, upper_t_int_text:0, reset_trange_but:0 $
+    sel_allnone_ids:[0,0], int_sel_save:0, lower_y_int_text:0, upper_y_int_text:0, $
+    dg_box:0, lp_box:0, ls_box:0, cl_box:0, remove_button:0 $
 	}
 ;--------------------------------------------------------------------------------- RETRIEVE DETECTIONS CONTROLS 
 	ctrlsloop = { $
@@ -15439,11 +15620,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	}
 ;--------------------------------------------------------------------------------- INT PARAMS
 	intparams = { $
-		sel_diagnostics:PTR_NEW(hdr.sel_diagnostics), lines_diagnostics:PTR_NEW(hdr.lines_diagnostics), $
+		sel_diagnostics:PTR_NEW(hdr.sel_diagnostics), $ 
+    seldisp_diagnostics:PTR_NEW(REPLICATE(1B,N_ELEMENTS(hdr.sel_diagnostics))), $
 	  linlab_diagnostics:['Solid', 'Dotted', 'Dashed', 'Dash Dot', 'Dash Dot Dot', 'Long Dashes'],$
+    sellines_diagnostics:PTR_NEW(hdr.sellines_diagnostics), $
 	  colors_diagnostics:[0,200,135,120,100,90,230,40],$
 	  collab_diagnostics:['Black', 'Red', 'Pink', 'Purple', 'Blue', 'Turquoise', 'Grey', 'Green'],$
     selcol_diagnostics:PTR_NEW(hdr.selcol_diagnostics), $
+    sellp_diagnostics:PTR_NEW(hdr.sellp_diagnostics), $
     disp_diagnostics:REPLICATE(1,hdr.ndiagnostics), ndisp_diagnostics:hdr.ndiagnostics, $
     disp_refdiagnostics:REPLICATE(1,hdr.nrefdiagnostics), ndisp_refdiagnostics:hdr.nrefdiagnostics, $
 		diagnostics:hdr.diagnostics, ndiagnostics:hdr.ndiagnostics, lock_t:1, $ 
