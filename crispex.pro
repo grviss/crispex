@@ -13539,11 +13539,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 
 ;========================= READ-IN AND INITIALISATION OF FILES
   ; N.B.: After CRISPEX v1.6.3 FITS cubes have become the standard. Old read-in procedures 
-  ; are retained in compatability for older cubes. Differentiation is performed based on filename
+  ; are retained in compatibility for older cubes. Differentiation is performed based on filename
   ; extension, where FITS cubes are assumed to have a *.fits extension (case insensitive).
   IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Reading input files... '
   IF ((BYTE(1L,0,1))[0] EQ 1) THEN endian = 'l' ELSE endian = 'b' ; Check endianness of machine
-  IF (N_ELEMENTS(DT) NE 1) THEN dt = 0.
+  dt_keyword_set = (N_ELEMENTS(DT) EQ 1) 
+  IF (dt_keyword_set EQ 0) THEN dt = 0.
   
   ; Handle input file headers by parsing them into the hdr structure; first initialise hdr
   hdr = {$
@@ -13736,26 +13737,23 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
 	direction 	= 1													; Set initial animation direction
 	t_start = t_first
 
-  ; Is hdr.dt set and main/ref/sjint > 1?
-	IF ((hdr.dt EQ 1) AND $
-    ((hdr.mainnt GT 1) OR (hdr.refnt GT 1) OR (hdr.sjint GT 1))) THEN BEGIN
-		IF (hdr.spfile OR hdr.onecube) THEN BEGIN
-			dt_set = 1
-			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = hdr.spytitle ;'Time (s)'
-		ENDIF ELSE BEGIN
-      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Calling CRISPEX with DT has no influence when '+$
-        'no SPCUBE is supplied. Setting seconds per timestep to default value.', /WARNING, $
-        /NO_ROUTINE, /NEWLINE
-			dt_set = 0
-			hdr.dt = 1.
-			spytitle = 'Frame number'
-		ENDELSE
-  ; If not, revert to frame number as y-axis and spectrum-time plot
-	ENDIF ELSE BEGIN
-		dt_set = 0
-		hdr.dt = 1.
-		spytitle = 'Frame number'
-	ENDELSE
+  ; Check setting of DT keyword; is superseded by FITS header information, if present
+  IF dt_keyword_set THEN BEGIN
+    dt_set = dt_keyword_set
+    IF hdr.imcube_compatibility THEN BEGIN
+			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = 'Time [s]'
+    ENDIF ELSE spytitle = hdr.spytitle
+  ; If no DT set, check whether supplied from FITS header (in which case hdr.dt ne 0)
+  ENDIF ELSE BEGIN
+    dt_set = (hdr.dt NE 0.)
+    IF dt_set THEN $
+      spytitle = hdr.spytitle $   ; FITS header: no override of SPYTITLE allowed
+    ; If no DT set and no info from header, then set defaults
+    ELSE BEGIN
+      hdr.dt = 1.
+			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = 'Frame number'
+    ENDELSE
+  ENDELSE
 
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(initial playback parameters)', /OPT, /OVER, /DONE
