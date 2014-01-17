@@ -5695,16 +5695,20 @@ PRO CRISPEX_DRAW_PHIS, event
         lp_lower = 0
         lp_upper = (*(*info).dispparams).lp_upp-(*(*info).dispparams).lp_low
       ENDELSE
-      tmp_disp = (*(*(*info).data).phislice)[lp_lower:lp_upper,*]
-      ; Display spectrum-slit diagram by diagnostics
-      TV,(CONGRID( BYTSCL(tmp_disp, $
+      ; Construct spectrum-slit diagram by diagnostic
+      tmp_disp = BYTSCL( (*(*(*info).data).phislice)[lp_lower:lp_upper,*], $
         MIN=(*(*info).scaling).phislice_min[(*(*(*info).intparams).wheredispdiag)[d]],$ 
         MAX=(*(*info).scaling).phislice_max[(*(*(*info).intparams).wheredispdiag)[d]],$
-        /NAN), (*(*info).dispparams).phisnlpreb*(*(*(*info).plotaxes).diag_ratio)[d], $
-        (*(*info).dispparams).nphireb, INTERP = (*(*info).dispparams).interpspslice, /CENTER) ), $
-        (d GE 1)*TOTAL((*(*(*info).plotaxes).diag_range_phis)[0:(d-1)])+$
-        (*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, /NORMAL
+        /NAN)
+      IF (d EQ 0) THEN $
+        final_disp = tmp_disp $
+      ELSE $
+        final_disp = [final_disp, tmp_disp]
     ENDFOR
+    ; Display full spectrum-slit diagram at once
+    TV,(CONGRID( final_disp, (*(*info).dispparams).phisnlpreb, $
+      (*(*info).dispparams).nphireb, INTERP = (*(*info).dispparams).interpspslice, /CENTER) ), $
+      (*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, /NORMAL
     !X.WINDOW = [(*(*info).plotpos).phisx0,(*(*info).plotpos).phisx1]
     !Y.WINDOW = [(*(*info).plotpos).phisy0,(*(*info).plotpos).phisy1]
     IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
