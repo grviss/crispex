@@ -8704,6 +8704,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.lplabel = key.lplab       &  hdr_out.lpunit = key.lpunit
       hdr_out.dt = key.dt               &  hdr_out.single_cube = key.nlp
       lc = key.lc
+      hdr_out.obsid = STRTRIM(key.obsid,2)
       hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam, 'lc', lc)
       ; Handle spectral windows, if present
       hdr_out.ndiagnostics = key.ndiagnostics
@@ -8748,7 +8749,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     ENDELSE
     hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics, 'diag_start', wstart, $
       'diag_width', wwidth, 'tarr_main', tarr_main, 'tarr_raster_main', tarr_raster_main, $
-      'toffset_main', toffset_main, 'xyrastersji', xyrastersji, 'twave', twave, 'hdrs_main', headers)
+      'toffset_main', toffset_main, 'xyrastersji', xyrastersji, 'twave', twave,$
+      'hdrs_main', headers)
   ENDIF ELSE IF KEYWORD_SET(SPCUBE) THEN BEGIN                  ; Fill hdr parameters for SPCUBE
     hdr_out.spoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -9029,6 +9031,8 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     xyrastersji[*,*] = ABS(raster_coords[*,0,*])
     headers = [headers, PTR_NEW(hdr3)]
   ENDIF ELSE xyrastersji = 0
+  ; Get OBSID 
+  obsid = SXPAR(header,'OBSID')
   ;
   key = {nx:nx,ny:ny,nlp:nlp,nt:nt,ns:ns,cslab:cslab, $
        datatype:datatype,dx:dx,dy:dy,dt:dt,lam:lam,lc:lc, $
@@ -9038,7 +9042,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
        btype:btype,bunit:bunit, bscale:bscale, bzero:bzero, $ 
        xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,$
        wstart:wstart, wwidth:wwidth, diagnostics:diagnostics, $
-       ndiagnostics:ndiagnostics, twave:twave, headers:headers $
+       ndiagnostics:ndiagnostics, twave:twave, headers:headers, obsid:obsid $
        }
 END
 
@@ -13559,7 +13563,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
             imtype:0, sptype:0, refimtype:0, refsptype:0, sjitype:0, masktype:0, $
             imoffset:0L, spoffset:0L, refimoffset:0L, refspoffset:0L, sjioffset:0L, maskoffset:0L, $
             imendian:'b', spendian:'b', refimendian:'b', refspendian:'b', sjiendian:'b', $
-            maskendian:'b',endian:endian, $
+            maskendian:'b',endian:endian, obsid:'0', $
             imcube_compatibility:0, spcube_compatibility:0, refimcube_compatibility:0, $
             refspcube_compatibility:0, maskcube_compatibility:0, multichannel:0, $
             nx:0L, ny:0L, nlp:1L, mainnt:1L, ns:1L, imnt:0L, spnt:0L, refspnx:0L, refspny:0L, $
@@ -15271,13 +15275,20 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
       ;dataval_sji_unit_txt = WIDGET_LABEL(params_sji_base, VALUE=dataval_sji_unit_txt, $
       ;  /ALIGN_CENTER)
 
-   param_base = WIDGET_BASE(control_panel, /COLUMN)
+   param_base = WIDGET_BASE(control_panel, /ROW)
     ; Column 1 of parameters overview containing cursor x,y and zoomfactor
     ; Zommfactor info
 		zoom_base = WIDGET_BASE(param_base, /ROW, /FRAME)
 		zoom_txt = WIDGET_LABEL(zoom_base, VALUE = 'Zoom:')
 		zoom_val = WIDGET_LABEL(zoom_base, $
       VALUE = STRING(zoomfactors[0]*100.,FORMAT='(I4)')+'%', /DYNAMIC_RESIZE)
+		obsid_base = WIDGET_BASE(param_base, /ROW, /FRAME)
+		obsid_txt = WIDGET_LABEL(obsid_base, VALUE = 'OBSID:')
+    IF (hdr.obsid NE '0') THEN $
+      obsidval = hdr.obsid $
+    ELSE $
+      obsidval = 'N/A'
+		obsid_val = WIDGET_LABEL(obsid_base, VALUE = obsidval, /DYNAMIC_RESIZE)
 
 	bg = WIDGET_BASE(cpanel, EVENT_PRO = 'CRISPEX_PB_BG')
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
@@ -15548,9 +15559,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main image cube, spe
     ; Filenames
 		imfilename:hdr.imfilename, spfilename:hdr.spfilename, refimfilename:hdr.refimfilename, $
     refspfilename:hdr.refspfilename, maskfilename:hdr.maskfilename, $	
-    ; Headers
+    ; Headers and OBSID
     hdrs:[PTR_NEW(hdr.hdrs_main),PTR_NEW(hdr.hdrs_ref),PTR_NEW(hdr.hdrs_sji)], $
     next:[N_ELEMENTS(hdr.hdrs_main),N_ELEMENTS(hdr.hdrs_ref),N_ELEMENTS(hdr.hdrs_sji)], $
+    obsid:hdr.obsid, $
     ; Spatial dimensions
 		x:x_start, y:y_start, d_nx:hdr.nx, d_ny:hdr.ny, nx:hdr.nx, ny:hdr.ny, $							
     sjinx:hdr.sjinx, sjiny:hdr.sjiny, sjidx:hdr.sjidx, sjidy:hdr.sjidy, $
