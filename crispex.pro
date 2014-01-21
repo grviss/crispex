@@ -1759,10 +1759,10 @@ PRO CRISPEX_DISPLAYS_INT_MENU, event, XOFFSET=xoffset, YOFFSET=yoffset
       EVENT_PRO='CRISPEX_DISPLAYS_INT_MENU_EVENT', UNAME=btname)
     (*(*info).ctrlsint).dg_box = WIDGET_COMBOBOX(sel_subopts, VALUE=(*(*info).intparams).diagnostics, $
       UVALUE=eventval[i], /DYNAMIC_RESIZE, EVENT_PRO='CRISPEX_DISPLAYS_INT_SEL_DIAG', $
-      UNAME=dgname)
+      UNAME=dgname) 
     (*(*info).ctrlsint).lp_box = WIDGET_COMBOBOX(sel_subopts, VALUE=lp_labels,$
       UVALUE=eventval[i], /DYNAMIC_RESIZE, EVENT_PRO='CRISPEX_DISPLAYS_INT_SEL_LP', $
-      UNAME=lpname)
+      UNAME=lpname) 
     (*(*info).ctrlsint).ls_box = WIDGET_COMBOBOX(sel_subopts, VALUE=ls_labels, $
       UVALUE=eventval[i], /DYNAMIC_RESIZE, EVENT_PRO='CRISPEX_DISPLAYS_INT_SEL_LINE', $
       UNAME=lsname)
@@ -1774,11 +1774,13 @@ PRO CRISPEX_DISPLAYS_INT_MENU, event, XOFFSET=xoffset, YOFFSET=yoffset
     WIDGET_CONTROL, sel_but, SET_BUTTON=(*(*(*info).intparams).seldisp_diagnostics)[i]
     WIDGET_CONTROL, (*(*info).ctrlsint).dg_box, $
       SET_COMBOBOX_SELECT=(*(*(*info).intparams).sel_diagnostics)[i],$
-      SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[i]
+      SENSITIVE=( ((*(*info).intparams).ndiagnostics GT 1) AND $
+        (*(*(*info).intparams).seldisp_diagnostics)[i] )
     WIDGET_CONTROL, (*(*info).ctrlsint).lp_box, $
       SET_COMBOBOX_SELECT=(*(*(*info).intparams).sellp_diagnostics)[i]-$
       (*(*(*info).intparams).diag_starts)[(*(*(*info).intparams).sel_diagnostics)[i]],$
-      SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[i]
+      SENSITIVE=( ((*(*info).dataparams).nlp GT 1) AND $
+        (*(*(*info).intparams).seldisp_diagnostics)[i] )
     WIDGET_CONTROL, (*(*info).ctrlsint).ls_box, $
       SET_COMBOBOX_SELECT=(*(*(*info).intparams).sellines_diagnostics)[i],$
       SENSITIVE=(*(*(*info).intparams).seldisp_diagnostics)[i]
@@ -1961,7 +1963,9 @@ PRO CRISPEX_DISPLAYS_INT_SEL_DIAG, event
     (*(*(*info).intparams).sel_diagnostics)[eventval]]
   IF (*(*info).plotswitch).v_dop_set THEN $
     lp_labels = STRTRIM(lp_labels,2)+' ('+STRTRIM((*(*info).dataparams).lps[$
-      lp_labels[0]:lp_labels[N_ELEMENTS(lp_labels)-1]],2)+')'
+      lp_labels[0]:lp_labels[N_ELEMENTS(lp_labels)-1]],2)+')' $
+  ELSE $
+    lp_labels = STRTRIM(lp_labels,2)
   ; Change wavelength combobox accordingly
 	WIDGET_CONTROL, WIDGET_INFO(event.TOP, FIND_BY_UNAME='int_sel_lp_'+STRTRIM(eventval,2)), $
     SET_VALUE=lp_labels, SET_COMBOBOX_SELECT=0
