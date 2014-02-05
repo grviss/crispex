@@ -5404,9 +5404,19 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
       FORMAT=(*(*info).paramparams).xcoord_format)
     yval = STRING(LONG((*(*info).dataparams).y), $
       FORMAT=(*(*info).paramparams).ycoord_format)
-    xval_real = STRING(FLOAT(xval*(*(*info).dataparams).dx), $
+    IF (*(*info).dataswitch).wcs_set THEN BEGIN
+      xy_real = CRISPEX_TRANSFORM_GET_WCS((*(*info).dataparams).x, $
+        (*(*info).dataparams).y, (*(*info).dataparams).wcs_main, $
+        /COORD, /NO_ROUND)
+      xreal_val = xy_real.x
+      yreal_val = xy_real.y
+    ENDIF ELSE BEGIN
+      xreal_val = FLOAT(xval*(*(*info).dataparams).dx)
+      yreal_val = FLOAT(yval*(*(*info).dataparams).dy)
+    ENDELSE
+    xval_real = STRING(xreal_val, $
       FORMAT=(*(*info).paramparams).xcoord_real_format)
-    yval_real = STRING(FLOAT(yval*(*(*info).dataparams).dy), $
+    yval_real = STRING(yreal_val, $
       FORMAT=(*(*info).paramparams).ycoord_real_format)
   ENDIF ELSE BEGIN
     xval = 'N/A'
@@ -5425,9 +5435,19 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
         FORMAT=(*(*info).paramparams).refxcoord_format)
       yrefval = STRING(LONG((*(*info).dataparams).yref), $
         FORMAT=(*(*info).paramparams).refycoord_format)
-      xrefval_real = STRING(FLOAT(xrefval*(*(*info).dataparams).refdx), $
+      IF (*(*info).dataswitch).ref_wcs_set THEN BEGIN
+        xyref_real = CRISPEX_TRANSFORM_GET_WCS((*(*info).dataparams).xref, $
+          (*(*info).dataparams).yref, (*(*info).dataparams).wcs_ref, $
+          /COORD, /NO_ROUND)
+        xreal_val = xyref_real.x
+        yreal_val = xyref_real.y
+      ENDIF ELSE BEGIN
+        xreal_val = FLOAT(xrefval*(*(*info).dataparams).refdx)
+        yreal_val = FLOAT(yrefval*(*(*info).dataparams).refdy)
+      ENDELSE
+      xrefval_real = STRING(xreal_val, $
         FORMAT=(*(*info).paramparams).refxcoord_real_format)
-      yrefval_real = STRING(FLOAT(yrefval*(*(*info).dataparams).refdy), $
+      yrefval_real = STRING(yreal_val, $
         FORMAT=(*(*info).paramparams).refycoord_real_format)
     ENDIF ELSE BEGIN
       xrefval = 'N/A'
@@ -5447,9 +5467,19 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
         FORMAT=(*(*info).paramparams).sjixcoord_format)
       ysjival = STRING(LONG((*(*info).dataparams).ysji), $
         FORMAT=(*(*info).paramparams).sjiycoord_format)
-      xsjival_real = STRING(FLOAT(xsjival*(*(*info).dataparams).sjidx), $
+      IF (*(*info).dataswitch).sji_wcs_set THEN BEGIN
+        xysji_real = CRISPEX_TRANSFORM_GET_WCS((*(*info).dataparams).xsji, $
+          (*(*info).dataparams).ysji, (*(*info).dataparams).wcs_sji, $
+          /COORD, /NO_ROUND)
+        xreal_val = xysji_real.x
+        yreal_val = xysji_real.y
+      ENDIF ELSE BEGIN
+        xreal_val = FLOAT(xsjival*(*(*info).dataparams).sjidx)
+        yreal_val = FLOAT(ysjival*(*(*info).dataparams).sjidy)
+      ENDELSE
+      xsjival_real = STRING(xreal_val, $
         FORMAT=(*(*info).paramparams).sjixcoord_real_format)
-      ysjival_real = STRING(FLOAT(ysjival*(*(*info).dataparams).sjidy), $
+      ysjival_real = STRING(yreal_val, $
         FORMAT=(*(*info).paramparams).sjiycoord_real_format)
     ENDIF ELSE BEGIN
       xsjival = 'N/A'
@@ -17574,7 +17604,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     verlabel_base = WIDGET_BASE(params_position_base, /COLUMN)
       no_label    = WIDGET_LABEL(verlabel_base, VALUE='Position', /ALIGN_LEFT)
       pixel_label = WIDGET_LABEL(verlabel_base, VALUE='Index [px]', /ALIGN_RIGHT)
-      real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value ["]', /ALIGN_RIGHT)
+      IF (hdr.wcs_set OR hdr.ref_wcs_set OR hdr.sji_wcs_set) THEN $
+        real_label  = WIDGET_LABEL(verlabel_base, VALUE='Solar XY ["]', $
+          /ALIGN_RIGHT) $
+      ELSE $
+        real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value ["]', $
+          /ALIGN_RIGHT) 
     params_main_base = WIDGET_BASE(params_position_base, /COLUMN)
       main_label  = WIDGET_LABEL(params_main_base, VALUE='Main', /ALIGN_RIGHT)
         xcoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.nx))+1,2)+')'
@@ -17583,10 +17618,21 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
           ','+STRING(LONG(y_start),FORMAT=ycoord_format)+')'
 		    xycoord_val = WIDGET_LABEL(params_main_base, VALUE=coord_txt, $
           /ALIGN_RIGHT)
-        xcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.nx*hdr.dx))+3+(hdr.nx*hdr.dx LT 1),2)+'.1)'
-        ycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.ny*hdr.dy))+3+(hdr.ny*hdr.dy LT 1),2)+'.1)'
-        real_coord_txt = '('+STRING(FLOAT(x_start*hdr.dx),FORMAT=xcoord_real_format)+$
-          ','+STRING(FLOAT(y_start*hdr.dy),FORMAT=ycoord_real_format)+')'
+        IF hdr.wcs_set THEN BEGIN
+          xy_real = CRISPEX_TRANSFORM_GET_WCS(x_start, y_start, hdr.wcs_main, $
+            /COORD, /NO_ROUND)
+          xcoord_real_format = '(F6.1)'
+          ycoord_real_format = '(F6.1)'
+          real_coord_txt = '('+STRING(xy_real.x,FORMAT=xcoord_real_format)+$
+            ','+STRING(xy_real.y,FORMAT=ycoord_real_format)+')'
+        ENDIF ELSE BEGIN
+          xcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.nx*hdr.dx))+3+$
+            (hdr.nx*hdr.dx LT 1),2)+'.1)'
+          ycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.ny*hdr.dy))+3+$
+            (hdr.ny*hdr.dy LT 1),2)+'.1)'
+          real_coord_txt = '('+STRING(FLOAT(x_start*hdr.dx),FORMAT=xcoord_real_format)+$
+            ','+STRING(FLOAT(y_start*hdr.dy),FORMAT=ycoord_real_format)+')' 
+        ENDELSE
 		    xycoord_real_val = WIDGET_LABEL(params_main_base, VALUE=real_coord_txt, $
           /ALIGN_RIGHT)
     params_ref_base = WIDGET_BASE(params_position_base, /COLUMN, /ALIGN_RIGHT)
@@ -17596,27 +17642,33 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
         refycoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.refny))+1,2)+')'
         refcoord_txt = '    ('+STRING(LONG(x_start),FORMAT=refxcoord_format)+$
           ','+STRING(LONG(y_start),FORMAT=refycoord_format)+')'
+        IF hdr.ref_wcs_set THEN BEGIN
+          xyref_real = CRISPEX_TRANSFORM_GET_WCS(xref_start, yref_start, hdr.wcs_main, $
+            /COORD, /NO_ROUND)
+          refxcoord_real_format = '(F6.1)'
+          refycoord_real_format = '(F6.1)'
+          refcoord_real_txt = '('+STRING(xyref_real.x,FORMAT=refxcoord_real_format)+$
+            ','+STRING(xyref_real.y,FORMAT=refycoord_real_format)+')'
+        ENDIF ELSE BEGIN
+          refxcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refnx*hdr.dx))+3+$
+            (hdr.refnx*hdr.dx LT 1),2)+'.1)'
+          refycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refny*hdr.dy))+3+$
+            (hdr.refny*hdr.dy LT 1),2)+'.1)'
+          refcoord_real_txt = '('+STRING(FLOAT(x_start*hdr.dx),FORMAT=refxcoord_real_format)+$
+            ','+STRING(FLOAT(y_start*hdr.dy),FORMAT=refycoord_real_format)+')'
+        ENDELSE
       ENDIF ELSE BEGIN
         refcoord_txt = 'N/A'
         refxcoord_format = ''
         refycoord_format = ''
-      ENDELSE
-		    refxycoord_val = WIDGET_LABEL(params_ref_base, VALUE=refcoord_txt, $
-          /ALIGN_RIGHT)
-      IF hdr.showref THEN BEGIN
-        refxcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refnx*hdr.dx))+3+$
-          (hdr.refnx*hdr.dx LT 1),2)+'.1)'
-        refycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refny*hdr.dy))+3+$
-          (hdr.refny*hdr.dy LT 1),2)+'.1)'
-        refcoord_real_txt = '('+STRING(FLOAT(x_start*hdr.dx),FORMAT=refxcoord_real_format)+$
-          ','+STRING(FLOAT(y_start*hdr.dy),FORMAT=refycoord_real_format)+')'
-      ENDIF ELSE BEGIN
         refcoord_real_txt = 'N/A'
         refxcoord_real_format = ''
         refycoord_real_format = ''
       ENDELSE
-		    refxycoord_real_val = WIDGET_LABEL(params_ref_base, VALUE=refcoord_real_txt, $
-          /ALIGN_RIGHT)
+		  refxycoord_val = WIDGET_LABEL(params_ref_base, VALUE=refcoord_txt, $
+        /ALIGN_RIGHT)
+		  refxycoord_real_val = WIDGET_LABEL(params_ref_base, VALUE=refcoord_real_txt, $
+        /ALIGN_RIGHT)
     params_sji_base = WIDGET_BASE(params_position_base, /COLUMN, /ALIGN_RIGHT)
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE='Slit-jaw', /ALIGN_RIGHT)
       IF hdr.sjifile THEN BEGIN
@@ -17624,26 +17676,32 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
         sjiycoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.sjiny))+1,2)+')'
         sjicoord_txt = '    ('+STRING(LONG(xsji_start),FORMAT=sjixcoord_format)+$
           ','+STRING(LONG(ysji_start),FORMAT=sjiycoord_format)+')'
+        IF hdr.sji_wcs_set THEN BEGIN
+          xysji_real = CRISPEX_TRANSFORM_GET_WCS(xsji_start, ysji_start, hdr.wcs_main, $
+            /COORD, /NO_ROUND)
+          sjixcoord_real_format = '(F6.1)'
+          sjiycoord_real_format = '(F6.1)'
+          sjicoord_real_txt = '('+STRING(xysji_real.x,FORMAT=sjixcoord_real_format)+$
+            ','+STRING(xysji_real.y,FORMAT=sjiycoord_real_format)+')'
+        ENDIF ELSE BEGIN
+          sjixcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.sjinx*hdr.sjidx))+3,2)+'.1)'
+          sjiycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.sjiny*hdr.sjidy))+3,2)+'.1)'
+          sjicoord_real_txt = '('+STRING(FLOAT(xsji_start*hdr.sjidx),$
+            FORMAT=sjixcoord_real_format)+'",'+STRING(FLOAT(ysji_start*hdr.sjidy),$
+            FORMAT=sjiycoord_real_format)+'")'
+        ENDELSE
       ENDIF ELSE BEGIN
         sjicoord_txt = 'N/A'
         sjixcoord_format = ''
         sjiycoord_format = ''
-      ENDELSE
-		    sjixycoord_val = WIDGET_LABEL(params_sji_base, VALUE=sjicoord_txt, $
-          /ALIGN_RIGHT)
-      IF hdr.sjifile THEN BEGIN
-        sjixcoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.sjinx*hdr.sjidx))+3,2)+'.1)'
-        sjiycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.sjiny*hdr.sjidy))+3,2)+'.1)'
-        sjicoord_real_txt = '('+STRING(FLOAT(xsji_start*hdr.sjidx),$
-          FORMAT=sjixcoord_real_format)+'",'+STRING(FLOAT(ysji_start*hdr.sjidy),$
-          FORMAT=sjiycoord_real_format)+'")'
-      ENDIF ELSE BEGIN
         sjicoord_real_txt = 'N/A'
         sjixcoord_real_format = ''
         sjiycoord_real_format = ''
       ENDELSE
-		    sjixycoord_real_val = WIDGET_LABEL(params_sji_base, VALUE=sjicoord_real_txt, $
-          /ALIGN_RIGHT)
+		  sjixycoord_val = WIDGET_LABEL(params_sji_base, VALUE=sjicoord_txt, $
+        /ALIGN_RIGHT)
+		  sjixycoord_real_val = WIDGET_LABEL(params_sji_base, VALUE=sjicoord_real_txt, $
+        /ALIGN_RIGHT)
 
     ; Spectral parameters
 ;      divider_label = WIDGET_LABEL(verlabel_base, VALUE=' ')
