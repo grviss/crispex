@@ -4803,7 +4803,6 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
 		CRISPEX_ZOOM_LOOP, event, REFERENCE=KEYWORD_SET(REFERENCE), $
       SJI=KEYWORD_SET(SJI)
     IF KEYWORD_SET(REFERENCE) THEN BEGIN
-;      help,*(*(*info).overlayparams).sxp_ref
   		IF ~KEYWORD_SET(NO_ENDPOINTS) THEN $
         PLOTS, *(*(*info).overlayparams).sxp_ref, $
           *(*(*info).overlayparams).syp_ref, /DEVICE, COLOR=!P.COLOR, PSYM=1, $
@@ -10974,7 +10973,8 @@ PRO CRISPEX_RETRIEVE_DET_FILE_MENU, event, set_but_array, $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (N_ELEMENTS(detfilename) NE 1) THEN $
     (*(*info).detparams).detfilename = DIALOG_PICKFILE(/READ, /MUST_EXIST, $
-      TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Select detection file')
+      TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+$
+      ': Select detection file')
 	IF ((*(*info).detparams).detfilename EQ '') THEN BEGIN
 		(*(*info).loopswitch).retrieve_detfile = 0
 		RETURN
@@ -13217,12 +13217,21 @@ END
 PRO CRISPEX_SAVE_LOOPSL_CONTINUE, event
 ; Handles continue events from the loopslice/slab warning window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF ((*(*info).savswitch).cont EQ 1) THEN CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, /SAVE_SLICE		; Save diagram from saved path at single spectral position
-	IF ((*(*info).savswitch).cont EQ 2) THEN CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event 				; Save diagram from saved path for all spectral positions
-	IF ((*(*info).savswitch).cont EQ 3) THEN CRISPEX_SAVE_EXACT_LOOPSLAB, event 				; Save diagram for all spectral positions
-	IF ((*(*info).savswitch).cont EQ 4) THEN CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB, event, /SAVE_SLICE		; Save diagram from saved detection at single spectral position
-	IF ((*(*info).savswitch).cont EQ 5) THEN CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB, event 			; Save diagram from saved detection at all spectral positions
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  CASE (*(*info).savswitch).cont OF
+  ; Save diagram from saved path at single spectral position
+    1: CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, /SAVE_SLICE		
+  ; Save diagram from saved path for all spectral positions
+    2: CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event 		
+  ; Save diagram for all spectral positions
+    3: CRISPEX_SAVE_EXACT_LOOPSLAB, event 				
+  ; Save diagram from saved detection at single spectral position
+    4: CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB, event, /SAVE_SLICE		
+  ; Save diagram from saved detection at all spectral positions
+    5: CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB, event 			
+    ELSE: RETURN
+  ENDCASE
 END
 
 PRO CRISPEX_SAVE_LOOPSL_ABORT, event
@@ -13536,6 +13545,8 @@ PRO CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB, event, SAVE_SLICE=save_slice
     ; Saving slice, from main 
 		lp_dn = (*(*info).dataparams).lp	
     lp_up = lp_dn
+		(*(*info).detparams).lp_dn = lp_dn	
+    (*(*info).detparams).lp_up = lp_up
 		IF ((*(*info).savswitch).det_imref_only GE 2) THEN BEGIN
       ; Saving slice, either from ref only or from main and ref
 			lp_ref_dn = (*(*info).dataparams).lp_ref	
