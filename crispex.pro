@@ -1552,7 +1552,7 @@ PRO CRISPEX_CURSOR, event
   						(*(*(*info).meas).syp_sji) = (*(*info).curs).sysjilock 
             ENDIF
 					ENDIF
-					CRISPEX_COORDSLIDERS_SET, 0, 0, event
+					CRISPEX_COORDSLIDERS_SET, 1, 1, event
 				END
 			2:	BEGIN	; middle mouse button press -> set second point of measurement
 					IF ((*(*info).meas).spatial_measurement AND $
@@ -1587,7 +1587,7 @@ PRO CRISPEX_CURSOR, event
   						*(*(*info).meas).syp_sji = $
                 [(*(*(*info).meas).syp_sji)[0],(*(*info).curs).sysji]
             ENDIF
-						CRISPEX_COORDSLIDERS_SET, 0, 0, event
+						CRISPEX_COORDSLIDERS_SET, 1, 1, event
 						CRISPEX_MEASURE_CALC, event
 					ENDIF
 				END
@@ -1611,36 +1611,35 @@ PRO CRISPEX_CURSOR, event
                         ((*(*info).loopparams).np_sji GE 1))) THEN BEGIN
           CRISPEX_CURSOR_GET_XY, event, event.X, event.Y, CURRENT_WID=current_wid
           ; Get new paths with current cursor coordinate
-          ; If np>=1, add current coordinate to xyp and compute path
-           IF ((*(*info).loopparams).np GE 1) THEN BEGIN
-  					*(*(*info).loopparams).xpdisp = $
+          IF ((*(*info).loopparams).np GE 1) THEN BEGIN
+	        	*(*(*info).loopparams).xpdisp = $
               [(*(*(*info).loopparams).xp)[0:(*(*info).loopparams).np-1],$
                                           (*(*info).dataparams).x]
-  					*(*(*info).loopparams).ypdisp = $
+	        	*(*(*info).loopparams).ypdisp = $
               [(*(*(*info).loopparams).yp)[0:(*(*info).loopparams).np-1],$
                                           (*(*info).dataparams).y]
           ENDIF
           ; If np_ref>=1, add current coordinate to xyp_ref and compute path
           IF ((*(*info).winswitch).showref AND $
             (*(*info).loopparams).np_ref GE 1) THEN BEGIN
-  					*(*(*info).loopparams).xpdisp_ref = $
+	        	*(*(*info).loopparams).xpdisp_ref = $
               [(*(*(*info).loopparams).xp_ref)[0:(*(*info).loopparams).np_ref-1],$
                                           (*(*info).dataparams).xref]
-  					*(*(*info).loopparams).ypdisp_ref = $
+	        	*(*(*info).loopparams).ypdisp_ref = $
               [(*(*(*info).loopparams).yp_ref)[0:(*(*info).loopparams).np_ref-1],$
                                           (*(*info).dataparams).yref]
           ENDIF
           IF ((*(*info).winswitch).showsji AND $
             (*(*info).loopparams).np_sji GE 1) THEN BEGIN
-  					*(*(*info).loopparams).xpdisp_sji = $
+	        	*(*(*info).loopparams).xpdisp_sji = $
               [(*(*(*info).loopparams).xp_sji)[0:(*(*info).loopparams).np_sji-1],$
                                           (*(*info).dataparams).xsji]
-  					*(*(*info).loopparams).ypdisp_sji = $
+	        	*(*(*info).loopparams).ypdisp_sji = $
               [(*(*(*info).loopparams).yp_sji)[0:(*(*info).loopparams).np_sji-1],$
                                           (*(*info).dataparams).ysji]
           ENDIF
           CRISPEX_LOOP_GET_PATH, event
-					CRISPEX_COORDSLIDERS_SET, 0, 0, event
+					CRISPEX_COORDSLIDERS_SET, 1, 1, event
         ; Else if drawing measurement, adjust measurement feedback
 				ENDIF ELSE IF ((*(*info).meas).spatial_measurement AND $
                       ((*(*info).meas).np EQ 1)) THEN BEGIN
@@ -1672,7 +1671,7 @@ PRO CRISPEX_CURSOR, event
               [(*(*(*info).meas).syp_sji)[0],(*(*info).curs).sysji]
           ENDIF
 					CRISPEX_MEASURE_CALC, event
-					CRISPEX_COORDSLIDERS_SET, 0, 0, event
+					CRISPEX_COORDSLIDERS_SET, 1, 1, event
 				ENDIF ELSE RETURN
 			END
 		ELSE: RETURN
@@ -1766,15 +1765,15 @@ PRO CRISPEX_CURSOR_LOCK, event
       (*(*info).curs).sxreflock = (*(*info).curs).sxref
       (*(*info).curs).syreflock = (*(*info).curs).syref
     ENDIF
-		CRISPEX_COORDSLIDERS_SET, 0, 0, event
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
 			CRISPEX_VERBOSE_GET, event, [(*(*info).curs).xlock,(*(*info).curs).ylock,$
         (*(*info).curs).sxlock,(*(*info).curs).sylock], $
         labels=['xlock','ylock','sxlock','sylock']
-	ENDIF ELSE CRISPEX_COORDSLIDERS_SET, 1, 1, event
+	ENDIF 
+  CRISPEX_COORDSLIDERS_SET, 1, 1, event
 END
 
-PRO CRISPEX_COORDSLIDERS_SET, xsensitive, ysensitive, event				
+PRO CRISPEX_COORDSLIDERS_SET, xsensitive, ysensitive, event
 ; Adjusts sliders according to change in cursor position or locked/unlocked state
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
@@ -1846,8 +1845,8 @@ PRO CRISPEX_COORDS_TRANSFORM_XY, event, MAIN2SJI=main2sji, MAIN2REF=main2ref, $
     (((*(*info).dataparams).x LT 0) OR ((*(*info).dataparams).y LT 0) OR $
      ((*(*info).dataparams).x GE (*(*info).dataparams).nx) OR $
      ((*(*info).dataparams).y GE (*(*info).dataparams).ny))
+  ; Check whether reference coordinates are out of range
   IF (*(*info).dataswitch).reffile THEN BEGIN
-    ; Check whether reference coordinates are out of range
     (*(*info).dispswitch).xyref_out_of_range = $
       (((*(*info).dataparams).xref LT 0) OR ((*(*info).dataparams).yref LT 0) OR $
        ((*(*info).dataparams).xref GE (*(*info).dataparams).refnx) OR $
@@ -1880,8 +1879,8 @@ PRO CRISPEX_COORDS_TRANSFORM_XY, event, MAIN2SJI=main2sji, MAIN2REF=main2ref, $
     (*(*info).dataparams).xsji = xysji[0]
     (*(*info).dataparams).ysji = xysji[1]
   ENDIF 
+  ; Check whether SJI coordinates are out of range
   IF (*(*info).dataswitch).sjifile THEN $
-    ; Check whether SJI coordinates are out of range
     (*(*info).dispswitch).xysji_out_of_range = $
       (((*(*info).dataparams).xsji LT 0) OR ((*(*info).dataparams).ysji LT 0) OR $
        ((*(*info).dataparams).xsji GE (*(*info).dataparams).sjinx) OR $
@@ -4780,22 +4779,13 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
     sy_loc = (*(*info).curs).sy
   ENDELSE
   ; Overplot phi-slit 
-	IF (*(*info).winswitch).showphis THEN BEGIN
-		IF ((*(*info).zooming).factor EQ 1) THEN $
+	IF (*(*info).winswitch).showphis THEN $ 
 			PLOTS, ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywinx/$
               (2.*(*(*info).dataparams).nx))*COS((*(*info).phiparams).angle*!DTOR) + $
               sx_loc, $
 				      ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywiny/$
               (2.*(*(*info).dataparams).ny))*SIN((*(*info).phiparams).angle*!DTOR) + $
-              sy_loc, /DEVICE, COLOR = !P.COLOR $
-		ELSE $
-      PLOTS, ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywinx/$
-              (2.*(*(*info).dataparams).nx))*COS((*(*info).phiparams).angle*!DTOR) + $
-              sx_loc, $
-			        ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywiny/$
-              (2.*(*(*info).dataparams).ny))*SIN((*(*info).phiparams).angle*!DTOR) + $
-              sy_loc, /DEVICE, COLOR = !P.COLOR
-	ENDIF
+              sy_loc, /DEVICE, COLOR = !P.COLOR ;$
 	IF ((*(*info).overlayswitch).loopslit AND $
     (((*(*info).loopparams).np GT 0) OR $
      ((*(*info).loopparams).np_ref GT 0) OR $
@@ -8687,8 +8677,7 @@ PRO CRISPEX_LOOP_GET, event, ADD_REMOVE=add_remove
   ENDIF
 END
 
-PRO CRISPEX_LOOP_GET_PATH, event, ADD_REMOVE=add_remove;, MAIN=main, REFERENCE=reference, $
-;  SXYP_REF_ADD=sxyp_ref_add
+PRO CRISPEX_LOOP_GET_PATH, event, ADD_REMOVE=add_remove
 ; Gets the actual loop path from spline interpolation
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
@@ -9033,6 +9022,11 @@ PRO CRISPEX_LOOP_REMOVE_POINT, event, CURSOR_ACTION=cursor_action
     (*(*(*info).loopparams).yp)[0:(*(*info).loopparams).np-1]
 	*(*(*info).loopparams).xpdisp = *(*(*info).loopparams).xp
 	*(*(*info).loopparams).ypdisp = *(*(*info).loopparams).yp
+  ; Reset xy-coordinates
+  (*(*info).dataparams).x = $
+    (*(*(*info).loopparams).xpdisp)[(*(*info).loopparams).np-1]
+  (*(*info).dataparams).y = $
+    (*(*(*info).loopparams).ypdisp)[(*(*info).loopparams).np-1]
  ; Reset reference data and device coordinate points
  IF (*(*info).winswitch).showref THEN BEGIN
   	*(*(*info).loopparams).xp_ref = $
@@ -9041,6 +9035,11 @@ PRO CRISPEX_LOOP_REMOVE_POINT, event, CURSOR_ACTION=cursor_action
       (*(*(*info).loopparams).yp_ref)[0:(*(*info).loopparams).np_ref-1]
   	*(*(*info).loopparams).xpdisp_ref = *(*(*info).loopparams).xp_ref
   	*(*(*info).loopparams).ypdisp_ref = *(*(*info).loopparams).yp_ref
+    ; Reset xy-coordinates
+    (*(*info).dataparams).xref = $
+      (*(*(*info).loopparams).xpdisp_ref)[(*(*info).loopparams).np_ref-1]
+    (*(*info).dataparams).yref = $
+      (*(*(*info).loopparams).ypdisp_ref)[(*(*info).loopparams).np_ref-1]
  ENDIF
  ; Reset SJI data and device coordinate points
  IF (*(*info).winswitch).showsji THEN BEGIN
@@ -9050,21 +9049,49 @@ PRO CRISPEX_LOOP_REMOVE_POINT, event, CURSOR_ACTION=cursor_action
       (*(*(*info).loopparams).yp_sji)[0:(*(*info).loopparams).np_sji-1]
   	*(*(*info).loopparams).xpdisp_sji = *(*(*info).loopparams).xp_sji
   	*(*(*info).loopparams).ypdisp_sji = *(*(*info).loopparams).yp_sji
+    ; Reset xy-coordinates
+    (*(*info).dataparams).xsji = $
+      (*(*(*info).loopparams).xpdisp_sji)[(*(*info).loopparams).np_sji-1]
+    (*(*info).dataparams).ysji = $
+      (*(*(*info).loopparams).ypdisp_sji)[(*(*info).loopparams).np_sji-1]
   ENDIF
+  ; Check whether main coordinates are out of range
+  (*(*info).dispswitch).xy_out_of_range = $
+    (((*(*info).dataparams).x LT 0) OR ((*(*info).dataparams).y LT 0) OR $
+     ((*(*info).dataparams).x GE (*(*info).dataparams).nx) OR $
+     ((*(*info).dataparams).y GE (*(*info).dataparams).ny))
+  ; Check whether reference coordinates are out of range
+  IF (*(*info).dataswitch).reffile THEN $
+    (*(*info).dispswitch).xyref_out_of_range = $
+      (((*(*info).dataparams).xref LT 0) OR ((*(*info).dataparams).yref LT 0) OR $
+       ((*(*info).dataparams).xref GE (*(*info).dataparams).refnx) OR $
+       ((*(*info).dataparams).yref GE (*(*info).dataparams).refny))
+  ; Check whether SJI coordinates are out of range
+  IF (*(*info).dataswitch).sjifile THEN $
+    (*(*info).dispswitch).xysji_out_of_range = $
+      (((*(*info).dataparams).xsji LT 0) OR ((*(*info).dataparams).ysji LT 0) OR $
+       ((*(*info).dataparams).xsji GE (*(*info).dataparams).sjinx) OR $
+       ((*(*info).dataparams).ysji GE (*(*info).dataparams).sjiny))
   ; Action if routine called by CURSOR
   IF KEYWORD_SET(CURSOR_ACTION) THEN BEGIN
     IF ((*(*info).loopparams).np GE 2) THEN $
       CRISPEX_LOOP_GET_PATH, event $
     ELSE BEGIN
-    	*(*(*info).loopparams).xr = *(*(*info).loopparams).xp
-    	*(*(*info).loopparams).yr = *(*(*info).loopparams).yp
+    	*(*(*info).loopparams).xr = (*(*(*info).loopparams).xp)[0]
+    	*(*(*info).loopparams).yr = (*(*(*info).loopparams).yp)[0]
+    	*(*(*info).loopparams).xrdisp = *(*(*info).loopparams).xr
+    	*(*(*info).loopparams).yrdisp = *(*(*info).loopparams).yr
       IF (*(*info).winswitch).showref THEN BEGIN
-    		*(*(*info).loopparams).xr_ref = *(*(*info).loopparams).xp_ref
-    		*(*(*info).loopparams).yr_ref = *(*(*info).loopparams).yp_ref
+    		*(*(*info).loopparams).xr_ref = (*(*(*info).loopparams).xp_ref)[0]
+    		*(*(*info).loopparams).yr_ref = (*(*(*info).loopparams).yp_ref)[0]
+      	*(*(*info).loopparams).xrdisp_ref = *(*(*info).loopparams).xr_ref
+      	*(*(*info).loopparams).yrdisp_ref = *(*(*info).loopparams).yr_ref
       ENDIF
       IF (*(*info).winswitch).showsji THEN BEGIN
-    		*(*(*info).loopparams).xr_sji = *(*(*info).loopparams).xp_sji
-    		*(*(*info).loopparams).yr_sji = *(*(*info).loopparams).yp_sji
+    		*(*(*info).loopparams).xr_sji = (*(*(*info).loopparams).xp_sji)[0]
+    		*(*(*info).loopparams).yr_sji = (*(*(*info).loopparams).yp_sji)[0]
+      	*(*(*info).loopparams).xrdisp_sji = *(*(*info).loopparams).xr_sji
+      	*(*(*info).loopparams).yrdisp_sji = *(*(*info).loopparams).yr_sji
       ENDIF
     ENDELSE
   ENDIF ELSE BEGIN
@@ -9078,14 +9105,17 @@ PRO CRISPEX_LOOP_REMOVE_POINT, event, CURSOR_ACTION=cursor_action
   	IF ((*(*info).zooming).factor NE 1) THEN CRISPEX_ZOOM_LOOP, event
   ENDELSE
   ; Reset coordinate sliders
-	CRISPEX_COORDSLIDERS_SET, 0, 0, event
+	CRISPEX_COORDSLIDERS_SET, 1, 1, event
+  CRISPEX_UPDATE_SX, event
+  CRISPEX_UPDATE_SY, event
 	IF (*(*info).winswitch).showphis THEN BEGIN
 		CRISPEX_PHISLIT_DIRECTION, event
     CRISPEX_UPDATE_PHISLIT_COORDS, event
 		CRISPEX_UPDATE_PHISLICE, event
 	ENDIF ELSE CRISPEX_DRAW, event
 END
-;================================================================================= MASK PROCEDURES
+
+;==================== MASK PROCEDURES
 PRO CRISPEX_MASK_OVERLAY_COLOR_SLIDER, event
 ; Handles the change mask overlay window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -12641,8 +12671,7 @@ PRO CRISPEX_SESSION_RESTORE, event
           SENSITIVE = (*(*info).winswitch).showphis
   			; ==================== Spatial Tab ====================
         ; Set cursor sliders and lock/unlock buttons
-  			CRISPEX_COORDSLIDERS_SET, ABS((*(*info).curs).lockset-1), $
-          ABS((*(*info).curs).lockset-1), event
+  			CRISPEX_COORDSLIDERS_SET, 1, 1, event
         ; Set zooming buttons
   			IF ((*(*info).zooming).factor NE 1) THEN CRISPEX_ZOOM, event, /NO_DRAW
         set_zoomfac = CRISPEX_BGROUP_ZOOMFAC_SET(event, /NO_DRAW, /NO_UPDATE_SLIDERS, $
@@ -14646,13 +14675,28 @@ PRO CRISPEX_SLIDER_X_XREF_UPDATE, event, MAIN=main, REFERENCE=reference
     MAIN2REF=(KEYWORD_SET(MAIN) AND (*(*info).dataswitch).reffile),$
     REF2MAIN=KEYWORD_SET(REFERENCE), $
     REF2SJI=(KEYWORD_SET(REFERENCE) AND (*(*info).dataswitch).sjifile)
+  ; Adjust path if drawing one
+  IF ((*(*info).overlayswitch).loopslit AND $
+      ((*(*info).loopparams).np GE 1) OR $
+      ((*(*info).loopparams).np_ref GE 1)) THEN BEGIN
+    IF ((*(*info).loopparams).np GE 1) THEN $
+	  	*(*(*info).loopparams).xp = $
+        [(*(*(*info).loopparams).xp)[0:(*(*info).loopparams).np-2],$
+                                    (*(*info).dataparams).x]
+    IF ((*(*info).winswitch).showref AND $
+      (*(*info).loopparams).np_ref GE 1) THEN $
+	  	*(*(*info).loopparams).xp_ref = $
+        [(*(*(*info).loopparams).xp_ref)[0:(*(*info).loopparams).np_ref-2],$
+                                    (*(*info).dataparams).xref]
+    IF ((*(*info).winswitch).showsji AND $
+      (*(*info).loopparams).np_sji GE 1) THEN $
+	  	*(*(*info).loopparams).xp_sji = $
+        [(*(*(*info).loopparams).xp_sji)[0:(*(*info).loopparams).np_sji-2],$
+                                    (*(*info).dataparams).xsji]
+    CRISPEX_LOOP_GET_PATH, event, /ADD_REMOVE
+  ENDIF
   ; Set main/reference slider accordingly
-  IF KEYWORD_SET(REFERENCE) THEN $
-    WIDGET_CONTROL, (*(*info).ctrlscp).x_slider, $
-      SET_VALUE=(*(*info).dataparams).x $
-  ELSE IF (*(*info).dataswitch).reffile THEN $
-    WIDGET_CONTROL, (*(*info).ctrlscp).xref_slider, $
-      SET_VALUE=(*(*info).dataparams).xref
+  CRISPEX_COORDSLIDERS_SET, 1, 1, event
   ; Update cursor coordinates
 	CRISPEX_UPDATE_SX, event
   ; Update slices and redraw 
@@ -14745,13 +14789,28 @@ PRO CRISPEX_SLIDER_Y_YREF_UPDATE, event, MAIN=main, REFERENCE=reference
     MAIN2REF=(KEYWORD_SET(MAIN) AND (*(*info).dataswitch).reffile),$
     REF2MAIN=KEYWORD_SET(REFERENCE), $
     REF2SJI=(KEYWORD_SET(REFERENCE) AND (*(*info).dataswitch).sjifile)
+  ; Adjust path if drawing one
+  IF ((*(*info).overlayswitch).loopslit AND $
+      ((*(*info).loopparams).np GE 1) OR $
+      ((*(*info).loopparams).np_ref GE 1)) THEN BEGIN
+    IF ((*(*info).loopparams).np GE 1) THEN $
+  		*(*(*info).loopparams).yp = $
+        [(*(*(*info).loopparams).yp)[0:(*(*info).loopparams).np-2],$
+                                    (*(*info).dataparams).y]
+    IF ((*(*info).winswitch).showref AND $
+      (*(*info).loopparams).np_ref GE 1) THEN $
+  		*(*(*info).loopparams).yp_ref = $
+        [(*(*(*info).loopparams).yp_ref)[0:(*(*info).loopparams).np_ref-2],$
+                                    (*(*info).dataparams).yref]
+    IF ((*(*info).winswitch).showsji AND $
+      (*(*info).loopparams).np_sji GE 1) THEN $
+  		*(*(*info).loopparams).yp_sji = $
+        [(*(*(*info).loopparams).yp_sji)[0:(*(*info).loopparams).np_sji-2],$
+                                    (*(*info).dataparams).ysji]
+    CRISPEX_LOOP_GET_PATH, event, /ADD_REMOVE
+  ENDIF
   ; Set main/reference slider accordingly
-  IF KEYWORD_SET(REFERENCE) THEN $
-    WIDGET_CONTROL, (*(*info).ctrlscp).y_slider, $
-      SET_VALUE=(*(*info).dataparams).y $
-  ELSE IF (*(*info).dataswitch).reffile THEN $
-    WIDGET_CONTROL, (*(*info).ctrlscp).yref_slider, $
-      SET_VALUE=(*(*info).dataparams).yref
+  CRISPEX_COORDSLIDERS_SET, 1, 1, event
   ; Update cursor coordinates
 	CRISPEX_UPDATE_SY, event
   ; Update slices and redraw 
