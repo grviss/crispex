@@ -14727,7 +14727,8 @@ PRO CRISPEX_SLIDER_XPOS, event, REFERENCE=reference, SJI=sji
     (*(*info).zooming).xsjipos = event.VALUE $
   ELSE BEGIN
     (*(*info).zooming).xpos = event.VALUE
-    IF (*(*info).dispswitch).main2ref_no_map THEN BEGIN
+    IF ((*(*info).winswitch).showref AND $
+      (*(*info).dispswitch).main2ref_no_map) THEN BEGIN
       (*(*info).zooming).xrefpos = (*(*info).zooming).xpos
       WIDGET_CONTROL, (*(*info).ctrlsref).xrefpos_slider, $
         SET_VALUE=(*(*info).zooming).xrefpos
@@ -14841,7 +14842,8 @@ PRO CRISPEX_SLIDER_YPOS, event, REFERENCE=reference, SJI=sji
     (*(*info).zooming).ysjipos = event.VALUE $
   ELSE BEGIN
     (*(*info).zooming).ypos = event.VALUE
-    IF (*(*info).dispswitch).main2ref_no_map THEN BEGIN
+    IF ((*(*info).winswitch).showref AND $
+      (*(*info).dispswitch).main2ref_no_map) THEN BEGIN
       (*(*info).zooming).yrefpos = (*(*info).zooming).ypos
       WIDGET_CONTROL, (*(*info).ctrlsref).yrefpos_slider, $
         SET_VALUE=(*(*info).zooming).yrefpos
