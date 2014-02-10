@@ -1442,7 +1442,7 @@ PRO CRISPEX_CURSOR, event
     ; Else while in draw window, handle actions (mouse move or (un)lock by mouse
     ; button actions) 
     ; Determine window the mouse is in
-    current_wid = event.ID
+    (*(*info).winids).current_wid = event.ID
 		CASE event.TYPE OF
 		0:	CASE event.PRESS OF
 			1:	BEGIN	; left mouse button press -> locks cursor to location
@@ -1450,7 +1450,7 @@ PRO CRISPEX_CURSOR, event
 					WIDGET_CONTROL, (*(*info).ctrlscp).unlock_button, SET_BUTTON=0
 					WIDGET_CONTROL, (*(*info).ctrlscp).lock_button, /SET_BUTTON
           ; Convert device to actual data coordinates
-          CRISPEX_CURSOR_GET_XY, event, event.X, event.Y, CURRENT_WID=current_wid
+          CRISPEX_CURSOR_GET_XY, event, event.X, event.Y
           ; Set lock variables for main
 					(*(*info).curs).sxlock = (*(*info).curs).sx
 					(*(*info).curs).sylock = (*(*info).curs).sy
@@ -1557,7 +1557,7 @@ PRO CRISPEX_CURSOR, event
 			2:	BEGIN	; middle mouse button press -> set second point of measurement
 					IF ((*(*info).meas).spatial_measurement AND $
              ((*(*info).meas).np LT 2)) THEN BEGIN
-            CRISPEX_CURSOR_GET_XY, event, event.X, event.Y, CURRENT_WID=current_wid
+            CRISPEX_CURSOR_GET_XY, event, event.X, event.Y
 						(*(*info).meas).np = 2
 						*(*(*info).meas).xp = $
               [(*(*(*info).meas).xp)[0],(*(*info).dataparams).x]	
@@ -1600,7 +1600,7 @@ PRO CRISPEX_CURSOR, event
 		2:	BEGIN	; mouse movement
         ; If cursor isn't locked, adjust coordinate sliders
 				IF ((*(*info).curs).lockset EQ 0) THEN BEGIN
-          CRISPEX_CURSOR_GET_XY, event, event.X, event.Y, CURRENT_WID=current_wid
+          CRISPEX_CURSOR_GET_XY, event, event.X, event.Y
 					CRISPEX_COORDSLIDERS_SET, 1, 1, event 
         ; Else if drawing path, adjust path feedback if path has been started in
         ; either main window (np>=1) or reference window (np_ref>=1)
@@ -1609,7 +1609,7 @@ PRO CRISPEX_CURSOR, event
                        (((*(*info).loopparams).np GE 1) OR $
                         ((*(*info).loopparams).np_ref GE 1) OR $
                         ((*(*info).loopparams).np_sji GE 1))) THEN BEGIN
-          CRISPEX_CURSOR_GET_XY, event, event.X, event.Y, CURRENT_WID=current_wid
+          CRISPEX_CURSOR_GET_XY, event, event.X, event.Y
           ; Get new paths with current cursor coordinate
           IF ((*(*info).loopparams).np GE 1) THEN BEGIN
 	        	*(*(*info).loopparams).xpdisp = $
@@ -1643,7 +1643,7 @@ PRO CRISPEX_CURSOR, event
         ; Else if drawing measurement, adjust measurement feedback
 				ENDIF ELSE IF ((*(*info).meas).spatial_measurement AND $
                       ((*(*info).meas).np EQ 1)) THEN BEGIN
-          CRISPEX_CURSOR_GET_XY, event, event.X, event.Y, CURRENT_WID=current_wid
+          CRISPEX_CURSOR_GET_XY, event, event.X, event.Y
 					*(*(*info).meas).xp = [(*(*(*info).meas).xp)[0],$
             (*(*info).dataparams).x]	
 					*(*(*info).meas).yp = [(*(*(*info).meas).yp)[0],$
@@ -1670,6 +1670,8 @@ PRO CRISPEX_CURSOR, event
 						*(*(*info).meas).syp_sji = $
               [(*(*(*info).meas).syp_sji)[0],(*(*info).curs).sysji]
           ENDIF
+;          print,*(*(*info).meas).sxp,(*(*info).curs).sx, (*(*info).dataparams).x
+;          print,*(*(*info).meas).syp,(*(*info).curs).sy, (*(*info).dataparams).y
 					CRISPEX_MEASURE_CALC, event
 					CRISPEX_COORDSLIDERS_SET, 1, 1, event
 				ENDIF ELSE RETURN
@@ -1696,20 +1698,20 @@ PRO CRISPEX_CURSOR, event
 	ENDIF
 END
 
-PRO CRISPEX_CURSOR_GET_XY, event, x_tmp, y_tmp, CURRENT_WID=current_wid 
+PRO CRISPEX_CURSOR_GET_XY, event, x_tmp, y_tmp
 ; Converts the window x and y coordinates to data x and y coordinates
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Get temporary data coordinates from temporary device coordinates
   xy_tmp = CRISPEX_TRANSFORM_DATA2DEVICE(info, X=x_tmp, Y=y_tmp, $
-    MAIN=((current_wid EQ (*(*info).winids).xydrawid) OR $
-          (current_wid EQ (*(*info).winids).imrefdrawid)), $
-    REFERENCE=(current_wid EQ (*(*info).winids).refdrawid), $
+    MAIN=(((*(*info).winids).current_wid EQ (*(*info).winids).xydrawid) OR $
+          ((*(*info).winids).current_wid EQ (*(*info).winids).imrefdrawid)), $
+    REFERENCE=((*(*info).winids).current_wid EQ (*(*info).winids).refdrawid), $
     /INVERSE)
   ; Check whether current window ID is reference or main
   ; Take LONG() of temporary results to get the actual indices
-  IF (current_wid EQ (*(*info).winids).xydrawid) THEN BEGIN
+  IF ((*(*info).winids).current_wid EQ (*(*info).winids).xydrawid) THEN BEGIN
   	(*(*info).dataparams).x = LONG(xy_tmp.x)
   	(*(*info).dataparams).y = LONG(xy_tmp.y)
   ENDIF ELSE BEGIN
@@ -1719,12 +1721,12 @@ PRO CRISPEX_CURSOR_GET_XY, event, x_tmp, y_tmp, CURRENT_WID=current_wid
   ; Convert x,y to values for other windows
   CRISPEX_COORDS_TRANSFORM_XY, event, $
     MAIN2SJI=(((*(*info).dataswitch).sjifile NE 0) AND $
-              (current_wid EQ (*(*info).winids).xydrawid)), $
+              ((*(*info).winids).current_wid EQ (*(*info).winids).xydrawid)), $
     MAIN2REF=(((*(*info).dataswitch).reffile NE 0) AND $
-              (current_wid EQ (*(*info).winids).xydrawid)), $
-    REF2MAIN=(current_wid EQ (*(*info).winids).refdrawid), $
+              ((*(*info).winids).current_wid EQ (*(*info).winids).xydrawid)), $
+    REF2MAIN=((*(*info).winids).current_wid EQ (*(*info).winids).refdrawid), $
     REF2SJI=(((*(*info).dataswitch).sjifile NE 0) AND $
-              (current_wid EQ (*(*info).winids).refdrawid))
+              ((*(*info).winids).current_wid EQ (*(*info).winids).refdrawid))
   ; Get device coordinates for display
   sxy = CRISPEX_TRANSFORM_DATA2DEVICE(info, $
     X=(*(*info).dataparams).x, Y=(*(*info).dataparams).y, /MAIN)
@@ -4810,18 +4812,29 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).phiparams).d_nphi_set = $
     (*(*info).zooming).factor * (*(*info).phiparams).nphi_set
+  main_wid = 0
+  ref_wid = 0
+  sji_wid = 0
   IF KEYWORD_SET(SJI) THEN BEGIN
+    sji_wid = ((*(*info).winids).current_wid EQ (*(*info).winids).sjidrawid)
     sx_loc = (*(*info).curs).sxsji
     sy_loc = (*(*info).curs).sysji
     IF (*(*info).overlayswitch).sjiraster THEN $
       CRISPEX_DRAW_RASTER_OVERLAYS, event
   ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
+    ref_wid = ((*(*info).winids).current_wid EQ (*(*info).winids).refdrawid)
     sx_loc = (*(*info).curs).sxref
     sy_loc = (*(*info).curs).syref
   ENDIF ELSE BEGIN
+    main_wid = ((*(*info).winids).current_wid EQ (*(*info).winids).xydrawid)
     sx_loc = (*(*info).curs).sx
     sy_loc = (*(*info).curs).sy
   ENDELSE
+  ; Get current colour table arrays
+  TVLCT, r_cur, g_cur, b_cur, /GET
+  eqtc0 = (ARRAY_EQUAL(r_cur,BINDGEN(256)) AND ARRAY_EQUAL(g_cur,BINDGEN(256)) $
+      AND ARRAY_EQUAL(b_cur,BINDGEN(256)))
+  IF (eqtc0 EQ 0) THEN LOADCT,0,/SILENT
   ; Overplot phi-slit 
 	IF (*(*info).winswitch).showphis THEN $ 
 			PLOTS, ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywinx/$
@@ -4830,12 +4843,14 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
 				      ([-1,1]*(*(*info).phiparams).d_nphi_set*(*(*info).winsizes).xywiny/$
               (2.*(*(*info).dataparams).ny))*SIN((*(*info).phiparams).angle*!DTOR) + $
               sy_loc, /DEVICE, COLOR = !P.COLOR ;$
+  ; Overplot loop paths...
 	IF ((*(*info).overlayswitch).loopslit AND $
     (((*(*info).loopparams).np GT 0) OR $
      ((*(*info).loopparams).np_ref GT 0) OR $
      ((*(*info).loopparams).np_sji GT 0))) THEN BEGIN
 		CRISPEX_ZOOM_LOOP, event, REFERENCE=KEYWORD_SET(REFERENCE), $
       SJI=KEYWORD_SET(SJI)
+    ; ... in reference window
     IF KEYWORD_SET(REFERENCE) THEN BEGIN
   		IF ~KEYWORD_SET(NO_ENDPOINTS) THEN $
         PLOTS, *(*(*info).overlayparams).sxp_ref, $
@@ -4849,6 +4864,7 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
         PLOTS,*(*(*info).overlayparams).sxr_ref,$
           *(*(*info).overlayparams).syr_ref,/DEVICE, COLOR=!P.COLOR, $
           LINESTYLE=(*(*info).overlayparams).loop_linestyle, THICK=thick
+    ; ... in SJI window
     ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
   		IF ~KEYWORD_SET(NO_ENDPOINTS) THEN $
         PLOTS, *(*(*info).overlayparams).sxp_sji, $
@@ -4862,6 +4878,7 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
         PLOTS,*(*(*info).overlayparams).sxr_sji,$
           *(*(*info).overlayparams).syr_sji,/DEVICE, COLOR=!P.COLOR, $
           LINESTYLE=(*(*info).overlayparams).loop_linestyle, THICK=thick
+    ; ... in main window
     ENDIF ELSE BEGIN
   		IF ~KEYWORD_SET(NO_ENDPOINTS) THEN $
         PLOTS, *(*(*info).overlayparams).sxp, *(*(*info).overlayparams).syp, $
@@ -4875,31 +4892,43 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
           LINESTYLE=(*(*info).overlayparams).loop_linestyle
     ENDELSE
 	ENDIF ELSE IF ((*(*info).meas).np GE 1) THEN BEGIN
+    ; Draw measurement
 		CRISPEX_ZOOM_MEAS, event, REFERENCE=KEYWORD_SET(REFERENCE), $
       SJI=KEYWORD_SET(SJI)
+    ; ... in reference window
     IF KEYWORD_SET(REFERENCE) THEN BEGIN
   		IF ~KEYWORD_SET(NO_ENDPOINTS) THEN BEGIN
-  			PLOTS, *(*(*info).meas).sxp_ref,*(*(*info).meas).syp_ref, /DEVICE, COLOR=!P.COLOR, $
-          PSYM=1, THICK=thick, SYMSIZE=symsize
-  			PLOTS, *(*(*info).meas).sxp_ref,*(*(*info).meas).syp_ref, /DEVICE, COLOR=!P.COLOR, $
-          LINESTYLE=0, THICK=thick, SYMSIZE=symsize
+  			PLOTS, *(*(*info).meas).sxp_ref,*(*(*info).meas).syp_ref, /DEVICE, $
+          COLOR=!P.COLOR, PSYM=1, THICK=thick, SYMSIZE=symsize
+  			PLOTS, *(*(*info).meas).sxp_ref,*(*(*info).meas).syp_ref, /DEVICE, $
+          COLOR=!P.COLOR, LINESTYLE=0, THICK=thick, SYMSIZE=symsize
   		ENDIF
+    ; ... in SJI window
     ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
   		IF ~KEYWORD_SET(NO_ENDPOINTS) THEN BEGIN
-  			PLOTS, *(*(*info).meas).sxp_sji,*(*(*info).meas).syp_sji, /DEVICE, COLOR=!P.COLOR, $
-          PSYM=1, THICK=thick, SYMSIZE=symsize
-  			PLOTS, *(*(*info).meas).sxp_sji,*(*(*info).meas).syp_sji, /DEVICE, COLOR=!P.COLOR, $
-          LINESTYLE=0, THICK=thick, SYMSIZE=symsize
+  			PLOTS, *(*(*info).meas).sxp_sji,*(*(*info).meas).syp_sji, /DEVICE, $
+          COLOR=!P.COLOR, PSYM=1, THICK=thick, SYMSIZE=symsize
+  			PLOTS, *(*(*info).meas).sxp_sji,*(*(*info).meas).syp_sji, /DEVICE, $
+          COLOR=!P.COLOR, LINESTYLE=0, THICK=thick, SYMSIZE=symsize
   		ENDIF
+    ; ... in main window
     ENDIF ELSE BEGIN
   		IF ~KEYWORD_SET(NO_ENDPOINTS) THEN BEGIN
-  			PLOTS, *(*(*info).meas).sxp,*(*(*info).meas).syp, /DEVICE, COLOR=!P.COLOR, $
-          PSYM=1, THICK=thick, SYMSIZE=symsize
-  			PLOTS, *(*(*info).meas).sxp,*(*(*info).meas).syp, /DEVICE, COLOR=!P.COLOR, $
-          LINESTYLE=0, THICK=thick, SYMSIZE=symsize
+  			PLOTS, *(*(*info).meas).sxp,*(*(*info).meas).syp, /DEVICE, $
+          COLOR=!P.COLOR, PSYM=1, THICK=thick, SYMSIZE=symsize
+  			PLOTS, *(*(*info).meas).sxp,*(*(*info).meas).syp, /DEVICE, $
+          COLOR=!P.COLOR, LINESTYLE=0, THICK=thick, SYMSIZE=symsize
   		ENDIF
     ENDELSE
-	ENDIF ELSE IF ~KEYWORD_SET(NO_CURSOR) THEN BEGIN
+	ENDIF ;ELSE 
+  IF ~KEYWORD_SET(NO_CURSOR) THEN BEGIN
+    ; Overplot cursor location
+    IF ((main_wid OR ref_wid OR sji_wid) AND eqtc0) THEN BEGIN
+      LOADCT, 13, /SILENT
+      curscolor = 255
+    ENDIF ELSE BEGIN
+      IF (main_wid+ref_wid+sji_wid EQ 0) THEN curscolor = 255
+    ENDELSE
     IF KEYWORD_SET(SJI) THEN BEGIN
       IF ((*(*info).dispswitch).xysji_out_of_range EQ 0) THEN $
         PLOTS, sx_loc, sy_loc, /DEVICE, PSYM=1, COLOR=curscolor, THICK=thick, $
@@ -4915,6 +4944,7 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
 	CRISPEX_DRAW_LOOP_OVERLAYS, event, NO_NUMBER=no_number, THICK=thick, $
     NO_ENDPOINTS=no_endpoints, SYMSIZE=symsize, SJI=SJI, REFERENCE=reference
 	IF draw_mask THEN CRISPEX_DRAW_MASK_OVERLAYS, event, REFERENCE=reference
+  TVLCT, r_cur, g_cur, b_cur
 END
 
 PRO CRISPEX_DRAW_LOOP_LINESTYLE_0, event
@@ -5283,6 +5313,7 @@ PRO CRISPEX_DRAW_MASK_OVERLAYS, event, REFERENCE=reference
   	               (*(*info).zooming).ypos + (*(*info).dataparams).d_ny]
     position = [0,0,1,1]
   ENDELSE
+  TVLCT, r_cur, g_cur, b_cur, /GET
 	LOADCT, (*(*info).overlayparams).maskct, /SILENT
 	CONTOUR, (*(*(*info).data).maskslice)[xcoords_new[0]:xcoords_new[1],$
     ycoords_new[0]:ycoords_new[1]], LEVELS=1, $
@@ -5291,7 +5322,7 @@ PRO CRISPEX_DRAW_MASK_OVERLAYS, event, REFERENCE=reference
 ;	CONTOUR,(*(*(*info).data).maskslice)[x_low:x_upp,y_low:y_upp], $
 ;    COLOR=(*(*info).overlayparams).maskcolor-100, LEVELS = 1, $
 ;    /ISOTROPIC, XS=13,YS=13,POSITION=[0,0,1,1],/NORMAL, /NOERASE
-	LOADCT, 0, /SILENT
+  TVLCT, r_cur, g_cur, b_cur
 END
 
 PRO CRISPEX_DRAW_RASTER_OVERLAYS, event
@@ -5406,12 +5437,17 @@ PRO CRISPEX_DRAW, event, NO_MAIN=no_main, NO_REF=no_ref, NO_PHIS=no_phis
 ; Handles the actual drawing of the data into the respective open display windows
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF ((*(*info).curs).lockset AND ((*(*info).overlayswitch).loopslit NE 1)) THEN BEGIN
+	IF ((*(*info).curs).lockset AND ((*(*info).overlayswitch).loopslit NE 1) AND $
+     ((*(*info).meas).spatial_measurement EQ 0)) THEN BEGIN
 		(*(*info).curs).sx = (*(*info).curs).sxlock	
     (*(*info).curs).sy = (*(*info).curs).sylock
     IF ((*(*info).winids).reftlb NE 0) THEN BEGIN
       (*(*info).curs).sxref = (*(*info).curs).sxreflock
       (*(*info).curs).syref = (*(*info).curs).syreflock
+    ENDIF
+    IF ((*(*info).winids).sjitlb NE 0) THEN BEGIN
+      (*(*info).curs).sxsji = (*(*info).curs).sxsjilock
+      (*(*info).curs).sysji = (*(*info).curs).sysjilock
     ENDIF
 	ENDIF 
 	CRISPEX_DRAW_IMREF, event, NO_MAIN=no_main, NO_REF=no_ref
@@ -9151,6 +9187,11 @@ PRO CRISPEX_LOOP_REMOVE_POINT, event, CURSOR_ACTION=cursor_action
 	CRISPEX_COORDSLIDERS_SET, 1, 1, event
   CRISPEX_UPDATE_SX, event
   CRISPEX_UPDATE_SY, event
+  ; Update display data and Redraw windows as necessary 
+  IF (*(*info).winswitch).showls THEN CRISPEX_UPDATE_SSP, event
+  IF (*(*info).winswitch).showsp THEN CRISPEX_UPDATE_SPSLICE, event
+  IF (*(*info).winswitch).showrefls THEN CRISPEX_UPDATE_REFSSP, event
+  IF (*(*info).winswitch).showrefsp THEN CRISPEX_UPDATE_REFSPSLICE, event
 	IF (*(*info).winswitch).showphis THEN BEGIN
 		CRISPEX_PHISLIT_DIRECTION, event
     CRISPEX_UPDATE_PHISLIT_COORDS, event
@@ -9249,7 +9290,13 @@ PRO CRISPEX_MEASURE_ENABLE, event, DISABLE=disable
       (*(*info).dataparams).y = (*(*info).curs).ylock
       CRISPEX_COORDS_TRANSFORM_XY, event, $
         MAIN2SJI=((*(*info).winids).sjitlb NE 0), $
-        MAIN2REF=((*(*info).winids).reftlb NE 0)
+        MAIN2REF=(((*(*info).winids).reftlb NE 0) AND $
+          ((*(*info).winids).current_wid EQ (*(*info).winids).xydrawid)),$
+        REF2MAIN=(((*(*info).winids).reftlb NE 0) AND $
+          ((*(*info).winids).current_wid EQ (*(*info).winids).refdrawid)),$
+        REF2SJI=(((*(*info).winids).reftlb NE 0) AND $
+          ((*(*info).winids).sjitlb NE 0) AND $
+          ((*(*info).winids).current_wid EQ (*(*info).winids).refdrawid))
       CRISPEX_UPDATE_SX, event
       CRISPEX_UPDATE_SY, event
     ENDIF
@@ -18745,7 +18792,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		savetlb:0, detsavetlb:0, restoretlb:0, preftlb:0, $							
 		estimatetlb:0, savewintlb:0, saveoptwintlb:0, restsestlb:0, paramtlb:0, $					
 		feedbacktlb:0, abouttlb:0, errtlb:0, warntlb:0, restsesfeedbtlb:0, $
-    shorttlb:0, headertlb:0, $
+    shorttlb:0, headertlb:0, current_wid:0, $
 		imwintitle:imwintitle, spwintitle:'',lswintitle:'',refwintitle:'',refspwintitle:'',reflswintitle:'', $
 		imrefwintitle:'',dopwintitle:'',phiswintitle:'',restloopwintitle:PTR_NEW(''),retrdetwintitle:'',$
 		loopwintitle:'',refloopwintitle:'',intwintitle:'', sjiwintitle:'' $
