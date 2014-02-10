@@ -17800,7 +17800,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
         refcoord_txt = '    ('+STRING(LONG(x_start),FORMAT=refxcoord_format)+$
           ','+STRING(LONG(y_start),FORMAT=refycoord_format)+')'
         IF hdr.ref_wcs_set THEN BEGIN
-          xyref_real = CRISPEX_TRANSFORM_GET_WCS(xref_start, yref_start, hdr.wcs_main, $
+          xyref_real = CRISPEX_TRANSFORM_GET_WCS(xref_start, yref_start, hdr.wcs_ref, $
             /COORD, /NO_ROUND)
           refxcoord_real_format = '(F6.1)'
           refycoord_real_format = '(F6.1)'
@@ -17834,7 +17834,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
         sjicoord_txt = '    ('+STRING(LONG(xsji_start),FORMAT=sjixcoord_format)+$
           ','+STRING(LONG(ysji_start),FORMAT=sjiycoord_format)+')'
         IF hdr.sji_wcs_set THEN BEGIN
-          xysji_real = CRISPEX_TRANSFORM_GET_WCS(xsji_start, ysji_start, hdr.wcs_main, $
+          xysji_real = CRISPEX_TRANSFORM_GET_WCS(xsji_start, ysji_start, hdr.wcs_sji, $
             /COORD, /NO_ROUND)
           sjixcoord_real_format = '(F6.1)'
           sjiycoord_real_format = '(F6.1)'
