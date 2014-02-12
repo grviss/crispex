@@ -12427,11 +12427,18 @@ PRO CRISPEX_SCALING_SET_BOXBUTTONS, event, SENSITIVITY_OVERRIDE=sensitivity_over
     SET_VALUE=STRTRIM((*(*info).scaling).histo_opt_val[(*(*info).scaling).idx],2), $
     SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
   ; Multiply controls
+  update_constraint = (((*(*info).scaling).idx GE 0) AND $
+    ((*(*info).scaling).idx LT N_ELEMENTS((*(*info).scaling).mult_val)))
 	WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_cbox, $
-    SET_COMBOBOX_SELECT=(*(*info).scaling).idx, SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
-	WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_txt, $
-    SET_VALUE=STRTRIM((*(*info).scaling).mult_val[(*(*info).scaling).mult_diag],2), $
-    SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
+    SET_COMBOBOX_SELECT=(*(*info).scaling).idx, $
+    SENSITIVE=(showarr[(*(*info).scaling).imrefscaling] AND update_constraint)
+  IF update_constraint THEN $
+  	WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_txt, $
+      SET_VALUE=STRTRIM((*(*info).scaling).mult_val[(*(*info).scaling).idx],2), $
+      SENSITIVE=showarr[(*(*info).scaling).imrefscaling] $
+  ELSE $
+  	WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_txt, $
+      SENSITIVE=(showarr[(*(*info).scaling).imrefscaling] AND update_constraint)
 END
 
 PRO CRISPEX_SCALING_SET_SLIDERS, event, GAMMA_ONLY=gamma_only, SET_GAMMA=set_gamma, $
@@ -12466,9 +12473,9 @@ PRO CRISPEX_SCALING_MULTIPLY_LS_SELECT, event
 ; Handles the selection of diagnostic for multiplying detailed spectrum
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-  (*(*info).scaling).mult_diag = event.INDEX
+  (*(*info).scaling).idx = event.INDEX
   WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_txt, $
-    SET_VALUE=STRTRIM((*(*info).scaling).mult_val[(*(*info).scaling).mult_diag],2)
+    SET_VALUE=STRTRIM((*(*info).scaling).mult_val[(*(*info).scaling).idx],2)
 END  
 
 PRO CRISPEX_SCALING_MULTIPLY_LS_VALUE, event
@@ -12481,7 +12488,7 @@ PRO CRISPEX_SCALING_MULTIPLY_LS_VALUE, event
     textvalue = 1.
 	  WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_txt, SET_VALUE=STRTRIM(textvalue,2)
   ENDIF
-	(*(*info).scaling).mult_val[(*(*info).scaling).mult_diag] = FLOAT(textvalue[0])
+	(*(*info).scaling).mult_val[(*(*info).scaling).idx] = FLOAT(textvalue[0])
   CRISPEX_DRAW_SPECTRAL, event
   CRISPEX_DRAW_TIMESLICES, event
 END
@@ -18759,7 +18766,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     gamma:REPLICATE(gamma_val,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1), $
     minimum:REPLICATE(0,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
     maximum:REPLICATE(100,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
-    idx:0, diagscale_label_vals:diagscale_label_vals, mult_diag:0, $
+    idx:0, diagscale_label_vals:diagscale_label_vals, $
     histo_opt_val:REPLICATE(histo_opt_val,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
     mult_val:[main_mult_val,ref_mult_val], $
     sel_xyslice:sel_xyslice, sel_refslice:sel_refslice, sel_dopslice:sel_dopslice, $
