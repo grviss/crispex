@@ -78,8 +78,6 @@
 ;			measurements, option to open other files in-program, fixed
 ;			several display and saving bugs
 ;
-; $Id$
-;
 ; AUTHOR:
 ;	Gregal Vissers (g.j.m.vissers@astro.uio.no)
 ;	@ Institute for Theoretical Astrophysics, University of Oslo
@@ -553,7 +551,7 @@ PRO TANAT_FILE_OPEN, event
 		*(*(*info).data).loopdata = loop_data		&	*(*(*info).data).loopslice = FLTARR(nlx,nt)
 		(*(*info).dataparams).filename = new_filename	&	(*(*info).dataparams).lp = spect_pos
 		(*(*info).dataparams).w_first = w_first		&	(*(*info).dataparams).w_last = w_last
-		(*(*info).dataparams).w_set
+		(*(*info).dataparams).w_set = w_set
 		TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center, LPS=lps, LC=lc, SPXTITLE=spxtitle, V_DOP_VALS=v_dop_vals, V_DOP_SET=v_dop_set, lp_first=lp_first, lp_last=lp_last
 		*(*(*info).dataparams).lps = lps		&	(*(*info).dataparams).lc = lc
 		(*(*info).plotaxes).spxtitle = spxtitle		&	(*(*info).plotaxes).v_dop = v_dop_vals
@@ -576,6 +574,10 @@ PRO TANAT_FILE_OPEN, event
 			TV,CONGRID(REPLICATE(200,10,10),(*(*info).winsizes).lswinx,(*(*info).winsizes).lswiny)
 			XYOUTS,(*(*info).winsizes).lswinx/2.,(*(*info).winsizes).lswiny/2.,'Could not display spectral information as!Conly one spectral position is available.', COLOR = 0, ALIGNMENT = 0.5, /DEVICE
 		ENDIF
+;		*(*(*info).overlays).lxbpoint = PTR_NEW(0.)
+;		*(*(*info).overlays).lxepoint = PTR_NEW(0.)
+;		*(*(*info).overlays).tbpoint = PTR_NEW(0.)
+;		*(*(*info).overlays).tepoint = PTR_NEW(0.)
 		TANAT_SET_SAVEFILENAME, event
 	ENDIF
 END
@@ -859,7 +861,7 @@ PRO TANAT_SAVE_MEASUREMENT, event
 	IF (*(*info).dispswitch).overlay_measurements THEN TANAT_DRAW_OVERLAY_SAVED_MEASUREMENTS, event
 END
 
-PRO TANAT_SAVE_MEAUSUREMENT_DEFINE_FLAG, event
+PRO TANAT_SAVE_MEASUREMENT_DEFINE_FLAG, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SAVE_MEASUREMENT_DEFINE_FLAG'
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).flag_text, GET_VALUE = textvalue
@@ -872,8 +874,8 @@ PRO TANAT_SCALING_MAN, event
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_MAN'
 	(*(*info).dispswitch).man_scale = event.SELECT
 	IF (*(*info).dispswitch).man_scale THEN BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlsview).max_scale_slider, SET_VALUE = (*(*info).scaling).max_val, /SENSITIVE
-		WIDGET_CONTROL, (*(*info).ctrlsview).min_scale_slider, SET_VALUE = (*(*info).scaling).min_val, /SENSITIVE
+		WIDGET_CONTROL, (*(*info).ctrlsview).max_scale_slider, SET_VALUE = (*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling], /SENSITIVE
+		WIDGET_CONTROL, (*(*info).ctrlsview).min_scale_slider, SET_VALUE = (*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling], /SENSITIVE
 	ENDIF ELSE BEGIN
 		WIDGET_CONTROL, (*(*info).ctrlsview).max_scale_slider, SET_VALUE = 100, SENSITIVE = 0
 		WIDGET_CONTROL, (*(*info).ctrlsview).min_scale_slider, SET_VALUE = 0, SENSITIVE = 0
@@ -1217,10 +1219,10 @@ END
 PRO TANAT_SLIDER_SCALING_MIN, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_SCALING_MIN'
-	(*(*info).scaling).min_val = event.VALUE
-	IF ((*(*info).scaling).min_val GE (*(*info).scaling).max_val) THEN BEGIN
-		(*(*info).scaling).max_val = (*(*info).scaling).min_val + 1
-		WIDGET_CONTROL, (*(*info).ctrlsview).max_scale_slider, SET_VALUE = (*(*info).scaling).max_val
+	(*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling] = event.VALUE
+	IF ((*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling] GE (*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling]) THEN BEGIN
+		(*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling] = (*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling] + 1
+		WIDGET_CONTROL, (*(*info).ctrlsview).max_scale_slider, SET_VALUE = (*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling] 
 	ENDIF
 	TANAT_SCALING_RANGE, event
 	TANAT_DRAW, event
@@ -1229,10 +1231,10 @@ END
 PRO TANAT_SLIDER_SCALING_MAX, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_SCALING_MAX'
-	(*(*info).scaling).max_val = event.VALUE
-	IF ((*(*info).scaling).max_val LE (*(*info).scaling).min_val) THEN BEGIN
-		(*(*info).scaling).min_val = (*(*info).scaling).max_val - 1
-		WIDGET_CONTROL, (*(*info).ctrlsview).min_scale_slider, SET_VALUE = (*(*info).scaling).min_val
+	(*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling] = event.VALUE
+	IF ((*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling] LE (*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling]) THEN BEGIN
+		(*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling] = (*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling] - 1
+		WIDGET_CONTROL, (*(*info).ctrlsview).min_scale_slider, SET_VALUE = (*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling]
 	ENDIF
 	TANAT_SCALING_RANGE, event
 	TANAT_DRAW, event
@@ -1483,16 +1485,34 @@ PRO TANAT,$							; call program
 	ASECPIX=asecpix, $					; spatial resolution in arcseconds per pixel
 	DT=dt, $						; time step
 	VERBOSE=verbose
+
+;================================================================================= VERSION AND REVISION NUMBER
+  ; Version 1.0 (rev 58) == version 1.0.0
+	base_version_number = '1.0'
+
+  ; Get revision number from CVS $Id
+  id_string = '; $Id$'
+  split_id_string = STRSPLIT(id_string[0],' ',/EXTRACT)
+  cvs_idn = split_id_string[3]
+  cvs_rev = (STRSPLIT(cvs_idn,'.',/EXTRACT))[1]
+  cvs_msg = STRJOIN(split_id_string[3:6],' ')
+  ; Assumption: CVS committed revision number will always be 1.x, with x increasing linearly
+  revnr = 63+FIX(cvs_rev)-6     ; rev_nr=63, cvs_rev=6 when implemented
+
+  ; Change rev_nr and cvs_rev below whenever changing base_versions_number!
+  subvnr = 63 + (FIX(cvs_rev)-6) - 58  ; rev_nr=63, cvs_rev=6 when implemented
+  ; Convert revision and version numbers to strings
+  revision_number = STRTRIM(revnr,2)   
+  version_number = base_version_number +'.'+ STRTRIM(subvnr,2)
+  vnr_msg = version_number+' (r'+revision_number+'; '+cvs_msg+')'
 	
 ;========================================================================= PROGRAM-INFO ON CALL W/O PARAMS
 	IF N_PARAMS() LT 1 THEN BEGIN
-		PRINT,'TANAT, filename, LINE_CENTER=line_center, ASECPIX=asecpix, DT=dt, VERBOSE=verbose'
+    MESSAGE,'Version '+vnr_msg, /INFO
+		MESSAGE,'TANAT, filename, LINE_CENTER=line_center, ASECPIX=asecpix, '+$
+      'DT=dt, VERBOSE=verbose', /INFO
 		RETURN
 	ENDIF
-
-;================================================================================= VERSION AND REVISION NUMBER
-	version_number = '1.0'
-	revision_number = '62'
 
 ;================================================================================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
