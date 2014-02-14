@@ -78,6 +78,8 @@
 ;			measurements, option to open other files in-program, fixed
 ;			several display and saving bugs
 ;
+; $Id
+;
 ; AUTHOR:
 ;	Gregal Vissers (g.j.m.vissers@astro.uio.no)
 ;	@ Institute for Theoretical Astrophysics, University of Oslo
@@ -957,14 +959,16 @@ END
 
 PRO TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, LXDIST=lxdist, LX_FIRST=lx_first, LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
 	lxdist = DBLARR(nlx)
-	FOR i=0,nlx-2 DO BEGIN
-		x_up = x_loop_pts[i+1]
-		x_dn = x_loop_pts[i]
-		y_up = y_loop_pts[i+1]
-		y_dn = y_loop_pts[i]
-		lxdist[i] = SQRT( (x_up - x_dn)^2 + (y_up - y_dn)^2 )
-	ENDFOR
-	lxdist[nlx-1] = MEAN(lxdist[0:nlx-2])
+	IF (TOTAL(x_loop_pts) EQ 0) AND (TOTAL(y_loop_pts) EQ 0) THEN lxdist = REPLICATE(1.,nlx) ELSE BEGIN
+		FOR i=0,nlx-2 DO BEGIN
+			x_up = x_loop_pts[i+1]
+			x_dn = x_loop_pts[i]
+			y_up = y_loop_pts[i+1]
+			y_dn = y_loop_pts[i]
+			lxdist[i] = SQRT( (x_up - x_dn)^2 + (y_up - y_dn)^2 )
+		ENDFOR
+		lxdist[nlx-1] = MEAN(lxdist[0:nlx-2])
+	ENDELSE
 	lx_first	= 0						; Set number of first x-coordinate
 	lx_last		= nlx-1						; Set number of last x-coordinate
 	t_first		= 0						; Set number of first frame		
