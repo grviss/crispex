@@ -78,7 +78,7 @@
 ;			measurements, option to open other files in-program, fixed
 ;			several display and saving bugs
 ;
-; $Id
+; $Id:
 ;
 ; AUTHOR:
 ;	Gregal Vissers (g.j.m.vissers@astro.uio.no)
@@ -193,22 +193,33 @@ PRO TANAT_CURSOR, event
 			ci = UINTARR(16) & cim = ci & cim[8] = 1
 			DEVICE, CURSOR_IMAGE = ci, CURSOR_MASK = cim, CURSOR_XY = [8,8]
 		ENDIF ELSE BEGIN
-			IF ((*(*info).measparams).parabolic_fit AND ((*(*info).measparams).np GE 1)) THEN BEGIN
+;			print,'lockset',(*(*info).curs).lockset
+			IF (((*(*info).measparams).parabolic_fit OR (*(*info).measparams).series) AND ((*(*info).measparams).np GE 1)) THEN BEGIN
 				*(*(*info).measparams).lx_array = (*(*(*info).measparams).lx_array)[0:(*(*info).measparams).np-1]
 				*(*(*info).measparams).t_array = (*(*(*info).measparams).t_array)[0:(*(*info).measparams).np-1]
 				*(*(*info).measparams).slx_array = (*(*(*info).measparams).slx_array)[0:(*(*info).measparams).np-1]
 				*(*(*info).measparams).st_array = (*(*(*info).measparams).st_array)[0:(*(*info).measparams).np-1]
-				TANAT_PARABOLIC_FIT, event
+				IF (*(*info).measparams).parabolic_fit THEN TANAT_PARABOLIC_FIT, event
+				IF (*(*info).measparams).series THEN BEGIN
+					IF ((*(*info).measparams).np GE 2) THEN TANAT_SERIES_PATH, event ELSE BEGIN
+						*(*(*info).measparams).sxr = *(*(*info).measparams).slx_array
+						*(*(*info).measparams).syr = *(*(*info).measparams).st_array
+					ENDELSE
+				ENDIF
+;				print,(*(*info).dataparams).lx,(*(*info).curs).slx
+;				print,(*(*info).dataparams).t,(*(*info).curs).st
 				TANAT_DRAW, event
 			ENDIF 
 			DEVICE, /CURSOR_CROSSHAIR
 		ENDELSE
+		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN TANAT_VERBOSE_GET, event, [event.ENTER], labels=['WIDGET_TRACKING: event.Enter']
 	ENDIF ELSE IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_DRAW' THEN BEGIN
+		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN TANAT_VERBOSE_GET, event, [event.TYPE,event.PRESS], labels=['WIDGET_DRAW: event.Type','WIDGET_DRAW: event.Press']
 		CASE event.TYPE OF
-		0:	CASE event.PRESS OF
-			1:	BEGIN	; left mouse button
+		0:	CASE event.PRESS OF	; pressed a mouse button
+			1:	BEGIN	; left mouse button --> lock cursor to first (and subsequent) position(s)
 					(*(*info).curs).lockset = 1
-					IF ((*(*info).measparams).parabolic_fit EQ 0) THEN BEGIN
+					IF (((*(*info).measparams).parabolic_fit EQ 0) AND ((*(*info).measparams).series EQ 0)) THEN BEGIN
 						WIDGET_CONTROL, (*(*info).ctrlsmeas).delta_lx_label, SENSITIVE = 1
 						WIDGET_CONTROL, (*(*info).ctrlsmeas).delta_t_label, SENSITIVE = 1
 						WIDGET_CONTROL, (*(*info).ctrlsmeas).delta_lx_text, SENSITIVE = 1
@@ -229,7 +240,7 @@ PRO TANAT_CURSOR, event
 					(*(*info).dataparams).lx = (*(*info).curs).lxlock
 					(*(*info).dataparams).t = (*(*info).curs).tlock
 					TANAT_CURSOR_SET_COORDSLIDERS, 0, 0, event
-					IF (*(*info).measparams).parabolic_fit THEN BEGIN
+					IF ((*(*info).measparams).parabolic_fit OR (*(*info).measparams).series) THEN BEGIN
 						(*(*info).measparams).np += 1
 						IF ((*(*info).measparams).np LT 2) THEN BEGIN
 							*(*(*info).measparams).lx_array = (*(*info).curs).lxlock
@@ -242,13 +253,16 @@ PRO TANAT_CURSOR, event
 							*(*(*info).measparams).slx_array = [*(*(*info).measparams).slx_array, (*(*info).curs).slxlock]
 							*(*(*info).measparams).st_array = [*(*(*info).measparams).st_array, (*(*info).curs).stlock]
 						ENDELSE
-						IF ((*(*info).measparams).np GE 2) THEN BEGIN
-							WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_but, /SENSITIVE
-							WIDGET_CONTROL, (*(*info).ctrlsmeas).acc_label, /SENSITIVE
-						ENDIF
+						WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_but, SENSITIVE = (((*(*info).measparams).np GE 2) AND (*(*info).measparams).parabolic_fit)
+						WIDGET_CONTROL, (*(*info).ctrlsmeas).acc_label, SENSITIVE = (((*(*info).measparams).np GE 2) AND (*(*info).measparams).parabolic_fit)
+						WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_series_but, SENSITIVE = (((*(*info).measparams).np GE 3) AND (*(*info).measparams).series)
+						WIDGET_CONTROL, (*(*info).ctrlsmeas).save_series_but, SENSITIVE = (((*(*info).measparams).np GE 3) AND (*(*info).measparams).series)
+						IF ((*(*info).measparams).series AND ((*(*info).measparams).np GE 2)) THEN TANAT_SERIES_PATH, event
 					ENDIF
+;					IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN TANAT_VERBOSE_GET, event, [*(*(*info).measparams).lx_array,*(*(*info).measparams).t_array,*(*(*info).measparams).slx_array,$
+;						*(*(*info).measparams).st_array], labels=['lx_array','t_array','slx_array','st_array']
 				END
-			2:	BEGIN	; middle mouse button
+			2:	BEGIN	; middle mouse button --> lock cursor to last position
 					IF (*(*info).curs).lockset THEN BEGIN
 						(*(*info).curs).lockset = 2
 						(*(*info).curs).slx = event.X
@@ -257,28 +271,29 @@ PRO TANAT_CURSOR, event
 						IF ((*(*info).dataparams).d_nt NE (*(*info).dataparams).nt) THEN $
 							(*(*info).dataparams).t = FLOAT((*(*info).curs).st) * (*(*info).dataparams).d_nt / (*(*info).winsizes).windowy + (*(*info).dataparams).t_low ELSE $
 							(*(*info).dataparams).t = FLOAT((*(*info).curs).st) * (*(*info).dataparams).nt / (*(*info).winsizes).windowy
-						IF (*(*info).measparams).parabolic_fit THEN BEGIN
+						IF ((*(*info).measparams).parabolic_fit OR (*(*info).measparams).series) THEN BEGIN
 							(*(*info).measparams).np += 1
 							*(*(*info).measparams).lx_array = [*(*(*info).measparams).lx_array, (*(*info).dataparams).lx]
 							*(*(*info).measparams).t_array = [*(*(*info).measparams).t_array, (*(*info).dataparams).t]
 							*(*(*info).measparams).slx_array = [*(*(*info).measparams).slx_array, (*(*info).curs).slx]
 							*(*(*info).measparams).st_array = [*(*(*info).measparams).st_array, (*(*info).curs).st]
-							IF ((*(*info).measparams).np EQ 3) THEN WIDGET_CONTROL, (*(*info).ctrlsmeas).save_button, /SENSITIVE ELSE WIDGET_CONTROL, (*(*info).ctrlsmeas).save_button, SENSITIVE = 0
+							WIDGET_CONTROL, (*(*info).ctrlsmeas).save_button, SENSITIVE = ((*(*info).measparams).parabolic_fit AND ((*(*info).measparams).np EQ 3))
 						ENDIF ELSE WIDGET_CONTROL, (*(*info).ctrlsmeas).save_button, /SENSITIVE
 						WIDGET_CONTROL, (*(*info).ctrlsmeas).flag_label, /SENSITIVE
 						WIDGET_CONTROL, (*(*info).ctrlsmeas).flag_text, /SENSITIVE
 						TANAT_CURSOR_SET_COORDSLIDERS, 0, 0, event
 						IF (*(*info).measparams).parabolic_fit THEN TANAT_PARABOLIC_FIT, event
+						IF (*(*info).measparams).series THEN TANAT_SERIES_PATH, event
 					ENDIF ELSE RETURN
 				END
-			4:	BEGIN	; right mouse button
+			4:	BEGIN	; right mouse button --> unlock cursor
 					(*(*info).curs).lockset = 0
 					TANAT_CURSOR_SET_COORDSLIDERS, 1, 1, event
 					TANAT_RESET_OUTPUTS, event
 				END
 			ELSE: BREAK
 			ENDCASE
-		2:	BEGIN
+		2:	BEGIN	; movement of mouse
 				IF ((*(*info).curs).lockset NE 2) THEN BEGIN
 					(*(*info).curs).slx = event.X
 					(*(*info).curs).st = event.Y
@@ -288,13 +303,14 @@ PRO TANAT_CURSOR, event
 						(*(*info).dataparams).t = FLOAT((*(*info).curs).st) * (*(*info).dataparams).nt / (*(*info).winsizes).windowy
 					IF ((*(*info).curs).lockset EQ 1) THEN BEGIN
 						TANAT_CURSOR_SET_COORDSLIDERS, 0, 0, event
-						IF ((*(*info).measparams).parabolic_fit EQ 0) THEN TANAT_CALCULATE_DELTA, event
-						IF ((*(*info).measparams).parabolic_fit AND ((*(*info).measparams).np GE 1)) THEN BEGIN
+						IF (((*(*info).measparams).parabolic_fit EQ 0) AND ((*(*info).measparams).series EQ 0)) THEN TANAT_CALCULATE_DELTA, event
+						IF (((*(*info).measparams).parabolic_fit OR (*(*info).measparams).series) AND ((*(*info).measparams).np GE 1)) THEN BEGIN
 							*(*(*info).measparams).lx_array = [(*(*(*info).measparams).lx_array)[0:(*(*info).measparams).np-1], (*(*info).dataparams).lx]
 							*(*(*info).measparams).t_array = [(*(*(*info).measparams).t_array)[0:(*(*info).measparams).np-1], (*(*info).dataparams).t]
 							*(*(*info).measparams).slx_array = [(*(*(*info).measparams).slx_array)[0:(*(*info).measparams).np-1], (*(*info).curs).slx]
 							*(*(*info).measparams).st_array = [(*(*(*info).measparams).st_array)[0:(*(*info).measparams).np-1], (*(*info).curs).st]
-							TANAT_PARABOLIC_FIT, event
+							IF (*(*info).measparams).parabolic_fit THEN TANAT_PARABOLIC_FIT, event
+							IF (*(*info).measparams).series THEN TANAT_SERIES_PATH, event
 						ENDIF
 					ENDIF ELSE BEGIN
 						TANAT_CURSOR_SET_COORDSLIDERS, 1, 1, event
@@ -429,11 +445,14 @@ PRO TANAT_DRAW_CURSCROSS_PLOT, event
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW_CURSCROSS_PLOT'
 	PLOTS, (*(*info).curs).slx,(*(*info).curs).st, /DEVICE, COLOR = !P.COLOR, PSYM = 1
 	IF ((*(*info).curs).lockset GE 1) THEN BEGIN
-		IF (*(*info).measparams).parabolic_fit THEN BEGIN
-			IF ((*(*info).measparams).np LT 3) THEN PLOTS, *(*(*info).measparams).slx_array, *(*(*info).measparams).st_array, /DEVICE, COLOR = !P.COLOR ELSE $
-				PLOTS, *(*(*info).measparams).x_vals, *(*(*info).measparams).y_vals, /DEVICE, COLOR = !P.COLOR
+		IF ((*(*info).measparams).parabolic_fit OR (*(*info).measparams).series) THEN BEGIN
+			IF (*(*info).measparams).parabolic_fit THEN BEGIN
+				IF ((*(*info).measparams).np LT 3) THEN PLOTS, *(*(*info).measparams).slx_array, *(*(*info).measparams).st_array, /DEVICE, COLOR = !P.COLOR ELSE $
+					PLOTS, *(*(*info).measparams).x_vals, *(*(*info).measparams).y_vals, /DEVICE, COLOR = !P.COLOR
+			ENDIF
 			PLOTS, *(*(*info).measparams).slx_array, *(*(*info).measparams).st_array, /DEVICE, COLOR = !P.COLOR, PSYM = 1
 			PLOTS, *(*(*info).measparams).slx_array, *(*(*info).measparams).st_array, /DEVICE, COLOR = !P.COLOR, PSYM = 4
+			IF (*(*info).measparams).series THEN PLOTS,*(*(*info).measparams).sxr,*(*(*info).measparams).syr, /DEVICE, COLOR = !P.COLOR
 		ENDIF ELSE BEGIN
 			PLOTS, (*(*info).curs).slxlock, (*(*info).curs).stlock, /DEVICE, COLOR = !P.COLOR, PSYM = 1
 			PLOTS, (*(*info).curs).slxlock, (*(*info).curs).stlock, /DEVICE, COLOR = !P.COLOR, PSYM = 4
@@ -441,6 +460,9 @@ PRO TANAT_DRAW_CURSCROSS_PLOT, event
 			IF ((*(*info).curs).lockset EQ 2) THEN PLOTS, (*(*info).curs).slx, (*(*info).curs).st, /DEVICE, COLOR = !P.COLOR, PSYM = 4
 		ENDELSE
 	ENDIF
+;	PRINT,'slx,st:',(*(*info).curs).slx,(*(*info).curs).st
+;	PRINT,'slxlock,stlock:',(*(*info).curs).slxlock,(*(*info).curs).stlock
+;	PRINT,'slx_arr,st_arr:',*(*(*info).measparams).slx_array,*(*(*info).measparams).st_array
 END
 
 PRO TANAT_DRAW_OVERLAY_SAVED_MEASUREMENTS, event
@@ -605,6 +627,7 @@ PRO TANAT_PARABOLIC_FIT_SET, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_PARABOLIC_FIT_SET'
 	(*(*info).measparams).parabolic_fit = event.SELECT
+	WIDGET_CONTROL,(*(*info).ctrlsmeas).set_series_but, SENSITIVE = ABS(event.SELECT-1)
 	IF ((*(*info).curs).lockset GT 0) THEN TANAT_RESET_OUTPUTS, event
 	IF ((*(*info).measparams).parabolic_fit EQ 0) THEN BEGIN
 		(*(*info).measparams).np = 0
@@ -612,6 +635,8 @@ PRO TANAT_PARABOLIC_FIT_SET, event
 		*(*(*info).measparams).t_array = 0.
 		*(*(*info).measparams).slx_array = 0.
 		*(*(*info).measparams).st_array = 0.
+		*(*(*info).measparams).x_vals = 0.
+		*(*(*info).measparams).y_vals = 0.
 		WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_but, SENSITIVE = 0
 		WIDGET_CONTROL, (*(*info).ctrlsmeas).acc_label, SENSITIVE = 0
 		WIDGET_CONTROL, (*(*info).ctrlsmeas).acc_text, SET_VALUE = '0', SENSITIVE = 0
@@ -620,21 +645,29 @@ PRO TANAT_PARABOLIC_FIT_SET, event
 	ENDIF
 END
 
-PRO TANAT_PARABOLIC_REM_POINT, event
+PRO TANAT_REMOVE_POINT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_PARABOLIC_REM_POINT'
-	(*(*info).measparams).np = (*(*info).measparams).np - 1
+	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_REMOVE_POINT'
+	(*(*info).measparams).np -= 1
 	*(*(*info).measparams).lx_array = (*(*(*info).measparams).lx_array)[0:(*(*info).measparams).np-1]
 	*(*(*info).measparams).t_array = (*(*(*info).measparams).t_array)[0:(*(*info).measparams).np-1]
 	*(*(*info).measparams).slx_array = (*(*(*info).measparams).slx_array)[0:(*(*info).measparams).np-1]
 	*(*(*info).measparams).st_array = (*(*(*info).measparams).st_array)[0:(*(*info).measparams).np-1]
 	IF ((*(*info).measparams).np LE 2) THEN BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_but, SENSITIVE = 0
-		WIDGET_CONTROL, (*(*info).ctrlsmeas).acc_label, SENSITIVE = 0
-		WIDGET_CONTROL, (*(*info).ctrlsmeas).acc_text, SET_VALUE = '0', SENSITIVE = 0
+		IF (*(*info).measparams).parabolic_fit THEN BEGIN
+			WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_but, SENSITIVE = 0
+			WIDGET_CONTROL, (*(*info).ctrlsmeas).acc_label, SENSITIVE = 0
+			WIDGET_CONTROL, (*(*info).ctrlsmeas).acc_text, SET_VALUE = '0', SENSITIVE = 0
+		ENDIF ELSE IF (*(*info).measparams).series THEN BEGIN
+			WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_series_but, SENSITIVE = 0
+			WIDGET_CONTROL, (*(*info).ctrlsmeas).save_series_but, SENSITIVE = 0
+		ENDIF
 	ENDIF
-	IF ((*(*info).measparams).np EQ 3) THEN WIDGET_CONTROL, (*(*info).ctrlsmeas).save_button, /SENSITIVE ELSE WIDGET_CONTROL, (*(*info).ctrlsmeas).save_button, SENSITIVE = 0
-	TANAT_PARABOLIC_FIT, event
+	IF (*(*info).measparams).parabolic_fit THEN BEGIN
+		WIDGET_CONTROL, (*(*info).ctrlsmeas).save_button, SENSITIVE = ((*(*info).measparams).np EQ 3) 
+		TANAT_PARABOLIC_FIT, event
+	ENDIF
+	IF (*(*info).measparams).series THEN TANAT_SERIES_PATH, event
 	TANAT_DRAW, event
 END
 
@@ -814,6 +847,67 @@ PRO TANAT_SCALING_RANGE, event
 	(*(*info).scaling).minimum = MIN( *(*(*info).data).loopslice )
 	maximum = MAX( *(*(*info).data).loopslice )
 	(*(*info).scaling).range = maximum - (*(*info).scaling).minimum
+END
+
+;================================================================================= GET SERIES OF POINTS PROCEDURES
+PRO TANAT_SERIES_PATH, event
+; Gets the actual loop path from spline interpolation
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SERIES_PATH'
+	np_local = (SIZE(*(*(*info).measparams).lx_array))[1] 
+	IF (np_local GE 2) THEN BEGIN
+		IF ((*(*(*info).measparams).lx_array)[np_local-1] EQ (*(*(*info).measparams).lx_array)[np_local-2]) AND ((*(*(*info).measparams).t_array)[np_local-1] EQ (*(*(*info).measparams).t_array)[np_local-2]) THEN RETURN
+	ENDIF
+	SPLINE_P,*(*(*info).measparams).slx_array,*(*(*info).measparams).st_array,xr,yr,INTERVAL=1
+	*(*(*info).measparams).sxr = xr 
+	*(*(*info).measparams).syr = yr
+END
+
+PRO TANAT_SERIES_SAVE, event
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SERIES_SAVE'
+	monthstrarr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+	curt = SYSTIME()
+	tstr = STRSPLIT(curt,/EXTRACT)
+	sstr = STRSPLIT(tstr[3],':',/EXTRACT)
+	tstr[2] = STRING(tstr[2],FORMAT='(I02)')								; date
+	date_order = [4,1,2] 											; defsaveid = 0 > YYYYMMMDD_hhmmss, ex: 2011Apr12_114545
+	saveid = tstr[date_order[0]]+tstr[date_order[1]]+tstr[date_order[2]]+'_'+sstr[0]+sstr[1]+sstr[2]
+	infilename = (STRSPLIT((*(*info).dataparams).filename,PATH_SEP(),/EXTRACT))[N_ELEMENTS(STRSPLIT((*(*info).dataparams).filename,PATH_SEP(),/EXTRACT))-1]
+	basefstr = STRMID(infilename,0,STRPOS(infilename,'.',/REVERSE_SEARCH))
+	savefilename = basefstr+'_ptseries_'+saveid+'.tsav'
+	print,savefilename
+	OPENW, unit, savefilename, WIDTH = 360, /GET_LUN
+	PRINTF, unit, '#	np'
+	PRINTF, unit, '#	x-coord		y-coord'
+	PRINTF, unit, (*(*info).measparams).np
+	FOR i=0,(*(*info).measparams).np-1 DO BEGIN
+		PRINTF,unit,(*(*(*info).measparams).lx_array)[i],(*(*(*info).measparams).t_array)[i]
+	ENDFOR
+	FREE_LUN, unit
+	WIDGET_CONTROL, (*(*info).ctrlsmeas).save_series_but, SENSITIVE = 0
+END
+
+
+PRO TANAT_SERIES_SET, event
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SERIES_SET'
+	(*(*info).measparams).series = event.SELECT
+	WIDGET_CONTROL,(*(*info).ctrlsmeas).set_fit_but, SENSITIVE = ABS(event.SELECT-1)
+	IF ((*(*info).curs).lockset GT 0) THEN TANAT_RESET_OUTPUTS, event
+	IF ((*(*info).measparams).series EQ 0) THEN BEGIN
+		(*(*info).measparams).np = 0
+		*(*(*info).measparams).lx_array = 0.
+		*(*(*info).measparams).t_array = 0.
+		*(*(*info).measparams).slx_array = 0.
+		*(*(*info).measparams).st_array = 0.
+		*(*(*info).measparams).sxr = 0.
+		*(*(*info).measparams).syr = 0.
+		WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_series_but, SENSITIVE = 0
+		WIDGET_CONTROL, (*(*info).ctrlsmeas).save_series_but, SENSITIVE = 0
+		(*(*info).curs).lockset = 0
+		TANAT_DRAW, event
+	ENDIF
 END
 
 ;================================================================================= SET PROCEDURES
@@ -1223,6 +1317,22 @@ PRO TANAT_UPDATE_STARTUP_FEEDBACK, bgim, xout, yout, feedback_text
 END
 
 ;================================================================================= VERBOSE PROCEDURES
+PRO TANAT_VERBOSE_GET, event, variables, labels=labels
+; Displays feedback of variables structuredly 
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	nvars = N_ELEMENTS(variables)
+	IF ((*(*info).feedbparams).last_routine_count NE 0) THEN PRINT,''
+	IF (N_ELEMENTS(labels) EQ nvars) THEN BEGIN
+		maxchar = MAX(STRLEN(labels))
+		FOR i=0,nvars-1 DO BEGIN
+			IF (STRLEN(labels[i]) NE maxchar) THEN whitespace = STRJOIN(REPLICATE(' ',(maxchar-STRLEN(labels[i])))) ELSE whitespace = ''
+			PRINT,STRJOIN(REPLICATE('  ',SCOPE_LEVEL()-2))+'> '+labels[i]+whitespace+': '+STRTRIM(variables[i],2)
+		ENDFOR
+	ENDIF ELSE BEGIN
+		FOR i=0,nvars-1 DO HELP, variables[i]
+	ENDELSE
+END
+
 PRO TANAT_VERBOSE_GET_ROUTINE, event, rname, IGNORE_LAST=ignore_last
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	prespace = STRJOIN(REPLICATE('  ',SCOPE_LEVEL()-2))
@@ -1277,7 +1387,7 @@ PRO TANAT,$							; call program
 
 ;================================================================================= VERSION AND REVISION NUMBER
 	version_number = '1.0'
-	revision_number = '59'
+	revision_number = '60'
 
 ;================================================================================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
@@ -1371,6 +1481,8 @@ PRO TANAT,$							; call program
 	t_array = PTR_NEW(FLTARR(30))
 	slx_array = PTR_NEW(FLTARR(30))
 	st_array = PTR_NEW(FLTARR(30))
+	sxr = PTR_NEW(FLTARR(30))
+	syr = PTR_NEW(FLTARR(30))
 	x_vals = PTR_NEW(FLTARR(1000))
 	y_vals = PTR_NEW(FLTARR(1000))
 
@@ -1456,7 +1568,13 @@ PRO TANAT,$							; call program
 	parabolic_fit	= WIDGET_BASE(measure_tab, /ROW, /FRAME)
 	fit_but_base	= WIDGET_BASE(parabolic_fit, /ROW, /NONEXCLUSIVE)
 	set_fit_but	= WIDGET_BUTTON(fit_but_base, VALUE = 'Store points for parabolic fit', EVENT_PRO = 'TANAT_PARABOLIC_FIT_SET')
-	rem_but		= WIDGET_BUTTON(parabolic_fit, VALUE = 'Remove last point', EVENT_PRO = 'TANAT_PARABOLIC_REM_POINT', SENSITIVE = 0)
+	rem_but		= WIDGET_BUTTON(parabolic_fit, VALUE = 'Remove last point', EVENT_PRO = 'TANAT_REMOVE_POINT', SENSITIVE = 0)
+	
+	series_points	= WIDGET_BASE(measure_tab, /ROW, /FRAME)
+	series_but_base	= WIDGET_BASE(series_points, /ROW, /NONEXCLUSIVE)
+	set_series_but	= WIDGET_BUTTON(series_but_base, VALUE = 'Store series of points', EVENT_PRO = 'TANAT_SERIES_SET')
+	rem_series_but	= WIDGET_BUTTON(series_points, VALUE = 'Remove last point', EVENT_PRO = 'TANAT_REMOVE_POINT', SENSITIVE = 0)
+	save_series_but	= WIDGET_BUTTON(series_points, VALUE = 'Save series', EVENT_PRO = 'TANAT_SERIES_SAVE', SENSITIVE = 0)
 
 	overlay		= WIDGET_BASE(measure_tab, /ROW, /FRAME, /NONEXCLUSIVE)
 	overlay_but	= WIDGET_BUTTON(overlay, VALUE = 'Overlay saved measurements for this timeslice', EVENT_PRO = 'TANAT_DRAW_OVERLAY_SAVED_MEASUREMENTS')
@@ -1520,7 +1638,8 @@ PRO TANAT,$							; call program
 		delta_lx_label:delta_lx_label, delta_t_label:delta_t_label, delta_lx_text:delta_lx_text, delta_t_text:delta_t_text, $
 		speed_label:speed_label, speed_text:speed_text, acc_label:acc_label, acc_text:acc_text, $
 		lx_params_text:lx_params_text, t_params_text:t_params_text, lx_params_label:lx_params_label, t_params_label:t_params_label, $
-		flag_label:flag_label, flag_text:flag_text, save_button:save_button, rem_but:rem_but, overlay_button:overlay_but $
+		flag_label:flag_label, flag_text:flag_text, save_button:save_button, set_fit_but:set_fit_but, rem_but:rem_but, overlay_button:overlay_but, $
+		set_series_but:set_series_but, rem_series_but:rem_series_but, save_series_but:save_series_but $
 	}
 ;--------------------------------------------------------------------------------- SETUP CONTROLS
 	ctrlssetup = { $
@@ -1562,8 +1681,8 @@ PRO TANAT,$							; call program
 	}
 ;--------------------------------------------------------------------------------- SAVING MEASUREMENT PARAMETERS
 	measparams = { $
-		lx_array:lx_array, t_array:t_array, slx_array:slx_array, st_array:st_array, np:0, speed:0., delta_lx:0, act_delta_lx:0., delta_t:0, $
-		acceleration:0., parabolic_fit:0, x_vals:x_vals, y_vals:y_vals, meas_id:meas_id, secondststep:secondststep, arcsecpix:arcsecpix, $
+		lx_array:lx_array, t_array:t_array, slx_array:slx_array, st_array:st_array, sxr:sxr, syr:syr, np:0, speed:0., delta_lx:0, act_delta_lx:0., delta_t:0, $
+		acceleration:0., parabolic_fit:0, series:0, x_vals:x_vals, y_vals:y_vals, meas_id:meas_id, secondststep:secondststep, arcsecpix:arcsecpix, $
 		savefilename:'tanat_measurements.dat', flag:0 $
 	}
 ;--------------------------------------------------------------------------------- OVERLAY PARAMETERS
