@@ -16626,7 +16626,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
       extreme_aspect_ref = $
         (((refratio GT 5.) AND (refwiny_default LT minsize)) OR $
         ((refratio LT 0.2) AND (refwinx_default LT minsize))) 
-      IF (hdr.refny*hdr.refdy EQ hdr.ny*hdr.dy) THEN $
+      IF (ABS(hdr.refny*hdr.refdy/FLOAT(hdr.ny*hdr.dy)-1.) LT 1E-4) THEN $
         refwiny = refwiny_default/FLOAT(imwiny_default)*imwiny $
       ELSE $
         refwiny = refwiny_default < 0.9 * y_scr_size 
