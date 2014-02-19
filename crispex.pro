@@ -1856,24 +1856,9 @@ PRO CRISPEX_COORDS_TRANSFORM_XY, event, MAIN2SJI=main2sji, MAIN2REF=main2ref, $
   ENDIF
   IF (KEYWORD_SET(MAIN2SJI) OR KEYWORD_SET(REF2SJI)) THEN BEGIN
     IF (KEYWORD_SET(MAIN2SJI) AND $
-      ((*(*info).dispswitch).xy_out_of_range EQ 0)) THEN BEGIN
-      ; Failsafe for older SJI files that don't have proper WCS information (in
-      ; which case coordinates are taken from xyrastersji, requiring the main xy
-      IF (SIZE((*(*info).dataparams).pix_main2sji, /N_DIMENSIONS) EQ 3) THEN $
-        xysji = (*(*info).dataparams).pix_main2sji[*,$
-          (*(*info).dataparams).x, (*(*info).dataparams).y] $
-      ELSE BEGIN
-        xysji = [$
-        ; Get xsji value directly from xyrastersji array
-          (*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,0], $
-        ; Get ysji value based on xyrastersji array-value and add offset
-          (*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,1] + $
-          ((*(*info).dataparams).y * (*(*info).dataparams).dy / $
-          (*(*info).dataparams).sjidy - $
-          ((*(*info).dispparams).xyrastersji[(*(*info).dataparams).x,1] - $
-          (*(*info).dispparams).xyrastersji[0,1])) ]
-      ENDELSE
-    ENDIF
+      ((*(*info).dispswitch).xy_out_of_range EQ 0)) THEN $
+      xysji = (*(*info).dataparams).pix_main2sji[*,$
+        (*(*info).dataparams).x, (*(*info).dataparams).y]
     IF (KEYWORD_SET(REF2SJI) AND $
       ((*(*info).dispswitch).xyref_out_of_range EQ 0)) THEN $
       xysji = (*(*info).dataparams).pix_ref2sji[*,$
@@ -8156,15 +8141,6 @@ PRO CRISPEX_IO_OPEN_SJICUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
 	  hdr_out.sjidata = PTR_NEW(sji, /NO_COPY)
     hdr_out.lunsji = lunsji
 	  hdr_out.sjislice	= PTR_NEW(BYTARR(hdr_out.sjinx,hdr_out.sjiny))
-    nrasters = N_ELEMENTS(hdr_out.xyrastersji[*,0])
-    rastercont = FLTARR(nrasters,3)
-    raster_height = hdr_out.ny * (hdr_out.dy / FLOAT(hdr_out.sjidy))
-    FOR i=0,nrasters-1 DO BEGIN
-      rastercont[i,0] = hdr_out.xyrastersji[i,0]
-      rastercont[i,1] = hdr_out.xyrastersji[i,1]
-      rastercont[i,2] = hdr_out.xyrastersji[i,1]+raster_height
-    ENDFOR
-    hdr_out = CREATE_STRUCT(hdr_out, 'rastercont', rastercont)
     CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, SJICUBE=hdr_out.sjifilename
 END
 
@@ -10314,7 +10290,6 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tarr_main = key.tarr_sel
       tarr_raster_main = key.tarr_raster
       toffset_main = key.tini_col
-      xyrastersji = key.xyrastersji
       headers = key.headers
     ENDIF ELSE BEGIN                                            ; In case of compatibility mode
       hdr_out.imtype = datatype         &  hdr_out.imendian = endian
@@ -10342,7 +10317,6 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         hdr_out.ndiagnostics = 1
         diagnostics = 'CRISP'
       ENDELSE
-      xyrastersji = 0
       twave = 0
       headers = PTR_NEW('')
       wcs_main = 0
@@ -10350,8 +10324,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics, $
       'diag_start', wstart, 'diag_width', wwidth, 'tarr_main', tarr_main, $
       'tarr_raster_main', tarr_raster_main, 'toffset_main', toffset_main, $
-      'xyrastersji', xyrastersji, 'twave', twave, 'hdrs_main', headers, $
-      'wcs_main', wcs_main)
+      'twave', twave, 'hdrs_main', headers, 'wcs_main', wcs_main)
   ENDIF ELSE IF KEYWORD_SET(SPCUBE) THEN BEGIN                  ; Fill hdr parameters for SPCUBE
     hdr_out.spoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -10658,14 +10631,6 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     dummy = READFITS(filename, hdr2, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
   ; Initialise headers variable
   headers = [PTR_NEW(header),PTR_NEW(hdr1),PTR_NEW(hdr2)]
-  ; Get slit coordinates on SJI image if raster
-  IF ((SIZE(SXPAR(header,'SJIFIL*'),/TYPE) EQ 7) AND $
-    (~KEYWORD_SET(SPCUBE) AND ~KEYWORD_SET(REFSPCUBE))) THEN BEGIN
-    raster_coords = READFITS(filename, hdr3, EXTEN_NO=3, SILENT=~KEYWORD_SET(VERBOSE))
-    xyrastersji = FLTARR(nx,2)
-    xyrastersji[*,*] = ABS(raster_coords[*,0,*])
-    headers = [headers, PTR_NEW(hdr3)]
-  ENDIF ELSE xyrastersji = 0
   ; Get OBSID 
   obsid = SXPAR(header,'OBSID')
   ;
@@ -10674,7 +10639,6 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
        xpix:xpix, ypix:ypix, xval:xval, yval:yval, $
        wcs_set:wcs_set, wcs_str:wcs_str, $
        tarr_sel:tarr_sel, tarr_raster:tarr_raster, tini_col:tini_col, $
-       xyrastersji:xyrastersji, $
        sjixoff:sjixoff, sjiyoff:sjiyoff, sjix0:sjix0, sjiy0:sjiy0, $
        xlab:xlab,ylab:ylab,lplab:lplab,tlab:tlab, $
        btype:btype,bunit:bunit, bscale:bscale, bzero:bzero, $ 
@@ -16267,7 +16231,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     RETURN
   ENDIF
   IF (N_ELEMENTS(sjicube) NE 1) THEN $
-    hdr = CREATE_STRUCT(hdr, 'tarr_sji', 0, 'tsel_sji', 0, 'rastercont', 0, $
+    hdr = CREATE_STRUCT(hdr, 'tarr_sji', 0, 'tsel_sji', 0, $
             'hdrs_sji', PTR_NEW(''), 'wcs_sji', 0)
 
   ; If WCS information is present, use that to get conversion maps
@@ -16899,12 +16863,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 
   ; Determine starting positions for slit-jaw image
   IF hdr.sjifile THEN BEGIN
-    xsji_start = $
-      hdr.xyrastersji[x_start,0] + (x_start * hdr.dx / hdr.sjidx - $
-      (hdr.xyrastersji[x_start,0] - hdr.xyrastersji[0,0]))
-    ysji_start = $
-      hdr.xyrastersji[x_start,1] + (y_start * hdr.dy / hdr.sjidy - $
-      (hdr.xyrastersji[x_start,1] - hdr.xyrastersji[0,1])) 
+    ; Get starting points directly from conversion maps
+    xsji_start = pix_main2sji[0,x_start,y_start];$
+    ysji_start = pix_main2sji[1,x_start,y_start];$
+    xysji_out_of_range = ((xsji_start LT 0) OR (ysji_start LT 0) OR $
+                          (xsji_start GE hdr.sjinx) OR $
+                          (ysji_start GE hdr.sjiny))
     sxsji_start = xsji_start * sjiwinx / hdr.sjinx
     sysji_start = ysji_start * sjiwiny / hdr.sjiny
   ENDIF ELSE BEGIN
@@ -16912,6 +16876,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     ysji_start = 0L
     sxsji_start = 0.
     sysji_start = 0.
+    xysji_out_of_range = 0
   ENDELSE
 
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
@@ -18459,12 +18424,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		xi:hdr.xi, yi:hdr.yi, xo:hdr.xo, yo:hdr.yo, xi_ref:hdr.xi_ref, yi_ref:hdr.yi_ref, $
     xo_ref:hdr.xo_ref, yo_ref:hdr.yo_ref, phisxtri:PTR_NEW(0), phisytri:PTR_NEW(0), $
     phisxi:PTR_NEW(0), phisyi:PTR_NEW(0), phisxo:PTR_NEW(0), phisyo:PTR_NEW(0), $
-    xyrastersji:hdr.xyrastersji, sjix0:hdr.sjix0, sjiy0:hdr.sjiy0, $
+    sjix0:hdr.sjix0, sjiy0:hdr.sjiy0, $
     xsji_first:0L, xsji_last:(hdr.sjinx-1), $
     ysji_first:0L, ysji_last:(hdr.sjiny-1),  $
     xref_first:xref_first, xref_last:xref_last, $
     yref_first:yref_first, yref_last:yref_last, $
-    rastercont:hdr.rastercont, $
 		interpspslice:interpspslice, phislice_update:phislice_update, slices_imscale:slices_imscale, $
     tsel_main:PTR_NEW(hdr.tsel_main), tsel_ref:PTR_NEW(hdr.tsel_ref), $
     tsel_sji:PTR_NEW(hdr.tsel_sji), master_time:0, $
@@ -18486,7 +18450,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		detspect_scale:detspect_scale, ref_detspect_scale:ref_detspect_scale, $
     drawdop:0, sjiscaled:hdr.sjiscaled, main2ref_no_map:hdr.main2ref_no_map, $
     xy_out_of_range:0, xyref_out_of_range:xyref_out_of_range, $
-    xysji_out_of_range:0 $
+    xysji_out_of_range:xysji_out_of_range $
 	}
 ;-------------------- FEEDBACK PARAMS
 	feedbparams = { $
