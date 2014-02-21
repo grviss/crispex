@@ -5592,13 +5592,13 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
   WIDGET_CONTROL, (*(*info).ctrlsparam).t_idx_val, SET_VALUE=t_idx_txt
   IF ((*(*info).paramswitch).dt_set AND $
      ((*(*info).dataparams).mainnt GT 1)) THEN BEGIN
-    t_real_txt = STRING((*(*(*info).dispparams).tarr_main)[$
+    t_real_txt = STRING((*(*(*info).dispparams).utc_main)[$
       (*(*info).dispparams).t],FORMAT=(*(*info).paramparams).t_real_format)
     WIDGET_CONTROL, (*(*info).ctrlsparam).t_real_val, SET_VALUE=t_real_txt
   ENDIF
   IF (*(*info).paramswitch).t_raster THEN BEGIN
     IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN $
-      t_raster_real_txt = STRING((*(*info).dataparams).tarr_raster_main[$
+      t_raster_real_txt = STRING((*(*info).dataparams).utc_raster_main[$
         (*(*info).dataparams).x, (*(*info).dispparams).t_main], $
         FORMAT=(*(*info).paramparams).t_raster_real_format) $
     ELSE $
@@ -5615,14 +5615,14 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
         SET_VALUE=t_ref_idx_txt
       IF (*(*info).paramswitch).dt_set THEN BEGIN
         t_ref_real_txt = $
-          STRING((*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t],$
+          STRING((*(*(*info).dispparams).utc_ref)[(*(*info).dispparams).t],$
           FORMAT=(*(*info).paramparams).t_ref_real_format)
         WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_real_val, $
           SET_VALUE=t_ref_real_txt
       ENDIF
       IF (*(*info).paramswitch).t_raster_ref THEN BEGIN
         IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN $
-          t_raster_ref_real_txt = STRING((*(*info).dataparams).tarr_raster_ref[$
+          t_raster_ref_real_txt = STRING((*(*info).dataparams).utc_raster_ref[$
             (*(*info).dataparams).xref,(*(*info).dispparams).t_ref], $
             FORMAT=(*(*info).paramparams).t_raster_ref_real_format) $
         ELSE $
@@ -5641,7 +5641,7 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
         SET_VALUE=t_sji_idx_txt
       IF (*(*info).paramswitch).dt_set THEN BEGIN
         t_sji_real_txt = $
-          STRING((*(*(*info).dispparams).tarr_sji)[(*(*info).dispparams).t],$
+          STRING((*(*(*info).dispparams).utc_sji)[(*(*info).dispparams).t],$
           FORMAT=(*(*info).paramparams).t_sji_real_format)
         WIDGET_CONTROL, (*(*info).ctrlsparam).t_sji_real_val, $
           SET_VALUE=t_sji_real_txt
@@ -10276,10 +10276,13 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.tlabel = key.tlab         &  hdr_out.tunit = key.tunit
       hdr_out.lplabel = key.lplab       &  hdr_out.lpunit = key.lpunit
       hdr_out.dt = key.dt               &  hdr_out.single_cube = key.nlp
-      hdr_out.wcs_set = key.wcs_set
+      hdr_out.wcs_set = key.wcs_set 
       wcs_main = key.wcs_str
       lc = key.lc
       hdr_out.obsid = STRTRIM(key.obsid,2)
+      hdr_out.date_obs_main = key.date_obs
+      utc_main = key.utc_sel
+      utc_raster_main = key.utc_raster_sel
       hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam, 'lc', lc)
       ; Handle spectral windows, if present
       hdr_out.ndiagnostics = key.ndiagnostics
@@ -10291,23 +10294,26 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tarr_raster_main = key.tarr_raster
       toffset_main = key.tini_col
       headers = key.headers
-    ENDIF ELSE BEGIN                                            ; In case of compatibility mode
+    ENDIF ELSE BEGIN       ; In case of compatibility mode
       hdr_out.imtype = datatype         &  hdr_out.imendian = endian
       hdr_out.nx = nx                   &  hdr_out.dx = 0.0592
       hdr_out.ny = ny                   &  hdr_out.dy = 0.0592
       hdr_out.imns = ns                 &  hdr_out.ns = ns
       hdr_out.imstokes = stokes         &  hdr_out.imnt = nt
       ndiagnostics = N_ELEMENTS(diagnostics)
-      CRISPEX_IO_PARSE_SINGLE_CUBE, single_cube, HDR_IN=hdr_out, HDR_OUT=hdr_out,/MAIN
+      CRISPEX_IO_PARSE_SINGLE_CUBE, single_cube, HDR_IN=hdr_out, $
+        HDR_OUT=hdr_out,/MAIN
       IF (hdr_out.dt EQ 0) THEN $
         tarr_main = FINDGEN(hdr_out.mainnt) $
       ELSE $
         tarr_main = FINDGEN(hdr_out.mainnt) * hdr_out.dt
       tarr_raster_main = tarr_main
+      utc_main = tarr_main
+      utc_raster_main = tarr_raster_main
       toffset_main = 0
       IF (ndiagnostics GT 0) THEN BEGIN
-        diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,strlen(diagnostics)-2),',',$
-                                /EXTRACT),2)
+        diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,$
+          STRLEN(diagnostics)-2),',',/EXTRACT),2)
         hdr_out.ndiagnostics = ndiagnostics
         wstart = INDGEN(ndiagnostics)
         wwidth = REPLICATE(1,ndiagnostics)
@@ -10324,7 +10330,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     hdr_out = CREATE_STRUCT(hdr_out, 'diagnostics', diagnostics, $
       'diag_start', wstart, 'diag_width', wwidth, 'tarr_main', tarr_main, $
       'tarr_raster_main', tarr_raster_main, 'toffset_main', toffset_main, $
-      'twave', twave, 'hdrs_main', headers, 'wcs_main', wcs_main)
+      'twave', twave, 'hdrs_main', headers, 'wcs_main', wcs_main, $
+      'utc_main', utc_main, 'utc_raster_main', utc_raster_main)
   ENDIF ELSE IF KEYWORD_SET(SPCUBE) THEN BEGIN                  ; Fill hdr parameters for SPCUBE
     hdr_out.spoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -10353,6 +10360,9 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.ref_wcs_set = key.wcs_set
       wcs_ref = key.wcs_str
       reflc = key.lc
+      hdr_out.date_obs_ref = STRTRIM(key.date_obs,2)
+      utc_ref = key.utc_sel
+      utc_raster_ref = key.utc_raster_sel
       hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', reflc)
       ; Handle spectral windows, if present
       hdr_out.nrefdiagnostics = key.ndiagnostics
@@ -10364,25 +10374,30 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tarr_raster_ref = key.tarr_raster
       toffset_ref = key.tini_col
       headers = key.headers
-    ENDIF ELSE BEGIN                                            ; In case of compatibility mode
+    ENDIF ELSE BEGIN                                            
+      ; In case of compatibility mode
       hdr_out.refimtype = datatype      &  hdr_out.refimendian = endian
       hdr_out.refnx = nx                &  hdr_out.refdx = 0.0592
       hdr_out.refny = ny                &  hdr_out.refdy = 0.0592
       hdr_out.refimnt = nt              &  hdr_out.refns = 1L
-      IF (FLOOR(hdr_out.refimnt/FLOAT(hdr_out.mainnt)) EQ hdr_out.refimnt/FLOAT(hdr_out.mainnt)) THEN $
+      IF (FLOOR(hdr_out.refimnt/FLOAT(hdr_out.mainnt)) EQ $
+          hdr_out.refimnt/FLOAT(hdr_out.mainnt)) THEN $
         hdr_out.refnt = hdr_out.mainnt ELSE hdr_out.refnt = 1L
       hdr_out.refnlp = LONG(hdr_out.refimnt/FLOAT(hdr_out.refnt))
-      CRISPEX_IO_PARSE_SINGLE_CUBE, single_cube, HDR_IN=hdr_out, HDR_OUT=hdr_out,/REFERENCE
+      CRISPEX_IO_PARSE_SINGLE_CUBE, single_cube, HDR_IN=hdr_out, $
+        HDR_OUT=hdr_out,/REFERENCE
       IF (hdr_out.dt EQ 0) THEN $
         tarr_ref = FINDGEN(hdr_out.refnt) $
       ELSE $
         tarr_ref = FINDGEN(hdr_out.refnt) * hdr_out.dt
       tarr_raster_ref = tarr_ref
+      utc_ref = tarr_ref
+      utc_raster_ref = tarr_raster_ref
       toffset_ref = 0
       ndiagnostics = N_ELEMENTS(diagnostics)
       IF (ndiagnostics GT 0) THEN BEGIN
-        diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,strlen(diagnostics)-2),',',$
-                                /EXTRACT),2)
+        diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,$
+          STRLEN(diagnostics)-2),',',/EXTRACT),2)
         hdr_out.nrefdiagnostics = ndiagnostics
         wstart = INDGEN(ndiagnostics)
         wwidth = REPLICATE(1,ndiagnostics)
@@ -10396,10 +10411,11 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       headers = PTR_NEW('')
       wcs_ref = 0
     ENDELSE
-    hdr_out = CREATE_STRUCT(hdr_out, 'refdiagnostics', diagnostics, 'refdiag_start', wstart, $
-      'refdiag_width', wwidth, 'tarr_ref', tarr_ref, 'tarr_raster_ref', tarr_raster_ref, $
-      'toffset_ref', toffset_ref, 'twave_ref', twave, 'hdrs_ref', headers, $
-      'wcs_ref', wcs_ref)
+    hdr_out = CREATE_STRUCT(hdr_out, 'refdiagnostics', diagnostics, $
+      'refdiag_start', wstart, 'refdiag_width', wwidth, 'tarr_ref', tarr_ref, $
+      'tarr_raster_ref', tarr_raster_ref, 'toffset_ref', toffset_ref, $
+      'twave_ref', twave, 'hdrs_ref', headers, 'wcs_ref', wcs_ref, $
+      'utc_ref', utc_ref, 'utc_raster_ref', utc_raster_ref)
   ENDIF ELSE IF KEYWORD_SET(REFSPCUBE) THEN BEGIN               ; Fill hdr parameters for REFSPCUBE
     hdr_out.refspoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -10421,16 +10437,21 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.sjibunit = key.bunit      &  headers = key.headers
       hdr_out.sjibscale = key.bscale    &  hdr_out.sjibzero = key.bzero
       hdr_out.sji_wcs_set = key.wcs_set
-      hdr_out.sjiscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) ; Check for scaled integer
+      ; Check for scaled integer
+      hdr_out.sjiscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
+      hdr_out.date_obs_sji = STRTRIM(key.date_obs,2)
       hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
         'sjixoff', key.sjixoff, 'sjiyoff', key.sjiyoff, 'hdrs_sji', headers, $
-        'wcs_sji', key.wcs_str) 
-  ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                ; Fill hdr parameters for MASKCUBE
+        'wcs_sji', key.wcs_str, 'utc_sji', key.utc_sel) 
+  ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                
+    ; Fill hdr parameters for MASKCUBE
     hdr_out.maskoffset = offset
-    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
+    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              
+      ; In case of FITS cube
       hdr_out.masktype = key.datatype   &  hdr_out.masknt = key.nt
       hdr_out.masknx = key.nx           &  hdr_out.maskny = key.ny
-    ENDIF ELSE BEGIN                                            ; In case of compatibility mode
+    ENDIF ELSE BEGIN                                            
+      ; In case of compatibility mode
       hdr_out.masktype = datatype       &  hdr_out.maskendian = endian
       hdr_out.masknx = nx               &  hdr_out.maskny = ny
       hdr_out.masknt = nt
@@ -10584,7 +10605,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ELSE $
     tfactor = 1.
   tunit = 's'
-  tarr_sel *= REPLICATE(tfactor,nt)
+  tarr_sel *= REPLICATE(tfactor,nt)     ; Get tarr_sel in seconds
   IF (SIZE(tarr_raster,/N_DIMENSIONS) NE 0) THEN $
     tarr_raster *= REPLICATE(tfactor,(SIZE(tarr_raster))[1],nt) $
   ELSE $
@@ -10631,8 +10652,27 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     dummy = READFITS(filename, hdr2, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
   ; Initialise headers variable
   headers = [PTR_NEW(header),PTR_NEW(hdr1),PTR_NEW(hdr2)]
-  ; Get OBSID 
+  ; Get OBSID and DATE_OBS
   obsid = SXPAR(header,'OBSID')
+  date_obs = STRTRIM(SXPAR(header,'DATE_OBS'),2)
+  ; IF DATE_OBS is set, derive the UTC (raster) time array
+  IF (date_obs NE '0') THEN BEGIN
+    utc_sel = STRARR(nt)
+    utc_raster_sel = STRARR(nx,nt)
+    orig_str = STR2UTC(date_obs)
+    FOR t=0,nt-1 DO BEGIN
+      new_str = {mjd:orig_str.mjd, time:(orig_str.time+LONG(tarr_sel[t]*1000))}
+      utc_sel[t] = UTC2STR(new_str, /TIME_ONLY)
+      FOR x=0,nx-1 DO BEGIN
+        new_str = {mjd:orig_str.mjd, time:(orig_str.time+$
+          LONG(tarr_raster[x,t]*1000))}
+        utc_raster_sel[x,t] = UTC2STR(new_str, /TIME_ONLY)
+      ENDFOR
+    ENDFOR
+  ENDIF ELSE BEGIN
+    utc_sel = tarr_sel
+    utc_raster_sel = tarr_raster
+  ENDELSE
   ;
   key = {nx:nx,ny:ny,nlp:nlp,nt:nt,ns:ns,cslab:cslab, $
        datatype:datatype,dx:dx,dy:dy,dt:dt,lam:lam,lc:lc, $
@@ -10644,12 +10684,14 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
        btype:btype,bunit:bunit, bscale:bscale, bzero:bzero, $ 
        xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,$
        wstart:wstart, wwidth:wwidth, diagnostics:diagnostics, $
-       ndiagnostics:ndiagnostics, twave:twave, headers:headers, obsid:obsid $
+       ndiagnostics:ndiagnostics, twave:twave, headers:headers, obsid:obsid, $
+       date_obs:date_obs, utc_sel:utc_sel, utc_raster_sel:utc_raster_sel $
        }
 END
 
-PRO CRISPEX_READ_HEADER, filename, header=header, datatype=datatype, dims=dims, nx=nx, ny=ny, $
-                         nt=nt, endian=endian, stokes=stokes, ns=ns, diagnostics=diagnostics
+PRO CRISPEX_READ_HEADER, filename, header=header, datatype=datatype, dims=dims,$
+      nx=nx, ny=ny, nt=nt, endian=endian, stokes=stokes, ns=ns, $
+      diagnostics=diagnostics
 ; Handles the read in of the header of the input files
 	OPENR, lun, filename, /GET_LUN
 	rec	= ASSOC(lun, BYTARR(512))	&	header	= STRING(rec[0])
@@ -16134,9 +16176,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
             ; Data offsets within file
             imoffset:0L, spoffset:0L, refimoffset:0L, refspoffset:0L, $
             sjioffset:0L, maskoffset:0L, $
-            ; Endians
+            ; Endians, OBSID and DATE_OBS
             imendian:'b', spendian:'b', refimendian:'b', refspendian:'b', $
             sjiendian:'b', maskendian:'b',endian:endian, obsid:'0', $
+            date_obs_main:'0', date_obs_ref:'0', date_obs_sji:'0', $
             ; Compatibility switches
             imcube_compatibility:0B, spcube_compatibility:0B, $
             refimcube_compatibility:0B, refspcube_compatibility:0B, $
@@ -16217,7 +16260,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   IF (N_ELEMENTS(REFCUBE) LT 1) THEN $
     hdr = CREATE_STRUCT(hdr, 'refdiagnostics', 'N/A', 'refdiag_start', 0, $
             'refdiag_width', 1, 'tarr_ref', 0, 'tarr_raster_ref', 0, $
-            'toffset_ref', 0, 'hdrs_ref', PTR_NEW(''), 'wcs_ref', 0) 
+            'toffset_ref', 0, 'hdrs_ref', PTR_NEW(''), 'wcs_ref', 0, $
+            'utc_ref', '0', 'utc_raster_ref', 0)
 
   CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr, HDR_OUT=hdr, $  
                             STARTUPTLB=startuptlb, $
@@ -16232,7 +16276,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   ENDIF
   IF (N_ELEMENTS(sjicube) NE 1) THEN $
     hdr = CREATE_STRUCT(hdr, 'tarr_sji', 0, 'tsel_sji', 0, $
-            'hdrs_sji', PTR_NEW(''), 'wcs_sji', 0)
+            'hdrs_sji', PTR_NEW(''), 'wcs_sji', 0, 'utc_sji', '0')
 
   ; If WCS information is present, use that to get conversion maps
   ; Set defaults first
@@ -17769,8 +17813,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
       IF hdr.showref THEN BEGIN
         refxcoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.refnx))+1,2)+')'
         refycoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.refny))+1,2)+')'
-        refcoord_txt = '    ('+STRING(LONG(x_start),FORMAT=refxcoord_format)+$
-          ','+STRING(LONG(y_start),FORMAT=refycoord_format)+')'
+        refcoord_txt = '    ('+STRING(LONG(xref_start),FORMAT=refxcoord_format)+$
+          ','+STRING(LONG(yref_start),FORMAT=refycoord_format)+')'
         IF hdr.ref_wcs_set THEN BEGIN
           xyref_real = CRISPEX_TRANSFORM_GET_WCS(xref_start, yref_start, hdr.wcs_ref, $
             /COORD, /NO_ROUND)
@@ -17783,8 +17827,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
             (hdr.refnx*hdr.dx LT 1),2)+'.1)'
           refycoord_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.refny*hdr.dy))+3+$
             (hdr.refny*hdr.dy LT 1),2)+'.1)'
-          refcoord_real_txt = '('+STRING(FLOAT(x_start*hdr.dx),FORMAT=refxcoord_real_format)+$
-            ','+STRING(FLOAT(y_start*hdr.dy),FORMAT=refycoord_real_format)+')'
+          refcoord_real_txt = '('+STRING(FLOAT(xref_start*hdr.dx),FORMAT=refxcoord_real_format)+$
+            ','+STRING(FLOAT(yref_start*hdr.dy),FORMAT=refycoord_real_format)+')'
         ENDELSE
       ENDIF ELSE BEGIN
         refcoord_txt = 'N/A'
@@ -17904,14 +17948,32 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 ;    verlabel_base = WIDGET_BASE(params_time_base, /COLUMN)
       no_label    = WIDGET_LABEL(verlabel_base, VALUE='Time', /ALIGN_LEFT)
       pixel_label = WIDGET_LABEL(verlabel_base, VALUE='Index [px]', /ALIGN_RIGHT)
-      IF dt_set THEN $
-        real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value [s]', /ALIGN_RIGHT)
-      raster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_main) NE N_ELEMENTS(hdr.tarr_main))); $
+      IF dt_set THEN BEGIN
+        label_val = 'Value '
+        IF ((hdr.date_obs_main NE '0') OR $
+            (hdr.date_obs_ref NE '0') OR $
+            (hdr.date_obs_sji NE '0')) THEN $
+          label_val += '(UTC)' $
+        ELSE $
+          label_val += '[s]'
+        real_label  = WIDGET_LABEL(verlabel_base, VALUE=label_val, /ALIGN_RIGHT)
+      ENDIF
+      raster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_main) NE $
+        N_ELEMENTS(hdr.tarr_main))); $
 ;                          AND (hdr.mainnt GT 1))
-      refraster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_ref) NE N_ELEMENTS(hdr.tarr_ref)) $
+      refraster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_ref) NE $
+        N_ELEMENTS(hdr.tarr_ref)) $
                             AND (hdr.refnt GT 1))
-      IF (raster_time_fb OR refraster_time_fb) THEN $
-        raster_label = WIDGET_LABEL(verlabel_base, VALUE='Raster [s]', /ALIGN_RIGHT)
+      IF (raster_time_fb OR refraster_time_fb) THEN BEGIN
+        label_val = 'Raster '
+        IF ((hdr.date_obs_main NE '0') OR $
+            (hdr.date_obs_ref NE '0') OR $
+            (hdr.date_obs_sji NE '0')) THEN $
+          label_val += '(UTC)' $
+        ELSE $
+          label_val += '[s]'
+        raster_label = WIDGET_LABEL(verlabel_base, VALUE=label_val, /ALIGN_RIGHT)
+      ENDIF
 ;    params_main_base = WIDGET_BASE(params_time_base, /COLUMN)
       main_label  = WIDGET_LABEL(params_main_base, VALUE=' ', /ALIGN_RIGHT)
       t_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.mainnt))+1,2)+')'
@@ -17924,10 +17986,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
             t_sel = wheretgt0[count-1] $
           ELSE $
             t_sel = 0
-          t_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_main[t_sel]))+3,2)+'.1)' 
+          IF (hdr.date_obs_main NE '0') THEN $
+            t_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_main[t_sel]),2)+')'  $
+          ELSE $
+            t_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_main[$
+              t_sel]))+3,2)+'.1)' 
         ENDIF ELSE $
           t_real_format = '(F3.1)'
-        t_real_txt = STRING(hdr.tarr_main[t_start], FORMAT=t_real_format)
+        t_real_txt = STRING(hdr.utc_main[t_start], FORMAT=t_real_format)
 		    t_real_val = WIDGET_LABEL(params_main_base, VALUE=t_real_txt, /ALIGN_RIGHT)
       ENDIF ELSE BEGIN
         t_real_format = ''
@@ -17941,8 +18007,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
           t_sel = wheretgt0[count-1] $
         ELSE $
           t_sel = 0
-        t_raster_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_main[$
-          x_start,t_sel]))+3,2)+'.1)'
+        IF (hdr.date_obs_main NE '0') THEN $
+          t_raster_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_raster_main[$
+            x_start,t_sel]),2)+')'  $
+        ELSE $
+          t_raster_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_main[$
+            x_start,t_sel]))+3,2)+'.1)'
         t_raster_real_txt = STRING(hdr.tarr_raster_main[x_start,t_start], $
           FORMAT=t_raster_real_format)
       ENDIF ELSE BEGIN
@@ -17950,8 +18020,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
         t_raster_real_txt = 'N/A'
       ENDELSE
       IF (raster_time_fb OR refraster_time_fb) THEN $
-        t_raster_real_val = WIDGET_LABEL(params_main_base, VALUE=t_raster_real_txt, $
-          /ALIGN_RIGHT) $
+        t_raster_real_val = WIDGET_LABEL(params_main_base, $
+          VALUE=t_raster_real_txt, /ALIGN_RIGHT) $
       ELSE $
         t_raster_real_val = 0
       ref_label   = WIDGET_LABEL(params_ref_base, VALUE=' ', /ALIGN_RIGHT)
@@ -17963,15 +18033,20 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
         t_ref_idx_txt = 'N/A'
 ;		    t_ref_idx_val = 0
       ENDELSE
-		  t_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_idx_txt, /ALIGN_RIGHT)
+		  t_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_idx_txt, $
+        /ALIGN_RIGHT)
       IF ((hdr.refnt GT 1) AND dt_set) THEN BEGIN
         wheretgt0 = WHERE(hdr.tarr_ref GT 0, count)
         IF (count GT 0) THEN $
           t_sel = wheretgt0[count-1] $
         ELSE $
           t_sel = 0
-        t_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_ref[t_sel]))+3,2)+'.1)'
-        t_ref_real_txt = STRING(hdr.tarr_ref[t_start], FORMAT=t_ref_real_format)
+        IF (hdr.date_obs_ref NE '0') THEN $
+          t_ref_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_ref[t_sel]),2)+')'  $
+        ELSE $
+          t_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_ref[$
+            t_sel]))+3,2)+'.1)'
+        t_ref_real_txt = STRING(hdr.utc_ref[t_start], FORMAT=t_ref_real_format)
       ENDIF ELSE BEGIN
         t_ref_real_format = ''
         t_ref_real_txt = 'N/A'
@@ -17982,22 +18057,27 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
           /ALIGN_RIGHT)
       IF ((hdr.refnt GT 1) AND refraster_time_fb) THEN BEGIN
         ; Check where raster times greater than 0
-        wheretgt0 = WHERE(hdr.tarr_raster_ref[x_start,*] GT 0, count)
+        wheretgt0 = WHERE(hdr.tarr_raster_ref[xref_start,*] GT 0, count)
         IF (count GT 0) THEN $
           t_sel = wheretgt0[count-1] $
         ELSE $
           t_sel = 0
-        t_raster_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_ref[$
-          x_start,t_sel]))+3,2)+'.1)'
-        t_raster_ref_real_txt = STRING(hdr.tarr_raster_ref[x_start,t_start], $
-          FORMAT=t_raster_ref_real_format)
+        IF (hdr.date_obs_main NE '0') THEN $
+          t_raster_ref_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_raster_ref[$
+            xref_start,t_sel]),2)+')'  $
+        ELSE $
+          t_raster_ref_real_format = $
+            '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_ref[xref_start,$
+            t_sel]))+3,2)+'.1)'
+        t_raster_ref_real_txt = STRING(hdr.tarr_raster_ref[xref_start,$
+          t_start], FORMAT=t_raster_ref_real_format)
       ENDIF ELSE BEGIN
         t_raster_ref_real_format = ''
         t_raster_ref_real_txt = 'N/A'
       ENDELSE
       IF (raster_time_fb OR refraster_time_fb) THEN $
-        t_raster_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=t_raster_ref_real_txt, $
-          /ALIGN_RIGHT) $
+        t_raster_ref_real_val = WIDGET_LABEL(params_ref_base, $
+          VALUE=t_raster_ref_real_txt, /ALIGN_RIGHT) $
       ELSE $
         t_raster_ref_real_val = 0
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
@@ -18014,17 +18094,20 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
           t_sel = wheretgt0[count-1] $
         ELSE $
           t_sel = 0
-        t_sji_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_sji[t_sel]))+3,2)+'.1)'
-;        t_sji_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_sji[$
-;          (WHERE(hdr.tarr_sji GT 0))[-1]]))+3,2)+'.1)'
-        t_sji_real_txt = STRING(hdr.tarr_sji[hdr.tsel_sji[t_start]], $
+        IF (hdr.date_obs_sji NE '0') THEN $
+          t_sji_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_sji[t_sel]),2)+')'  $
+        ELSE $
+          t_sji_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_sji[$
+            t_sel]))+3,2)+'.1)'
+        t_sji_real_txt = STRING(hdr.utc_sji[hdr.tsel_sji[t_start]], $
           FORMAT=t_sji_real_format)
       ENDIF ELSE BEGIN
         t_sji_real_format = ''
         t_sji_real_val = 0
         t_sji_real_txt = 'N/A'
       ENDELSE
-		  t_sji_idx_val = WIDGET_LABEL(params_sji_base, VALUE=t_sji_idx_txt, /ALIGN_RIGHT)
+		  t_sji_idx_val = WIDGET_LABEL(params_sji_base, VALUE=t_sji_idx_txt, $
+        /ALIGN_RIGHT)
 		  IF dt_set THEN $
         t_sji_real_val = WIDGET_LABEL(params_sji_base, VALUE=t_sji_real_txt, $
           /ALIGN_RIGHT)
@@ -18361,12 +18444,15 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		imfilename:hdr.imfilename, spfilename:hdr.spfilename, $
     refimfilename:hdr.refimfilename, $
     refspfilename:hdr.refspfilename, maskfilename:hdr.maskfilename, $	
-    ; Headers and OBSID
+    ; Headers, OBSID and DATE_OBS
     hdrs:[PTR_NEW(hdr.hdrs_main),PTR_NEW(hdr.hdrs_ref),PTR_NEW(hdr.hdrs_sji)], $
-    next:[N_ELEMENTS(hdr.hdrs_main),N_ELEMENTS(hdr.hdrs_ref),N_ELEMENTS(hdr.hdrs_sji)], $
-    obsid:hdr.obsid, $
+    next:[N_ELEMENTS(hdr.hdrs_main),N_ELEMENTS(hdr.hdrs_ref),$
+    N_ELEMENTS(hdr.hdrs_sji)], obsid:hdr.obsid, $
+    date_obs_main:hdr.date_obs_main, date_obs_ref:hdr.date_obs_ref, $
+    date_obs_sji:hdr.date_obs_sji, $
     ; Spatial dimensions
-		x:DOUBLE(x_start), y:DOUBLE(y_start), d_nx:hdr.nx-1, d_ny:hdr.ny-1, nx:hdr.nx, ny:hdr.ny, $
+		x:DOUBLE(x_start), y:DOUBLE(y_start), d_nx:hdr.nx-1, d_ny:hdr.ny-1, $
+    nx:hdr.nx, ny:hdr.ny, $
     sjinx:hdr.sjinx, sjiny:hdr.sjiny, sjidx:hdr.sjidx, sjidy:hdr.sjidy, $
     refnx:hdr.refnx, refny:hdr.refny, refdx:hdr.refdx, refdy:hdr.refdy, $
     d_refnx:hdr.refnx-1, d_refny:hdr.refny-1, $
@@ -18382,6 +18468,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     xref:DOUBLE(xref_start), yref:DOUBLE(yref_start), $
     xsji:DOUBLE(xsji_start), ysji:DOUBLE(ysji_start), tarr_sji:hdr.tarr_sji, $
     tarr_raster_main:hdr.tarr_raster_main, tarr_raster_ref:hdr.tarr_raster_ref,$
+    utc_raster_main:hdr.utc_raster_main, utc_raster_ref:hdr.utc_raster_ref,$
 		lc:hdr.lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp,$
     refnlp:hdr.refnlp, ns:hdr.ns, s:0L, $					
 		lps:hdr.lps, ms:hdr.ms, spec:hdr.mainspec, $
@@ -18435,6 +18522,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     tarr_main:PTR_NEW(hdr.tarr_main[hdr.tsel_main]), $
     tarr_ref:PTR_NEW(hdr.tarr_ref[hdr.tsel_ref]), $
     tarr_sji:PTR_NEW(hdr.tarr_sji[hdr.tsel_sji]), $
+    utc_main:PTR_NEW(hdr.utc_main[hdr.tsel_main]), $
+    utc_ref:PTR_NEW(hdr.utc_ref[hdr.tsel_ref]), $
+    utc_sji:PTR_NEW(hdr.utc_sji[hdr.tsel_sji]), $
     t:t_start, t_main:hdr.tsel_main[0], t_ref:hdr.tsel_ref[0], t_sji:hdr.tsel_sji[0], $
     t_low_main:hdr.tarr_main[0], t_upp_main:hdr.tarr_main[(hdr.mainnt-1)>0], $
     t_low_ref:hdr.tarr_ref[0], t_upp_ref:hdr.tarr_ref[(hdr.refnt-1)>0], $
