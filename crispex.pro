@@ -10658,16 +10658,22 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ; IF DATE_OBS is set, derive the UTC (raster) time array
   IF (date_obs NE '0') THEN BEGIN
     utc_sel = STRARR(nt)
-    utc_raster_sel = STRARR(nx,nt)
+    IF (SIZE(tarr_raster, /N_DIMENSIONS) EQ 2) THEN $
+      utc_raster_sel = STRARR(nx,nt) $
+    ELSE $
+      utc_raster_sel = STRARR(nt)
     orig_str = STR2UTC(date_obs)
     FOR t=0,nt-1 DO BEGIN
       new_str = {mjd:orig_str.mjd, time:(orig_str.time+LONG(tarr_sel[t]*1000))}
       utc_sel[t] = UTC2STR(new_str, /TIME_ONLY)
-      FOR x=0,nx-1 DO BEGIN
-        new_str = {mjd:orig_str.mjd, time:(orig_str.time+$
-          LONG(tarr_raster[x,t]*1000))}
-        utc_raster_sel[x,t] = UTC2STR(new_str, /TIME_ONLY)
-      ENDFOR
+      IF (SIZE(tarr_raster, /N_DIMENSIONS) EQ 2) THEN BEGIN
+        FOR x=0,nx-1 DO BEGIN
+          new_str = {mjd:orig_str.mjd, time:(orig_str.time+$
+            LONG(tarr_raster[x,t]*1000))}
+          utc_raster_sel[x,t] = UTC2STR(new_str, /TIME_ONLY)
+        ENDFOR
+      ENDIF ELSE $
+        utc_raster_sel[t] = utc_sel[t]
     ENDFOR
   ENDIF ELSE BEGIN
     utc_sel = tarr_sel
