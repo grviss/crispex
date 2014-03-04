@@ -8520,7 +8520,7 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
         RESTORE, spectfile[refspectfile_set];,VERBOSE=(TOTAL(verbosity[0:1]) GE 1) 
   			IF (verbosity[1] EQ 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Restored '+feedback_text+$
                                            'spectral file: '+spectfile[refspectfile_set]+'.'
-        IF (N_ELEMENTS(norm_factor) NE 1) THEN BEGIN   ; Failsafe against old spectfiles; convert vars
+        IF (N_ELEMENTS(norm_factor) LT 1) THEN BEGIN   ; Failsafe against old spectfiles; convert vars
           spect_pos = ll
           norm_factor = 1/mn
           norm_spect = spec
