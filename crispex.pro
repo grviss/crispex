@@ -753,6 +753,18 @@ FUNCTION CRISPEX_BGROUP_MASK_OVERLAY, event
 	CRISPEX_DRAW, event
 END
 
+FUNCTION CRISPEX_BGROUP_RASTER_OVERLAY, event
+; Handles the change raster overlay window
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  CASE event.VALUE OF
+    0:  (*(*info).overlayswitch).refraster = event.SELECT
+    1:  (*(*info).overlayswitch).sjiraster = event.SELECT
+  ENDCASE
+	CRISPEX_DRAW, event
+END
+
 FUNCTION CRISPEX_BGROUP_INT_SEL_ALLNONE, event
 ; Handles the change in plotting of selected diagnostics
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -4811,11 +4823,13 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
     sx_loc = (*(*info).curs).sxsji
     sy_loc = (*(*info).curs).sysji
     IF (*(*info).overlayswitch).sjiraster THEN $
-      CRISPEX_DRAW_RASTER_OVERLAYS, event
+      CRISPEX_DRAW_RASTER_OVERLAYS, event, /SJI
   ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
     ref_wid = ((*(*info).winids).current_wid EQ (*(*info).winids).refdrawid)
     sx_loc = (*(*info).curs).sxref
     sy_loc = (*(*info).curs).syref
+    IF (*(*info).overlayswitch).refraster THEN $
+      CRISPEX_DRAW_RASTER_OVERLAYS, event, /REFERENCE
   ENDIF ELSE BEGIN
     main_wid = ((*(*info).winids).current_wid EQ (*(*info).winids).xydrawid)
     sx_loc = (*(*info).curs).sx
@@ -5316,15 +5330,21 @@ PRO CRISPEX_DRAW_MASK_OVERLAYS, event, REFERENCE=reference
   TVLCT, r_cur, g_cur, b_cur
 END
 
-PRO CRISPEX_DRAW_RASTER_OVERLAYS, event
-; Handles the overlay of raster contours on SJI
+PRO CRISPEX_DRAW_RASTER_OVERLAYS, event, REFERENCE=reference, SJI=sji
+; Handles the overlay of raster contours on REFERENCE or SJI
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	LOADCT, (*(*info).overlayparams).maskct, /SILENT
   FOR i=0,(*(*info).dataparams).nx-1 DO BEGIN
-    sxyraster = CRISPEX_TRANSFORM_DATA2DEVICE(info, $
-      X=(*(*info).dataparams).pix_main2sji[0,i,*], $
-      Y=(*(*info).dataparams).pix_main2sji[1,i,*], /SJI)
+    IF KEYWORD_SET(REFERENCE) THEN $
+      sxyraster = CRISPEX_TRANSFORM_DATA2DEVICE(info, $
+        X=(*(*info).dataparams).pix_main2ref[0,i,*], $
+        Y=(*(*info).dataparams).pix_main2ref[1,i,*], /REF) $
+    ELSE IF KEYWORD_SET(SJI) THEN $
+      sxyraster = CRISPEX_TRANSFORM_DATA2DEVICE(info, $
+        X=(*(*info).dataparams).pix_main2sji[0,i,*], $
+        Y=(*(*info).dataparams).pix_main2sji[1,i,*], /SJI)
     PLOTS, sxyraster.x, sxyraster.y, COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
   ENDFOR
 	LOADCT, 0, /SILENT
@@ -9208,14 +9228,6 @@ PRO CRISPEX_MASK_BUTTONS_SET, event
 	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[0],SET_BUTTON = ((*(*info).overlayswitch).maskim)[0], SENSITIVE = (*(*info).overlayswitch).mask
 	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[1],SET_BUTTON = ((*(*info).overlayswitch).maskim)[1], SENSITIVE = ((*(*info).overlayswitch).mask AND (*(*info).dataswitch).reffile)
 	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[2],SET_BUTTON = ((*(*info).overlayswitch).maskim)[2], SENSITIVE = ((*(*info).overlayswitch).mask AND (*(*info).winswitch).showdop)
-END
-
-PRO CRISPEX_MASK_OVERLAY_RASTER_TOGGLE, event
-; Updates reference loopslab display window plot axes range according to set parameters
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-  (*(*info).overlayswitch).sjiraster = event.SELECT
-  CRISPEX_DRAW_SJI, event
 END
 
 ;==================== MEASUREMENT PROCEDURES
@@ -17801,10 +17813,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   overlays_divider2   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
   ; Raster overlays base
   raster_overlay_label= WIDGET_LABEL(overlays_tab, VALUE='Raster:',/ALIGN_LEFT)
-  raster_overlay      = WIDGET_BASE(overlays_tab, /ROW, /NONEXCLUSIVE)
-  raster_but          = WIDGET_BUTTON(raster_overlay, VALUE='Overlay boundaries on slit-jaw image', $
-                          EVENT_PRO='CRISPEX_MASK_OVERLAY_RASTER_TOGGLE', SENSITIVE=hdr.sjifile)
-  WIDGET_CONTROL, raster_but, SET_BUTTON=hdr.sjifile
+  raster_overlay      = WIDGET_BASE(overlays_tab, /COLUMN)
+  raster_but_labels   = ['Overlay slit positions on reference image', $
+                          'Overlay slit positions on slit-jaw image'] 
+  raster_buts         = CW_BGROUP(raster_overlay, raster_but_labels, $
+                          BUTTON_UVALUE=INDGEN(2), IDS=raster_button_ids, $
+                          /NONEXCLUSIVE, /COLUMN, $
+                          EVENT_FUNC='CRISPEX_BGROUP_RASTER_OVERLAY')
+  WIDGET_CONTROL, raster_button_ids[0], SENSITIVE=hdr.showref, $
+    SET_BUTTON=hdr.showref
+  WIDGET_CONTROL, raster_button_ids[1], SENSITIVE=hdr.sjifile, $
+    SET_BUTTON=hdr.sjifile                        
   overlays_divider3   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
 
   ; ==================== Parameters Overview ====================
@@ -18387,7 +18406,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		measure_asec_lab:measure_asec_lab, measure_asec_text:measure_asec_text, $
 		measure_km_lab:measure_km_lab, measure_km_text:measure_km_text, $					
 		mask_button_ids:mask_button_ids, masks_overlay_ct_cbox:masks_overlay_ct_cbox, $
-		masks_overlay_col_slid:masks_overlay_col_slid, raster_button:raster_but, $
+		masks_overlay_col_slid:masks_overlay_col_slid, raster_button_ids:raster_button_ids, $
     dispwid:dispwid, clear_current_inst:clear_current_inst, $
 		verbose_set:PTR_NEW([sh_verb_0,sh_verb_4,sh_verb_8,sh_verb_16]) $
 	}
@@ -18692,7 +18711,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 ;-------------------- OVERLAY SWITCHES
 	overlayswitch = { $
 		det_overlay_all:0, loopslit:0, overlalways:1, looppath_feedback:1, mask:hdr.maskfile, $
-    maskim:[hdr.maskfile,hdr.showref,0], sjiraster:1 $		
+    maskim:[hdr.maskfile,hdr.showref,0], sjiraster:1, refraster:1 $		
 	}
 ;-------------------- PARAMETER WINDOW CONTROLS 
 	paramparams = { $
