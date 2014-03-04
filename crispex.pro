@@ -1952,14 +1952,20 @@ PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old, NT_OLD=nt_old
     IF ((*(*info).dataparams).mainnt GT 1) THEN BEGIN
       *(*(*info).dispparams).tsel_main = tsel_main
       *(*(*info).dispparams).tarr_main = tarr_main[tsel_main]
+      *(*(*info).dispparams).utc_main = (*(*info).dataparams).utc_raster_main[$
+        (*(*info).dispparams).toffset_main, tsel_main]
     ENDIF
     IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN 
       *(*(*info).dispparams).tsel_ref = tsel_ref
       *(*(*info).dispparams).tarr_ref = tarr_ref[tsel_ref]
+      *(*(*info).dispparams).utc_ref = (*(*info).dataparams).utc_raster_ref[$
+        (*(*info).dispparams).toffset_ref,tsel_ref]
     ENDIF
     IF ((*(*info).dataparams).sjint GT 1) THEN BEGIN 
       *(*(*info).dispparams).tsel_sji = tsel_sji
       *(*(*info).dispparams).tarr_sji = (*(*info).dataparams).tarr_sji[tsel_sji]
+      *(*(*info).dispparams).utc_sji = $
+        (*(*info).dataparams).utc_sji[tsel_sji]
     ENDIF
     ; Reset temporal boundaries and get T_SET
     (*(*info).dispparams).t_last = (*(*info).dataparams).nt-1
@@ -5608,28 +5614,31 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
   ENDIF
   ; Reference
   IF (*(*info).winswitch).showref THEN BEGIN
-    IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN
-      t_ref_idx_txt = STRING(LONG((*(*info).dispparams).t_ref),$
-        FORMAT=(*(*info).paramparams).t_ref_idx_format)
-      WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_idx_val, $
-        SET_VALUE=t_ref_idx_txt
-      IF (*(*info).paramswitch).dt_set THEN BEGIN
-        t_ref_real_txt = $
-          STRING((*(*(*info).dispparams).utc_ref)[(*(*info).dispparams).t],$
-          FORMAT=(*(*info).paramparams).t_ref_real_format)
-        WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_real_val, $
-          SET_VALUE=t_ref_real_txt
-      ENDIF
-      IF (*(*info).paramswitch).t_raster_ref THEN BEGIN
-        IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN $
+    t_ref_idx_txt = STRING(LONG((*(*info).dispparams).t_ref),$
+      FORMAT=(*(*info).paramparams).t_ref_idx_format)
+    WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_idx_val, $
+      SET_VALUE=t_ref_idx_txt
+    IF (*(*info).paramswitch).dt_set THEN BEGIN
+      t_ref_real_txt = $
+        STRING((*(*(*info).dispparams).utc_ref)[(*(*info).dispparams).t],$
+        FORMAT=(*(*info).paramparams).t_ref_real_format)
+      WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_real_val, $
+        SET_VALUE=t_ref_real_txt
+    ENDIF
+    IF (*(*info).paramswitch).t_raster_ref THEN BEGIN
+      IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
+        IF ((*(*info).dataparams).refnt GT 1) THEN $
           t_raster_ref_real_txt = STRING((*(*info).dataparams).utc_raster_ref[$
             (*(*info).dataparams).xref,(*(*info).dispparams).t_ref], $
             FORMAT=(*(*info).paramparams).t_raster_ref_real_format) $
         ELSE $
-          t_raster_ref_real_txt = 'N/A'
-        WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_ref_real_val, $
-          SET_VALUE=t_raster_ref_real_txt
-      ENDIF
+          t_raster_ref_real_txt = STRING((*(*info).dataparams).utc_raster_ref[$
+            (*(*info).dataparams).xref], $
+            FORMAT=(*(*info).paramparams).t_raster_ref_real_format)
+      ENDIF ELSE $
+        t_raster_ref_real_txt = 'N/A'
+      WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_ref_real_val, $
+        SET_VALUE=t_raster_ref_real_txt
     ENDIF
   ENDIF
   ; SJI
@@ -10658,22 +10667,43 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ; IF DATE_OBS is set, derive the UTC (raster) time array
   IF (date_obs NE '0') THEN BEGIN
     utc_sel = STRARR(nt)
+    ; Check for N_DIMENSIONS of tarr_raster
     IF (SIZE(tarr_raster, /N_DIMENSIONS) EQ 2) THEN $
       utc_raster_sel = STRARR(nx,nt) $
-    ELSE $
-      utc_raster_sel = STRARR(nt)
+    ELSE BEGIN
+      ; If N_DIMS!=2, then may be either nx=1,nt>1 or nx>1,nt=1
+      IF (nt GT 1) THEN $
+        utc_raster_sel = STRARR(nt)  $
+      ELSE $
+        utc_raster_sel = STRARR(nx)
+    ENDELSE
     orig_str = STR2UTC(date_obs)
+    ; Loop over time
     FOR t=0,nt-1 DO BEGIN
-      new_str = {mjd:orig_str.mjd, time:(orig_str.time+LONG(tarr_sel[t]*1000))}
+      ; Create new main time structure and save time to utc_sel
+      new_str = {mjd:orig_str.mjd, $
+        time:(orig_str.time+LONG(tarr_sel[t]*1000*tfactor))}
       utc_sel[t] = UTC2STR(new_str, /TIME_ONLY)
+      ; Do the same for the raster in case of N_DIMS=2
       IF (SIZE(tarr_raster, /N_DIMENSIONS) EQ 2) THEN BEGIN
         FOR x=0,nx-1 DO BEGIN
           new_str = {mjd:orig_str.mjd, time:(orig_str.time+$
-            LONG(tarr_raster[x,t]*1000))}
+            LONG(tarr_raster[x,t]*1000*tfactor))}
           utc_raster_sel[x,t] = UTC2STR(new_str, /TIME_ONLY)
         ENDFOR
-      ENDIF ELSE $
-        utc_raster_sel[t] = utc_sel[t]
+      ENDIF ELSE BEGIN
+        ; Alternatively, if nt>1, then nx=1 and set utc_raster_sel = utc_sel
+        IF (nt GT 1) THEN $
+          utc_raster_sel[t] = utc_sel[t] $
+        ELSE BEGIN
+        ; Else, if nt=1, then nx>1 and get utc_raster_sel for each slit pos
+          FOR x=0,nx-1 DO BEGIN
+            new_str = {mjd:orig_str.mjd, time:(orig_str.time+$
+              LONG(tarr_raster[x]*1000*tfactor))}
+            utc_raster_sel[x] = UTC2STR(new_str, /TIME_ONLY)
+          ENDFOR
+        ENDELSE
+      ENDELSE
     ENDFOR
   ENDIF ELSE BEGIN
     utc_sel = tarr_sel
@@ -17965,11 +17995,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
         real_label  = WIDGET_LABEL(verlabel_base, VALUE=label_val, /ALIGN_RIGHT)
       ENDIF
       raster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_main) NE $
-        N_ELEMENTS(hdr.tarr_main))); $
-;                          AND (hdr.mainnt GT 1))
+        N_ELEMENTS(hdr.tarr_main)))
       refraster_time_fb = ((N_ELEMENTS(hdr.tarr_raster_ref) NE $
-        N_ELEMENTS(hdr.tarr_ref)) $
-                            AND (hdr.refnt GT 1))
+        N_ELEMENTS(hdr.tarr_ref)))
       IF (raster_time_fb OR refraster_time_fb) THEN BEGIN
         label_val = 'Raster '
         IF ((hdr.date_obs_main NE '0') OR $
@@ -17980,25 +18008,24 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
           label_val += '[s]'
         raster_label = WIDGET_LABEL(verlabel_base, VALUE=label_val, /ALIGN_RIGHT)
       ENDIF
+      ; ==================== Time feedback ==================== 
 ;    params_main_base = WIDGET_BASE(params_time_base, /COLUMN)
       main_label  = WIDGET_LABEL(params_main_base, VALUE=' ', /ALIGN_RIGHT)
       t_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.mainnt))+1,2)+')'
 		  t_idx_val = WIDGET_LABEL(params_main_base, VALUE=STRING(LONG(t_start),$
         FORMAT=t_idx_format), /ALIGN_RIGHT)
+      ; -------------------- Main time feedback -------------------- 
       IF dt_set THEN BEGIN
-        IF (hdr.mainnt GT 1) THEN BEGIN
-          wheretgt0 = WHERE(hdr.tarr_main GT 0, count)
-          IF (count GT 0) THEN $
-            t_sel = wheretgt0[count-1] $
-          ELSE $
-            t_sel = 0
-          IF (hdr.date_obs_main NE '0') THEN $
-            t_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_main[t_sel]),2)+')'  $
-          ELSE $
-            t_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_main[$
-              t_sel]))+3,2)+'.1)' 
-        ENDIF ELSE $
-          t_real_format = '(F3.1)'
+        wheretgt0 = WHERE(hdr.tarr_main GT 0, count)
+        IF (count GT 0) THEN $
+          t_sel = wheretgt0[count-1] $
+        ELSE $
+          t_sel = 0
+        IF (hdr.date_obs_main NE '0') THEN $
+          t_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_main[t_sel]),2)+')'  $
+        ELSE $
+          t_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_main[$
+            t_sel]))+3,2)+'.1)' 
         t_real_txt = STRING(hdr.utc_main[t_start], FORMAT=t_real_format)
 		    t_real_val = WIDGET_LABEL(params_main_base, VALUE=t_real_txt, /ALIGN_RIGHT)
       ENDIF ELSE BEGIN
@@ -18006,21 +18033,31 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
         t_real_txt = 'N/A'
         t_real_val = 0
       ENDELSE
+      ; -------------------- Main raster time feedback -------------------- 
       IF raster_time_fb THEN BEGIN
         ; Check where raster times greater than 0
-        wheretgt0 = WHERE(hdr.tarr_raster_main[x_start,*] GT 0, count)
+        IF (hdr.mainnt GT 1) THEN $
+          wheretgt0 = WHERE(hdr.tarr_raster_main[x_start,*] GT 0, count) $
+        ELSE $
+          wheretgt0 = WHERE(hdr.tarr_raster_main[x_start] GT 0, count)
         IF (count GT 0) THEN $
           t_sel = wheretgt0[count-1] $
         ELSE $
           t_sel = 0
-        IF (hdr.date_obs_main NE '0') THEN $
-          t_raster_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_raster_main[$
-            x_start,t_sel]),2)+')'  $
-        ELSE $
-          t_raster_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_main[$
-            x_start,t_sel]))+3,2)+'.1)'
-        t_raster_real_txt = STRING(hdr.tarr_raster_main[x_start,t_start], $
-          FORMAT=t_raster_real_format)
+        IF (hdr.date_obs_main NE '0') THEN BEGIN
+          IF (hdr.mainnt GT 1) THEN $
+            dumval = hdr.utc_raster_main[x_start,t_sel] $
+          ELSE $
+            dumval = hdr.utc_raster_main[x_start]
+          t_raster_real_format = '(A'+STRTRIM(STRLEN(dumval),2)+')' 
+        ENDIF ELSE BEGIN
+          IF (hdr.mainnt GT 1) THEN $
+            dumval = hdr.tarr_raster_main[x_start,t_sel] $
+          ELSE $
+            dumval = hdr.tarr_raster_main[x_start]
+          t_raster_real_format = '(F'+STRTRIM(FLOOR(ALOG10(dumval))+3,2)+'.1)'
+        ENDELSE
+        t_raster_real_txt = STRING(dumval, FORMAT=t_raster_real_format)
       ENDIF ELSE BEGIN
         t_raster_real_format = ''
         t_raster_real_txt = 'N/A'
@@ -18030,53 +18067,70 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
           VALUE=t_raster_real_txt, /ALIGN_RIGHT) $
       ELSE $
         t_raster_real_val = 0
+      ; -------------------- Reference time feedback --------------------
       ref_label   = WIDGET_LABEL(params_ref_base, VALUE=' ', /ALIGN_RIGHT)
-      IF (hdr.refnt GT 1) THEN BEGIN
+      IF hdr.showref THEN BEGIN
         t_ref_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.refnt))+1,2)+')'
         t_ref_idx_txt = STRING(LONG(t_start), FORMAT=t_ref_idx_format)
+        IF dt_set THEN BEGIN
+          wheretgt0 = WHERE(hdr.tarr_ref GT 0, count)
+          IF (count GT 0) THEN $
+            t_sel = wheretgt0[count-1] $
+          ELSE $
+            t_sel = 0
+          IF (hdr.date_obs_ref NE '0') THEN $
+            t_ref_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_ref[t_sel]),2)+')'  $
+          ELSE BEGIN
+            IF (hdr.refnt GT 1) THEN $
+              t_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_ref[$
+                t_sel]))+3,2)+'.1)' $
+            ELSE $
+              t_ref_real_format = '(F3.1)'
+          ENDELSE
+          t_ref_real_txt = STRING(hdr.utc_ref[t_start], FORMAT=t_ref_real_format)
+        ENDIF ELSE BEGIN
+          t_ref_real_format = ''
+          t_ref_real_txt = 'N/A'
+          t_ref_real_val = 0
+        ENDELSE
       ENDIF ELSE BEGIN
         t_ref_idx_format = ''
         t_ref_idx_txt = 'N/A'
-;		    t_ref_idx_val = 0
-      ENDELSE
-		  t_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_idx_txt, $
-        /ALIGN_RIGHT)
-      IF ((hdr.refnt GT 1) AND dt_set) THEN BEGIN
-        wheretgt0 = WHERE(hdr.tarr_ref GT 0, count)
-        IF (count GT 0) THEN $
-          t_sel = wheretgt0[count-1] $
-        ELSE $
-          t_sel = 0
-        IF (hdr.date_obs_ref NE '0') THEN $
-          t_ref_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_ref[t_sel]),2)+')'  $
-        ELSE $
-          t_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_ref[$
-            t_sel]))+3,2)+'.1)'
-        t_ref_real_txt = STRING(hdr.utc_ref[t_start], FORMAT=t_ref_real_format)
-      ENDIF ELSE BEGIN
         t_ref_real_format = ''
         t_ref_real_txt = 'N/A'
         t_ref_real_val = 0
       ENDELSE
+		  t_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_idx_txt, $
+        /ALIGN_RIGHT)
       IF dt_set THEN $
         t_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_real_txt, $
           /ALIGN_RIGHT)
-      IF ((hdr.refnt GT 1) AND refraster_time_fb) THEN BEGIN
+      ; -------------------- Reference raster time feedback --------------------
+      IF refraster_time_fb THEN BEGIN
         ; Check where raster times greater than 0
-        wheretgt0 = WHERE(hdr.tarr_raster_ref[xref_start,*] GT 0, count)
+        IF (hdr.refnt GT 1) THEN $
+          wheretgt0 = WHERE(hdr.tarr_raster_ref[xref_start,*] GT 0, count) $
+        ELSE $
+          wheretgt0 = WHERE(hdr.tarr_raster_ref[xref_start] GT 0, count) 
         IF (count GT 0) THEN $
           t_sel = wheretgt0[count-1] $
         ELSE $
           t_sel = 0
-        IF (hdr.date_obs_main NE '0') THEN $
-          t_raster_ref_real_format = '(A'+STRTRIM(STRLEN(hdr.utc_raster_ref[$
-            xref_start,t_sel]),2)+')'  $
-        ELSE $
+        IF (hdr.date_obs_main NE '0') THEN BEGIN
+          IF (hdr.refnt GT 1) THEN $
+            dumval = hdr.utc_raster_ref[xref_start,t_sel] $
+          ELSE $
+            dumval = hdr.utc_raster_ref[xref_start]
+          t_raster_ref_real_format = '(A'+STRTRIM(STRLEN(dumval),2)+')'  
+        ENDIF ELSE BEGIN
+          IF (hdr.refnt GT 1) THEN $
+            dumval = hdr.tarr_raster_ref[xref_start,t_sel] $
+          ELSE $
+            dumval = hdr.tarr_raster_ref[xref_start]
           t_raster_ref_real_format = $
-            '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_ref[xref_start,$
-            t_sel]))+3,2)+'.1)'
-        t_raster_ref_real_txt = STRING(hdr.tarr_raster_ref[xref_start,$
-          t_start], FORMAT=t_raster_ref_real_format)
+            '(F'+STRTRIM(FLOOR(ALOG10(dumval))+3,2)+'.1)'
+        ENDELSE
+        t_raster_ref_real_txt = STRING(dumval, FORMAT=t_raster_ref_real_format)
       ENDIF ELSE BEGIN
         t_raster_ref_real_format = ''
         t_raster_ref_real_txt = 'N/A'
@@ -18086,6 +18140,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
           VALUE=t_raster_ref_real_txt, /ALIGN_RIGHT) $
       ELSE $
         t_raster_ref_real_val = 0
+      ; -------------------- SJI time feedback --------------------
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
       IF (hdr.sjint GT 1) THEN BEGIN
         t_sji_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.sjint))+1,2)+')'
@@ -18180,7 +18235,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initializing control panel... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
-;--------------------------------------------------------------------------------- SETTING UP DATA POINTERS
+;-------------------- SETTING UP DATA POINTERS
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(setting up data pointers)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Setting up data pointers... ']
@@ -18475,6 +18530,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     xsji:DOUBLE(xsji_start), ysji:DOUBLE(ysji_start), tarr_sji:hdr.tarr_sji, $
     tarr_raster_main:hdr.tarr_raster_main, tarr_raster_ref:hdr.tarr_raster_ref,$
     utc_raster_main:hdr.utc_raster_main, utc_raster_ref:hdr.utc_raster_ref,$
+    utc_sji:hdr.utc_sji, $
 		lc:hdr.lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp,$
     refnlp:hdr.refnlp, ns:hdr.ns, s:0L, $					
 		lps:hdr.lps, ms:hdr.ms, spec:hdr.mainspec, $
@@ -19095,7 +19151,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		WIDGET_CONTROL, (*(*info).ctrlscp).sel_saved_loop, SENSITIVE = 1
 		WIDGET_CONTROL, (*(*info).ctrlscp).all_saved_loop, SENSITIVE = 1
 	ENDIF
-
+  
 	CRISPEX_UPDATE_T, pseudoevent
 	IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN $
     CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW
