@@ -1965,14 +1965,22 @@ PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old, NT_OLD=nt_old
     IF ((*(*info).dataparams).mainnt GT 1) THEN BEGIN
       *(*(*info).dispparams).tsel_main = tsel_main
       *(*(*info).dispparams).tarr_main = tarr_main[tsel_main]
-      *(*(*info).dispparams).utc_main = (*(*info).dataparams).utc_raster_main[$
-        (*(*info).dispparams).toffset_main, tsel_main]
+      IF (SIZE((*(*info).dataparams).utc_raster_main, /N_DIMENSIONS) EQ 2) THEN $
+        *(*(*info).dispparams).utc_main = (*(*info).dataparams).utc_raster_main[$
+          (*(*info).dispparams).toffset_main, tsel_main] $
+      ELSE $
+        *(*(*info).dispparams).utc_main = $
+          (*(*info).dataparams).utc_raster_main[tsel_main]
     ENDIF
     IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN 
       *(*(*info).dispparams).tsel_ref = tsel_ref
       *(*(*info).dispparams).tarr_ref = tarr_ref[tsel_ref]
-      *(*(*info).dispparams).utc_ref = (*(*info).dataparams).utc_raster_ref[$
-        (*(*info).dispparams).toffset_ref,tsel_ref]
+      IF (SIZE((*(*info).dataparams).utc_raster_ref, /N_DIMENSIONS) EQ 2) THEN $
+        *(*(*info).dispparams).utc_ref = (*(*info).dataparams).utc_raster_ref[$
+          (*(*info).dispparams).toffset_ref,tsel_ref] $
+      ELSE $
+        *(*(*info).dispparams).utc_ref = $
+          (*(*info).dataparams).utc_raster_ref[tsel_ref]
     ENDIF
     IF ((*(*info).dataparams).sjint GT 1) THEN BEGIN 
       *(*(*info).dispparams).tsel_sji = tsel_sji
@@ -10686,7 +10694,10 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     IF (SIZE(tarr_raster, /N_DIMENSIONS) EQ 2) THEN $
       utc_raster_sel = STRARR(nx,nt) $
     ELSE BEGIN
-      ; If N_DIMS!=2, then may be either nx=1,nt>1 or nx>1,nt=1
+      ; If N_DIMS!=2, then either:
+      ; - IRIS sit-and-stare (nx=1,nt>1) 
+      ; - non-raster time series (nx>1,nt>1)
+      ; - IRIS single timestep (nx>1,nt=1)
       IF (nt GT 1) THEN $
         utc_raster_sel = STRARR(nt)  $
       ELSE $
