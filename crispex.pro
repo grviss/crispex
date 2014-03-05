@@ -172,9 +172,10 @@
 ;
 ; RESTRICTIONS:
 ;   Requires the following procedures and functions:
-;     Procedures: FITS_OPEN, FITS_CLOSE [if reading FITS cubes]
-;     Functions:  IRIS_HISTO_OPT()      [general; included in SolarSoft]
-;                 READFITS()            [if reading FITS cubes]
+;     Procedures: FITS_OPEN, FITS_CLOSE         [if reading FITS cubes]
+;     Functions:  IRIS_HISTO_OPT(), STR2UTC(),  [general; included in SolarSoft]
+;                 UTC2STR()  
+;                 READFITS()                    [if reading FITS cubes]
 ;
 ; PROCEDURE:
 ;   In default setting, four windows are opened, one control panel and three subsidiary windows 
@@ -1233,7 +1234,7 @@ PRO CRISPEX_ABOUT_WINDOW, event
 		'Developed by: Gregal Vissers', $
 		'               Institute of Theoretical Astrophysics,',$
 		'               University of Oslo',$
-		'               2009-2013']
+		'               2009-2014','','Close']
 	WIDGET_CONTROL, aboutdrawid, EVENT_PRO = 'CRISPEX_ABOUT_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, /TRACKING_EVENTS, /DRAW_BUTTON_EVENTS
 	WIDGET_CONTROL, abouttlb, SET_UVALUE = info
 	XMANAGER, 'CRISPEX', abouttlb,/NO_BLOCK
@@ -10627,10 +10628,12 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     tfactor = 1.
   tunit = 's'
   tarr_sel *= REPLICATE(tfactor,nt)     ; Get tarr_sel in seconds
-  IF (SIZE(tarr_raster,/N_DIMENSIONS) NE 0) THEN $
-    tarr_raster *= REPLICATE(tfactor,(SIZE(tarr_raster))[1],nt) $
-  ELSE $
-    tarr_raster = tarr_sel
+  ; Failsafe against tarr_raster with nt unique values (instead of nt*nx)
+  IF ((N_ELEMENTS(UNIQ(tarr_raster)) EQ nt) OR $
+      (SIZE(tarr_raster,/N_DIMENSIONS) EQ 0)) THEN $
+    tarr_raster = tarr_sel $
+  ELSE IF (SIZE(tarr_raster,/N_DIMENSIONS) NE 0) THEN $
+    tarr_raster *= REPLICATE(tfactor,(SIZE(tarr_raster))[1],nt) 
   ; Determine plot labels
   xlab = STRTRIM(ctype[sortorder[0]],2)
   ylab = STRTRIM(ctype[sortorder[1]],2)
