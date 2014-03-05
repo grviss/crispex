@@ -10678,7 +10678,8 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     diagnostics = btype
   ENDELSE
   twave = SXPAR(header,'TWAVE*')
-  twave  = twave[whereselect]
+  IF (count GT 0) THEN $
+    twave  = twave[whereselect]
   ; Get third header too, even if not used in CRISPEX
   IF KEYWORD_SET(SJICUBE) THEN $
     dummy = READFITS(filename, hdr2, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
