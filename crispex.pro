@@ -2048,6 +2048,7 @@ PRO CRISPEX_DISPWIDS, event
     (*(*info).winids).lstlb,(*(*info).winids).reftlb,$
     (*(*info).winids).refsptlb,(*(*info).winids).reflstlb,$
     (*(*info).winids).imreftlb,(*(*info).winids).doptlb, $
+    (*(*info).winids).sjitlb, $
 		(*(*info).winids).phistlb,*(*(*info).winids).restlooptlb,$
     (*(*info).winids).retrdettlb,(*(*info).winids).looptlb,$
     (*(*info).winids).reflooptlb,(*(*info).winids).inttlb]
@@ -2055,6 +2056,7 @@ PRO CRISPEX_DISPWIDS, event
     (*(*info).winids).lswid,(*(*info).winids).refwid,$
     (*(*info).winids).refspwid,(*(*info).winids).reflswid,$
     (*(*info).winids).imrefwid,(*(*info).winids).dopwid, $
+    (*(*info).winids).sjiwid, $
 		(*(*info).winids).phiswid,*(*(*info).winids).restloopwid,$
     (*(*info).winids).retrdetwid,(*(*info).winids).loopwid,$
     (*(*info).winids).refloopwid,(*(*info).winids).intwid]
@@ -2062,6 +2064,7 @@ PRO CRISPEX_DISPWIDS, event
     (*(*info).winids).lswintitle,(*(*info).winids).refwintitle,$
     (*(*info).winids).refspwintitle,(*(*info).winids).reflswintitle,$
 		(*(*info).winids).imrefwintitle,(*(*info).winids).dopwintitle, $
+    (*(*info).winids).sjiwintitle, $
     (*(*info).winids).phiswintitle,*(*(*info).winids).restloopwintitle,$
     (*(*info).winids).retrdetwintitle,(*(*info).winids).loopwintitle,$
 		(*(*info).winids).refloopwintitle,(*(*info).winids).intwintitle]
