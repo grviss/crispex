@@ -1797,6 +1797,22 @@ PRO TANAT,$							; call program
 	non_smooth_but	= WIDGET_BUTTON(smooth_buttons, VALUE = 'Non-smoothed view')
 	smooth_but	= WIDGET_BUTTON(smooth_buttons, VALUE = 'Smoothed view', EVENT_PRO = 'TANAT_SMOOTH_VIEW')
 	WIDGET_CONTROL, non_smooth_but, /SET_BUTTON
+
+  ; File name(s)
+  filebase        = WIDGET_BASE(buttons_base, /ROW, /FRAME)
+  label_base      = WIDGET_BASE(filebase, /COLUMN)
+  filelabel_val   = 'File:'
+  IF (nfiles EQ 2) THEN $
+    filelabel_val = 'Main '+STRLOWCASE(filelabel_val)
+  filelabel       = WIDGET_LABEL(label_base, VALUE=filelabel_val, /ALIGN_LEFT)
+  IF (nfiles EQ 2) THEN $
+    reffilelabel  = WIDGET_LABEL(label_base, VALUE='Reference file:', /ALIGN_LEFT)
+  filen_base      = WIDGET_BASE(filebase, /COLUMN)
+  filetext        = WIDGET_LABEL(filen_base, VALUE=FILE_BASENAME(filename), $
+              /ALIGN_RIGHT)
+  IF (nfiles EQ 2) THEN $
+    reffiletext   = WIDGET_LABEL(filen_base, VALUE=FILE_BASENAME(reffilename), $
+                    /ALIGN_RIGHT)
 	
 	draw_base	= WIDGET_BASE(control_panel, /ROW)
 	timeslice	= WIDGET_DRAW(draw_base, XSIZE = windowx, YSIZE = windowy)
