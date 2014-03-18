@@ -1050,6 +1050,8 @@ PRO TANAT_SET_CONTROLS, event
 	WIDGET_CONTROL, (*(*info).ctrlsgen).upper_y_label, SENSITIVE = (*(*info).dispswitch).slab_set
 	WIDGET_CONTROL, (*(*info).ctrlsgen).upper_y_text, SET_VALUE = '1', SENSITIVE = (*(*info).dispswitch).slab_set
 	WIDGET_CONTROL, (*(*info).ctrlsgen).det_spect, SENSITIVE = (*(*info).dispswitch).slab_set
+  WIDGET_CONTROL, (*(*info).ctrlsgen).filetext, $
+    SET_VALUE=FILE_BASENAME((*(*info).dataparams).filename)
 	; Set to tab 2
 	WIDGET_CONTROL, (*(*info).winids).tab_tlb, SET_TAB_CURRENT = 2
 END
@@ -1558,6 +1560,7 @@ PRO TANAT,$							; call program
 					RETURN
 				ENDIF ELSE ref = 1
 			ENDIF ELSE BEGIN
+        reffilename = ''
 				ref_slab_set = 0
 				ref_loop_data = 0
 				refnlx = 0
@@ -1809,10 +1812,12 @@ PRO TANAT,$							; call program
     reffilelabel  = WIDGET_LABEL(label_base, VALUE='Reference file:', /ALIGN_LEFT)
   filen_base      = WIDGET_BASE(filebase, /COLUMN)
   filetext        = WIDGET_LABEL(filen_base, VALUE=FILE_BASENAME(filename), $
-              /ALIGN_RIGHT)
+                      /ALIGN_RIGHT, /DYNAMIC_RESIZE)
   IF (nfiles EQ 2) THEN $
     reffiletext   = WIDGET_LABEL(filen_base, VALUE=FILE_BASENAME(reffilename), $
-                    /ALIGN_RIGHT)
+                      /ALIGN_RIGHT, /DYNAMIC_RESIZE) $
+  ELSE $
+    reffiletext   = 0
 	
 	draw_base	= WIDGET_BASE(control_panel, /ROW)
 	timeslice	= WIDGET_DRAW(draw_base, XSIZE = windowx, YSIZE = windowy)
@@ -1829,7 +1834,8 @@ PRO TANAT,$							; call program
 ;--------------------------------------------------------------------------------- MEASUREMENT TAB CONTROLS
 	ctrlsgen = { $
 		subtract_but:subtract_but, lower_y_label:lower_y_label, lower_y_text:lower_y_text, upper_y_label:upper_y_label, $
-		upper_y_text:upper_y_text, det_spect:det_spect $
+		upper_y_text:upper_y_text, det_spect:det_spect, $
+    filetext:filetext, reffiletext:reffiletext $
 	}
 ;--------------------------------------------------------------------------------- MEASUREMENT TAB CONTROLS
 	ctrlsmeas = { $
@@ -1865,7 +1871,7 @@ PRO TANAT,$							; call program
 	}
 ;--------------------------------------------------------------------------------- DATA PARAMETERS
 	dataparams = { $
-		filename:filename, spec:PTR_NEW(spectrum), lps:PTR_NEW(lps), ms:ms, nlx:nlx, nt:nt, nlp:nlp, $
+		filename:filename, reffilename:reffilename, spec:PTR_NEW(spectrum), lps:PTR_NEW(lps), ms:ms, nlx:nlx, nt:nt, nlp:nlp, $
 		lxdist:PTR_NEW(lxdist), lx:FLOAT(lx_first), t:FLOAT(t_first), lx_first:lx_first, lx_last:lx_last, $
 		t_first:t_first, t_last:t_last, lp:lp_start, lc:lc, lp_first:lp_first, lp_last:lp_last, $
 		t_low:t_first, t_upp:t_last, t_range:nt, d_nt:nt, low_low_val:0, upp_low_val:1, low_upp_val:nlp-2, upp_upp_val:nlp-1, $
