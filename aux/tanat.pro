@@ -1,4 +1,4 @@
-;-------------------------------------------------------------
+;-------------------------------------------------------------------------------
 ;+
 ; NAME:
 ;      	TANAT: Time slice ANAlysis Tool
@@ -543,20 +543,28 @@ PRO TANAT_FILE_OPEN, event
 	new_filename = DIALOG_PICKFILE(TITLE='TANAT: Choose a CSAV file', /READ, /MUST_EXIST, FILTER='*.csav',/FIX_FILTER)
 	IF (STRCOMPRESS(new_filename) NE '') THEN BEGIN
 		WIDGET_CONTROL,/HOURGLASS
-		TANAT_FILE_RESTORE, new_filename, SPECTRUM=spectrum, MS=ms, SPECT_POS=spect_pos, X_LOOP_PTS=x_loop_pts, Y_LOOP_PTS=y_loop_pts, NLX=nlx, NT=nt, NLP=nlp, LOOP_DATA=loop_data, SLAB_SET=slab_set, W_FIRST=w_first, $
-			W_LAST=w_last, W_SET=w_set
+    TANAT_FILE_RESTORE, new_filename, SPECTRUM=spectrum, MS=ms,$
+      SPECT_POS_SAV=spect_pos, SPECT_POS_LOW=spect_pos_low, $
+      SPECT_POS_UPP=spect_pos_upp, $
+      X_LOOP_PTS=x_loop_pts, Y_LOOP_PTS=y_loop_pts,$
+      NLX=nlx, NT=nt, NLP=nlp, LOOP_DATA=loop_data, SLAB_SET=slab_set,$
+      W_FIRST=w_first, W_LAST=w_last, W_SET=w_set
 		*(*(*info).dataparams).spec = spectrum		&	(*(*info).dataparams).ms = ms
 		(*(*info).dataparams).nlx = nlx			&	(*(*info).dataparams).nt = nt
 		(*(*info).dataparams).nlp = nlp			&	(*(*info).dispswitch).slab_set = slab_set
 		*(*(*info).data).loopdata = loop_data		&	*(*(*info).data).loopslice = FLTARR(nlx,nt)
-		(*(*info).dataparams).filename = new_filename	&	(*(*info).dataparams).lp = spect_pos
+		(*(*info).dataparams).filename = new_filename	
+    (*(*info).dataparams).lp = spect_pos - spect_pos_low
 		(*(*info).dataparams).w_first = w_first		&	(*(*info).dataparams).w_last = w_last
 		(*(*info).dataparams).w_set = w_set
-		TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center, LPS=lps, LC=lc, SPXTITLE=spxtitle, V_DOP_VALS=v_dop_vals, V_DOP_SET=v_dop_set, lp_first=lp_first, lp_last=lp_last
+		TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center,$
+      LPS=lps, LC=lc, SPXTITLE=spxtitle, V_DOP_VALS=v_dop_vals,$
+      V_DOP_SET=v_dop_set
 		*(*(*info).dataparams).lps = lps		&	(*(*info).dataparams).lc = lc
 		(*(*info).plotaxes).spxtitle = spxtitle		&	(*(*info).plotaxes).v_dop = v_dop_vals
-		(*(*info).dispswitch).v_dop_set = v_dop_set	&	(*(*info).dataparams).lp_first = lp_first
-		(*(*info).dataparams).lp_last = lp_last
+		(*(*info).dispswitch).v_dop_set = v_dop_set	
+    (*(*info).dataparams).lp_first = 0
+		(*(*info).dataparams).lp_last = spect_pos_upp - spect_pos_low
 		TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, LXDIST=lxdist, LX_FIRST=lx_first, LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
 		*(*(*info).dataparams).lxdist = lxdist		&	(*(*info).dataparams).lx = FLOAT(lx_first)
 		(*(*info).dataparams).t = FLOAT(t_first)	&	(*(*info).curs).slx = FLOAT(lx_first)
@@ -582,8 +590,11 @@ PRO TANAT_FILE_OPEN, event
 	ENDIF
 END
 
-PRO TANAT_FILE_RESTORE, filename, SPECTRUM=spectrum, MS=ms, SPECT_POS=spect_pos, X_LOOP_PTS=x_loop_pts, Y_LOOP_PTS=y_loop_pts, NLX=nlx, NT=nt, NLP=nlp, LOOP_DATA=loop_data, SLAB_SET=slab_set, W_FIRST=w_first, W_LAST=w_last, $
-	W_SET=w_set
+PRO TANAT_FILE_RESTORE, filename, SPECTRUM=spectrum, MS=ms, $
+  SPECT_POS_SAV=spect_pos_sav, SPECT_POS_LOW=spect_pos_low, SPECT_POS_UPP=spect_pos_upp,$
+  X_LOOP_PTS=x_loop_pts, Y_LOOP_PTS=y_loop_pts, NLX=nlx,$
+  NT=nt, NLP=nlp, LOOP_DATA=loop_data, SLAB_SET=slab_set, W_FIRST=w_first,$
+  W_LAST=w_last, W_SET=w_set
 	RESTORE, filename
 	slab_set = 0
 	IF (N_ELEMENTS(loop_slab) GT 0) THEN BEGIN			; Old CRISPEX versions failsafe
@@ -605,6 +616,13 @@ PRO TANAT_FILE_RESTORE, filename, SPECTRUM=spectrum, MS=ms, SPECT_POS=spect_pos,
 		ms	= 1
 		nlp 	= 1
 	ENDELSE
+  spect_pos_sav = spect_pos
+  ; Failsafe against old csav files
+  IF (N_ELEMENTS(SPECT_POS_LOW) NE 1) OR $
+      (N_ELEMENTS(SPECT_POS_UPP) NE 1) THEN BEGIN
+    spect_pos_low = 0
+    spect_pos_upp = nlp-1
+  ENDIF
 	nlx = loop_size
 	nt = (SIZE(loop_data))[2]
 	w_first = 0
@@ -748,10 +766,15 @@ PRO TANAT_POS_SINGLE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_POS_SINGLE'
 	(*(*info).dispswitch).singlepos = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_slider, SENSITIVE = (*(*info).dispswitch).singlepos
-	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_speed_slider, SENSITIVE = (*(*info).dispswitch).singlepos
-	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_blink_slider, SENSITIVE = (*(*info).dispswitch).singlepos
-	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_blink_button, SENSITIVE = (*(*info).dispswitch).singlepos
+	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_slider, $
+    SENSITIVE = (*(*info).dispswitch).singlepos
+	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_speed_slider, $
+    SENSITIVE = (*(*info).dispswitch).singlepos
+	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_blink_slider, $
+    SENSITIVE=((*(*info).dispswitch).singlepos AND $
+              ((*(*info).dataparams).nlp GE 3))
+	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_blink_button, $
+    SENSITIVE = (*(*info).dispswitch).singlepos
 	TANAT_UPDATE_LP, event
 	TANAT_DRAW, event
 END
@@ -760,8 +783,12 @@ PRO TANAT_POS_DOUBLE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_POS_DOUBLE'
 	(*(*info).dispswitch).doublepos = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlsview).low_low_slider, SET_SLIDER_MAX = (*(*info).dataparams).nlp-2, SENSITIVE = (*(*info).dispswitch).doublepos
-	WIDGET_CONTROL, (*(*info).ctrlsview).upp_upp_slider, SET_SLIDER_MIN = 2, SENSITIVE = (*(*info).dispswitch).doublepos
+	WIDGET_CONTROL, (*(*info).ctrlsview).low_low_slider, $
+    SENSITIVE = ((*(*info).dispswitch).doublepos AND $
+      ((*(*info).dataparams).nlp GE 3))
+	WIDGET_CONTROL, (*(*info).ctrlsview).upp_upp_slider, $
+    SENSITIVE = ((*(*info).dispswitch).doublepos AND $
+      ((*(*info).dataparams).nlp GE 3))
 	TANAT_UPDATE_LP, event
 	TANAT_DRAW, event
 END
@@ -1019,8 +1046,12 @@ PRO TANAT_SET_CONTROLS, event
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_slider, SET_SLIDER_MIN = (*(*info).dataparams).lp_first, SET_SLIDER_MAX = lp_slider_max, SET_VALUE = (*(*info).dataparams).lp, SENSITIVE = (*(*info).dispswitch).slab_set
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_speed_slider, SET_VALUE = 10, SENSITIVE = (*(*info).dispswitch).slab_set
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).lx_slider, SET_SLIDER_MIN = (*(*info).dataparams).lx_first, SET_SLIDER_MAX = (*(*info).dataparams).lx_last, SET_VALUE = (*(*info).dataparams).lx_first
-	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_blink_slider, SET_SLIDER_MIN = (*(*info).dataparams).lp_first+1, SET_SLIDER_MAX = (*(*info).dataparams).lp_last, SET_VALUE = (*(*info).dataparams).lp_first+1, $
-		SENSITIVE = (*(*info).dispswitch).slab_set
+  WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_blink_slider, $
+    SET_SLIDER_MIN=(*(*info).dataparams).lp_first+1, $
+    SET_SLIDER_MAX=(*(*info).dataparams).lp_last, $
+    SET_VALUE=(*(*info).dataparams).lp_first+1, $
+    SENSITIVE=((*(*info).dispswitch).slab_set AND $
+              ((*(*info).dataparams).nlp GE 3))
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_blink_button, SET_BUTTON = 0, SENSITIVE = (*(*info).dispswitch).slab_set
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).t_slider, SET_SLIDER_MIN = (*(*info).dataparams).t_first, SET_SLIDER_MAX = (*(*info).dataparams).t_last, SET_VALUE = (*(*info).dataparams).t_first
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).overlay_button, SET_BUTTON = (*(*info).dispswitch).overlay_measurements
@@ -1033,7 +1064,9 @@ PRO TANAT_SET_CONTROLS, event
 	WIDGET_CONTROL, (*(*info).ctrlsview).max_scale_slider, SET_VALUE = 100, SENSITIVE = 0
 	WIDGET_CONTROL, (*(*info).ctrlsview).single_pos, /SET_BUTTON, SENSITIVE = (*(*info).dispswitch).slab_set
 	WIDGET_CONTROL, (*(*info).ctrlsview).double_pos, SENSITIVE = (*(*info).dispswitch).slab_set
-	WIDGET_CONTROL, (*(*info).ctrlsview).mult_pos, SENSITIVE = (*(*info).dispswitch).slab_set
+	WIDGET_CONTROL, (*(*info).ctrlsview).mult_pos, $
+    SENSITIVE=((*(*info).dispswitch).slab_set AND $
+                ((*(*info).dataparams).nlp GE 3))
 	(*(*info).dispswitch).singlepos = 1
 	(*(*info).dispswitch).doublepos = 0
 	(*(*info).dispswitch).multpos = 0
@@ -1056,13 +1089,12 @@ PRO TANAT_SET_CONTROLS, event
 	WIDGET_CONTROL, (*(*info).winids).tab_tlb, SET_TAB_CURRENT = 2
 END
 
-PRO TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center, lps=lps, LC=lc, SPXTITLE=spxtitle, V_DOP_VALS=v_dop_vals, V_DOP_SET=v_dop_set, lp_first=lp_first, lp_last=lp_last
-	lps = 0
+PRO TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center, $
+  LPS=lps, LC=lc, SPXTITLE=spxtitle, V_DOP_VALS=v_dop_vals, V_DOP_SET=v_dop_set
+  lps = 0
 	spxtitle = ''
 	v_dop_vals = 0
 	v_dop_set = 0
-	lp_first = 0
-;	IF (N_ELEMENTS(spectrum) GT 1) THEN BEGIN
 	IF (nlp GT 1) THEN BEGIN
 		c_speed	= 2.99792458D5						; Speed of light indeed in km/s
 		lps	= FINDGEN(nlp)
@@ -1101,11 +1133,9 @@ PRO TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center, lp
 		ENDELSE
 	
 		IF v_dop_set THEN v_dop_vals = c_speed*(lps/lps[FIX(lc)]-1)		; array with Doppler velocities in km/s
-		lp_last = nlp-1
-	ENDIF ELSE BEGIN
+	ENDIF ELSE $
+    ; If nlp=1 then set parameters accordingly
 		lc = 0
-		IF (spect_pos GE 2) THEN lp_last = spect_pos ELSE lp_last = spect_pos + 2
-	ENDELSE
 END
 
 PRO TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, LXDIST=lxdist, LX_FIRST=lx_first, LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
@@ -1480,7 +1510,7 @@ PRO TANAT_WINDOW_OK, event, title, message1, message2, message3, message4, OK_EV
 	XMANAGER, 'TANAT', base, NO_BLOCK=ABS(block-1)
 END
 
-;========================================================================= MAIN PROGRAM CODE
+;==================== MAIN PROGRAM CODE
 PRO TANAT,$							; call program
 	filename,$						; name of file containing time slab
 	LINE_CENTER=line_center, $				; line center keyword with spectral information
@@ -1488,7 +1518,7 @@ PRO TANAT,$							; call program
 	DT=dt, $						; time step
 	VERBOSE=verbose
 
-;================================================================================= VERSION AND REVISION NUMBER
+;==================== VERSION AND REVISION NUMBER
   ; Version 1.0 (rev 58) == version 1.0.0
 	base_version_number = '1.0'
 
@@ -1498,7 +1528,8 @@ PRO TANAT,$							; call program
   cvs_idn = split_id_string[3]
   cvs_rev = (STRSPLIT(cvs_idn,'.',/EXTRACT))[1]
   cvs_msg = STRJOIN(split_id_string[3:6],' ')
-  ; Assumption: CVS committed revision number will always be 1.x, with x increasing linearly
+  ; Assumption: CVS committed revision number will always be 1.x, with x
+  ; increasing linearly
   revnr = 63+FIX(cvs_rev)-6     ; rev_nr=63, cvs_rev=6 when implemented
 
   ; Change rev_nr and cvs_rev below whenever changing base_versions_number!
@@ -1508,7 +1539,7 @@ PRO TANAT,$							; call program
   version_number = base_version_number +'.'+ STRTRIM(subvnr,2)
   vnr_msg = version_number+' (r'+revision_number+'; '+cvs_msg+')'
 	
-;========================================================================= PROGRAM-INFO ON CALL W/O PARAMS
+;==================== PROGRAM-INFO ON CALL W/O PARAMS
 	IF N_PARAMS() LT 1 THEN BEGIN
     MESSAGE,'Version '+vnr_msg, /INFO
 		MESSAGE,'TANAT, filename, LINE_CENTER=line_center, ASECPIX=asecpix, '+$
@@ -1516,10 +1547,12 @@ PRO TANAT,$							; call program
 		RETURN
 	ENDIF
 
-;================================================================================= PROGRAM VERBOSITY CHECK
+;==================== PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
-		IF (N_ELEMENTS(VERBOSE) GT 1) THEN PRINT,'ERROR: The VERBOSE keyword may only be set to a single integer number. Reverting to default verbosity level 0.'
-		verbose = 0
+		IF (N_ELEMENTS(VERBOSE) GT 1) THEN $
+      PRINT,'ERROR: The VERBOSE keyword may only be set to a single integer '+$
+            'number. Reverting to default verbosity level 0.' 
+    verbose = 0
 		verbosity = [0,0,0,0,0]
 	ENDIF ELSE BEGIN
 		verbose >= 0	&	verbose <= 26
@@ -1548,12 +1581,19 @@ PRO TANAT,$							; call program
 	nfiles = N_ELEMENTS(filename)
 	ref = 0
 	IF (nfiles LE 2) THEN BEGIN
-			TANAT_FILE_RESTORE, filename[0], SPECTRUM=spectrum, MS=ms, SPECT_POS=spect_pos, X_LOOP_PTS=x_loop_pts, Y_LOOP_PTS=y_loop_pts, NLX=nlx, NT=nt, NLP=nlp, LOOP_DATA=loop_data, SLAB_SET=slab_set, W_FIRST=w_first, $
-				W_LAST=w_last, W_SET=w_set
+      TANAT_FILE_RESTORE, filename[0], SPECTRUM=spectrum, MS=ms,$
+        SPECT_POS_SAV=spect_pos, SPECT_POS_LOW=spect_pos_low,$
+        SPECT_POS_UPP=spect_pos_upp, X_LOOP_PTS=x_loop_pts, Y_LOOP_PTS=y_loop_pts,$
+        NLX=nlx, NT=nt, NLP=nlp, LOOP_DATA=loop_data, SLAB_SET=slab_set,$
+        W_FIRST=w_first, W_LAST=w_last, W_SET=w_set
 			IF (nfiles EQ 2) THEN BEGIN
-				TANAT_FILE_RESTORE, filename[1], SPECTRUM=refspectrum, MS=refms, SPECT_POS=ref_spect_pos, X_LOOP_PTS=ref_x_loop_pts, Y_LOOP_PTS=ref_y_loop_pts, NLX=refnlx, NT=refnt, NLP=refnlp, $
-					LOOP_DATA=ref_loop_data, SLAB_SET=ref_slab_set, W_FIRST=w_first, W_LAST=w_last, W_SET=w_set
-				reffilename = STRMID(filename[1], STRPOS(filename[1],'/',/REVERSE_SEARCH)+1,STRLEN(filename[1])-1)		; Failsafe to remove leading /
+        TANAT_FILE_RESTORE, filename[1], SPECTRUM=refspectrum, MS=refms,$
+          SPECT_POS_SAV=ref_spect_pos, SPECT_POS_LOW=ref_spect_pos_low,$
+          SPECT_POS_UPP=ref_spect_pos_upp, X_LOOP_PTS=ref_x_loop_pts,$
+          Y_LOOP_PTS=ref_y_loop_pts, NLX=refnlx, NT=refnt, NLP=refnlp, $
+          LOOP_DATA=ref_loop_data, SLAB_SET=ref_slab_set, W_FIRST=w_first,$
+          W_LAST=w_last, W_SET=w_set
+        reffilename = STRMID(filename[1], STRPOS(filename[1],'/',/REVERSE_SEARCH)+1,STRLEN(filename[1])-1)		; Failsafe to remove leading /
 				IF ((refnlx NE nlx) OR (refnt NE nt)) THEN BEGIN
 					PRINT,'ERROR: Dimensions of the reference file (['+STRTRIM(refnlx,2)+','+STRTRIM(refnt,2)+']) are not compatible with those of the main file '+$
 						'(['+STRTRIM(nlx,2)+','+STRTRIM(nt,2)+'])!'
@@ -1579,17 +1619,24 @@ PRO TANAT,$							; call program
 
 ;========================================================================= SETTING START-UP OPTIONS 
 ;--------------------------------------------------------------------------------- INITIAL SPECTRAL PARAMETERS
-	TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center, lps=lps, LC=lc, SPXTITLE=spxtitle, V_DOP_VALS=v_dop_vals, V_DOP_SET=v_dop_set, lp_first=lp_first, lp_last=lp_last
-	lp_start = spect_pos
+  TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center,$
+    LPS=lps, LC=lc, SPXTITLE=spxtitle, V_DOP_VALS=v_dop_vals, $
+    V_DOP_SET=v_dop_set
+  lp_start = spect_pos - spect_pos_low
+  lp_first = 0
+  lp_last = spect_pos_upp - spect_pos_low
 	IF (nfiles EQ 2) THEN BEGIN
-		TANAT_SET_SPECTPARAMS, refspectrum, refnlp, ref_spect_pos, LINE_CENTER=ref_line_center, lps=reflps, LC=reflc, SPXTITLE=refspxtitle, V_DOP_VALS=ref_v_dop_vals, V_DOP_SET=ref_v_dop_set, lp_first=reflp_first, $
-			lp_last=reflp_last
-		reflp_start = ref_spect_pos
+    TANAT_SET_SPECTPARAMS, refspectrum, refnlp, ref_spect_pos, $
+      LINE_CENTER=ref_line_center, LPS=reflps, LC=reflc, SPXTITLE=refspxtitle,$
+      V_DOP_VALS=ref_v_dop_vals, V_DOP_SET=ref_v_dop_set
+		reflp_start = ref_spect_pos - ref_spect_pos_low
+    reflp_first = 0
+		reflp_last = ref_spect_pos_upp - ref_spect_pos_low
 		eqnlps = (refnlp EQ nlp)
 	ENDIF ELSE BEGIN
 		eqnlps = 0
 		reflp_start = 0
-		reflp_first = 0
+    reflp_first = 0
 		reflp_last = 1
 	ENDELSE
 
@@ -1655,150 +1702,260 @@ PRO TANAT,$							; call program
 
 ;========================================================================= SETTING UP WIDGET
 ;--------------------------------------------------------------------------------- INITIALISE CONTROL PANEL
-	control_panel	= WIDGET_BASE(TITLE = 'TANAT: Timeslice Analysis Tool', TLB_FRAME_ATTR = 1, /ROW, KILL_NOTIFY = 'TANAT_CLEANUP', MBAR = menubar)
-	filemenu	= WIDGET_BUTTON(menubar, VALUE = 'File', /MENU, UVALUE = 'file')
-	about		= WIDGET_BUTTON(filemenu, VALUE = 'About', EVENT_PRO = 'TANAT_ABOUT_WINDOW', ACCELERATOR='Ctrl+A')
-	open_file	= WIDGET_BUTTON(filemenu, VALUE = 'Open...', EVENT_PRO = 'TANAT_FILE_OPEN', /SEPARATOR, ACCELERATOR = 'Ctrl+O')
-	exitmenu	= WIDGET_BUTTON(filemenu, VALUE = 'Quit', EVENT_PRO = 'TANAT_CLOSE', /SEPARATOR, ACCELERATOR='Ctrl+Q')
+  control_panel	      = WIDGET_BASE(TITLE = 'TANAT: Timeslice Analysis Tool', $
+                          TLB_FRAME_ATTR=1, /ROW, KILL_NOTIFY='TANAT_CLEANUP',$
+                          MBAR = menubar)
+  filemenu	          = WIDGET_BUTTON(menubar, VALUE='File', /MENU, $
+                          UVALUE='file')
+	about		            = WIDGET_BUTTON(filemenu, VALUE='About', $
+                          EVENT_PRO='TANAT_ABOUT_WINDOW', ACCELERATOR='Ctrl+A')
+	open_file	          = WIDGET_BUTTON(filemenu, VALUE='Open...', $
+                          EVENT_PRO='TANAT_FILE_OPEN', /SEPARATOR, $
+                          ACCELERATOR='Ctrl+O')
+	exitmenu	          = WIDGET_BUTTON(filemenu, VALUE='Quit', $
+                          EVENT_PRO='TANAT_CLOSE', /SEPARATOR, $
+                          ACCELERATOR='Ctrl+Q')
 
-	shortcutmenu		= WIDGET_BUTTON(menubar, VALUE = 'Control shortcuts', /MENU, UVALUE = 'shortcut')
-	sh_spectralmenu 	= WIDGET_BUTTON(shortcutmenu, VALUE = 'Spectral options', /MENU, UVALUE = 'spectral')
-	sh_lp_incr_button 	= WIDGET_BUTTON(sh_spectralmenu, VALUE = 'Spectral position +', EVENT_PRO = 'TANAT_SLIDER_LP_INCR', ACCELERATOR = 'Shift+S')
-	sh_lp_decr_button 	= WIDGET_BUTTON(sh_spectralmenu, VALUE = 'Spectral position -', EVENT_PRO = 'TANAT_SLIDER_LP_DECR', ACCELERATOR = 'Shift+A')
+  shortcutmenu		    = WIDGET_BUTTON(menubar, VALUE = 'Control shortcuts',$
+                          /MENU, UVALUE = 'shortcut')
+  sh_spectralmenu 	  = WIDGET_BUTTON(shortcutmenu, VALUE = 'Spectral options',$
+                          /MENU, UVALUE = 'spectral')
+  sh_lp_incr_button 	= WIDGET_BUTTON(sh_spectralmenu, $
+                          VALUE='Spectral position +', $
+                          EVENT_PRO='TANAT_SLIDER_LP_INCR', ACCELERATOR = 'Shift+S')
+  sh_lp_decr_button 	= WIDGET_BUTTON(sh_spectralmenu, $
+                          VALUE='Spectral position -', $
+                          EVENT_PRO = 'TANAT_SLIDER_LP_DECR', ACCELERATOR = 'Shift+A')
 
-	buttons_base	= WIDGET_BASE(control_panel, /COLUMN)
-	tab_tlb 	= WIDGET_TAB(buttons_base, LOCATION=location)
+	buttons_base	      = WIDGET_BASE(control_panel, /COLUMN)
+	tab_tlb 	          = WIDGET_TAB(buttons_base, LOCATION=location)
 
-	measure_tab	= WIDGET_BASE(tab_tlb, TITLE = 'Measurements',/COLUMN)
-	spectral_tab	= WIDGET_BASE(tab_tlb, TITLE = 'Spectral',/COLUMN)
-	view_tab	= WIDGET_BASE(tab_tlb, TITLE = 'View',/COLUMN)
-	setup_tab	= WIDGET_BASE(tab_tlb, TITLE='Set up',/COLUMN)
+	measure_tab	        = WIDGET_BASE(tab_tlb, TITLE = 'Measurements',/COLUMN)
+	spectral_tab	      = WIDGET_BASE(tab_tlb, TITLE = 'Spectral',/COLUMN)
+	view_tab	          = WIDGET_BASE(tab_tlb, TITLE = 'View',/COLUMN)
+	setup_tab	          = WIDGET_BASE(tab_tlb, TITLE='Set up',/COLUMN)
 	WIDGET_CONTROL, tab_tlb, SET_TAB_CURRENT = 3
 
-	settings	= WIDGET_BASE(setup_tab, /ROW, /FRAME)
-	dimensions	= WIDGET_BASE(settings ,/COLUMN)
-	arcsec_field	= WIDGET_BASE(dimensions, /ROW)
-	arcsec_label	= WIDGET_LABEL(arcsec_field, VALUE = 'Arcseconds per pixel:', /ALIGN_LEFT)
-	arcsec_text	= WIDGET_TEXT(arcsec_field, VALUE = STRTRIM(arcsecpix,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'TANAT_SET_ARCSEC')
-	seconds_field	= WIDGET_BASE(dimensions, /ROW)
-	seconds_label	= WIDGET_LABEL(seconds_field, VALUE = 'Seconds per timestep:', /ALIGN_LEFT)
-	seconds_text	= WIDGET_TEXT(seconds_field, VALUE = STRTRIM(secondststep,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'TANAT_SET_SECONDS')
-	savefile	= WIDGET_BASE(settings, /COLUMN, /FRAME)
-	savefile_label	= WIDGET_LABEL(savefile, VALUE = 'Measurements saved to file:')
-	savefile_text	= WIDGET_TEXT(savefile, VALUE = 'tanat_measurements.dat', /EDITABLE, XSIZE = 25, EVENT_PRO = 'TANAT_SET_SAVEFILENAME')
+	settings	          = WIDGET_BASE(setup_tab, /ROW, /FRAME)
+	dimensions	        = WIDGET_BASE(settings ,/COLUMN)
+	arcsec_field	      = WIDGET_BASE(dimensions, /ROW)
+	arcsec_label	      = WIDGET_LABEL(arcsec_field, $
+                          VALUE='Arcseconds per pixel:', /ALIGN_LEFT)
+	arcsec_text	        = WIDGET_TEXT(arcsec_field, VALUE=STRTRIM(arcsecpix,2),$
+                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_SET_ARCSEC')
+	seconds_field	      = WIDGET_BASE(dimensions, /ROW)
+	seconds_label	      = WIDGET_LABEL(seconds_field, $
+                          VALUE='Seconds per timestep:', /ALIGN_LEFT)
+	seconds_text	      = WIDGET_TEXT(seconds_field, $
+                          VALUE=STRTRIM(secondststep,2), /EDITABLE, XSIZE=5, $
+                          EVENT_PRO='TANAT_SET_SECONDS')
+	savefile	          = WIDGET_BASE(settings, /COLUMN, /FRAME)
+	savefile_label	    = WIDGET_LABEL(savefile, VALUE='Measurements saved to file:')
+	savefile_text	      = WIDGET_TEXT(savefile, VALUE='tanat_measurements.dat',$
+                          /EDITABLE, XSIZE=25, EVENT_PRO='TANAT_SET_SAVEFILENAME')
 
-	t_range_field	= WIDGET_BASE(view_tab, /ROW, /FRAME)
-	lower_t_label	= WIDGET_LABEL(t_range_field, VALUE = 'Lower t-value:', /ALIGN_LEFT)
-	lower_t_text	= WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_first,2), /EDITABLE, XSIZE = 5, EVENT_PRO = 'TANAT_T_LOW')
-	upper_t_label	= WIDGET_LABEL(t_range_field, VALUE = 'Upper t-value:', /ALIGN_LEFT)
-	upper_t_text	= WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last,2),  /EDITABLE, XSIZE = 5, EVENT_PRO = 'TANAT_T_UPP')
-	reset_trange_but= WIDGET_BUTTON(t_range_field, VALUE = 'Reset temporal boundaries', EVENT_PRO = 'TANAT_T_RANGE_RESET', SENSITIVE = 0)
+	t_range_field	      = WIDGET_BASE(view_tab, /ROW, /FRAME)
+	lower_t_label	      = WIDGET_LABEL(t_range_field, VALUE='Lower t-value:', $
+                          /ALIGN_LEFT)
+	lower_t_text	      = WIDGET_TEXT(t_range_field, VALUE=STRTRIM(t_first,2),$
+                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_T_LOW')
+	upper_t_label	      = WIDGET_LABEL(t_range_field, VALUE='Upper t-value:', $
+                          /ALIGN_LEFT)
+	upper_t_text	      = WIDGET_TEXT(t_range_field, VALUE=STRTRIM(t_last,2),$
+                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_T_UPP')
+	reset_trange_but    = WIDGET_BUTTON(t_range_field, $
+                          VALUE='Reset temporal boundaries', $
+                          EVENT_PRO='TANAT_T_RANGE_RESET', SENSITIVE=0)
 
-	sliders		= WIDGET_BASE(measure_tab, /ROW, /FRAME)
-	pos_sliders	= WIDGET_BASE(sliders, /COLUMN)
-	lp_slid		= WIDGET_SLIDER(pos_sliders, TITLE = 'Spectral position', MIN = lp_first, MAX = lp_last, VALUE = lp_start, EVENT_PRO = 'TANAT_SLIDER_LP', /DRAG, SENSITIVE = slab_set)
-	lx_slider	= WIDGET_SLIDER(pos_sliders, TITLE = 'Pixel position along the loop', MIN = lx_first, MAX = lx_last, VALUE = lx_first, EVENT_PRO = 'TANAT_SLIDER_LX', /DRAG)
-	t_slider	= WIDGET_SLIDER(pos_sliders, TITLE = 'Frame number', MIN = t_first, MAX = t_last, VALUE = t_first, EVENT_PRO = 'TANAT_SLIDER_T', /DRAG)
+	sliders		          = WIDGET_BASE(measure_tab, /ROW, /FRAME)
+	pos_sliders	        = WIDGET_BASE(sliders, /COLUMN)
+  lp_slid		          = WIDGET_SLIDER(pos_sliders, TITLE = 'Spectral position',$
+                          MIN=lp_first, MAX=lp_last>(lp_first+1), $
+                          VALUE=lp_start, $
+                          EVENT_PRO='TANAT_SLIDER_LP', /DRAG, $
+                          SENSITIVE=slab_set)
+  lx_slider	          = WIDGET_SLIDER(pos_sliders, $
+                          TITLE='Pixel position along the loop', MIN=lx_first,$
+                          MAX=lx_last, VALUE=lx_first, $
+                          EVENT_PRO='TANAT_SLIDER_LX', /DRAG)
+  t_slider	          = WIDGET_SLIDER(pos_sliders, TITLE='Frame number',$
+                          MIN=t_first, MAX=t_last, VALUE=t_first, $
+                          EVENT_PRO='TANAT_SLIDER_T', /DRAG)
 
-;	blink_sliders	= WIDGET_BASE(sliders,/COLUMN)
-;	lp_speed_slid	= WIDGET_SLIDER(blink_sliders, TITLE = 'Animation speed [blink/s]', MIN = 1, MAX = 100, VALUE = 10, EVENT_PRO = 'TANAT_SLIDER_SPEED', /DRAG, SENSITIVE = slab_set)
-;	lp_blink_slid	= WIDGET_SLIDER(blink_sliders, TITLE = 'Spectral increment', MIN = lp_first+1, MAX = lp_last, EVENT_PRO = 'TANAT_SLIDER_SPECTSTEP',/DRAG, SENSITIVE = slab_set)
-;	lp_blink_field	= WIDGET_BASE(blink_sliders, /ROW,/NONEXCLUSIVE)
-;	lp_blink_but	= WIDGET_BUTTON(lp_blink_field, VALUE = 'Blink between spectral positions', EVENT_PRO = 'TANAT_PB_SPECTBLINK', SENSITIVE = slab_set)
-	ref_sliders	= WIDGET_BASE(sliders,/COLUMN)
-	w_slider	= WIDGET_SLIDER(ref_sliders, TITLE = 'Width position', MIN = w_first, MAX = w_last, VALUE = w_start, EVENT_PRO = 'TANAT_SLIDER_W', /DRAG, SENSITIVE = w_set)
-	ref_lp_slid	= WIDGET_SLIDER(ref_sliders, TITLE = 'Reference spectral position', MIN = reflp_first, MAX = reflp_last, VALUE = reflp_start, EVENT_PRO = 'TANAT_SLIDER_REFLP', /DRAG, $
-				SENSITIVE = (ABS(eqnlps-1) AND ref_slab_set))
-	ref_lp_but_field= WIDGET_BASE(ref_sliders, /ROW, /NONEXCLUSIVE)
-	ref_lp_but	= WIDGET_BUTTON(ref_lp_but_field, VALUE = 'Lock reference to main spectral position', EVENT_PRO = 'TANAT_SLIDER_REFLP_LOCK', SENSITIVE = (eqnlps AND (refnlp GT 1)))
-	WIDGET_CONTROL, ref_lp_but, SET_BUTTON = (eqnlps AND (refnlp GT 1))
+	ref_sliders         = WIDGET_BASE(sliders,/COLUMN)
+  w_slider	          = WIDGET_SLIDER(ref_sliders, TITLE='Width position', $
+                          MIN=w_first, MAX=w_last, VALUE=w_start, $
+                          EVENT_PRO='TANAT_SLIDER_W', /DRAG, SENSITIVE=w_set)
 
-	parameters	= WIDGET_BASE(measure_tab, /ROW, /FRAME)
-	speed		= WIDGET_BASE(parameters, /COLUMN)
-	delta_lx	= WIDGET_BASE(speed, /ROW)
-	delta_t		= WIDGET_BASE(speed, /ROW)
-	delta_speed	= WIDGET_BASE(speed, /ROW)
-	acc		= WIDGET_BASE(speed, /ROW)
-	delta_lx_label	= WIDGET_LABEL(delta_lx, VALUE = 'Travelled distance [pixel]:', /ALIGN_LEFT, SENSITIVE = 0)
-	delta_lx_text	= WIDGET_LABEL(delta_lx, VALUE = '0', SENSITIVE = 0, /DYNAMIC_RESIZE)
-	delta_t_label	= WIDGET_LABEL(delta_t, VALUE = 'Elapsed time [frame]:', /ALIGN_LEFT, SENSITIVE = 0)
-	delta_t_text	= WIDGET_LABEL(delta_t, VALUE = '0',  SENSITIVE = 0, /DYNAMIC_RESIZE)
-	speed_label	= WIDGET_LABEL(delta_speed, VALUE = 'Absolute speed [km/s]:', /ALIGN_LEFT, SENSITIVE = 0)
-	speed_text	= WIDGET_LABEL(delta_speed, VALUE = '0', SENSITIVE = 0, /DYNAMIC_RESIZE)
-	acc_label	= WIDGET_LABEL(acc, VALUE = 'Acceleration [m/s^2]:', /ALIGN_LEFT, SENSITIVE = 0)
-	acc_text	= WIDGET_LABEL(acc, VALUE = '0', SENSITIVe = 0, /DYNAMIC_RESIZE)
+  ref_lp_slid	        = WIDGET_SLIDER(ref_sliders, $
+                          TITLE='Reference spectral position', $
+                          MIN=reflp_first, MAX=reflp_last>(reflp_first+1), $
+                          VALUE=reflp_start,$
+                          EVENT_PRO='TANAT_SLIDER_REFLP', /DRAG, $
+                          SENSITIVE=(ABS(eqnlps-1) AND ref_slab_set))
+	ref_lp_but_field    = WIDGET_BASE(ref_sliders, /ROW, /NONEXCLUSIVE)
+	ref_lp_but	        = WIDGET_BUTTON(ref_lp_but_field, $
+                          VALUE='Lock reference to main spectral position',$
+                          EVENT_PRO='TANAT_SLIDER_REFLP_LOCK', $
+                          SENSITIVE=(eqnlps AND (refnlp GT 1)))
+  WIDGET_CONTROL, ref_lp_but, SET_BUTTON = (eqnlps AND (refnlp GT 1))
 
-	params_and_save = WIDGET_BASE(parameters, /COLUMN)
-	lx_params	= WIDGET_BASE(params_and_save, /ROW)
-	t_params	= WIDGET_BASE(params_and_save, /ROW)
-	save_params	= WIDGET_BASE(params_and_save, /ROW)
-	lx_params_label	= WIDGET_LABEL(lx_params, VALUE = 'Position coordinates:', /ALIGN_LEFT, SENSITIVE = 0)
-	lx_params_text	= WIDGET_LABEL(lx_params, VALUE = '(0,0)', SENSITIVE = 0, /DYNAMIC_RESIZE)
-	t_params_label	= WIDGET_LABEL(t_params, VALUE = 'Time coordinates:', /ALIGN_LEFT, SENSITIVE = 0)
-	t_params_text	= WIDGET_LABEL(t_params, VALUE = '(0,0)', SENSITIVE = 0, /DYNAMIC_RESIZE)
-	flag_label	= WIDGET_LABEL(save_params, VALUE = 'Flag:', SENSITIVE = 0, /ALIGN_LEFT)
-	flag_text	= WIDGET_TEXT(save_params, VALUE = '0', SENSITIVE = 0, XSIZE = 3, /EDITABLE, EVENT_PRO = 'TANAT_SAVE_MEASUREMENT_DEFINE_FLAG')
-	save_button	= WIDGET_BUTTON(save_params, VALUE = 'Save measurement', EVENT_PRO = 'TANAT_SAVE_MEASUREMENT', SENSITIVE = 0)
+	parameters	        = WIDGET_BASE(measure_tab, /ROW, /FRAME)
+	speed		            = WIDGET_BASE(parameters, /COLUMN)
+	delta_lx	          = WIDGET_BASE(speed, /ROW)
+	delta_t		          = WIDGET_BASE(speed, /ROW)
+	delta_speed	        = WIDGET_BASE(speed, /ROW)
+	acc		              = WIDGET_BASE(speed, /ROW)
+	delta_lx_label	    = WIDGET_LABEL(delta_lx, $
+                          VALUE='Travelled distance [pixel]:', /ALIGN_LEFT,$
+                          SENSITIVE=0)
+  delta_lx_text	      = WIDGET_LABEL(delta_lx, VALUE='0', SENSITIVE=0, $
+                          /DYNAMIC_RESIZE)
+  delta_t_label	      = WIDGET_LABEL(delta_t, VALUE='Elapsed time [frame]:',$
+                          /ALIGN_LEFT, SENSITIVE=0)
+  delta_t_text	      = WIDGET_LABEL(delta_t, VALUE='0',  SENSITIVE=0,$
+                          /DYNAMIC_RESIZE)
+  speed_label	        = WIDGET_LABEL(delta_speed, $
+                          VALUE='Absolute speed [km/s]:', /ALIGN_LEFT, $
+                          SENSITIVE=0)
+  speed_text	        = WIDGET_LABEL(delta_speed, VALUE='0', SENSITIVE=0,$
+                          /DYNAMIC_RESIZE)
+  acc_label	          = WIDGET_LABEL(acc, VALUE='Acceleration [m/s^2]:',$
+                          /ALIGN_LEFT, SENSITIVE=0)
+  acc_text	          = WIDGET_LABEL(acc, VALUE='0', SENSITIVe=0,$
+                          /DYNAMIC_RESIZE)
 
-	parabolic_fit	= WIDGET_BASE(measure_tab, /ROW, /FRAME)
-	fit_but_base	= WIDGET_BASE(parabolic_fit, /ROW, /NONEXCLUSIVE)
-	set_fit_but	= WIDGET_BUTTON(fit_but_base, VALUE = 'Store points for parabolic fit', EVENT_PRO = 'TANAT_PARABOLIC_FIT_SET')
-	rem_but		= WIDGET_BUTTON(parabolic_fit, VALUE = 'Remove last point', EVENT_PRO = 'TANAT_REMOVE_POINT', SENSITIVE = 0)
+	params_and_save     = WIDGET_BASE(parameters, /COLUMN)
+	lx_params	          = WIDGET_BASE(params_and_save, /ROW)
+	t_params	          = WIDGET_BASE(params_and_save, /ROW)
+	save_params	        = WIDGET_BASE(params_and_save, /ROW)
+	lx_params_label	    = WIDGET_LABEL(lx_params, VALUE='Position coordinates:',$
+                          /ALIGN_LEFT, SENSITIVE=0)
+  lx_params_text	    = WIDGET_LABEL(lx_params, VALUE='(0,0)', SENSITIVE=0,$
+                          /DYNAMIC_RESIZE)
+  t_params_label	    = WIDGET_LABEL(t_params, VALUE='Time coordinates:',$
+                          /ALIGN_LEFT, SENSITIVE=0)
+	t_params_text	      = WIDGET_LABEL(t_params, VALUE='(0,0)', SENSITIVE=0, $
+                          /DYNAMIC_RESIZE)
+	flag_label	        = WIDGET_LABEL(save_params, VALUE='Flag:', SENSITIVE=0, $
+                          /ALIGN_LEFT)
+	flag_text	          = WIDGET_TEXT(save_params, VALUE='0', SENSITIVE=0,$
+                          XSIZE=3, /EDITABLE, $
+                          EVENT_PRO='TANAT_SAVE_MEASUREMENT_DEFINE_FLAG')
+	save_button	        = WIDGET_BUTTON(save_params, VALUE='Save measurement',$
+                          EVENT_PRO='TANAT_SAVE_MEASUREMENT', SENSITIVE=0)
+
+	parabolic_fit	      = WIDGET_BASE(measure_tab, /ROW, /FRAME)
+	fit_but_base	      = WIDGET_BASE(parabolic_fit, /ROW, /NONEXCLUSIVE)
+	set_fit_but	        = WIDGET_BUTTON(fit_but_base, $
+                          VALUE='Store points for parabolic fit', $
+                          EVENT_PRO='TANAT_PARABOLIC_FIT_SET')
+	rem_but		          = WIDGET_BUTTON(parabolic_fit, VALUE='Remove last point',$
+                          EVENT_PRO='TANAT_REMOVE_POINT', SENSITIVE=0)
 	
-	series_points	= WIDGET_BASE(measure_tab, /ROW, /FRAME)
-	series_but_base	= WIDGET_BASE(series_points, /ROW, /NONEXCLUSIVE)
-	set_series_but	= WIDGET_BUTTON(series_but_base, VALUE = 'Store series of points', EVENT_PRO = 'TANAT_SERIES_SET')
-	fdb_series_but	= WIDGET_BUTTON(series_but_base, VALUE = 'Feedback', EVENT_PRO = 'TANAT_SERIES_FEEDBACK')
-	rem_series_but	= WIDGET_BUTTON(series_points, VALUE = 'Remove last point', EVENT_PRO = 'TANAT_REMOVE_POINT', SENSITIVE = 0)
-	save_series_but	= WIDGET_BUTTON(series_points, VALUE = 'Save series', EVENT_PRO = 'TANAT_SERIES_SAVE', SENSITIVE = 0)
+	series_points	      = WIDGET_BASE(measure_tab, /ROW, /FRAME)
+	series_but_base	    = WIDGET_BASE(series_points, /ROW, /NONEXCLUSIVE)
+	set_series_but	    = WIDGET_BUTTON(series_but_base, $
+                          VALUE='Store series of points', $
+                          EVENT_PRO='TANAT_SERIES_SET')
+	fdb_series_but	    = WIDGET_BUTTON(series_but_base, VALUE='Feedback',$
+                          EVENT_PRO='TANAT_SERIES_FEEDBACK')
+	rem_series_but	    = WIDGET_BUTTON(series_points, VALUE='Remove last point',$
+                          EVENT_PRO='TANAT_REMOVE_POINT', SENSITIVE=0)
+	save_series_but	    = WIDGET_BUTTON(series_points, VALUE='Save series',$
+                          EVENT_PRO='TANAT_SERIES_SAVE', SENSITIVE=0)
 	WIDGET_CONTROL, fdb_series_but, /SET_BUTTON
 
-	overlay		= WIDGET_BASE(measure_tab, /ROW, /FRAME, /NONEXCLUSIVE)
-	overlay_but	= WIDGET_BUTTON(overlay, VALUE = 'Overlay saved measurements for this timeslice', EVENT_PRO = 'TANAT_DRAW_OVERLAY_SAVED_MEASUREMENTS')
+	overlay		          = WIDGET_BASE(measure_tab, /ROW, /FRAME, /NONEXCLUSIVE)
+	overlay_but	        = WIDGET_BUTTON(overlay, VALUE='Overlay saved '+$
+                          'measurements for this timeslice', $
+                          EVENT_PRO='TANAT_DRAW_OVERLAY_SAVED_MEASUREMENTS')
 
 
-	detspect_frame	= WIDGET_BASE(buttons_base, /FRAME, /COLUMN)
-	detspect_buts	= WIDGET_BASE(detspect_frame, /ROW, /NONEXCLUSIVE)
-	subtract_but	= WIDGET_BUTTON(detspect_buts, VALUE = 'Subtract average', EVENT_PRO = 'TANAT_LS_SUBTRACT', TOOLTIP = 'Subtract detailed spectrum from average spectrum', SENSITIVE = slab_set)
-	detspect_range	= WIDGET_BASE(detspect_frame, /ROW)
-	lower_y_label	= WIDGET_LABEL(detspect_range, VALUE = 'Lower y-value:', /ALIGN_LEFT, SENSITIVE = slab_set)
-	lower_y_text	= WIDGET_TEXT(detspect_range, VALUE = '0',  /EDITABLE, XSIZE = 5, EVENT_PRO = 'TANAT_LS_LOW', SENSITIVE = slab_set)
-	upper_y_label	= WIDGET_LABEL(detspect_range, VALUE = 'Upper y-value:', /ALIGN_LEFT, SENSITIVE = slab_set)
-	upper_y_text	= WIDGET_TEXT(detspect_range, VALUE = '1',  /EDITABLE, XSIZE = 5, EVENT_PRO = 'TANAT_LS_UPP', SENSITIVE = slab_set)
-	detsp_drawbase	= WIDGET_BASE(detspect_frame, /COLUMN)
-	det_spect	= WIDGET_DRAW(detsp_drawbase, XSIZE = lswinx, YSIZE = lswiny, SENSITIVE = slab_set)
+	detspect_frame	    = WIDGET_BASE(buttons_base, /FRAME, /COLUMN)
+	detspect_buts	      = WIDGET_BASE(detspect_frame, /ROW, /NONEXCLUSIVE)
+	subtract_but	      = WIDGET_BUTTON(detspect_buts, VALUE='Subtract average',$
+                          EVENT_PRO='TANAT_LS_SUBTRACT', TOOLTIP='Subtract '+$
+                          'detailed spectrum from average spectrum', $
+                          SENSITIVE=slab_set)
+	detspect_range	    = WIDGET_BASE(detspect_frame, /ROW)
+	lower_y_label	      = WIDGET_LABEL(detspect_range, VALUE='Lower y-value:',$
+                          /ALIGN_LEFT, SENSITIVE=slab_set)
+	lower_y_text	      = WIDGET_TEXT(detspect_range, VALUE='0',  /EDITABLE,$
+                          XSIZE=5, EVENT_PRO='TANAT_LS_LOW', SENSITIVE=slab_set)
+	upper_y_label	      = WIDGET_LABEL(detspect_range, VALUE='Upper y-value:',$
+                          /ALIGN_LEFT, SENSITIVE=slab_set)
+	upper_y_text	      = WIDGET_TEXT(detspect_range, VALUE='1',  /EDITABLE,$
+                          XSIZE=5, EVENT_PRO='TANAT_LS_UPP', SENSITIVE=slab_set)
+	detsp_drawbase	    = WIDGET_BASE(detspect_frame, /COLUMN)
+	det_spect	          = WIDGET_DRAW(detsp_drawbase, XSIZE=lswinx, YSIZE=lswiny,$
+                          SENSITIVE=slab_set)
 	
-	spect_base 	= WIDGET_BASE(spectral_tab, /COLUMN, /FRAME)
-	pos_buts_1	= WIDGET_BASE(spect_base, /COLUMN, /EXCLUSIVE)
-	single_pos	= WIDGET_BUTTON(pos_buts_1, VALUE = 'Single spectral position', EVENT_PRO = 'TANAT_POS_SINGLE', SENSITIVE = slab_set)
+	spect_base 	        = WIDGET_BASE(spectral_tab, /COLUMN, /FRAME)
+	pos_buts_1	        = WIDGET_BASE(spect_base, /COLUMN, /EXCLUSIVE)
+	single_pos	        = WIDGET_BUTTON(pos_buts_1, $
+                          VALUE='Single spectral position', $
+                          EVENT_PRO='TANAT_POS_SINGLE', SENSITIVE=slab_set)
 	WIDGET_CONTROL, single_pos, /SET_BUTTON
-	double_pos	= WIDGET_BUTTON(pos_buts_1, VALUE = 'Two combined spectral positions', EVENT_PRO = 'TANAT_POS_DOUBLE', SENSITIVE = slab_set)
-	mult_pos	= WIDGET_BUTTON(pos_buts_1, VALUE = 'More combined spectral positions', EVENT_PRO = 'TANAT_POS_MULT', SENSITIVE = slab_set)
+	double_pos	        = WIDGET_BUTTON(pos_buts_1, $
+                          VALUE='Two combined spectral positions', $
+                          EVENT_PRO='TANAT_POS_DOUBLE', SENSITIVE=slab_set)
+	mult_pos	          = WIDGET_BUTTON(pos_buts_1, $
+                          VALUE='More combined spectral positions', $
+                          EVENT_PRO='TANAT_POS_MULT', $
+                          SENSITIVE=(slab_set AND (nlp GE 3)))
 
-	lower_sliders	= WIDGET_BASE(spect_base, /ROW)
-	low_low_slider	= WIDGET_SLIDER(lower_sliders, TITLE = 'Lower lower spectral position', VALUE = 0, MIN = 0, MAX = nlp-3, SENSITIVE = 0, EVENT_PRO = 'TANAT_SLIDER_LOW_LOW', /DRAG)
-	low_upp_slider	= WIDGET_SLIDER(lower_sliders, TITLE = 'Upper lower spectral position', VALUE = 1, MIN = 1, MAX = nlp-2, SENSITIVE = 0, EVENT_PRO = 'TANAT_SLIDER_LOW_UPP', /DRAG)
-	upper_sliders	= WIDGET_BASE(spect_base, /ROW)
-	upp_low_slider	= WIDGET_SLIDER(upper_sliders, TITLE = 'Lower upper spectral position', VALUE = nlp-2, MIN = 1, MAX = nlp-2, SENSITIVE = 0, EVENT_PRO = 'TANAT_SLIDER_UPP_LOW', /DRAG)
-	upp_upp_slider	= WIDGET_SLIDER(upper_sliders, TITLE = 'Upper upper spectral position', VALUE = nlp-1, MIN = 2, MAX = nlp-1, SENSITIVE = 0, EVENT_PRO = 'TANAT_SLIDER_UPP_UPP', /DRAG)
+	lower_sliders	      = WIDGET_BASE(spect_base, /ROW)
+	low_low_slider	    = WIDGET_SLIDER(lower_sliders, $
+                          TITLE='Lower lower spectral position', VALUE=0, $
+                          MIN=0, MAX=(nlp-3)>1, SENSITIVE=0, $
+                          EVENT_PRO='TANAT_SLIDER_LOW_LOW', /DRAG)
+	low_upp_slider	    = WIDGET_SLIDER(lower_sliders, $
+                          TITLE='Upper lower spectral position', VALUE=1, $
+                          MIN=1, MAX=(nlp-2)>2, SENSITIVE=0, $
+                          EVENT_PRO='TANAT_SLIDER_LOW_UPP', /DRAG)
+	upper_sliders	      = WIDGET_BASE(spect_base, /ROW)
+	upp_low_slider	    = WIDGET_SLIDER(upper_sliders, $
+                          TITLE='Lower upper spectral position', VALUE=(nlp-2)>1, $
+                          MIN=1, MAX=(nlp-2)>2, SENSITIVE=0, $
+                          EVENT_PRO='TANAT_SLIDER_UPP_LOW', /DRAG)
+	upp_upp_slider	    = WIDGET_SLIDER(upper_sliders, $
+                          TITLE='Upper upper spectral position', $
+                          VALUE=1+(nlp GE 3), $
+                          MIN=1+(nlp GE 3), MAX=(nlp-1)>3, SENSITIVE=0, $
+                          EVENT_PRO='TANAT_SLIDER_UPP_UPP', /DRAG)
 	
-	blink_sliders	= WIDGET_BASE(spectral_tab,/COLUMN,/FRAME)
-	lp_speed_slid	= WIDGET_SLIDER(blink_sliders, TITLE = 'Animation speed [blink/s]', MIN = 1, MAX = 100, VALUE = 10, EVENT_PRO = 'TANAT_SLIDER_SPEED', /DRAG, SENSITIVE = slab_set)
-	lp_blink_slid	= WIDGET_SLIDER(blink_sliders, TITLE = 'Spectral increment', MIN = lp_first+1, MAX = lp_last, EVENT_PRO = 'TANAT_SLIDER_SPECTSTEP',/DRAG, SENSITIVE = slab_set)
-	lp_blink_field	= WIDGET_BASE(blink_sliders, /ROW,/NONEXCLUSIVE)
-	lp_blink_but	= WIDGET_BUTTON(lp_blink_field, VALUE = 'Blink between spectral positions', EVENT_PRO = 'TANAT_PB_SPECTBLINK', SENSITIVE = slab_set)
+	blink_sliders	      = WIDGET_BASE(spectral_tab,/COLUMN,/FRAME)
+	lp_speed_slid	      = WIDGET_SLIDER(blink_sliders, $
+                          TITLE='Animation speed [blink/s]', MIN=1, MAX=100, $
+                          VALUE=10, EVENT_PRO='TANAT_SLIDER_SPEED', /DRAG,$
+                          SENSITIVE=slab_set)
+  lp_blink_slid	      = WIDGET_SLIDER(blink_sliders, $
+                          TITLE='Spectral increment',$
+                          MIN=1, MAX=lp_last>2, VALUE=1, $
+                          EVENT_PRO='TANAT_SLIDER_SPECTSTEP',$
+                          /DRAG, SENSITIVE=(slab_set AND (nlp GE 3)))
+  lp_blink_field	    = WIDGET_BASE(blink_sliders, /ROW,/NONEXCLUSIVE)
+  lp_blink_but	      = WIDGET_BUTTON(lp_blink_field, $
+                          VALUE='Blink between spectral positions', $
+                          EVENT_PRO='TANAT_PB_SPECTBLINK', SENSITIVE=slab_set)
+
+	scale_base	        = WIDGET_BASE(view_tab, /ROW, /FRAME)
+	scale_but_base	    = WIDGET_BASE(scale_base, /ROW, /NONEXCLUSIVE)
+  scale_but	          = WIDGET_BUTTON(scale_but_base, VALUE='Manual scaling',$
+                          EVENT_PRO='TANAT_SCALING_MAN')
+  min_scale_slider    = WIDGET_SLIDER(scale_base, TITLE='Minimum', VALUE=0,$
+                          MIN=0, MAX=99, EVENT_PRO='TANAT_SLIDER_SCALING_MIN',$
+                          /DRAG, SENSITIVE=0)
+  max_scale_slider    = WIDGET_SLIDER(scale_base, TITLE='Maximum', VALUE=100,$
+                          MIN=1, MAX=100, EVENT_PRO='TANAT_SLIDER_SCALING_MAX',$
+                          /DRAG, SENSITIVE=0)
 
 
-	scale_base	= WIDGET_BASE(view_tab, /ROW, /FRAME)
-	scale_but_base	= WIDGET_BASE(scale_base, /ROW, /NONEXCLUSIVE)
-	scale_but	= WIDGET_BUTTON(scale_but_base, VALUE = 'Manual scaling', EVENT_PRO = 'TANAT_SCALING_MAN')
-	min_scale_slider= WIDGET_SLIDER(scale_base, TITLE = 'Minimum', VALUE = 0, MIN = 0, MAX = 99, EVENT_PRO = 'TANAT_SLIDER_SCALING_MIN', /DRAG, SENSITIVE = 0)
-	max_scale_slider= WIDGET_SLIDER(scale_base, TITLE = 'Maximum', VALUE = 100, MIN = 1, MAX = 100,  EVENT_PRO = 'TANAT_SLIDER_SCALING_MAX', /DRAG, SENSITIVE = 0)
-
-
-	smooth_buttons	= WIDGET_BASE(view_tab, /ROW, /EXCLUSIVE, /FRAME)
-	non_smooth_but	= WIDGET_BUTTON(smooth_buttons, VALUE = 'Non-smoothed view')
-	smooth_but	= WIDGET_BUTTON(smooth_buttons, VALUE = 'Smoothed view', EVENT_PRO = 'TANAT_SMOOTH_VIEW')
+	smooth_buttons	    = WIDGET_BASE(view_tab, /ROW, /EXCLUSIVE, /FRAME)
+	non_smooth_but	    = WIDGET_BUTTON(smooth_buttons, VALUE='Non-smoothed view')
+	smooth_but	        = WIDGET_BUTTON(smooth_buttons, VALUE='Smoothed view', $
+                          EVENT_PRO='TANAT_SMOOTH_VIEW')
 	WIDGET_CONTROL, non_smooth_but, /SET_BUTTON
 
   ; File name(s)
@@ -1874,7 +2031,8 @@ PRO TANAT,$							; call program
 		filename:filename, reffilename:reffilename, spec:PTR_NEW(spectrum), lps:PTR_NEW(lps), ms:ms, nlx:nlx, nt:nt, nlp:nlp, $
 		lxdist:PTR_NEW(lxdist), lx:FLOAT(lx_first), t:FLOAT(t_first), lx_first:lx_first, lx_last:lx_last, $
 		t_first:t_first, t_last:t_last, lp:lp_start, lc:lc, lp_first:lp_first, lp_last:lp_last, $
-		t_low:t_first, t_upp:t_last, t_range:nt, d_nt:nt, low_low_val:0, upp_low_val:1, low_upp_val:nlp-2, upp_upp_val:nlp-1, $
+		t_low:t_first, t_upp:t_last, t_range:nt, d_nt:nt, low_low_val:0,$
+    upp_low_val:1, low_upp_val:(nlp-2)>1, upp_upp_val:(1+(nlp GE 3)), $
 		refnlp:refnlp, reflp:reflp_start, reflp_first:reflp_first, reflp_last:reflp_last, w_first:w_first, w_last:w_last, w_set:w_set, w:w_first $
 	}
 ;--------------------------------------------------------------------------------- DISPLAY SWITCHES
