@@ -98,7 +98,8 @@ END
 ;================================================================================= ABOUT WINDOW PROCEDURES
 PRO TANAT_ABOUT_WINDOW, event 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_ABOUT_WINDOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	abouttlb = WIDGET_BASE(TITLE = 'TANAT: ABOUT', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS, TLB_SIZE_EVENTS = 0)
 	disp = WIDGET_BASE(abouttlb, /COLUMN)
 	aboutdrawid = WIDGET_DRAW(disp, XSIZE = (*(*info).winsizes).aboutwinx, YSIZE = (*(*info).winsizes).aboutwiny, RETAIN = 2)
@@ -119,7 +120,8 @@ END
 PRO TANAT_ABOUT_CURSOR, event
 ; Handles cursor actions on the about window
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_ABOUT_CURSOR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_DRAW' THEN BEGIN
 		CASE event.TYPE OF
 		0:	CASE event.PRESS OF
@@ -136,14 +138,16 @@ END
 
 PRO TANAT_ABOUT_WINDOW_CLOSE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_ABOUT_WINDOW_CLOSE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).winids).abouttlb, /DESTROY
 END
 
 ;================================================================================= CALCULATE PROCEDURES
 PRO TANAT_CALCULATE_DELTA, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_CALCULATE_DELTA'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).measparams).delta_lx = FLOAT((*(*info).dataparams).lx) - FLOAT((*(*info).curs).lxlock)
 	(*(*info).measparams).delta_t = FLOAT((*(*info).dataparams).t) - FLOAT((*(*info).curs).tlock)
 	IF (ABS((*(*info).measparams).delta_lx) GT 0.) THEN BEGIN
@@ -184,7 +188,8 @@ END
 
 PRO TANAT_CLOSE_EVENT_WINDOW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_CLOSE_EVENT_WINDOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	IF (event.TOP EQ (*(*info).winids).errtlb) THEN (*(*info).winids).errtlb = 0
 	IF (event.TOP EQ (*(*info).winids).savnamenulltlb) THEN (*(*info).winids).savnamenulltlb = 0
 	IF (event.TOP EQ (*(*info).winids).savnamedoubletlb) THEN (*(*info).winids).savnamedoubletlb = 0
@@ -194,7 +199,8 @@ END
 ;================================================================================= CURSOR PROCEDURES
 PRO TANAT_CURSOR, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_CURSOR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_TRACKING' THEN BEGIN
 		IF event.ENTER THEN BEGIN
 			WIDGET_CONTROL, event.HANDLER, get_value = wid
@@ -331,7 +337,8 @@ END
 
 PRO TANAT_CURSOR_SET_COORDSLIDERS, xsensitive, ysensitive, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_CURSOR_SET_COORDSLIDERS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).lx_slider, SET_VALUE = (*(*info).dataparams).lx, SENSITIVE = xsensitive
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).t_slider, SET_VALUE = (*(*info).dataparams).t, SENSITIVE = ysensitive
 END
@@ -371,7 +378,8 @@ END
 ;================================================================================= DRAW PROCEDURES
 PRO TANAT_DRAW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	TANAT_DRAW_SLICE, event
 	IF (*(*info).dispswitch).ref THEN TANAT_DRAW_SLICE, event, /REFERENCE
 	TANAT_DRAW_LS, event
@@ -379,7 +387,8 @@ END
 
 PRO TANAT_DRAW_SLICE, event, REFERENCE=reference
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW_MAIN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
   IF ~KEYWORD_SET(REFERENCE) THEN BEGIN
 	  WSET, (*(*info).winids).wid
     imrefscaling = 0
@@ -415,26 +424,10 @@ PRO TANAT_DRAW_SLICE, event, REFERENCE=reference
 	TANAT_DRAW_OVERLAYS, event
 END
 
-;PRO TANAT_DRAW_REF, event
-;	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-;	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW_REF'
-;	WSET, (*(*info).winids).refwid
-;;	IF (*(*info).dispswitch).man_scale THEN BEGIN
-;		minimum = (*(*(*info).scaling).range)[1] / 100. * (*(*(*info).scaling).min_val)[1] + (*(*(*info).scaling).minimum)[1]
-;		maximum = (*(*(*info).scaling).range)[1] / 100. * (*(*(*info).scaling).max_val)[1] + (*(*(*info).scaling).minimum)[1]
-;;	ENDIF ELSE BEGIN
-;;		minimum = (*(*(*info).scaling).minimum)[1]
-;;		maximum = (*(*(*info).scaling).range)[1] + (*(*(*info).scaling).minimum)[1]
-;;	ENDELSE
-;	IF (*(*info).dispswitch).smoothed THEN TV,BYTSCL(CONGRID(*(*(*info).data).refloopslice,(*(*info).winsizes).windowx,(*(*info).winsizes).windowy,/INTERP), MIN = minimum, MAX = maximum) $
-;		ELSE TV,BYTSCL(CONGRID(*(*(*info).data).refloopslice,(*(*info).winsizes).windowx,(*(*info).winsizes).windowy), MIN = minimum, MAX = maximum)
-;	TANAT_DRAW_CURSCROSS_PLOT, event
-;	TANAT_DRAW_OVERLAYS, event
-;END
-
 PRO TANAT_DRAW_OVERLAYS, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW_OVERLAYS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).overlay_measurements THEN BEGIN
 		FOR k=0,999 DO BEGIN
 			IF ((*(*(*info).overlays).lxbpoint)[k] NE (*(*(*info).overlays).lxepoint)[k]) AND ((*(*(*info).overlays).tbpoint)[k] NE (*(*(*info).overlays).tepoint)[k]) THEN BEGIN
@@ -466,7 +459,8 @@ END
 
 PRO TANAT_DRAW_LS, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW_LS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).slab_set THEN BEGIN
 		WSET, (*(*info).winids).ls_drawid
 		PLOT, *(*(*info).dataparams).lps, *(*(*info).dataparams).spec, POS=[(*(*info).plotpos).lsx0,(*(*info).plotpos).lsy0,(*(*info).plotpos).lsx1,(*(*info).plotpos).lsy1],/NORM, CHARSIZE=1,YS=1,$
@@ -505,7 +499,8 @@ END
 
 PRO TANAT_DRAW_CURSCROSS_PLOT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW_CURSCROSS_PLOT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	PLOTS, (*(*info).curs).slx,(*(*info).curs).st, /DEVICE, COLOR = !P.COLOR, PSYM = 1
 	IF ((*(*info).curs).lockset GE 1) THEN BEGIN
 		IF ((*(*info).measparams).parabolic_fit OR (*(*info).measparams).series) THEN BEGIN
@@ -527,7 +522,8 @@ END
 
 PRO TANAT_DRAW_OVERLAY_SAVED_MEASUREMENTS, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW_OVERLAY_SAVED_MEASUREMENTS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispswitch).overlay_measurements = event.SELECT
 	IF (*(*info).dispswitch).overlay_measurements THEN BEGIN
 		IF (FILE_INFO((*(*info).measparams).savefilename)).EXISTS THEN BEGIN
@@ -565,13 +561,15 @@ END
 ;================================================================================= TAB EVENT PROCEDURES
 PRO TANAT_EVENT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_EVENT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 END
 
 ;================================================================================= FILE OPENING PROCEDURES
 PRO TANAT_FILE_OPEN, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_FILE_OPEN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	new_filename = DIALOG_PICKFILE(TITLE='TANAT: Choose a CSAV file', /READ, /MUST_EXIST, FILTER='*.csav',/FIX_FILTER)
 	IF (STRCOMPRESS(new_filename) NE '') THEN BEGIN
 		WIDGET_CONTROL,/HOURGLASS
@@ -664,7 +662,8 @@ END
 ;================================================================================= DETAILED SPECTRUM PROCEDURES
 PRO TANAT_LS_LOW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_LS_LOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsgen).lower_y_text, GET_VALUE = textvalue
 	(*(*info).plotaxes).ls_low_y = FLOAT(textvalue[0])
 	TANAT_LS_RANGE, event
@@ -672,7 +671,8 @@ END
 
 PRO TANAT_LS_UPP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_LS_UPP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsgen).upper_y_text, GET_VALUE = textvalue
 	(*(*info).plotaxes).ls_upp_y = FLOAT(textvalue[0])
 	TANAT_LS_RANGE, event
@@ -680,14 +680,16 @@ END
 
 PRO TANAT_LS_RANGE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_LS_RANGE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).plotaxes).ls_yrange = (*(*info).plotaxes).ls_upp_y - (*(*info).plotaxes).ls_low_y
 	TANAT_DRAW, event
 END
 
 PRO TANAT_LS_SUBTRACT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_LS_SUBTRACT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispswitch).subtract = event.SELECT
 	TANAT_DRAW, event
 END
@@ -695,18 +697,16 @@ END
 ;================================================================================= PARABOLIC FIT PROCEDURES
 PRO TANAT_PARABOLIC_FIT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_PARABOLIC_FIT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	degree = ((*(*info).measparams).np-1) < 2
 	degree = degree > 0
-;	s_result = POLY_FIT(FLOAT(*(*(*info).measparams).slx_array), FLOAT(*(*(*info).measparams).st_array), degree)
 	s_result = POLY_FIT(FLOAT(*(*(*info).measparams).st_array), FLOAT(*(*(*info).measparams).slx_array), degree)
 	act_t_array = *(*(*info).measparams).t_array * (*(*info).measparams).secondststep
 	act_lx_array =  149597870. * TAN(FLOAT((*(*info).measparams).arcsecpix) * FLOAT(*(*(*info).measparams).lx_array) / 3600. * !DTOR)
 	act_s_result = POLY_FIT(act_t_array,act_lx_array, degree)
 	IF ((*(*info).measparams).np GT 2) THEN BEGIN	
 		IF ((*(*(*info).measparams).slx_array)[(*(*info).measparams).np-1] LT (*(*(*info).measparams).slx_array)[0]) THEN sign = -1. ELSE sign = 1.
-;		*(*(*info).measparams).x_vals = FINDGEN(1000)/1001 * ( (*(*(*info).measparams).slx_array)[(*(*info).measparams).np-1] - (*(*(*info).measparams).slx_array)[0] ) + (*(*(*info).measparams).slx_array)[0]
-;		*(*(*info).measparams).y_vals = s_result[2] * (FLOAT(*(*(*info).measparams).x_vals))^2 + s_result[1] * FLOAT(*(*(*info).measparams).x_vals) + s_result[0]
 		*(*(*info).measparams).y_vals = FINDGEN(1000)/1001 * ( (*(*(*info).measparams).st_array)[(*(*info).measparams).np-1] - (*(*(*info).measparams).st_array)[0] ) + (*(*(*info).measparams).st_array)[0]
 		*(*(*info).measparams).x_vals = s_result[2] * (FLOAT(*(*(*info).measparams).y_vals))^2 + s_result[1] * FLOAT(*(*(*info).measparams).y_vals) + s_result[0]
 		(*(*info).measparams).acceleration = 2000. * act_s_result[2] * sign
@@ -716,7 +716,8 @@ END
 
 PRO TANAT_PARABOLIC_FIT_SET, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_PARABOLIC_FIT_SET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).measparams).parabolic_fit = event.SELECT
 	WIDGET_CONTROL,(*(*info).ctrlsmeas).set_series_but, SENSITIVE = ABS(event.SELECT-1)
 	WIDGET_CONTROL,(*(*info).ctrlsmeas).fdb_series_but, SENSITIVE = ABS(event.SELECT-1)
@@ -739,7 +740,8 @@ END
 
 PRO TANAT_REMOVE_POINT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_REMOVE_POINT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).measparams).np -= 1
 	*(*(*info).measparams).lx_array = (*(*(*info).measparams).lx_array)[0:(*(*info).measparams).np-1]
 	*(*(*info).measparams).t_array = (*(*(*info).measparams).t_array)[0:(*(*info).measparams).np-1]
@@ -766,7 +768,8 @@ END
 ;================================================================================= PLAYBACK PROCEDURES
 PRO TANAT_PB_BG, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_PB_BG'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	CASE (*(*info).pbparams).spmode OF
 		1	: BEGIN
 				(*(*info).dataparams).lp += (*(*info).pbparams).spdirection * (*(*info).pbparams).lp_step
@@ -784,7 +787,8 @@ END
 
 PRO TANAT_PB_SPECTBLINK, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_PB_SPECTBLINK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).spmode = event.SELECT
 	IF (*(*info).pbparams).spmode THEN BEGIN
 		(*(*info).pbparams).spmode = 1
@@ -796,7 +800,8 @@ END
 ;================================================================================= COMBINED SPECTRAL POSITIONS PROCEDURES
 PRO TANAT_POS_SINGLE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_POS_SINGLE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispswitch).singlepos = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).lp_slider, $
     SENSITIVE = (*(*info).dispswitch).singlepos
@@ -813,7 +818,8 @@ END
 
 PRO TANAT_POS_DOUBLE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_POS_DOUBLE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispswitch).doublepos = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlsview).low_low_slider, $
     SENSITIVE = ((*(*info).dispswitch).doublepos AND $
@@ -827,7 +833,8 @@ END
 
 PRO TANAT_POS_MULT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_POS_MULT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispswitch).multpos = event.SELECT
 	IF ((*(*info).dataparams).low_low_val GE (*(*info).dataparams).upp_low_val) THEN (*(*info).dataparams).upp_low_val = (*(*info).dataparams).low_low_val + 1
 	IF ((*(*info).dataparams).upp_upp_val LE (*(*info).dataparams).low_upp_val) THEN (*(*info).dataparams).low_upp_val = (*(*info).dataparams).upp_upp_val - 1
@@ -850,7 +857,8 @@ END
 ;================================================================================= RESET PROCEDURES
 PRO TANAT_RESET_OUTPUTS, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_RESET_OUTPUTS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).delta_lx_label, SENSITIVE = 0
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).delta_t_label, SENSITIVE = 0
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).speed_label,  SENSITIVE = 0
@@ -878,7 +886,8 @@ END
 ;================================================================================= SAVE MEASUREMENT PROCEDURES
 PRO TANAT_SAVE_MEASUREMENT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SAVE_MEASUREMENT'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	savefiles = FILE_SEARCH((*(*info).measparams).savefilename, COUNT = savefilecount)
 	IF savefilecount THEN BEGIN
 		nlines = FILE_LINES((*(*info).measparams).savefilename)
@@ -922,7 +931,8 @@ END
 
 PRO TANAT_SAVE_MEASUREMENT_DEFINE_FLAG, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SAVE_MEASUREMENT_DEFINE_FLAG'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).flag_text, GET_VALUE = textvalue
 	(*(*info).measparams).flag = FIX(textvalue[0])
 END
@@ -932,7 +942,7 @@ PRO TANAT_SCALING_SELECT_DATA, event
 ; Handles the selection of scaling 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_SELECT_DATA'
+    TANAT_VERBOSE_GET_ROUTINE, event
   ;index = {0,1} -> Main, reference
   (*(*info).scaling).imrefscaling = event.INDEX
 	TANAT_SCALING_SET_SLIDERS_BUTTONS, event
@@ -942,7 +952,7 @@ PRO TANAT_SCALING_SET_SLIDERS_BUTTONS, event
 ; Handles the selection of scaling 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_SET_SLIDERS_BUTTONS'
+    TANAT_VERBOSE_GET_ROUTINE, event
   showarr = [1,(*(*info).dispswitch).ref]
   WIDGET_CONTROL, (*(*info).ctrlsview).scale_reset_button, $
     SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
@@ -964,7 +974,7 @@ PRO TANAT_SCALING_GAMMA_SLIDER, event
 ; Handles events from the minimum scaling value slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_GAMMA_SLIDER'
+    TANAT_VERBOSE_GET_ROUTINE, event
   (*(*info).scaling).gamma[(*(*info).scaling).imrefscaling] = $
     10.^((FLOAT(event.VALUE)/500.) - 1.)
   WIDGET_CONTROL, (*(*info).ctrlsview).gamma_label, $
@@ -975,7 +985,8 @@ END
 
 PRO TANAT_SCALING_SLIDER_MIN, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_SLIDER_MIN'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
   (*(*info).scaling).minimum[(*(*info).scaling).imrefscaling] = event.VALUE
   IF ((*(*info).scaling).minimum[(*(*info).scaling).imrefscaling] GE $
       (*(*info).scaling).maximum[(*(*info).scaling).imrefscaling]) THEN BEGIN
@@ -988,7 +999,8 @@ END
 
 PRO TANAT_SCALING_SLIDER_MAX, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_SLIDER_MAX'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
   (*(*info).scaling).maximum[(*(*info).scaling).imrefscaling] = event.VALUE
   IF ((*(*info).scaling).maximum[(*(*info).scaling).imrefscaling] LE $
       (*(*info).scaling).minimum[(*(*info).scaling).imrefscaling]) THEN BEGIN
@@ -1003,7 +1015,7 @@ PRO TANAT_SCALING_RESET_DEFAULTS, event
 ; Handles events from the minimum scaling value slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_RESET_DEFAULTS'
+    TANAT_VERBOSE_GET_ROUTINE, event
   ; Reset contrast value
   (*(*info).scaling).minimum[(*(*info).scaling).imrefscaling] = 0
   (*(*info).scaling).maximum[(*(*info).scaling).imrefscaling] = 100
@@ -1017,7 +1029,8 @@ END
 PRO TANAT_SERIES_PATH, event
 ; Gets the actual loop path from spline interpolation
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SERIES_PATH'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	np_local = (SIZE(*(*(*info).measparams).lx_array))[1] 
 	IF (np_local GE 2) THEN BEGIN
 		IF ((*(*(*info).measparams).lx_array)[np_local-1] EQ (*(*(*info).measparams).lx_array)[np_local-2]) AND ((*(*(*info).measparams).t_array)[np_local-1] EQ (*(*(*info).measparams).t_array)[np_local-2]) THEN RETURN
@@ -1029,14 +1042,16 @@ END
 
 PRO TANAT_SERIES_FEEDBACK, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SERIES_FEEDBACK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispswitch).series_feedback = event.SELECT
 	TANAT_DRAW, event
 END
 
 PRO TANAT_SERIES_SAVE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SERIES_SAVE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	monthstrarr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 	curt = SYSTIME()
 	tstr = STRSPLIT(curt,/EXTRACT)
@@ -1062,7 +1077,8 @@ END
 
 PRO TANAT_SERIES_SET, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SERIES_SET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).measparams).series = event.SELECT
 	WIDGET_CONTROL,(*(*info).ctrlsmeas).set_fit_but, SENSITIVE = ABS(event.SELECT-1)
 	IF ((*(*info).curs).lockset GT 0) THEN TANAT_RESET_OUTPUTS, event
@@ -1084,7 +1100,8 @@ END
 ;================================================================================= SET PROCEDURES
 PRO TANAT_SET_ARCSEC, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SET_ARCSEC'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlssetup).arcsec_text, GET_VALUE = textvalue
 	(*(*info).measparams).arcsecpix = FLOAT(textvalue[0])
 	IF ((*(*info).curs).lockset GE 1) THEN TANAT_CALCULATE_DELTA, event
@@ -1092,7 +1109,8 @@ END
 
 PRO TANAT_SET_SECONDS, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SET_SECONDS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlssetup).seconds_text, GET_VALUE = textvalue
 	(*(*info).measparams).secondststep = FLOAT(textvalue[0])
 	IF ((*(*info).curs).lockset GE 1) THEN TANAT_CALCULATE_DELTA, event
@@ -1100,7 +1118,8 @@ END
 
 PRO TANAT_SET_SAVEFILENAME, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SET_SAVEFILENAME'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlssetup).savefile_text, GET_VALUE = textvalue
 	(*(*info).measparams).savefilename = textvalue[0]
 	savefiles = FILE_SEARCH((*(*info).measparams).savefilename, COUNT = savefilecount)
@@ -1116,7 +1135,8 @@ END
 
 PRO TANAT_SET_CONTROLS, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SET_CONTROLS'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	; First set consequences of slab_set = {0,1}
 	IF (*(*info).dispswitch).slab_set THEN BEGIN
 		(*(*info).dataparams).low_low_val = 0				&	(*(*info).dataparams).upp_low_val = 1
@@ -1250,7 +1270,8 @@ END
 ;================================================================================= SLIDER PROCEDURES
 PRO TANAT_SLIDER_LOW_LOW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_LOW_LOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).low_low_val = event.VALUE
 	IF (*(*info).dispswitch).doublepos THEN BEGIN
 		IF ((*(*info).dataparams).low_low_val GE (*(*info).dataparams).upp_upp_val) THEN (*(*info).dataparams).upp_upp_val = (*(*info).dataparams).low_low_val + 1
@@ -1269,7 +1290,8 @@ END
 
 PRO TANAT_SLIDER_LOW_UPP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_LOW_UPP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).upp_low_val = event.VALUE
 	IF ((*(*info).dataparams).upp_low_val GT (*(*info).dataparams).low_upp_val) THEN (*(*info).dataparams).low_upp_val = (*(*info).dataparams).low_upp_val + 1
 	IF ((*(*info).dataparams).low_upp_val GE (*(*info).dataparams).upp_upp_val) THEN (*(*info).dataparams).upp_upp_val = (*(*info).dataparams).low_upp_val + 1
@@ -1283,7 +1305,8 @@ END
 
 PRO TANAT_SLIDER_REFLP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_LP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).reflp = event.VALUE
 	TANAT_UPDATE_LP, event
 	TANAT_DRAW, event
@@ -1291,7 +1314,8 @@ END
 
 PRO TANAT_SLIDER_REFLP_LOCK, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_LP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispswitch).reflp_lock = event.SELECT
 	(*(*info).dataparams).reflp = (*(*info).dataparams).lp
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).reflp_slider, SENSITIVE = ABS((*(*info).dispswitch).reflp_lock-1), SET_VALUE = (*(*info).dataparams).reflp
@@ -1301,7 +1325,8 @@ END
 
 PRO TANAT_SLIDER_LP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_LP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp = event.VALUE
 	IF (*(*info).dispswitch).reflp_lock THEN BEGIN
 		(*(*info).dataparams).reflp = (*(*info).dataparams).lp
@@ -1313,7 +1338,8 @@ END
 
 PRO TANAT_SLIDER_LP_INCR, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_LP_INCR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp += (*(*info).pbparams).lp_step
 	IF ((*(*info).dataparams).lp GT (*(*info).dataparams).lp_last) THEN (*(*info).dataparams).lp = (*(*info).dataparams).lp_first
 	WIDGET_CONTROL,(*(*info).ctrlsmeas).lp_slider, SET_VALUE = (*(*info).dataparams).lp
@@ -1323,7 +1349,8 @@ END
 
 PRO TANAT_SLIDER_LP_DECR, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_LP_DECR'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp -= (*(*info).pbparams).lp_step
 	IF ((*(*info).dataparams).lp LT (*(*info).dataparams).lp_first) THEN (*(*info).dataparams).lp = (*(*info).dataparams).lp_last
 	WIDGET_CONTROL,(*(*info).ctrlsmeas).lp_slider, SET_VALUE = (*(*info).dataparams).lp
@@ -1333,7 +1360,8 @@ END
 
 PRO TANAT_SLIDER_LX, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_LX'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lx = event.VALUE
 	(*(*info).curs).slx = (*(*info).dataparams).lx * (*(*info).winsizes).windowx / (*(*info).dataparams).nlx
 	TANAT_DRAW, event
@@ -1341,19 +1369,22 @@ END
 
 PRO TANAT_SLIDER_SPECTSTEP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_SPECTSTEP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lp_step = event.VALUE
 END
 
 PRO TANAT_SLIDER_SPEED, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_SPEED'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lp_speed = event.VALUE
 END
 
 PRO TANAT_SLIDER_T, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_T'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).t = event.VALUE
 	(*(*info).curs).st = (*(*info).dataparams).t * (*(*info).winsizes).windowy / (*(*info).dataparams).nt
 	TANAT_DRAW, event
@@ -1361,7 +1392,8 @@ END
 
 PRO TANAT_SLIDER_W, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_T'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).w = event.VALUE
 	TANAT_UPDATE_LP, event
 	TANAT_DRAW, event
@@ -1369,7 +1401,8 @@ END
 
 PRO TANAT_SLIDER_UPP_LOW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_UPP_LOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).low_upp_val = event.VALUE
 	IF ((*(*info).dataparams).low_upp_val LT (*(*info).dataparams).upp_low_val) THEN (*(*info).dataparams).upp_low_val = (*(*info).dataparams).upp_low_val - 1
 	IF ((*(*info).dataparams).upp_low_val LE (*(*info).dataparams).low_low_val) THEN (*(*info).dataparams).low_low_val = (*(*info).dataparams).upp_low_val - 1
@@ -1383,7 +1416,8 @@ END
 
 PRO TANAT_SLIDER_UPP_UPP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_UPP_UPP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).upp_upp_val = event.VALUE
 	IF (*(*info).dispswitch).doublepos THEN BEGIN
 		IF ((*(*info).dataparams).upp_upp_val LE (*(*info).dataparams).low_low_val) THEN (*(*info).dataparams).low_low_val = (*(*info).dataparams).upp_upp_val - 1
@@ -1403,7 +1437,8 @@ END
 ;================================================================================= DISPLAY PROCEDURES
 PRO TANAT_SMOOTH_VIEW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SMOOTH_VIEW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dispswitch).smoothed = event.SELECT
 	TANAT_DRAW, event
 END
@@ -1411,7 +1446,8 @@ END
 ;================================================================================= DISPLAY T PROCEDURES
 PRO TANAT_T_LOW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_T_LOW'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsview).lower_t_text, GET_VALUE = textvalue
 	(*(*info).dataparams).t_low = FLOAT(textvalue[0])
 	IF ((*(*info).dataparams).t_low GE (*(*info).dataparams).t_upp) THEN BEGIN
@@ -1427,7 +1463,8 @@ END
 
 PRO TANAT_T_UPP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_T_UPP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlsview).upper_t_text, GET_VALUE = textvalue
 	(*(*info).dataparams).t_upp = FLOAT(textvalue[0])
 	IF ((*(*info).dataparams).t_upp LE (*(*info).dataparams).t_low) THEN BEGIN
@@ -1443,7 +1480,8 @@ END
 
 PRO TANAT_T_RANGE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_T_RANGE'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).t_range = (*(*info).dataparams).t_upp - (*(*info).dataparams).t_low
 	IF ((*(*info).dataparams).t_range+1 NE (*(*info).dataparams).nt) THEN WIDGET_CONTROL, (*(*info).ctrlsview).reset_trange_but, /SENSITIVE ELSE WIDGET_CONTROL, (*(*info).ctrlsview).reset_trange_but, SENSITIVE = 0
 	WIDGET_CONTROL, (*(*info).ctrlsmeas).t_slider, SET_SLIDER_MIN = (*(*info).dataparams).t_low
@@ -1458,7 +1496,8 @@ END
 
 PRO TANAT_T_RANGE_RESET, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_T_RANGE_RESET'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).t_upp = (*(*info).dataparams).t_last
 	(*(*info).dataparams).t_low = (*(*info).dataparams).t_first
 	WIDGET_CONTROL, (*(*info).ctrlsview).upper_t_text, SET_VALUE = STRTRIM((*(*info).dataparams).t_upp,2)
@@ -1470,7 +1509,8 @@ END
 ;================================================================================= UPDATE PROCEDURES
 PRO TANAT_UPDATE_LP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_UPDATE_LP'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).singlepos THEN BEGIN
 		IF (*(*info).dispswitch).slab_set THEN BEGIN
 			IF (*(*info).dataparams).w_set THEN *(*(*info).data).loopslice = REFORM((*(*(*info).data).loopdata)[*,(*(*info).dataparams).t_low:(*(*info).dataparams).t_upp,$
@@ -1542,12 +1582,23 @@ END
 PRO TANAT_VERBOSE_GET_ROUTINE, event, rname, IGNORE_LAST=ignore_last
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	prespace = STRJOIN(REPLICATE('  ',SCOPE_LEVEL()-2))
+  rname = (SCOPE_TRACEBACK(/STRUCTURE))[N_ELEMENTS(SCOPE_TRACEBACK(/STRUCTURE))-2].ROUTINE
 	IF KEYWORD_SET(IGNORE_LAST) THEN (*(*info).feedbparams).last_routine = ''
-	IF ((rname NE (*(*info).feedbparams).last_routine) AND ((*(*info).feedbparams).last_routine_count GT 0)) THEN PRINT,''
-	IF (rname EQ (*(*info).feedbparams).last_routine) THEN (*(*info).feedbparams).last_routine_count += 1 ELSE (*(*info).feedbparams).last_routine_count = 0
-	IF ((*(*info).feedbparams).last_routine_count GT 0) THEN rcount = ' x '+STRTRIM((*(*info).feedbparams).last_routine_count,2)+'.' ELSE rcount = '.'
-	IF (rname NE (*(*info).feedbparams).last_routine) THEN PRINT,prespace+'TANAT RUN: Called '+rname+'.' ELSE $
-		WRITEU,-1,STRING(FORMAT='(%"\r'+prespace+'TANAT RUN: Called ",a'+STRTRIM(STRLEN(rname),2)+',a'+STRTRIM(STRLEN(rcount),2)+')',rname,rcount) 
+	IF ((rname NE (*(*info).feedbparams).last_routine) AND $
+    ((*(*info).feedbparams).last_routine_count GT 0)) THEN PRINT,''
+	IF (rname EQ (*(*info).feedbparams).last_routine) THEN $
+    (*(*info).feedbparams).last_routine_count += 1 $
+  ELSE $
+    (*(*info).feedbparams).last_routine_count = 0
+	IF ((*(*info).feedbparams).last_routine_count GT 0) THEN $
+    rcount = ' x '+STRTRIM((*(*info).feedbparams).last_routine_count,2)+'.' $
+  ELSE $
+    rcount = '.'
+	IF (rname NE (*(*info).feedbparams).last_routine) THEN $
+    PRINT,prespace+'TANAT RUN: Called '+rname+'.' $
+  ELSE $
+		WRITEU,-1,STRING(FORMAT='(%"\r'+prespace+'TANAT RUN: Called ",a'+$
+      STRTRIM(STRLEN(rname),2)+',a'+STRTRIM(STRLEN(rcount),2)+')',rname,rcount) 
 	(*(*info).feedbparams).last_routine = rname
 END
 ;================================================================================= WINDOW PROCEDURES
@@ -1561,7 +1612,8 @@ END
 
 PRO TANAT_WINDOW_OK, event, title, message1, message2, message3, message4, OK_EVENT=ok_event, BASE=base, BLOCK=block
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_WINDOW_OK'
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
 	base = WIDGET_BASE(TITLE = title, GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
 	disp = WIDGET_BASE(base, /COLUMN)
 	message_base = WIDGET_BASE(disp, /COLUMN)
