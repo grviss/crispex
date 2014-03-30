@@ -84,7 +84,8 @@
 ;-
 ;-------------------------------------------------------------
 
-;==================== SCALING FUNCTIONS
+;==================== TANAT FUNCTIONS
+;------------------------- SCALING FUNCTION
 FUNCTION TANAT_SCALING_CONTRAST, minimum_init, maximum_init, $
   minimum_perc, maximum_perc
   minimum_init = DOUBLE(minimum_init)
@@ -93,6 +94,13 @@ FUNCTION TANAT_SCALING_CONTRAST, minimum_init, maximum_init, $
   minmax = [minimum_init+range*FLOAT(minimum_perc)/100.,$
             minimum_init+range*FLOAT(maximum_perc)/100.]
   RETURN, minmax
+END
+
+;------------------------- WIDGET FUNCTION
+FUNCTION TANAT_WIDGET_DIVIDER, base
+  divider_base = WIDGET_BASE(base, /FRAME, /YSIZE)
+  divider_labl = WIDGET_LABEL(divider_base, VALUE=' ')
+  RETURN, divider_base
 END
 
 ;================================================================================= ABOUT WINDOW PROCEDURES
@@ -1629,7 +1637,9 @@ PRO TANAT_WINDOW_OK, event, title, message1, message2, message3, message4, OK_EV
 	XMANAGER, 'TANAT', base, NO_BLOCK=ABS(block-1)
 END
 
-;==================== MAIN PROGRAM CODE
+;===============================================================================
+;================================== MAIN PROGRAM CODE ==========================
+;===============================================================================
 PRO TANAT,$							; call program
 	filename,$						; name of file containing time slab
 	LINE_CENTER=line_center, $				; line center keyword with spectral information
@@ -1824,7 +1834,7 @@ PRO TANAT,$							; call program
 ;========================================================================= SETTING UP WIDGET
 ;--------------------------------------------------------------------------------- INITIALISE CONTROL PANEL
   control_panel	      = WIDGET_BASE(TITLE = 'TANAT: Timeslice Analysis Tool', $
-                          TLB_FRAME_ATTR=1, /ROW, KILL_NOTIFY='TANAT_CLEANUP',$
+                          TLB_FRAME_ATTR=1, /COLUMN, KILL_NOTIFY='TANAT_CLEANUP',$
                           MBAR = menubar)
   filemenu	          = WIDGET_BUTTON(menubar, VALUE='File', /MENU, $
                           UVALUE='file')
@@ -1848,15 +1858,25 @@ PRO TANAT,$							; call program
                           VALUE='Spectral position -', $
                           EVENT_PRO = 'TANAT_SLIDER_LP_DECR', ACCELERATOR = 'Shift+A')
 
-	buttons_base	      = WIDGET_BASE(control_panel, /COLUMN)
-	tab_tlb 	          = WIDGET_TAB(buttons_base, LOCATION=location)
+  main_base           = WIDGET_BASE(control_panel, /ROW)
+	buttons_base	      = WIDGET_BASE(main_base, /COLUMN)
+  tab_width           = 470
+  pad                 = 3
+	tab_tlb 	          = WIDGET_TAB(buttons_base, LOCATION=location,$
+                          XSIZE=tab_width+2*pad)
 
-	measure_tab	        = WIDGET_BASE(tab_tlb, TITLE = 'Measurements',/COLUMN)
-	spectral_tab	      = WIDGET_BASE(tab_tlb, TITLE = 'Spectral',/COLUMN)
-	view_tab	          = WIDGET_BASE(tab_tlb, TITLE = 'View',/COLUMN)
-	setup_tab	          = WIDGET_BASE(tab_tlb, TITLE='Set up',/COLUMN)
+  ; ==================== Define and order tabs ====================
+	measure_tab	        = WIDGET_BASE(tab_tlb, TITLE = 'Measurements',/COLUMN,$
+                          XSIZE=tab_width)
+	spectral_tab	      = WIDGET_BASE(tab_tlb, TITLE = 'Spectral',/COLUMN,$
+                          XSIZE=tab_width)
+	view_tab	          = WIDGET_BASE(tab_tlb, TITLE = 'View',/COLUMN,$
+                          XSIZE=tab_width)
+	setup_tab	          = WIDGET_BASE(tab_tlb, TITLE='Set up',/COLUMN,$
+                          XSIZE=tab_width)
 	WIDGET_CONTROL, tab_tlb, SET_TAB_CURRENT = 3
-	
+
+  ; ==================== Always visible controls ====================
   detspect_frame	    = WIDGET_BASE(buttons_base, /FRAME, /COLUMN)
 	detspect_buts	      = WIDGET_BASE(detspect_frame, /ROW, /NONEXCLUSIVE)
 	subtract_but	      = WIDGET_BUTTON(detspect_buts, VALUE='Subtract average',$
@@ -1877,13 +1897,14 @@ PRO TANAT,$							; call program
                           SENSITIVE=slab_set)
   
   ; ==================== Measurement Tab ====================
-	sliders		          = WIDGET_BASE(measure_tab, /ROW, /FRAME)
-	pos_sliders	        = WIDGET_BASE(sliders, /COLUMN)
+	sliders		          = WIDGET_BASE(measure_tab, /ROW)
+	pos_sliders	        = WIDGET_BASE(sliders, /GRID_LAYOUT, COLUMN=2)
   lp_slid		          = WIDGET_SLIDER(pos_sliders, TITLE = 'Spectral position',$
                           MIN=lp_first, MAX=lp_last>(lp_first+1), $
                           VALUE=lp_start, $
                           EVENT_PRO='TANAT_SLIDER_LP', /DRAG, $
-                          SENSITIVE=slab_set)
+                          SENSITIVE=slab_set,$
+                          XSIZE=FLOOR((tab_width-4*pad)/2.))
   lx_slider	          = WIDGET_SLIDER(pos_sliders, $
                           TITLE='Pixel position along the loop', MIN=lx_first,$
                           MAX=lx_last, VALUE=lx_first, $
@@ -1891,27 +1912,24 @@ PRO TANAT,$							; call program
   t_slider	          = WIDGET_SLIDER(pos_sliders, TITLE='Frame number',$
                           MIN=t_first, MAX=t_last, VALUE=t_first, $
                           EVENT_PRO='TANAT_SLIDER_T', /DRAG)
-
-	ref_sliders         = WIDGET_BASE(sliders,/COLUMN)
-  w_slider	          = WIDGET_SLIDER(ref_sliders, TITLE='Width position', $
+  w_slider	          = WIDGET_SLIDER(pos_sliders, TITLE='Width position', $
                           MIN=w_first, MAX=w_last, VALUE=w_start, $
                           EVENT_PRO='TANAT_SLIDER_W', /DRAG, SENSITIVE=w_set)
-
-  ref_lp_slid	        = WIDGET_SLIDER(ref_sliders, $
+  ref_lp_slid	        = WIDGET_SLIDER(pos_sliders, $
                           TITLE='Reference spectral position', $
                           MIN=reflp_first, MAX=reflp_last>(reflp_first+1), $
                           VALUE=reflp_start,$
                           EVENT_PRO='TANAT_SLIDER_REFLP', /DRAG, $
                           SENSITIVE=(ABS(eqnlps-1) AND ref_slab_set))
-	ref_lp_but_field    = WIDGET_BASE(ref_sliders, /ROW, /NONEXCLUSIVE)
+	ref_lp_but_field    = WIDGET_BASE(pos_sliders, /ROW, /NONEXCLUSIVE)
 	ref_lp_but	        = WIDGET_BUTTON(ref_lp_but_field, $
-                          VALUE='Lock reference to main spectral position',$
+                          VALUE='Lock reference to main position',$
                           EVENT_PRO='TANAT_SLIDER_REFLP_LOCK', $
                           SENSITIVE=(eqnlps AND (refnlp GT 1)))
   WIDGET_CONTROL, ref_lp_but, SET_BUTTON = (eqnlps AND (refnlp GT 1))
+  sliders_divider     = TANAT_WIDGET_DIVIDER(measure_tab)
 
-
-	parameters	        = WIDGET_BASE(measure_tab, /ROW, /FRAME)
+	parameters	        = WIDGET_BASE(measure_tab, /ROW)
 	speed		            = WIDGET_BASE(parameters, /COLUMN)
 	delta_lx	          = WIDGET_BASE(speed, /ROW)
 	delta_t		          = WIDGET_BASE(speed, /ROW)
@@ -1956,15 +1974,16 @@ PRO TANAT,$							; call program
 	save_button	        = WIDGET_BUTTON(save_params, VALUE='Save measurement',$
                           EVENT_PRO='TANAT_SAVE_MEASUREMENT', SENSITIVE=0)
 
-	parabolic_fit	      = WIDGET_BASE(measure_tab, /ROW, /FRAME)
+	parabolic_fit	      = WIDGET_BASE(measure_tab, /ROW)
 	fit_but_base	      = WIDGET_BASE(parabolic_fit, /ROW, /NONEXCLUSIVE)
 	set_fit_but	        = WIDGET_BUTTON(fit_but_base, $
                           VALUE='Store points for parabolic fit', $
                           EVENT_PRO='TANAT_PARABOLIC_FIT_SET')
 	rem_but		          = WIDGET_BUTTON(parabolic_fit, VALUE='Remove last point',$
                           EVENT_PRO='TANAT_REMOVE_POINT', SENSITIVE=0)
+  sliders_divider1    = TANAT_WIDGET_DIVIDER(measure_tab)
 	
-	series_points	      = WIDGET_BASE(measure_tab, /ROW, /FRAME)
+	series_points	      = WIDGET_BASE(measure_tab, /ROW)
 	series_but_base	    = WIDGET_BASE(series_points, /ROW, /NONEXCLUSIVE)
 	set_series_but	    = WIDGET_BUTTON(series_but_base, $
                           VALUE='Store series of points', $
@@ -1976,33 +1995,15 @@ PRO TANAT,$							; call program
 	save_series_but	    = WIDGET_BUTTON(series_points, VALUE='Save series',$
                           EVENT_PRO='TANAT_SERIES_SAVE', SENSITIVE=0)
 	WIDGET_CONTROL, fdb_series_but, /SET_BUTTON
+  sliders_divider2    = TANAT_WIDGET_DIVIDER(measure_tab)
 
-	overlay		          = WIDGET_BASE(measure_tab, /ROW, /FRAME, /NONEXCLUSIVE)
+	overlay		          = WIDGET_BASE(measure_tab, /ROW, /NONEXCLUSIVE)
 	overlay_but	        = WIDGET_BUTTON(overlay, VALUE='Overlay saved '+$
                           'measurements for this timeslice', $
                           EVENT_PRO='TANAT_DRAW_OVERLAY_SAVED_MEASUREMENTS')
 
-  ; ==================== Set-up Tab ====================
-	settings	          = WIDGET_BASE(setup_tab, /ROW, /FRAME)
-	dimensions	        = WIDGET_BASE(settings ,/COLUMN)
-	arcsec_field	      = WIDGET_BASE(dimensions, /ROW)
-	arcsec_label	      = WIDGET_LABEL(arcsec_field, $
-                          VALUE='Arcseconds per pixel:', /ALIGN_LEFT)
-	arcsec_text	        = WIDGET_TEXT(arcsec_field, VALUE=STRTRIM(arcsecpix,2),$
-                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_SET_ARCSEC')
-	seconds_field	      = WIDGET_BASE(dimensions, /ROW)
-	seconds_label	      = WIDGET_LABEL(seconds_field, $
-                          VALUE='Seconds per timestep:', /ALIGN_LEFT)
-	seconds_text	      = WIDGET_TEXT(seconds_field, $
-                          VALUE=STRTRIM(secondststep,2), /EDITABLE, XSIZE=5, $
-                          EVENT_PRO='TANAT_SET_SECONDS')
-	savefile	          = WIDGET_BASE(settings, /COLUMN, /FRAME)
-	savefile_label	    = WIDGET_LABEL(savefile, VALUE='Measurements saved to file:')
-	savefile_text	      = WIDGET_TEXT(savefile, VALUE='tanat_measurements.dat',$
-                          /EDITABLE, XSIZE=25, EVENT_PRO='TANAT_SET_SAVEFILENAME')
-
   ; ==================== View Tab ====================
-	t_range_field	      = WIDGET_BASE(view_tab, /ROW, /FRAME)
+	t_range_field	      = WIDGET_BASE(view_tab, /ROW)
 	lower_t_label	      = WIDGET_LABEL(t_range_field, VALUE='Lower t-value:', $
                           /ALIGN_LEFT)
 	lower_t_text	      = WIDGET_TEXT(t_range_field, VALUE=STRTRIM(t_first,2),$
@@ -2014,11 +2015,38 @@ PRO TANAT,$							; call program
 	reset_trange_but    = WIDGET_BUTTON(t_range_field, $
                           VALUE='Reset temporal boundaries', $
                           EVENT_PRO='TANAT_T_RANGE_RESET', SENSITIVE=0)
+  view_divider1       = TANAT_WIDGET_DIVIDER(view_tab)
 
+	scale_base	        = WIDGET_BASE(view_tab, /COLUMN)
+  scaling_base        = WIDGET_BASE(scale_base, /ROW)
+  scaling_cbox        = WIDGET_COMBOBOX(scaling_base, $
+                          VALUE=['Main data','Reference data'], $
+                          EVENT_PRO='TANAT_SCALING_SELECT_DATA')
+  scale_reset_but     = WIDGET_BUTTON(scaling_base, VALUE='Reset', $
+                          EVENT_PRO='TANAT_SCALING_RESET_DEFAULTS')
+  scaleslid_base      = WIDGET_BASE(scale_base, /GRID_LAYOUT, COLUMN=2)
+  scalemin_slider     = WIDGET_SLIDER(scaleslid_base, TITLE='Minimum', VALUE=0,$
+                          MIN=0, MAX=99, EVENT_PRO='TANAT_SCALING_SLIDER_MIN',$
+                          /DRAG, XSIZE=FLOOR((tab_width-4*pad)/2.))
+  scalemax_slider     = WIDGET_SLIDER(scaleslid_base, TITLE='Maximum', VALUE=100,$
+                          MIN=1, MAX=100, EVENT_PRO='TANAT_SCALING_SLIDER_MAX',$
+                          /DRAG)
+  gamma_label         = WIDGET_LABEL(scale_base, VALUE=STRING(gamma_val[0], $
+                          FORMAT='(F6.3)'), /ALIGN_CENTER,XSIZE=250)
+  gamma_slider        = WIDGET_SLIDER(scale_base, TITLE='Gamma', MIN=0, MAX=1000, $
+                          VALUE=500*(ALOG10(gamma_val[0])+1), $
+                          EVENT_PRO='TANAT_SCALING_GAMMA_SLIDER', $
+                          /SUPPRESS, /DRAG)
+  view_divider2       = TANAT_WIDGET_DIVIDER(view_tab)
 
+	smooth_buttons	    = WIDGET_BASE(view_tab, /ROW, /EXCLUSIVE)
+	non_smooth_but	    = WIDGET_BUTTON(smooth_buttons, VALUE='Non-smoothed view')
+	smooth_but	        = WIDGET_BUTTON(smooth_buttons, VALUE='Smoothed view', $
+                          EVENT_PRO='TANAT_SMOOTH_VIEW')
+	WIDGET_CONTROL, non_smooth_but, /SET_BUTTON
 	
   ; ==================== Spectral Tab ====================
-	spect_base 	        = WIDGET_BASE(spectral_tab, /COLUMN, /FRAME)
+	spect_base 	        = WIDGET_BASE(spectral_tab, /COLUMN)
 	pos_buts_1	        = WIDGET_BASE(spect_base, /COLUMN, /EXCLUSIVE)
 	single_pos	        = WIDGET_BUTTON(pos_buts_1, $
                           VALUE='Single spectral position', $
@@ -2032,70 +2060,74 @@ PRO TANAT,$							; call program
                           EVENT_PRO='TANAT_POS_MULT', $
                           SENSITIVE=(slab_set AND (nlp GE 3)))
 
-	lower_sliders	      = WIDGET_BASE(spect_base, /ROW)
+	lower_sliders	      = WIDGET_BASE(spect_base, /GRID_LAYOUT, COLUMN=2)
 	low_low_slider	    = WIDGET_SLIDER(lower_sliders, $
                           TITLE='Lower lower spectral position', VALUE=0, $
                           MIN=0, MAX=(nlp-3)>1, SENSITIVE=0, $
-                          EVENT_PRO='TANAT_SLIDER_LOW_LOW', /DRAG)
+                          EVENT_PRO='TANAT_SLIDER_LOW_LOW', /DRAG, $
+                          XSIZE=FLOOR((tab_width-4*pad)/2.))
 	low_upp_slider	    = WIDGET_SLIDER(lower_sliders, $
                           TITLE='Upper lower spectral position', VALUE=1, $
                           MIN=1, MAX=(nlp-2)>2, SENSITIVE=0, $
                           EVENT_PRO='TANAT_SLIDER_LOW_UPP', /DRAG)
-	upper_sliders	      = WIDGET_BASE(spect_base, /ROW)
+	upper_sliders	      = WIDGET_BASE(spect_base, /GRID_LAYOUT, COLUMN=2)
 	upp_low_slider	    = WIDGET_SLIDER(upper_sliders, $
                           TITLE='Lower upper spectral position', VALUE=(nlp-2)>1, $
                           MIN=1, MAX=(nlp-2)>2, SENSITIVE=0, $
-                          EVENT_PRO='TANAT_SLIDER_UPP_LOW', /DRAG)
+                          EVENT_PRO='TANAT_SLIDER_UPP_LOW', /DRAG,$
+                          XSIZE=FLOOR((tab_width-4*pad)/2.))
 	upp_upp_slider	    = WIDGET_SLIDER(upper_sliders, $
                           TITLE='Upper upper spectral position', $
                           VALUE=1+(nlp GE 3), $
                           MIN=1+(nlp GE 3), MAX=(nlp-1)>3, SENSITIVE=0, $
                           EVENT_PRO='TANAT_SLIDER_UPP_UPP', /DRAG)
+  spectral_divider1   = TANAT_WIDGET_DIVIDER(spectral_tab)
 	
-	blink_sliders	      = WIDGET_BASE(spectral_tab,/COLUMN,/FRAME)
+	blink_sliders	      = WIDGET_BASE(spectral_tab,/GRID_LAYOUT, COLUMN=2)
 	lp_speed_slid	      = WIDGET_SLIDER(blink_sliders, $
                           TITLE='Animation speed [blink/s]', MIN=1, MAX=100, $
                           VALUE=10, EVENT_PRO='TANAT_SLIDER_SPEED', /DRAG,$
-                          SENSITIVE=slab_set)
+                          SENSITIVE=slab_set,$
+                          XSIZE=FLOOR((tab_width-4*pad)/2.))
   lp_blink_slid	      = WIDGET_SLIDER(blink_sliders, $
                           TITLE='Spectral increment',$
                           MIN=1, MAX=lp_last>2, VALUE=1, $
                           EVENT_PRO='TANAT_SLIDER_SPECTSTEP',$
                           /DRAG, SENSITIVE=(slab_set AND (nlp GE 3)))
-  lp_blink_field	    = WIDGET_BASE(blink_sliders, /ROW,/NONEXCLUSIVE)
+  lp_blink_field	    = WIDGET_BASE(spectral_tab, /ROW,/NONEXCLUSIVE)
   lp_blink_but	      = WIDGET_BUTTON(lp_blink_field, $
                           VALUE='Blink between spectral positions', $
                           EVENT_PRO='TANAT_PB_SPECTBLINK', SENSITIVE=slab_set)
 
-	scale_base	        = WIDGET_BASE(view_tab, /COLUMN, /FRAME)
-  scaling_base        = WIDGET_BASE(scale_base, /ROW)
-  scaling_cbox        = WIDGET_COMBOBOX(scaling_base, $
-                          VALUE=['Main data','Reference data'], $
-                          EVENT_PRO='TANAT_SCALING_SELECT_DATA')
-  scale_reset_but     = WIDGET_BUTTON(scaling_base, VALUE='Reset', $
-                          EVENT_PRO='TANAT_SCALING_RESET_DEFAULTS')
-  scalemin_slider     = WIDGET_SLIDER(scale_base, TITLE='Minimum', VALUE=0,$
-                          MIN=0, MAX=99, EVENT_PRO='TANAT_SCALING_SLIDER_MIN',$
-                          /DRAG)
-  scalemax_slider     = WIDGET_SLIDER(scale_base, TITLE='Maximum', VALUE=100,$
-                          MIN=1, MAX=100, EVENT_PRO='TANAT_SCALING_SLIDER_MAX',$
-                          /DRAG)
-  gamma_label         = WIDGET_LABEL(scale_base, VALUE=STRING(gamma_val[0], $
-                          FORMAT='(F6.3)'), /ALIGN_CENTER,XSIZE=250)
-  gamma_slider        = WIDGET_SLIDER(scale_base, TITLE='Gamma', MIN=0, MAX=1000, $
-                          VALUE=500*(ALOG10(gamma_val[0])+1), $
-                          EVENT_PRO='TANAT_SCALING_GAMMA_SLIDER', $
-                          /SUPPRESS, /DRAG)
+  ; ==================== Set-up Tab ====================
+	settings	          = WIDGET_BASE(setup_tab, /ROW)
+	dimensions	        = WIDGET_BASE(settings ,/COLUMN)
+	arcsec_field	      = WIDGET_BASE(dimensions, /ROW)
+	arcsec_label	      = WIDGET_LABEL(arcsec_field, $
+                          VALUE='Arcseconds per pixel:', /ALIGN_LEFT)
+	arcsec_text	        = WIDGET_TEXT(arcsec_field, VALUE=STRTRIM(arcsecpix,2),$
+                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_SET_ARCSEC')
+	seconds_field	      = WIDGET_BASE(dimensions, /ROW)
+	seconds_label	      = WIDGET_LABEL(seconds_field, $
+                          VALUE='Seconds per timestep:', /ALIGN_LEFT)
+	seconds_text	      = WIDGET_TEXT(seconds_field, $
+                          VALUE=STRTRIM(secondststep,2), /EDITABLE, XSIZE=5, $
+                          EVENT_PRO='TANAT_SET_SECONDS')
+  setup_divider1      = TANAT_WIDGET_DIVIDER(setup_tab)
+	savefile	          = WIDGET_BASE(setup_tab, /COLUMN)
+	savefile_label	    = WIDGET_LABEL(savefile, /ALIGN_LEFT, $
+                          VALUE='Measurements saved to file:')
+	savefile_text	      = WIDGET_TEXT(savefile, VALUE='tanat_measurements.dat',$
+                          /EDITABLE, XSIZE=50, EVENT_PRO='TANAT_SET_SAVEFILENAME')
 
-
-	smooth_buttons	    = WIDGET_BASE(view_tab, /ROW, /EXCLUSIVE, /FRAME)
-	non_smooth_but	    = WIDGET_BUTTON(smooth_buttons, VALUE='Non-smoothed view')
-	smooth_but	        = WIDGET_BUTTON(smooth_buttons, VALUE='Smoothed view', $
-                          EVENT_PRO='TANAT_SMOOTH_VIEW')
-	WIDGET_CONTROL, non_smooth_but, /SET_BUTTON
+	
+  ; Draw base(s)
+  draw_base	= WIDGET_BASE(main_base, /ROW)
+	timeslice	= WIDGET_DRAW(draw_base, XSIZE = windowx, YSIZE = windowy)
+	IF ref THEN reftimeslice = WIDGET_DRAW(draw_base, XSIZE = windowx, YSIZE = windowy)
 
   ; File name(s)
-  filebase        = WIDGET_BASE(buttons_base, /ROW, /FRAME)
+  filebase        = WIDGET_BASE(control_panel, /ROW, /FRAME)
   label_base      = WIDGET_BASE(filebase, /COLUMN)
   filelabel_val   = 'File:'
   IF (nfiles EQ 2) THEN $
@@ -2111,10 +2143,6 @@ PRO TANAT,$							; call program
                       /ALIGN_RIGHT, /DYNAMIC_RESIZE) $
   ELSE $
     reffiletext   = 0
-	
-	draw_base	= WIDGET_BASE(control_panel, /ROW)
-	timeslice	= WIDGET_DRAW(draw_base, XSIZE = windowx, YSIZE = windowy)
-	IF ref THEN reftimeslice = WIDGET_DRAW(draw_base, XSIZE = windowx, YSIZE = windowy)
 
 	WIDGET_CONTROL, control_panel, /REALIZE
 	bg = WIDGET_BASE(control_panel, EVENT_PRO = 'TANAT_PB_BG')
