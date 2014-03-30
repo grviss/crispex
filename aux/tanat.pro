@@ -84,6 +84,17 @@
 ;-
 ;-------------------------------------------------------------
 
+;==================== SCALING FUNCTIONS
+FUNCTION TANAT_SCALING_CONTRAST, minimum_init, maximum_init, $
+  minimum_perc, maximum_perc
+  minimum_init = DOUBLE(minimum_init)
+  maximum_init = DOUBLE(maximum_init)
+  range = maximum_init-minimum_init
+  minmax = [minimum_init+range*FLOAT(minimum_perc)/100.,$
+            minimum_init+range*FLOAT(maximum_perc)/100.]
+  RETURN, minmax
+END
+
 ;================================================================================= ABOUT WINDOW PROCEDURES
 PRO TANAT_ABOUT_WINDOW, event 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -98,7 +109,7 @@ PRO TANAT_ABOUT_WINDOW, event
 		'Developed by: Gregal Vissers', $
 		'               Institute of Theoretical Astrophysics,',$
 		'               University of Oslo',$
-		'               2009-2012']
+		'               2009-2014']
 	WIDGET_CONTROL, aboutdrawid, EVENT_PRO = 'TANAT_ABOUT_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, /TRACKING_EVENTS, /DRAW_BUTTON_EVENTS
 	WIDGET_CONTROL, abouttlb, SET_UVALUE = info
 	XMANAGER, 'TANAT', abouttlb,/NO_BLOCK
@@ -361,44 +372,65 @@ END
 PRO TANAT_DRAW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW'
-	TANAT_DRAW_MAIN, event
-	IF (*(*info).dispswitch).ref THEN TANAT_DRAW_REF, event
+	TANAT_DRAW_SLICE, event
+	IF (*(*info).dispswitch).ref THEN TANAT_DRAW_SLICE, event, /REFERENCE
 	TANAT_DRAW_LS, event
 END
 
-PRO TANAT_DRAW_MAIN, event
+PRO TANAT_DRAW_SLICE, event, REFERENCE=reference
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW_MAIN'
-	WSET, (*(*info).winids).wid
-	IF (*(*info).dispswitch).man_scale THEN BEGIN
-		minimum = (*(*(*info).scaling).range)[0] / 100. * (*(*(*info).scaling).min_val)[0] + (*(*(*info).scaling).minimum)[0]
-		maximum = (*(*(*info).scaling).range)[0] / 100. * (*(*(*info).scaling).max_val)[0] + (*(*(*info).scaling).minimum)[0]
-	ENDIF ELSE BEGIN
-		minimum = (*(*(*info).scaling).minimum)[0]
-		maximum = (*(*(*info).scaling).range)[0] + (*(*(*info).scaling).minimum)[0]
-	ENDELSE
-	IF (*(*info).dispswitch).smoothed THEN TV,BYTSCL(CONGRID(*(*(*info).data).loopslice,(*(*info).winsizes).windowx,(*(*info).winsizes).windowy,/INTERP), MIN = minimum, MAX = maximum) $
-		ELSE TV,BYTSCL(CONGRID(*(*(*info).data).loopslice,(*(*info).winsizes).windowx,(*(*info).winsizes).windowy), MIN = minimum, MAX = maximum)
+  IF ~KEYWORD_SET(REFERENCE) THEN BEGIN
+	  WSET, (*(*info).winids).wid
+    imrefscaling = 0
+    selected_data = *(*(*info).data).loopslice
+  ENDIF ELSE BEGIN
+	  WSET, (*(*info).winids).refwid
+    imrefscaling = 1
+    selected_data = *(*(*info).data).refloopslice
+  ENDELSE
+  IF ((*(*info).scaling).gamma[imrefscaling] NE 1.) THEN BEGIN
+    wherelt0 = WHERE(selected_data LT 0, count)
+    IF (count LE 0) THEN $
+      selected_data = $
+        (TEMPORARY(selected_data))^(*(*info).scaling).gamma[imrefscaling] $
+    ELSE BEGIN
+      selected_data = $
+        (TEMPORARY(ABS(selected_data)))^(*(*info).scaling).gamma[imrefscaling]
+      selected_data[wherelt0] *= -1
+    ENDELSE
+  ENDIF
+  minimum = MIN(selected_data, MAX=maximum, /NAN)
+;  IF ((*(*(*info).scaling).imagescale)[sel] EQ 2) THEN BEGIN
+;    selected_data = IRIS_HISTO_OPT(TEMPORARY(selected_data), $
+;      (*(*info).scaling).histo_opt_val[scale_idx], MISSING=-32768, /SILENT)
+;    minimum = MIN(selected_data, MAX=maximum, /NAN)
+;  ENDIF
+  minmax = TANAT_SCALING_CONTRAST(minimum,maximum,$
+    (*(*info).scaling).minimum[imrefscaling],(*(*info).scaling).maximum[imrefscaling])
+	finalimage = BYTSCL(selected_data, MIN = minmax[0], MAX = minmax[1], /NAN) 
+  TV, CONGRID(finalimage,(*(*info).winsizes).windowx,$
+    (*(*info).winsizes).windowy,INTERP=(*(*info).dispswitch).smoothed)
 	TANAT_DRAW_CURSCROSS_PLOT, event
 	TANAT_DRAW_OVERLAYS, event
 END
 
-PRO TANAT_DRAW_REF, event
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW_REF'
-	WSET, (*(*info).winids).refwid
-	IF (*(*info).dispswitch).man_scale THEN BEGIN
-		minimum = (*(*(*info).scaling).range)[1] / 100. * (*(*(*info).scaling).min_val)[1] + (*(*(*info).scaling).minimum)[1]
-		maximum = (*(*(*info).scaling).range)[1] / 100. * (*(*(*info).scaling).max_val)[1] + (*(*(*info).scaling).minimum)[1]
-	ENDIF ELSE BEGIN
-		minimum = (*(*(*info).scaling).minimum)[1]
-		maximum = (*(*(*info).scaling).range)[1] + (*(*(*info).scaling).minimum)[1]
-	ENDELSE
-	IF (*(*info).dispswitch).smoothed THEN TV,BYTSCL(CONGRID(*(*(*info).data).refloopslice,(*(*info).winsizes).windowx,(*(*info).winsizes).windowy,/INTERP), MIN = minimum, MAX = maximum) $
-		ELSE TV,BYTSCL(CONGRID(*(*(*info).data).refloopslice,(*(*info).winsizes).windowx,(*(*info).winsizes).windowy), MIN = minimum, MAX = maximum)
-	TANAT_DRAW_CURSCROSS_PLOT, event
-	TANAT_DRAW_OVERLAYS, event
-END
+;PRO TANAT_DRAW_REF, event
+;	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+;	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_DRAW_REF'
+;	WSET, (*(*info).winids).refwid
+;;	IF (*(*info).dispswitch).man_scale THEN BEGIN
+;		minimum = (*(*(*info).scaling).range)[1] / 100. * (*(*(*info).scaling).min_val)[1] + (*(*(*info).scaling).minimum)[1]
+;		maximum = (*(*(*info).scaling).range)[1] / 100. * (*(*(*info).scaling).max_val)[1] + (*(*(*info).scaling).minimum)[1]
+;;	ENDIF ELSE BEGIN
+;;		minimum = (*(*(*info).scaling).minimum)[1]
+;;		maximum = (*(*(*info).scaling).range)[1] + (*(*(*info).scaling).minimum)[1]
+;;	ENDELSE
+;	IF (*(*info).dispswitch).smoothed THEN TV,BYTSCL(CONGRID(*(*(*info).data).refloopslice,(*(*info).winsizes).windowx,(*(*info).winsizes).windowy,/INTERP), MIN = minimum, MAX = maximum) $
+;		ELSE TV,BYTSCL(CONGRID(*(*(*info).data).refloopslice,(*(*info).winsizes).windowx,(*(*info).winsizes).windowy), MIN = minimum, MAX = maximum)
+;	TANAT_DRAW_CURSCROSS_PLOT, event
+;	TANAT_DRAW_OVERLAYS, event
+;END
 
 PRO TANAT_DRAW_OVERLAYS, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -895,34 +927,91 @@ PRO TANAT_SAVE_MEASUREMENT_DEFINE_FLAG, event
 	(*(*info).measparams).flag = FIX(textvalue[0])
 END
 
-;================================================================================= SCALING PROCEDURES
-PRO TANAT_SCALING_MAN, event
+;==================== SCALING PROCEDURES
+PRO TANAT_SCALING_SELECT_DATA, event
+; Handles the selection of scaling 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_MAN'
-	(*(*info).dispswitch).man_scale = event.SELECT
-	IF (*(*info).dispswitch).man_scale THEN BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlsview).max_scale_slider, SET_VALUE = (*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling], /SENSITIVE
-		WIDGET_CONTROL, (*(*info).ctrlsview).min_scale_slider, SET_VALUE = (*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling], /SENSITIVE
-	ENDIF ELSE BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlsview).max_scale_slider, SET_VALUE = 100, SENSITIVE = 0
-		WIDGET_CONTROL, (*(*info).ctrlsview).min_scale_slider, SET_VALUE = 0, SENSITIVE = 0
-	ENDELSE
-	TANAT_DRAW, event
-END		
-
-PRO TANAT_SCALING_RANGE, event
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_RANGE'
-;	IF ((*(*info).scaling).imrefscaling EQ 0) THEN data = *(*(*info).data).loopslice ELSE data = *(*(*info).data).refloopslice
-;	(*(*(*info).scaling).minimum)[(*(*info).scaling).imrefscaling] = MIN(data, MAX = maximum)
-;	(*(*(*info).scaling).range)[(*(*info).scaling).imrefscaling] = maximum - (*(*(*info).scaling).minimum)[(*(*info).scaling).imrefscaling]
-	(*(*(*info).scaling).minimum)[0] = MIN(*(*(*info).data).loopslice, MAX = maximum)
-	(*(*(*info).scaling).range)[0] = maximum - (*(*(*info).scaling).minimum)[0]
-	IF (*(*info).dispswitch).ref THEN BEGIN
-		(*(*(*info).scaling).minimum)[1] = MIN(*(*(*info).data).refloopslice, MAX = maximum)
-		(*(*(*info).scaling).range)[1] = maximum - (*(*(*info).scaling).minimum)[1]
-	ENDIF
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_SELECT_DATA'
+  ;index = {0,1} -> Main, reference
+  (*(*info).scaling).imrefscaling = event.INDEX
+	TANAT_SCALING_SET_SLIDERS_BUTTONS, event
 END
+
+PRO TANAT_SCALING_SET_SLIDERS_BUTTONS, event
+; Handles the selection of scaling 
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_SET_SLIDERS_BUTTONS'
+  showarr = [1,(*(*info).dispswitch).ref]
+  WIDGET_CONTROL, (*(*info).ctrlsview).scale_reset_button, $
+    SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
+  WIDGET_CONTROL, (*(*info).ctrlsview).scalemin_slider,$
+    SET_VALUE=(*(*info).scaling).minimum[(*(*info).scaling).imrefscaling], $
+    SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
+  WIDGET_CONTROL, (*(*info).ctrlsview).scalemax_slider,$
+    SET_VALUE=(*(*info).scaling).maximum[(*(*info).scaling).imrefscaling], $
+    SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
+  gamma_val = (*(*info).scaling).gamma[(*(*info).scaling).imrefscaling]
+  gamma_slider_val = 500 * (ALOG10(gamma_val) + 1)
+  WIDGET_CONTROL, (*(*info).ctrlsview).gamma_slider, SET_VALUE=gamma_slider_val, $
+    SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
+  WIDGET_CONTROL, (*(*info).ctrlsview).gamma_label, $
+    SET_VALUE=STRING(gamma_val,FORMAT='(F6.3)')
+END
+
+PRO TANAT_SCALING_GAMMA_SLIDER, event
+; Handles events from the minimum scaling value slider
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_GAMMA_SLIDER'
+  (*(*info).scaling).gamma[(*(*info).scaling).imrefscaling] = $
+    10.^((FLOAT(event.VALUE)/500.) - 1.)
+  WIDGET_CONTROL, (*(*info).ctrlsview).gamma_label, $
+    SET_VALUE=STRING((*(*info).scaling).gamma[(*(*info).scaling).imrefscaling],$
+    FORMAT='(F6.3)')
+  TANAT_DRAW_SLICE, event, REFERENCE=(*(*info).scaling).imrefscaling
+END
+
+PRO TANAT_SCALING_SLIDER_MIN, event
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_SLIDER_MIN'
+  (*(*info).scaling).minimum[(*(*info).scaling).imrefscaling] = event.VALUE
+  IF ((*(*info).scaling).minimum[(*(*info).scaling).imrefscaling] GE $
+      (*(*info).scaling).maximum[(*(*info).scaling).imrefscaling]) THEN BEGIN
+    (*(*info).scaling).maximum[(*(*info).scaling).imrefscaling] = $
+      (*(*info).scaling).minimum[(*(*info).scaling).imrefscaling] + 1
+    TANAT_SCALING_SET_SLIDERS_BUTTONS, event
+  ENDIF
+  TANAT_DRAW_SLICE, event, REFERENCE=(*(*info).scaling).imrefscaling
+END
+
+PRO TANAT_SCALING_SLIDER_MAX, event
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_SLIDER_MAX'
+  (*(*info).scaling).maximum[(*(*info).scaling).imrefscaling] = event.VALUE
+  IF ((*(*info).scaling).maximum[(*(*info).scaling).imrefscaling] LE $
+      (*(*info).scaling).minimum[(*(*info).scaling).imrefscaling]) THEN BEGIN
+    (*(*info).scaling).minimum[(*(*info).scaling).imrefscaling] = $
+      (*(*info).scaling).maximum[(*(*info).scaling).imrefscaling] - 1
+    TANAT_SCALING_SET_SLIDERS_BUTTONS, event
+  ENDIF
+  TANAT_DRAW_SLICE, event, REFERENCE=(*(*info).scaling).imrefscaling
+END
+
+PRO TANAT_SCALING_RESET_DEFAULTS, event
+; Handles events from the minimum scaling value slider
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SCALING_RESET_DEFAULTS'
+  ; Reset contrast value
+  (*(*info).scaling).minimum[(*(*info).scaling).imrefscaling] = 0
+  (*(*info).scaling).maximum[(*(*info).scaling).imrefscaling] = 100
+  (*(*info).scaling).gamma[(*(*info).scaling).imrefscaling] = 1.
+  TANAT_SCALING_SET_SLIDERS_BUTTONS, event
+  TANAT_DRAW_SLICE, event, REFERENCE=(*(*info).scaling).imrefscaling
+END 
+
 
 ;================================================================================= GET SERIES OF POINTS PROCEDURES
 PRO TANAT_SERIES_PATH, event
@@ -1059,9 +1148,11 @@ PRO TANAT_SET_CONTROLS, event
 	WIDGET_CONTROL, (*(*info).ctrlsview).lower_t_text, SET_VALUE = STRTRIM((*(*info).dataparams).t_first,2)
 	WIDGET_CONTROL, (*(*info).ctrlsview).upper_t_text, SET_VALUE = STRTRIM((*(*info).dataparams).t_last,2)
 	WIDGET_CONTROL, (*(*info).ctrlsview).reset_trange_but, SENSITIVE = 0
-	WIDGET_CONTROL, (*(*info).ctrlsview).scale_button, SET_BUTTON = 0
-	WIDGET_CONTROL, (*(*info).ctrlsview).min_scale_slider, SET_VALUE = 0, SENSITIVE = 0
-	WIDGET_CONTROL, (*(*info).ctrlsview).max_scale_slider, SET_VALUE = 100, SENSITIVE = 0
+  (*(*info).scaling).minimum[0] = 0
+  (*(*info).scaling).maximum[0] = 100
+  (*(*info).scaling).gamma[0] = 1
+  TANAT_SCALING_SET_SLIDERS_BUTTONS, event
+  ; Set controls on tab (Spectral)
 	WIDGET_CONTROL, (*(*info).ctrlsview).single_pos, /SET_BUTTON, SENSITIVE = (*(*info).dispswitch).slab_set
 	WIDGET_CONTROL, (*(*info).ctrlsview).double_pos, SENSITIVE = (*(*info).dispswitch).slab_set
 	WIDGET_CONTROL, (*(*info).ctrlsview).mult_pos, $
@@ -1248,30 +1339,6 @@ PRO TANAT_SLIDER_LX, event
 	TANAT_DRAW, event
 END
 
-PRO TANAT_SLIDER_SCALING_MIN, event
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_SCALING_MIN'
-	(*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling] = event.VALUE
-	IF ((*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling] GE (*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling]) THEN BEGIN
-		(*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling] = (*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling] + 1
-		WIDGET_CONTROL, (*(*info).ctrlsview).max_scale_slider, SET_VALUE = (*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling] 
-	ENDIF
-	TANAT_SCALING_RANGE, event
-	TANAT_DRAW, event
-END
-
-PRO TANAT_SLIDER_SCALING_MAX, event
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_SCALING_MAX'
-	(*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling] = event.VALUE
-	IF ((*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling] LE (*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling]) THEN BEGIN
-		(*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling] = (*(*(*info).scaling).max_val)[(*(*info).scaling).imrefscaling] - 1
-		WIDGET_CONTROL, (*(*info).ctrlsview).min_scale_slider, SET_VALUE = (*(*(*info).scaling).min_val)[(*(*info).scaling).imrefscaling]
-	ENDIF
-	TANAT_SCALING_RANGE, event
-	TANAT_DRAW, event
-END
-
 PRO TANAT_SLIDER_SPECTSTEP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF ((((*(*info).feedbparams).verbosity)[2] EQ 1) OR (((*(*info).feedbparams).verbosity)[3] EQ 1)) THEN TANAT_VERBOSE_GET_ROUTINE, event, 'TANAT_SLIDER_SPECTSTEP'
@@ -1445,7 +1512,7 @@ PRO TANAT_UPDATE_LP, event
 		ENDELSE
 		*(*(*info).data).loopslice = (loopslice_1 + loopslice_2)/2.
 	ENDIF
-	TANAT_SCALING_RANGE, event
+;	TANAT_SCALING_RANGE, event
 END
 
 PRO TANAT_UPDATE_STARTUP_FEEDBACK, bgim, xout, yout, feedback_text
@@ -1700,6 +1767,8 @@ PRO TANAT,$							; call program
 	x_vals = PTR_NEW(FLTARR(1000))
 	y_vals = PTR_NEW(FLTARR(1000))
 
+  gamma_val = [1.,1.]
+
 ;========================================================================= SETTING UP WIDGET
 ;--------------------------------------------------------------------------------- INITIALISE CONTROL PANEL
   control_panel	      = WIDGET_BASE(TITLE = 'TANAT: Timeslice Analysis Tool', $
@@ -1735,38 +1804,27 @@ PRO TANAT,$							; call program
 	view_tab	          = WIDGET_BASE(tab_tlb, TITLE = 'View',/COLUMN)
 	setup_tab	          = WIDGET_BASE(tab_tlb, TITLE='Set up',/COLUMN)
 	WIDGET_CONTROL, tab_tlb, SET_TAB_CURRENT = 3
-
-	settings	          = WIDGET_BASE(setup_tab, /ROW, /FRAME)
-	dimensions	        = WIDGET_BASE(settings ,/COLUMN)
-	arcsec_field	      = WIDGET_BASE(dimensions, /ROW)
-	arcsec_label	      = WIDGET_LABEL(arcsec_field, $
-                          VALUE='Arcseconds per pixel:', /ALIGN_LEFT)
-	arcsec_text	        = WIDGET_TEXT(arcsec_field, VALUE=STRTRIM(arcsecpix,2),$
-                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_SET_ARCSEC')
-	seconds_field	      = WIDGET_BASE(dimensions, /ROW)
-	seconds_label	      = WIDGET_LABEL(seconds_field, $
-                          VALUE='Seconds per timestep:', /ALIGN_LEFT)
-	seconds_text	      = WIDGET_TEXT(seconds_field, $
-                          VALUE=STRTRIM(secondststep,2), /EDITABLE, XSIZE=5, $
-                          EVENT_PRO='TANAT_SET_SECONDS')
-	savefile	          = WIDGET_BASE(settings, /COLUMN, /FRAME)
-	savefile_label	    = WIDGET_LABEL(savefile, VALUE='Measurements saved to file:')
-	savefile_text	      = WIDGET_TEXT(savefile, VALUE='tanat_measurements.dat',$
-                          /EDITABLE, XSIZE=25, EVENT_PRO='TANAT_SET_SAVEFILENAME')
-
-	t_range_field	      = WIDGET_BASE(view_tab, /ROW, /FRAME)
-	lower_t_label	      = WIDGET_LABEL(t_range_field, VALUE='Lower t-value:', $
-                          /ALIGN_LEFT)
-	lower_t_text	      = WIDGET_TEXT(t_range_field, VALUE=STRTRIM(t_first,2),$
-                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_T_LOW')
-	upper_t_label	      = WIDGET_LABEL(t_range_field, VALUE='Upper t-value:', $
-                          /ALIGN_LEFT)
-	upper_t_text	      = WIDGET_TEXT(t_range_field, VALUE=STRTRIM(t_last,2),$
-                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_T_UPP')
-	reset_trange_but    = WIDGET_BUTTON(t_range_field, $
-                          VALUE='Reset temporal boundaries', $
-                          EVENT_PRO='TANAT_T_RANGE_RESET', SENSITIVE=0)
-
+	
+  detspect_frame	    = WIDGET_BASE(buttons_base, /FRAME, /COLUMN)
+	detspect_buts	      = WIDGET_BASE(detspect_frame, /ROW, /NONEXCLUSIVE)
+	subtract_but	      = WIDGET_BUTTON(detspect_buts, VALUE='Subtract average',$
+                          EVENT_PRO='TANAT_LS_SUBTRACT', TOOLTIP='Subtract '+$
+                          'detailed spectrum from average spectrum', $
+                          SENSITIVE=slab_set)
+	detspect_range	    = WIDGET_BASE(detspect_frame, /ROW)
+	lower_y_label	      = WIDGET_LABEL(detspect_range, VALUE='Lower y-value:',$
+                          /ALIGN_LEFT, SENSITIVE=slab_set)
+	lower_y_text	      = WIDGET_TEXT(detspect_range, VALUE='0',  /EDITABLE,$
+                          XSIZE=5, EVENT_PRO='TANAT_LS_LOW', SENSITIVE=slab_set)
+	upper_y_label	      = WIDGET_LABEL(detspect_range, VALUE='Upper y-value:',$
+                          /ALIGN_LEFT, SENSITIVE=slab_set)
+	upper_y_text	      = WIDGET_TEXT(detspect_range, VALUE='1',  /EDITABLE,$
+                          XSIZE=5, EVENT_PRO='TANAT_LS_UPP', SENSITIVE=slab_set)
+	detsp_drawbase	    = WIDGET_BASE(detspect_frame, /COLUMN)
+	det_spect	          = WIDGET_DRAW(detsp_drawbase, XSIZE=lswinx, YSIZE=lswiny,$
+                          SENSITIVE=slab_set)
+  
+  ; ==================== Measurement Tab ====================
 	sliders		          = WIDGET_BASE(measure_tab, /ROW, /FRAME)
 	pos_sliders	        = WIDGET_BASE(sliders, /COLUMN)
   lp_slid		          = WIDGET_SLIDER(pos_sliders, TITLE = 'Spectral position',$
@@ -1799,6 +1857,7 @@ PRO TANAT,$							; call program
                           EVENT_PRO='TANAT_SLIDER_REFLP_LOCK', $
                           SENSITIVE=(eqnlps AND (refnlp GT 1)))
   WIDGET_CONTROL, ref_lp_but, SET_BUTTON = (eqnlps AND (refnlp GT 1))
+
 
 	parameters	        = WIDGET_BASE(measure_tab, /ROW, /FRAME)
 	speed		            = WIDGET_BASE(parameters, /COLUMN)
@@ -1871,26 +1930,42 @@ PRO TANAT,$							; call program
                           'measurements for this timeslice', $
                           EVENT_PRO='TANAT_DRAW_OVERLAY_SAVED_MEASUREMENTS')
 
+  ; ==================== Set-up Tab ====================
+	settings	          = WIDGET_BASE(setup_tab, /ROW, /FRAME)
+	dimensions	        = WIDGET_BASE(settings ,/COLUMN)
+	arcsec_field	      = WIDGET_BASE(dimensions, /ROW)
+	arcsec_label	      = WIDGET_LABEL(arcsec_field, $
+                          VALUE='Arcseconds per pixel:', /ALIGN_LEFT)
+	arcsec_text	        = WIDGET_TEXT(arcsec_field, VALUE=STRTRIM(arcsecpix,2),$
+                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_SET_ARCSEC')
+	seconds_field	      = WIDGET_BASE(dimensions, /ROW)
+	seconds_label	      = WIDGET_LABEL(seconds_field, $
+                          VALUE='Seconds per timestep:', /ALIGN_LEFT)
+	seconds_text	      = WIDGET_TEXT(seconds_field, $
+                          VALUE=STRTRIM(secondststep,2), /EDITABLE, XSIZE=5, $
+                          EVENT_PRO='TANAT_SET_SECONDS')
+	savefile	          = WIDGET_BASE(settings, /COLUMN, /FRAME)
+	savefile_label	    = WIDGET_LABEL(savefile, VALUE='Measurements saved to file:')
+	savefile_text	      = WIDGET_TEXT(savefile, VALUE='tanat_measurements.dat',$
+                          /EDITABLE, XSIZE=25, EVENT_PRO='TANAT_SET_SAVEFILENAME')
 
-	detspect_frame	    = WIDGET_BASE(buttons_base, /FRAME, /COLUMN)
-	detspect_buts	      = WIDGET_BASE(detspect_frame, /ROW, /NONEXCLUSIVE)
-	subtract_but	      = WIDGET_BUTTON(detspect_buts, VALUE='Subtract average',$
-                          EVENT_PRO='TANAT_LS_SUBTRACT', TOOLTIP='Subtract '+$
-                          'detailed spectrum from average spectrum', $
-                          SENSITIVE=slab_set)
-	detspect_range	    = WIDGET_BASE(detspect_frame, /ROW)
-	lower_y_label	      = WIDGET_LABEL(detspect_range, VALUE='Lower y-value:',$
-                          /ALIGN_LEFT, SENSITIVE=slab_set)
-	lower_y_text	      = WIDGET_TEXT(detspect_range, VALUE='0',  /EDITABLE,$
-                          XSIZE=5, EVENT_PRO='TANAT_LS_LOW', SENSITIVE=slab_set)
-	upper_y_label	      = WIDGET_LABEL(detspect_range, VALUE='Upper y-value:',$
-                          /ALIGN_LEFT, SENSITIVE=slab_set)
-	upper_y_text	      = WIDGET_TEXT(detspect_range, VALUE='1',  /EDITABLE,$
-                          XSIZE=5, EVENT_PRO='TANAT_LS_UPP', SENSITIVE=slab_set)
-	detsp_drawbase	    = WIDGET_BASE(detspect_frame, /COLUMN)
-	det_spect	          = WIDGET_DRAW(detsp_drawbase, XSIZE=lswinx, YSIZE=lswiny,$
-                          SENSITIVE=slab_set)
+  ; ==================== View Tab ====================
+	t_range_field	      = WIDGET_BASE(view_tab, /ROW, /FRAME)
+	lower_t_label	      = WIDGET_LABEL(t_range_field, VALUE='Lower t-value:', $
+                          /ALIGN_LEFT)
+	lower_t_text	      = WIDGET_TEXT(t_range_field, VALUE=STRTRIM(t_first,2),$
+                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_T_LOW')
+	upper_t_label	      = WIDGET_LABEL(t_range_field, VALUE='Upper t-value:', $
+                          /ALIGN_LEFT)
+	upper_t_text	      = WIDGET_TEXT(t_range_field, VALUE=STRTRIM(t_last,2),$
+                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_T_UPP')
+	reset_trange_but    = WIDGET_BUTTON(t_range_field, $
+                          VALUE='Reset temporal boundaries', $
+                          EVENT_PRO='TANAT_T_RANGE_RESET', SENSITIVE=0)
+
+
 	
+  ; ==================== Spectral Tab ====================
 	spect_base 	        = WIDGET_BASE(spectral_tab, /COLUMN, /FRAME)
 	pos_buts_1	        = WIDGET_BASE(spect_base, /COLUMN, /EXCLUSIVE)
 	single_pos	        = WIDGET_BUTTON(pos_buts_1, $
@@ -1940,16 +2015,25 @@ PRO TANAT,$							; call program
                           VALUE='Blink between spectral positions', $
                           EVENT_PRO='TANAT_PB_SPECTBLINK', SENSITIVE=slab_set)
 
-	scale_base	        = WIDGET_BASE(view_tab, /ROW, /FRAME)
-	scale_but_base	    = WIDGET_BASE(scale_base, /ROW, /NONEXCLUSIVE)
-  scale_but	          = WIDGET_BUTTON(scale_but_base, VALUE='Manual scaling',$
-                          EVENT_PRO='TANAT_SCALING_MAN')
-  min_scale_slider    = WIDGET_SLIDER(scale_base, TITLE='Minimum', VALUE=0,$
-                          MIN=0, MAX=99, EVENT_PRO='TANAT_SLIDER_SCALING_MIN',$
-                          /DRAG, SENSITIVE=0)
-  max_scale_slider    = WIDGET_SLIDER(scale_base, TITLE='Maximum', VALUE=100,$
-                          MIN=1, MAX=100, EVENT_PRO='TANAT_SLIDER_SCALING_MAX',$
-                          /DRAG, SENSITIVE=0)
+	scale_base	        = WIDGET_BASE(view_tab, /COLUMN, /FRAME)
+  scaling_base        = WIDGET_BASE(scale_base, /ROW)
+  scaling_cbox        = WIDGET_COMBOBOX(scaling_base, $
+                          VALUE=['Main data','Reference data'], $
+                          EVENT_PRO='TANAT_SCALING_SELECT_DATA')
+  scale_reset_but     = WIDGET_BUTTON(scaling_base, VALUE='Reset', $
+                          EVENT_PRO='TANAT_SCALING_RESET_DEFAULTS')
+  scalemin_slider     = WIDGET_SLIDER(scale_base, TITLE='Minimum', VALUE=0,$
+                          MIN=0, MAX=99, EVENT_PRO='TANAT_SCALING_SLIDER_MIN',$
+                          /DRAG)
+  scalemax_slider     = WIDGET_SLIDER(scale_base, TITLE='Maximum', VALUE=100,$
+                          MIN=1, MAX=100, EVENT_PRO='TANAT_SCALING_SLIDER_MAX',$
+                          /DRAG)
+  gamma_label         = WIDGET_LABEL(scale_base, VALUE=STRING(gamma_val[0], $
+                          FORMAT='(F6.3)'), /ALIGN_CENTER,XSIZE=250)
+  gamma_slider        = WIDGET_SLIDER(scale_base, TITLE='Gamma', MIN=0, MAX=1000, $
+                          VALUE=500*(ALOG10(gamma_val[0])+1), $
+                          EVENT_PRO='TANAT_SCALING_GAMMA_SLIDER', $
+                          /SUPPRESS, /DRAG)
 
 
 	smooth_buttons	    = WIDGET_BASE(view_tab, /ROW, /EXCLUSIVE, /FRAME)
@@ -2012,7 +2096,9 @@ PRO TANAT,$							; call program
 ;--------------------------------------------------------------------------------- VIEW TAB CONTROLS
 	ctrlsview = { $
 		lower_t_text:lower_t_text, upper_t_text:upper_t_text, reset_trange_but:reset_trange_but, $
-		min_scale_slider:min_scale_slider, max_scale_slider:max_scale_slider, scale_button:scale_but, $
+		scalemin_slider:scalemin_slider, scalemax_slider:scalemax_slider,$
+    gamma_slider:gamma_slider, gamma_label:gamma_label, $
+    scale_reset_button:scale_reset_but, $
 		single_pos:single_pos, double_pos:double_pos, mult_pos:mult_pos, $
 		low_low_slider:low_low_slider, low_upp_slider:low_upp_slider, upp_low_slider:upp_low_slider, upp_upp_slider:upp_upp_slider, $
 		non_smooth_button:non_smooth_but, smooth_button:smooth_but $
@@ -2074,8 +2160,9 @@ PRO TANAT,$							; call program
 	}
 ;--------------------------------------------------------------------------------- SCALING PARAMS
 	scaling = { $
-		min_val:PTR_NEW([0.,0.]), max_val:PTR_NEW([100.,100.]), range:PTR_NEW([100.,100.]),minimum:PTR_NEW([0.,0.]), $
-		imrefscaling:0 $
+		min_val:PTR_NEW([0.,0.]), max_val:PTR_NEW([100.,100.]), $
+    range:PTR_NEW([100.,100.]),minimum:[0.,0.], maximum:[100.,100.],$
+		imrefscaling:0, gamma:gamma_val $
 	}
 ;--------------------------------------------------------------------------------- VERSION INFO
 	versioninfo = { $
@@ -2132,7 +2219,7 @@ PRO TANAT,$							; call program
 ;		TANAT_DRAW_REF, pseudoevent
 ;	ENDIF
 ;	(*(*info).scaling).imrefscaling = 0
-	TANAT_SCALING_RANGE, pseudoevent
+;	TANAT_SCALING_RANGE, pseudoevent
 ;	TANAT_DRAW_MAIN, pseudoevent
 ;	TANAT_DRAW_LS, pseudoevent
 	TANAT_DRAW, pseudoevent
