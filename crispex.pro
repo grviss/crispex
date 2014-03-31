@@ -1719,7 +1719,8 @@ PRO CRISPEX_CURSOR_GET_XY, event, x_tmp, y_tmp
   ; Get temporary data coordinates from temporary device coordinates
   xy_tmp = CRISPEX_TRANSFORM_DATA2DEVICE(info, X=x_tmp, Y=y_tmp, $
     MAIN=(((*(*info).winids).current_wid EQ (*(*info).winids).xydrawid) OR $
-          ((*(*info).winids).current_wid EQ (*(*info).winids).imrefdrawid)), $
+          ((*(*info).winids).current_wid EQ (*(*info).winids).imrefdrawid) OR $
+          ((*(*info).winids).current_wid EQ (*(*info).winids).dopdrawid)), $
     REFERENCE=((*(*info).winids).current_wid EQ (*(*info).winids).refdrawid), $
     /INVERSE)
   ; Check whether current window ID is reference or main
