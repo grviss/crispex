@@ -17839,10 +17839,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                           BUTTON_UVALUE=INDGEN(2), IDS=raster_button_ids, $
                           /NONEXCLUSIVE, /COLUMN, $
                           EVENT_FUNC='CRISPEX_BGROUP_RASTER_OVERLAY')
-  WIDGET_CONTROL, raster_button_ids[0], SENSITIVE=hdr.showref, $
-    SET_BUTTON=hdr.showref
-  WIDGET_CONTROL, raster_button_ids[1], SENSITIVE=hdr.sjifile, $
-    SET_BUTTON=hdr.sjifile                        
+  WIDGET_CONTROL, raster_button_ids[0], $
+    SET_BUTTON=(hdr.showref AND (nrasterdims[0] GT 1)), $
+    SENSITIVE=(hdr.showref AND (nrasterdims[0] GT 1))
+  WIDGET_CONTROL, raster_button_ids[1], $
+    SET_BUTTON=(hdr.sjifile AND (nrasterdims[1] GT 1)),$
+    SENSITIVE=(hdr.showref AND (nrasterdims[0] GT 1))
   overlays_divider3   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
 
   ; ==================== Parameters Overview ====================
@@ -18729,8 +18731,10 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	}
 ;-------------------- OVERLAY SWITCHES
 	overlayswitch = { $
-		det_overlay_all:0, loopslit:0, overlalways:1, looppath_feedback:1, mask:hdr.maskfile, $
-    maskim:[hdr.maskfile,hdr.showref,0], sjiraster:1, refraster:1 $		
+		det_overlay_all:0, loopslit:0, overlalways:1, looppath_feedback:1, $
+    mask:hdr.maskfile, maskim:[hdr.maskfile,hdr.showref,0], $
+    sjiraster:(hdr.sjifile AND (nrasterdims[0] GT 1)), $
+    refraster:(hdr.showref AND (nrasterdims[0] GT 1)) $		
 	}
 ;-------------------- PARAMETER WINDOW CONTROLS 
 	paramparams = { $
