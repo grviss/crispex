@@ -128,9 +128,14 @@
 ;                       reference data.
 ;			              Set first element to '' if you only want to set the reference y-title, e.g. 
 ;                   YTITLE=['','Velocity [km/s]'].
-;	  WINDOW_LARGE	- Override the "1:1 window scaling whenever possible" setting. Useful for data with
-;                   small nx and/or ny, where 1:1 image display is possible, but would yield small 
-;                   image display windows. Defaults to not set.
+;	  WINDOW_LARGE	- Override the "1:1 window scaling whenever possible" setting.
+;                   Useful for data with small nx and/or ny, where 1:1 image
+;                   display is possible, but would yield small image display
+;                   windows. If set to 1 (i.e., as flag) the window sizes will
+;                   be determined based on the machine screen sizes. If set to a
+;                   value larger than 1, the main image y-size will be set to
+;                   that value, but only if it exceeds the native image y-size.
+;                   Defaults to not set.
 ;	  VERBOSE		    - Verbosity setting for program setup and running. Mainly for maintenance purposes. 
 ;                   Verbosity levels can be set by supplying the keyword with the following values 
 ;                   (add bitwise):
@@ -16645,56 +16650,69 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   x_scr_size = screensizes[2,monitor_order[0]]
 	y_scr_size = screensizes[3,monitor_order[0]]
 
-  ; Check whether window would in principle fit (only if xsize > nx+space for
-  ; spectral windows AND ysize > ny):
-	IF ((x_scr_size GT (imwinx_default+2*xdelta+0.45*x_scr_size)) AND $
-      (y_scr_size GT imwiny_default)) THEN BEGIN		
-    ; If xsize is small, then still go to old settings procedures
-		IF ((imwinx_default LT 0.48 * x_scr_size) AND $
-        (imwiny_default LT (0.48 * x_scr_size / ratio)) AND $
-        (extreme_aspect OR KEYWORD_SET(WINDOW_LARGE))) THEN BEGIN				
-      ; Set maximum x- and y-extent of image window
-      IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
-        imwinx = 5*hdr.nx $
-      ELSE $
-			  imwinx 	= 0.48 * x_scr_size											
-			imwiny 	= imwinx / ratio
-      ; Failsafe to avoid a window larger than the screensize
-		  IF (imwiny GT y_scr_size) THEN BEGIN										
-			  imwiny = 0.9 * y_scr_size											
+  IF (N_ELEMENTS(WINDOW_LARGE) NE 1) THEN window_large = 0
+  IF (window_large LE 1) THEN BEGIN
+    ; Check whether window would in principle fit (only if xsize > nx+space for
+    ; spectral windows AND ysize > ny), but override by WINDOW_LARGE if set:
+  	IF ((x_scr_size GT (imwinx_default+2*xdelta+0.2*x_scr_size)) AND $
+        (y_scr_size GT imwiny_default)) THEN BEGIN		
+      ; If xsize is small, then still go to old settings procedures
+  		IF ((imwinx_default LT 0.48 * x_scr_size) AND $
+          (imwiny_default LT (0.48 * x_scr_size / ratio)) AND $
+          (extreme_aspect OR (window_large EQ 1))) THEN BEGIN				
+        ; Set maximum x- and y-extent of image window
         IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
           imwinx = 5*hdr.nx $
         ELSE $
-			    imwinx = imwiny * ratio
-		  ENDIF
-			IF (verbosity[1] EQ 1) THEN $
-        msg = 'User screen resolution allows 1:1 image window sizing, '+$
-          'but dimensions are small. '
-    ; Else fit the window with actual data dimensions
-		ENDIF ELSE BEGIN
-      ; Use actual nx/ny as imwinx/imwiny
-			imwinx	= hdr.nx                  
-      IF (extreme_aspect AND (hdr.nx EQ 1)) THEN imwinx *= 5
-			imwiny	= hdr.ny                 
-			IF (verbosity[1] EQ 1) THEN $
-        msg = 'User screen resolution allows 1:1 image window sizing. '
-		ENDELSE
-  ; Else use the old procedures to determine imwinx and imwiny
-	ENDIF ELSE BEGIN													
-    ; Set maximum x- and y-extent of image window
-		imwinx 	= 0.48 * x_scr_size
-		imwiny 	= imwinx / ratio	 
-    ; Failsafe to avoid a window larger than the screensize
-		IF (imwiny GT y_scr_size) THEN BEGIN										
-			imwiny = 0.9 * y_scr_size
-      IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
-        imwinx = 5*hdr.nx $
-      ELSE $
-			  imwinx = imwiny * ratio
-		ENDIF
-		IF (verbosity[1] EQ 1) THEN $
-      msg = 'User screen resolution does not allow for 1:1 image window sizing. '
-	ENDELSE
+  			  imwinx 	= 0.48 * x_scr_size											
+  			imwiny 	= imwinx / ratio
+        ; Failsafe to avoid a window larger than the screensize
+  		  IF (imwiny GT y_scr_size) THEN BEGIN										
+  			  imwiny = 0.9 * y_scr_size											
+          IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
+            imwinx = 5*hdr.nx $
+          ELSE $
+  			    imwinx = imwiny * ratio
+  		  ENDIF
+  			IF (verbosity[1] EQ 1) THEN $
+          msg = 'User screen resolution allows 1:1 image window sizing, '+$
+            'but dimensions are small. '
+      ; Else fit the window with actual data dimensions
+  		ENDIF ELSE BEGIN
+        ; Use actual nx/ny as imwinx/imwiny
+  			imwinx	= hdr.nx                  
+        IF (extreme_aspect AND (hdr.nx EQ 1)) THEN imwinx *= 5
+  			imwiny	= hdr.ny                 
+  			IF (verbosity[1] EQ 1) THEN $
+          msg = 'User screen resolution allows 1:1 image window sizing. '
+  		ENDELSE
+    ; Else use the old procedures to determine imwinx and imwiny
+  	ENDIF ELSE BEGIN													
+      ; Set maximum x- and y-extent of image window
+  		imwinx 	= 0.48 * x_scr_size
+  		imwiny 	= imwinx / ratio	 
+      ; Failsafe to avoid a window larger than the screensize
+  		IF (imwiny GT y_scr_size) THEN BEGIN										
+  			imwiny = 0.9 * y_scr_size
+        IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
+          imwinx = 5*hdr.nx $
+        ELSE $
+  			  imwinx = imwiny * ratio
+  		ENDIF
+  		IF (verbosity[1] EQ 1) THEN $
+        msg = 'User screen resolution does not allow for 1:1 image window sizing. '
+  	ENDELSE
+  ENDIF ELSE BEGIN
+    ; Else set imwiny to WINDOW_LARGE value and scale imwinx accordingly, but
+    ; with a failsafe for "ridiculously" small values
+    IF (window_large GE imwiny_default) THEN BEGIN
+      imwiny = window_large
+      imwinx = imwiny / ratio
+    ENDIF ELSE BEGIN
+      imwinx = imwinx_default
+      imwiny = imwiny_default
+    ENDELSE
+  ENDELSE
   ; Fix window sizes for pixelratio
   IF (pixelratio GT 1) THEN $
     imwinx *= pixelratio $
