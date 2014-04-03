@@ -1408,7 +1408,6 @@ PRO CRISPEX_CLOSE_EVENT_WINDOW, event
 ; Called upon closing window when no extra processes need to be run
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF (event.TOP EQ (*(*info).winids).restsestlb) THEN (*(*info).winids).restsestlb = 0
 	IF (event.TOP EQ (*(*info).winids).savewintlb) THEN BEGIN
 		(*(*info).winids).savewintlb = 0
 		IF ((*(*info).winids).saveoptwintlb GT 0) THEN BEGIN
@@ -2023,7 +2022,6 @@ PRO CRISPEX_DISPLAYS_ALL_TO_FRONT, event
 	IF ((*(*info).winids).savetlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).savetlb, /SHOW
 	IF ((*(*info).winids).detsavetlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).detsavetlb, /SHOW
 	IF ((*(*info).winids).restoretlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).restoretlb, /SHOW
-	IF ((*(*info).winids).restsestlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).restsestlb, /SHOW
 	IF ((*(*info).winids).savewintlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).savewintlb, /SHOW
 	IF ((*(*info).winids).saveoptwintlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).saveoptwintlb, /SHOW
 	IF ((*(*info).winids).intmenutlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).intmenutlb, /SHOW
@@ -12624,50 +12622,6 @@ PRO CRISPEX_SESSION_SAVE, event, sesfilename
 	(*(*info).winids).savewintlb = 0
 END
 
-PRO CRISPEX_SESSION_RESTORE_WINDOW, event
-; Opens the session restore window
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	*(*(*info).sesparams).csesfiles = FILE_SEARCH((*(*info).paths).ipath+"*cses", COUNT = csesfilecount)
-	IF (csesfilecount GT 0) THEN BEGIN
-		eventval = INDGEN(csesfilecount)
-		base = WIDGET_BASE(TITLE = 'CRISPEX'+(*(*info).sesparams).instance_label+': Restore session', GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
-		disp = WIDGET_BASE(base, /COLUMN)
-		buts_disp = WIDGET_BASE(disp, /COLUMN, /FRAME)
-		choose_text = WIDGET_LABEL(buts_disp, VALUE = 'Choose the session file that is to be restored:', /ALIGN_LEFT)
-		IF (csesfilecount GT 15) THEN sel_buts = WIDGET_BASE(buts_disp, /COLUMN, /EXCLUSIVE, Y_SCROLL_SIZE = 425) ELSE sel_buts = WIDGET_BASE(buts_disp, /COLUMN, /EXCLUSIVE)
-		FOR i=0,csesfilecount-1 DO BEGIN
-			(*(*(*info).sesparams).sessions)[i] = 0
-			singlefilename = (STRSPLIT((*(*(*info).sesparams).csesfiles)[i], PATH_SEP(), /EXTRACT))[N_ELEMENTS(STRSPLIT((*(*(*info).sesparams).csesfiles)[i], PATH_SEP(), /EXTRACT))-1]
-			but_val = singlefilename
-			sel_but = WIDGET_BUTTON(sel_buts, VALUE = but_val, UVALUE = eventval[i], EVENT_PRO = 'CRISPEX_SESSION_RESTORE_EVENT') 
-		ENDFOR
-		dec_buts = WIDGET_BASE(disp, COLUMN=2, /GRID_LAYOUT, /ALIGN_CENTER)
-		cancel = WIDGET_BUTTON(dec_buts, VALUE = 'Cancel', EVENT_PRO = 'CRISPEX_CLOSE_EVENT_WINDOW')
-		(*(*info).sesparams).rest_sessions = WIDGET_BUTTON(dec_buts, VALUE = 'Restore session', EVENT_PRO = 'CRISPEX_SESSION_RESTORE', SENSITIVE = 0)
-		WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = 500, TLB_SET_YOFFSET = 500
-		WIDGET_CONTROL, base, SET_UVALUE = info
-		XMANAGER, 'CRISPEX', base, /NO_BLOCK
-		(*(*info).winids).restsestlb = base
-		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [csesfilecount,(*(*info).winids).restsestlb], labels=['Restored sessions','restsestlb']
-	ENDIF ELSE BEGIN
-		CRISPEX_WINDOW_OK, event,'ERROR!','No stored session (*.cses) files found.', $
-      OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
-		(*(*info).winids).errtlb = tlb
-	ENDELSE
-END
-
-PRO CRISPEX_SESSION_RESTORE_EVENT, event
-; Handles the selection of a session to be restored
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
-	(*(*(*info).sesparams).sessions)[eventval] = ( (*(*(*info).sesparams).sessions)[eventval] EQ 0) 
-	condition = WHERE(*(*(*info).sesparams).sessions EQ 1, count)
-	WIDGET_CONTROL, (*(*info).sesparams).rest_sessions, SENSITIVE = (count GT 0)
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [eventval,(*(*(*info).retrparams).sel_loops)[eventval]], labels=['Restored session ID','Restored session selected']
-END
-
 PRO CRISPEX_SESSION_RESTORE_READ_POINTER, event, currpointer, restpointer, NO_RESTORE=no_restore
 ; Handles the actual restoration of the session
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -12706,12 +12660,15 @@ PRO CRISPEX_SESSION_RESTORE, event
 ; Handles the actual restoration of the session
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	WIDGET_CONTROL, /HOURGLASS
-	CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=0, feedback_text='Restoring session file and checking version...', /SESSION
-  wheresessel = WHERE(*(*(*info).sesparams).sessions EQ 1, count)
-  IF (count GT 0) THEN BEGIN
-  	restore_session = (*(*(*info).sesparams).csesfiles)[wheresessel]
-  	RESTORE, restore_session
+  csesfile = $
+    DIALOG_PICKFILE(/READ,/MUST_EXIST,PATH=(*(*info).paths).ipath,$
+    TITLE='CRISPEX'+(*(*info).sesparams).instance_label+': Restore session', $
+    FILTER='*cses')
+  IF (STRCOMPRESS(csesfile) NE '') THEN BEGIN
+  	WIDGET_CONTROL, /HOURGLASS
+  	CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=0, $
+      feedback_text='Restoring session file and checking version...', /SESSION
+  	RESTORE, csesfile
   	; Check revision number
   	IF (N_ELEMENTS(versioninfo) GT 0) THEN cont = (versioninfo.revision_number GE '546') ELSE cont = 0
   	IF cont THEN BEGIN
@@ -12856,7 +12813,7 @@ PRO CRISPEX_SESSION_RESTORE, event
           (*(*info).dataswitch).reffile, (*(*info).dataswitch).sjifile]
         nrasterdims = [SIZE((*(*info).dataparams).tarr_raster_main,/N_DIMENSIONS), $
                         SIZE((*(*info).dataparams).tarr_raster_ref,/N_DIMENSIONS), 1]
-        FOR i=0,N_ELEMENTS(master_time_labels)-1 DO $
+        FOR i=0,N_ELEMENTS((*(*info).ctrlscp).master_time_ids)-1 DO $
           WIDGET_CONTROL, (*(*info).ctrlscp).master_time_ids[i], $
           SET_BUTTON=(i EQ (*(*info).dispparams).master_time), $
           SENSITIVE=(showdata[i] AND (nrasterdims[i] GE 1))
@@ -13054,9 +13011,12 @@ PRO CRISPEX_SESSION_RESTORE, event
   			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_2, $
           SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 2)
         ; Raster overlays
-        WIDGET_CONTROL, (*(*info).ctrlscp).raster_button, $
-          SENSITIVE=(*(*info).dataswitch).sjifile, $
-          SET_BUTTON=(*(*info).overlayswitch).sjiraster
+        WIDGET_CONTROL, (*(*info).ctrlscp).raster_button_ids[0], $
+          SENSITIVE=((*(*info).dataswitch).reffile AND (nrasterdims[0] GT 1)), $
+          SET_BUTTON=((*(*info).overlayswitch).refraster AND (nrasterdims[0] GT 1))
+        WIDGET_CONTROL, (*(*info).ctrlscp).raster_button_ids[1], $
+          SENSITIVE=((*(*info).dataswitch).sjifile AND (nrasterdims[0] GT 1)), $
+          SET_BUTTON=((*(*info).overlayswitch).sjiraster AND (nrasterdims[0] GT 1))
   			IF (*(*info).meas).spatial_measurement THEN CRISPEX_MEASURE_CALC, event
   			; Open windows for replotting and replot
   			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Opening windows and refreshing displays...'
@@ -13185,8 +13145,6 @@ PRO CRISPEX_SESSION_RESTORE, event
   			ENDIF
   			CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
   			(*(*(*info).sesparams).sessions)[WHERE(*(*(*info).sesparams).sessions EQ 1)] = 0
-  			WIDGET_CONTROL, (*(*info).winids).restsestlb, /DESTROY
-  			(*(*info).winids).restsestlb = 0
   		ENDIF ELSE BEGIN
   			CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
   			CRISPEX_WINDOW_OK, event,'ERROR!',$
@@ -17240,7 +17198,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                             (STRLEN((*hdr.hdrs_ref[0])[0]) GT 0) OR $
                             (STRLEN((*hdr.hdrs_sji[0])[0]) GT 0)))
 	restore_session		  = WIDGET_BUTTON(filemenu, VALUE='Load session...', $
-                          EVENT_PRO='CRISPEX_SESSION_RESTORE_WINDOW')
+                          EVENT_PRO='CRISPEX_SESSION_RESTORE')
 	save_session		    = WIDGET_BUTTON(filemenu, VALUE='Save session...', $
                           EVENT_PRO='CRISPEX_SESSION_SAVE_WINDOW')
 	save_as_menu		    = WIDGET_BUTTON(filemenu, VALUE='Save as', /SEPARATOR, /MENU)
@@ -17843,8 +17801,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     SET_BUTTON=(hdr.showref AND (nrasterdims[0] GT 1)), $
     SENSITIVE=(hdr.showref AND (nrasterdims[0] GT 1))
   WIDGET_CONTROL, raster_button_ids[1], $
-    SET_BUTTON=(hdr.sjifile AND (nrasterdims[1] GT 1)),$
-    SENSITIVE=(hdr.showref AND (nrasterdims[0] GT 1))
+    SET_BUTTON=(hdr.sjifile AND (nrasterdims[0] GT 1)),$
+    SENSITIVE=(hdr.sjifile AND (nrasterdims[0] GT 1))
   overlays_divider3   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
 
   ; ==================== Parameters Overview ====================
@@ -18904,7 +18862,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	}
 ;-------------------- SESSION PARAMS
 	sesparams = { $
-		rest_sessions:0, sessions:PTR_NEW(INTARR(nphi)), csesfiles:PTR_NEW(STRARR(nphi)), $
+		rest_sessions:0, sessions:PTR_NEW(INTARR(nphi)), $
 		curr_instance_id:LONG(set_instance_id), instance_label:instance_label $		
 	}
 ;-------------------- SCALING
@@ -18955,7 +18913,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		intwid:0, inttlb:0, intdrawid:0, intmenutlb:0, $
     sjiwid:0, sjitlb:0, sjidrawid:0, sjidrawbase:0, $
 		savetlb:0, detsavetlb:0, restoretlb:0, preftlb:0, $							
-		estimatetlb:0, savewintlb:0, saveoptwintlb:0, restsestlb:0, paramtlb:0, $					
+		estimatetlb:0, savewintlb:0, saveoptwintlb:0, $
+    paramtlb:0, $					
 		feedbacktlb:0, abouttlb:0, errtlb:0, warntlb:0, restsesfeedbtlb:0, $
     shorttlb:0, headertlb:0, current_wid:0, $
 		imwintitle:imwintitle, spwintitle:'',lswintitle:'',refwintitle:'',refspwintitle:'',reflswintitle:'', $
