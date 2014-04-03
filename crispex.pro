@@ -1997,7 +1997,7 @@ PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old, NT_OLD=nt_old
     CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW, T_SET=t_set
 END
 
-;================================================================================= DISPLAYS PROCEDURES
+;==================== DISPLAYS PROCEDURES
 PRO CRISPEX_DISPLAYS_ALL_TO_FRONT, event
 ; Brings all opened session windows to front
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
@@ -2126,7 +2126,9 @@ PRO CRISPEX_DISPLAYS_DOPPLER_TOGGLE, event, NO_DRAW=no_draw
 	(*(*info).winswitch).showdop = event.SELECT
 	IF (*(*info).winswitch).showdop THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Doppler image'
-		CRISPEX_WINDOW, (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny, (*(*info).winids).root, title, doptlb, dopwid, (*(*info).winsizes).xdelta,(*(*info).winsizes).ydelta, $
+		CRISPEX_WINDOW, (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny, $
+      (*(*info).winids).root, title, doptlb, dopwid, $
+      (*(*info).winsizes).dopxoffset,(*(*info).winsizes).dopyoffset, $
 			DRAWID = dopdrawid, DRAWBASE = dopdrawbase
 		(*(*info).winids).doptlb = doptlb		&	(*(*info).winids).dopwid = dopwid	&	(*(*info).winids).dopdrawid = dopdrawid
 		(*(*info).winids).dopdrawbase = dopdrawbase	&	(*(*info).winids).dopwintitle = title
@@ -2532,7 +2534,9 @@ PRO CRISPEX_DISPLAYS_INT_TOGGLE, event, NO_DRAW=no_draw
 	IF (*(*info).winswitch).showint THEN BEGIN
 		CRISPEX_DISPLAYS_INT_MENU, event
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Lightcurve plot'
-		CRISPEX_WINDOW, (*(*info).winsizes).intxres, (*(*info).winsizes).intyres, (*(*info).winids).root, title, inttlb, intwid, (*(*info).winsizes).lsxoffset, 0, DRAWID = intdrawid, $
+		CRISPEX_WINDOW, (*(*info).winsizes).intxres, (*(*info).winsizes).intyres, $
+      (*(*info).winids).root, title, inttlb, intwid, $
+      (*(*info).winsizes).lsxoffset, 0, DRAWID = intdrawid, $
 			RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_INT_RESIZE'
 		(*(*info).winids).inttlb = inttlb	&	(*(*info).winids).intwid = intwid	&	(*(*info).winids).intdrawid = intdrawid
 		(*(*info).winids).intwintitle = title
@@ -2609,9 +2613,8 @@ PRO CRISPEX_DISPLAYS_LOOPSLAB, event, NO_DRAW=no_draw
 	CRISPEX_LOOP_GET_SLAB, event
 	title = 'CRISPEX'+(*(*info).sesparams).instance_label+': T-slice along loop'
 	CRISPEX_WINDOW, (*(*info).winsizes).loopxres, (*(*info).winsizes).loopyres, $
-    (*(*info).winids).root, title, tlb, wid, (*(*info).winsizes).xywinx+$
-    (*(*info).winsizes).xdelta, ((*(*info).winswitch).showsp + $
-    (*(*info).winswitch).showphis) * (*(*info).winsizes).ydelta, $
+    (*(*info).winids).root, title, tlb, wid, $
+    (*(*info).winsizes).loopxoffset, (*(*info).winsizes).loopyoffset, $
     DRAWID=loopdrawid, RESIZING=1, RES_HANDLER='CRISPEX_DISPLAYS_LOOPSLAB_RESIZE'
 	PLOT, FINDGEN((*(*info).loopsdata).loopsize), $
     *(*(*info).dispparams).tarr_main, /NODATA, $
@@ -2852,8 +2855,10 @@ PRO CRISPEX_DISPLAYS_IMREFBLINK_TOGGLE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, SENSITIVE=ABS((*(*info).pbparams).imrefmode-1)
 	IF (*(*info).winswitch).showimref THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Main vs. reference image blink'
-		CRISPEX_WINDOW, (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny, (*(*info).winids).root, title, imreftlb, imrefwid, $
-			(*(*info).winsizes).xdelta,(*(*info).winsizes).ydelta, DRAWID = imrefdrawid, DRAWBASE = imrefdrawbase
+		CRISPEX_WINDOW, (*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny, $
+      (*(*info).winids).root, title, imreftlb, imrefwid, $
+			(*(*info).winsizes).imrefxoffset,(*(*info).winsizes).imrefyoffset, $
+      DRAWID = imrefdrawid, DRAWBASE = imrefdrawbase
 		(*(*info).winids).imreftlb = imreftlb		&	(*(*info).winids).imrefwid = imrefwid	&	(*(*info).winids).imrefdrawid = imrefdrawid
 		(*(*info).winids).imrefdrawbase = imrefdrawbase	&	(*(*info).winids).imrefwintitle = title
 		IF ((*(*info).feedbparams).count_pbstats EQ 0) THEN (*(*info).feedbparams).pbstats = SYSTIME(/SECONDS)
@@ -2881,8 +2886,10 @@ PRO CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, NO_DRAW=no_draw
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN	; For reference detailed spectrum window
 		IF ((*(*info).winswitch).showrefls EQ 0) THEN BEGIN
 			title = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+((*(*info).plottitles).reflswintitle)[(*(*info).plotswitch).refheightset]
-			CRISPEX_WINDOW, (*(*info).winsizes).reflsxres, (*(*info).winsizes).reflsyres, (*(*info).winids).root, title, tlb, wid, (*(*info).winsizes).lsxoffset, $
-				(*(*info).winswitch).showsp * (*(*info).winsizes).ydelta, DRAWID = lsdrawid, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_REFLS_RESIZE'
+			CRISPEX_WINDOW, (*(*info).winsizes).reflsxres, $
+        (*(*info).winsizes).reflsyres, (*(*info).winids).root, title, tlb, wid,$
+        (*(*info).winsizes).reflsxoffset, (*(*info).winsizes).reflsyoffset, $
+        DRAWID = lsdrawid, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_REFLS_RESIZE'
 			(*(*info).winids).reflstlb = tlb		&	(*(*info).winids).reflswid = wid	&	(*(*info).winswitch).showrefls = 1
 			(*(*info).winids).reflsdrawid = lsdrawid	&	(*(*info).winids).reflswintitle = title
 			WIDGET_CONTROL, (*(*info).winids).reflstlb, SET_UVALUE = info
@@ -2897,7 +2904,10 @@ PRO CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, NO_DRAW=no_draw
 	ENDIF ELSE BEGIN
 		IF ((*(*info).winswitch).showls EQ 0) THEN BEGIN
 			title = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).heightset]
-			CRISPEX_WINDOW, (*(*info).winsizes).lsxres, (*(*info).winsizes).lsyres, (*(*info).winids).root, title, tlb, wid, (*(*info).winsizes).lsxoffset, 0, DRAWID = lsdrawid, RESIZING = 1, $
+			CRISPEX_WINDOW, (*(*info).winsizes).lsxres, (*(*info).winsizes).lsyres, $
+        (*(*info).winids).root, title, tlb, wid, $
+        (*(*info).winsizes).lsxoffset, (*(*info).winsizes).lsyoffset, $
+        DRAWID = lsdrawid, RESIZING = 1, $
 				RES_HANDLER = 'CRISPEX_DISPLAYS_LS_RESIZE'
 			(*(*info).winids).lstlb = tlb		&	(*(*info).winids).lswid = wid	&	(*(*info).winswitch).showls = 1
 			(*(*info).winids).lsdrawid = lsdrawid	&	(*(*info).winids).lswintitle = title
@@ -3116,10 +3126,9 @@ PRO CRISPEX_DISPLAYS_PHIS_TOGGLE, event, NO_DRAW=no_draw
 		wintitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+$
       ((*(*info).plottitles).phiswintitle)[(*(*info).plotswitch).heightset]
 		CRISPEX_WINDOW, (*(*info).winsizes).phisxres, (*(*info).winsizes).phisyres, $
-      (*(*info).winids).root, wintitle, tlb, wid, (*(*info).winsizes).spxoffset, $
-      (*(*info).winswitch).showls * ((*(*info).winsizes).lswiny + (*(*info).winsizes).ydelta) + $ 
-      (*(*info).winswitch).showsp * (*(*info).winsizes).ydelta, DRAWID = phisdrawid, $
-      RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_PHIS_RESIZE'
+      (*(*info).winids).root, wintitle, tlb, wid, $
+      (*(*info).winsizes).phisxoffset, (*(*info).winsizes).phisyoffset, $
+      DRAWID = phisdrawid, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_PHIS_RESIZE'
 		(*(*info).winids).phistlb = tlb			&	(*(*info).winids).phiswid = wid
 		(*(*info).winids).phisdrawid = phisdrawid	&	(*(*info).winids).phiswintitle = wintitle 
 		WIDGET_CONTROL, (*(*info).winids).phistlb, SET_UVALUE = info
@@ -3973,8 +3982,8 @@ PRO CRISPEX_DISPLAYS_REFSP_TOGGLE, event, NO_DRAW=no_draw
       ((*(*info).plottitles).refspwintitle)[(*(*info).plotswitch).refheightset]
     ; Create window
 		CRISPEX_WINDOW, (*(*info).winsizes).refspxres, (*(*info).winsizes).refspyres, $
-      (*(*info).winids).root, title, refsptlb, refspwid, (*(*info).winsizes).spxoffset, $
-      (*(*info).winsizes).spyoffset+((*(*info).winswitch).showsp * (*(*info).winsizes).ydelta),$
+      (*(*info).winids).root, title, refsptlb, refspwid, $
+      (*(*info).winsizes).refspxoffset, (*(*info).winsizes).refspyoffset, $
       DRAWID = refspdrawid, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_REFSP_RESIZE'
     ; Save window variables
 		(*(*info).winids).refsptlb = refsptlb		&	(*(*info).winids).refspwid = refspwid	&	(*(*info).winswitch).showrefsp = 1
@@ -4005,7 +4014,7 @@ PRO CRISPEX_DISPLAYS_SJI_TOGGLE, event, NO_DRAW=no_draw
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Slit-jaw image'
 		CRISPEX_WINDOW, (*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny, $
       (*(*info).winids).root, title, sjitlb, sjiwid, $
-      (*(*info).winsizes).lsxoffset+(*(*info).winsizes).lswinx+(*(*info).winsizes).xdelta, 0, $
+      (*(*info).winsizes).sjixoffset, (*(*info).winsizes).sjiyoffset,$
       DRAWID = sjidrawid, DRAWBASE = sjidrawbase, $
       /SCROLL, XSCROLL=xscroll, YSCROLL=yscroll, /SJI
     (*(*info).ctrlssji).xsjipos_slider = xscroll
@@ -12595,7 +12604,65 @@ PRO CRISPEX_SESSION_SAVE, event, sesfilename
 ; Handles the actual saving of the session
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	WIDGET_CONTROL, /HOURGLASS
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  ; Get current window positions
+	IF ((*(*info).winids).sptlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).sptlb, /GEOMETRY)
+    (*(*info).winsizes).spxoffset = geometry.xoffset
+    (*(*info).winsizes).spyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).lstlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).lstlb, /GEOMETRY)
+    (*(*info).winsizes).lsxoffset = geometry.xoffset
+    (*(*info).winsizes).lsyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).doptlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).doptlb, /GEOMETRY)
+    (*(*info).winsizes).dopxoffset = geometry.xoffset
+    (*(*info).winsizes).dopyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).imreftlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).imreftlb, /GEOMETRY)
+    (*(*info).winsizes).imrefxoffset = geometry.xoffset
+    (*(*info).winsizes).imrefyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).reftlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).reftlb, /GEOMETRY)
+    (*(*info).winsizes).refxoffset = geometry.xoffset
+    (*(*info).winsizes).refyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).refsptlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).refsptlb, /GEOMETRY)
+    (*(*info).winsizes).refspxoffset = geometry.xoffset
+    (*(*info).winsizes).refspyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).reflstlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).reflstlb, /GEOMETRY)
+    (*(*info).winsizes).reflsxoffset = geometry.xoffset
+    (*(*info).winsizes).reflsyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).sjitlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).sjitlb, /GEOMETRY)
+    (*(*info).winsizes).sjixoffset = geometry.xoffset
+    (*(*info).winsizes).sjiyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).phistlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).phistlb, /GEOMETRY)
+    (*(*info).winsizes).phisxoffset = geometry.xoffset
+    (*(*info).winsizes).phisyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).inttlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).inttlb, /GEOMETRY)
+    (*(*info).winsizes).intxoffset = geometry.xoffset
+    (*(*info).winsizes).intyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).looptlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).looptlb, /GEOMETRY)
+    (*(*info).winsizes).loopxoffset = geometry.xoffset
+    (*(*info).winsizes).loopyoffset = geometry.yoffset
+  ENDIF
+  ; Save all pointers
 	ctrlsswitch = *(*info).ctrlsswitch	    &	curs = *(*info).curs
 	dataparams = *(*info).dataparams	      &	dataswitch = *(*info).dataswitch		
   detparams = *(*info).detparams          & dispparams = *(*info).dispparams	
@@ -18318,11 +18385,31 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     windows_xextent = cpanel_size[0]+ spwinx + imwinx + lswinx + xdelta*3
     IF (windows_xextent LE x_scr_size) THEN refxoffset += xdelta 
   ENDIF 
- 
+
+  ; Set offsets for other windows
+  showsp_local = ((hdr.nlp GT 1) AND (hdr.mainnt GT 1)) 
   spxoffset = refxoffset+(hdr.showref*imwinx)+xdelta
   spyoffset = lswiny + ydelta
-  phisyoffset = lswiny + ydelta
   lsxoffset = spxoffset
+  lsyoffset = 0
+  phisxoffset = spxoffset 
+  phisyoffset = (hdr.nlp GT 1) * lswiny + ydelta + showsp_local * ydelta
+  dopxoffset = xdelta
+  dopyoffset = ydelta
+  intxoffset = lsxoffset
+  intyoffset = 0
+  loopxoffset = imwinx + xdelta
+  loopyoffset = showsp_local * ydelta
+  ; Reference related
+  imrefxoffset = xdelta
+  imrefyoffset = ydelta
+  refspxoffset = spxoffset
+  refspyoffset = spyoffset + showsp_local * ydelta
+  reflsxoffset = lsxoffset
+  reflsyoffset = showsp_local * ydelta
+  ; SJI related
+  sjixoffset = lsxoffset + lswinx + xdelta
+  sjiyoffset = 0
   
   WIDGET_CONTROL, xydrawid, GET_VALUE=imwid
 
@@ -18933,11 +19020,20 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     refloopyres:spwiny, loopxres:spwinx, loopyres:spwiny, restloopxres:spwinx,$
     restloopyres:spwiny, retrdetxres:spwinx, retrdetyres:spwiny, $
     intxres:lswinx, intyres:intwiny, sjiwinx:sjiwinx, sjiwiny:sjiwiny, $
+    ; window offsets
 		xdelta:xdelta, ydelta:ydelta,  $
     spxoffset:spxoffset, spyoffset:spyoffset, $
-    lsxoffset:lsxoffset, lsyoffset:0, $
-    refxoffset:refxoffset, refyoffset:refyoffset, aboutxoffset:startup_xpos, $
-    aboutyoffset:startup_ypos $
+    lsxoffset:lsxoffset, lsyoffset:lsyoffset, $
+    phisxoffset:phisxoffset, phisyoffset:phisyoffset, $
+    refxoffset:refxoffset, refyoffset:refyoffset, $
+    refspxoffset:refspxoffset, refspyoffset:refspyoffset, $
+    reflsxoffset:reflsxoffset, reflsyoffset:reflsyoffset, $
+    sjixoffset:sjixoffset, sjiyoffset:sjiyoffset, $
+    dopxoffset:dopxoffset, dopyoffset:dopyoffset, $
+    imrefxoffset:imrefxoffset, imrefyoffset:imrefyoffset, $
+    intxoffset:intxoffset, intyoffset:intyoffset, $
+    loopxoffset:loopxoffset, loopyoffset:loopyoffset, $
+    aboutxoffset:startup_xpos, aboutyoffset:startup_ypos $
 		}
 ;-------------------- WINDOW SWITCHES
 	winswitch = { $
