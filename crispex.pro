@@ -9772,8 +9772,16 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
 	(*(*info).ctrlspref).displays_interp = $
                     WIDGET_BUTTON(displays_int_base, VALUE='Interpolate spectral slices',$
                       EVENT_PRO='CRISPEX_PREFERENCES_SET_INTERPOLATE')
-	displays_preview= WIDGET_BUTTON(displays_int_base, VALUE='Preview', $
+	displays_preview= WIDGET_BUTTON(displays_int_base, VALUE='Preview changes', $
                       EVENT_PRO='CRISPEX_PREFERENCES_SET_PREVIEW')
+  displays_divider= CRISPEX_WIDGET_DIVIDER(layout_base)
+  displays_off_base= WIDGET_BASE(layout_base, /ROW, /NONEXCLUSIVE)
+  (*(*info).ctrlspref).displays_offsets = $
+                     WIDGET_BUTTON(displays_off_base, VALUE='Use current '+$
+                      'window offsets as default', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_OFFSETS')
+  WIDGET_CONTROL, (*(*info).ctrlspref).displays_offsets, $
+    SET_BUTTON=(*(*info).prefs).current_offsets
 
   scaling_base    = WIDGET_BASE(tab_tlb, TITLE='Scaling', /COLUMN, XSIZE=tab_width);, /FRAME)
   histo_base      = WIDGET_BASE(scaling_base, /ROW)
@@ -9904,6 +9912,7 @@ PRO CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 		((*(*info).prefs).tmp_startupwin NE (*(*info).prefs).default_startupwin) OR $
 		((*(*info).prefs).tmp_bgplotcol NE (*(*info).prefs).default_bgplotcol) OR $
 		((*(*info).prefs).tmp_plotcol NE (*(*info).prefs).default_plotcol) OR $
+		((*(*info).prefs).current_offsets NE 0) OR $
 		((*(*info).prefs).tmp_interpspslice NE (*(*info).prefs).default_interpspslice) OR $
 		((*(*info).prefs).tmp_slices_imscale NE (*(*info).prefs).default_slices_imscale) OR $			
 		((*(*info).prefs).tmp_histo_opt_val NE (*(*info).prefs).default_histo_opt_val) OR $			
@@ -10134,6 +10143,14 @@ PRO CRISPEX_PREFERENCES_SET_PREVIEW, event
 	CRISPEX_PREFERENCES_REDRAW, event
 END
 
+PRO CRISPEX_PREFERENCES_SET_OFFSETS, event
+; Handles the use of current window offsets
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+	(*(*info).prefs).current_offsets = event.SELECT
+END
+
 PRO CRISPEX_PREFERENCES_SET_SAVEID, event
 ; Handles the setting of unique save ID
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -10170,6 +10187,7 @@ PRO CRISPEX_PREFERENCES_SET_DEFAULTS, event
   (*(*info).prefs).tmp_prefopath = (*(*info).prefs).default_prefopath
 	(*(*info).prefs).tmp_bgplotcol = (*(*info).prefs).default_bgplotcol
   (*(*info).prefs).tmp_plotcol = (*(*info).prefs).default_plotcol
+  (*(*info).prefs).current_offsets = 0
 	(*(*info).prefs).tmp_phislice_update = (*(*info).prefs).default_phislice_update
   (*(*info).prefs).tmp_slices_imscale = (*(*info).prefs).default_slices_imscale		
   (*(*info).prefs).tmp_histo_opt_val = (*(*info).prefs).default_histo_opt_val
@@ -10183,6 +10201,7 @@ PRO CRISPEX_PREFERENCES_SET_DEFAULTS, event
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_phislice, $
     SET_BUTTON = (*(*info).prefs).tmp_phislice_update		
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_slices, SET_BUTTON = (*(*info).prefs).tmp_slices_imscale
+  WIDGET_CONTROL, (*(*info).ctrlspref).displays_offsets, SET_BUTTON=0
 	WIDGET_CONTROL, (*(*info).ctrlspref).histo_opt_txt, $
     SET_VALUE=STRTRIM((*(*info).prefs).tmp_histo_opt_val,2)
 	WIDGET_CONTROL, (*(*info).ctrlspref).gamma_label, $
@@ -10239,9 +10258,48 @@ PRO CRISPEX_PREFERENCES_SAVE_SETTINGS, event, RESAVE=resave
   gamma_val = (*(*info).prefs).tmp_gamma_val
   warnings = (*(*info).prefs).tmp_warnings
 	crispex_version = [(*(*info).versioninfo).version_number, (*(*info).versioninfo).revision_number]
-	SAVE, crispex_version, startupwin, interpspslice, phislice_update, slices_imscale, histo_opt_val,$
-    gamma_val, autoplay, defsaveid, defipath, defopath, bgplotcol, plotcol, prefipath, prefopath, $
-    warnings, FILENAME = (*(*info).paths).dir_settings+'crispex.cpref'
+  ; Window offsets
+  IF (*(*info).prefs).current_offsets THEN BEGIN
+    CRISPEX_WINDOWS_GET_OFFSETS, event
+    spxoffset = (*(*info).winsizes).spxoffset
+    spyoffset = (*(*info).winsizes).spyoffset
+    lsxoffset = (*(*info).winsizes).lsxoffset
+    lsyoffset = (*(*info).winsizes).lsyoffset
+    dopxoffset = (*(*info).winsizes).dopxoffset
+    dopyoffset = (*(*info).winsizes).dopyoffset
+    imrefxoffset = (*(*info).winsizes).imrefxoffset
+    imrefyoffset = (*(*info).winsizes).imrefyoffset
+    refxoffset = (*(*info).winsizes).refxoffset
+    refyoffset = (*(*info).winsizes).refyoffset
+    refspxoffset = (*(*info).winsizes).refspxoffset
+    refspyoffset = (*(*info).winsizes).refspyoffset
+    reflsxoffset = (*(*info).winsizes).reflsxoffset
+    reflsyoffset = (*(*info).winsizes).reflsyoffset
+    sjixoffset = (*(*info).winsizes).sjixoffset
+    sjiyoffset = (*(*info).winsizes).sjiyoffset
+    phisxoffset = (*(*info).winsizes).phisxoffset
+    phisyoffset = (*(*info).winsizes).phisyoffset
+    intxoffset = (*(*info).winsizes).intxoffset
+    intyoffset = (*(*info).winsizes).intyoffset
+    loopxoffset = (*(*info).winsizes).loopxoffset
+    loopyoffset = (*(*info).winsizes).loopyoffset
+    window_offsets = {set:1, spxoffset:spxoffset, spyoffset:spyoffset,$
+      lsxoffset:lsxoffset, lsyoffset:lsyoffset, $
+      dopxoffset:dopxoffset, dopyoffset:dopyoffset, $
+      imrefxoffset:imrefxoffset, imrefyoffset:imrefyoffset, $
+      refxoffset:refxoffset, refyoffset:refyoffset, $
+      refspxoffset:refspxoffset, refspyoffset:refspyoffset, $
+      reflsxoffset:reflsxoffset, reflsyoffset:reflsyoffset, $
+      sjixoffset:sjixoffset, sjiyoffset:sjiyoffset, $
+      phisxoffset:phisxoffset, phisyoffset:phisyoffset, $
+      intxoffset:intxoffset, intyoffset:intyoffset, $
+      loopxoffset:loopxoffset, loopyoffset:loopyoffset}
+  ENDIF ELSE $
+    window_offsets = {set:0}
+	SAVE, crispex_version, startupwin, interpspslice, phislice_update, $
+    slices_imscale, histo_opt_val,gamma_val, autoplay, defsaveid, defipath, $
+    defopath, bgplotcol, plotcol, prefipath, prefopath, warnings, window_offsets, $
+    FILENAME = (*(*info).paths).dir_settings+'crispex.cpref'
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).paths).dir_settings+'crispex.cpref'],labels=['Written']
 	(*(*info).prefs).startupwin = startupwin		&	(*(*info).dispparams).interpspslice = interpspslice
 	(*(*info).prefs).autoplay = autoplay			&	(*(*info).prefs).defsaveid = defsaveid
@@ -12612,61 +12670,7 @@ PRO CRISPEX_SESSION_SAVE, event, sesfilename
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Get current window positions
-	IF ((*(*info).winids).sptlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).sptlb, /GEOMETRY)
-    (*(*info).winsizes).spxoffset = geometry.xoffset
-    (*(*info).winsizes).spyoffset = geometry.yoffset
-  ENDIF
-	IF ((*(*info).winids).lstlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).lstlb, /GEOMETRY)
-    (*(*info).winsizes).lsxoffset = geometry.xoffset
-    (*(*info).winsizes).lsyoffset = geometry.yoffset
-  ENDIF
-	IF ((*(*info).winids).doptlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).doptlb, /GEOMETRY)
-    (*(*info).winsizes).dopxoffset = geometry.xoffset
-    (*(*info).winsizes).dopyoffset = geometry.yoffset
-  ENDIF
-	IF ((*(*info).winids).imreftlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).imreftlb, /GEOMETRY)
-    (*(*info).winsizes).imrefxoffset = geometry.xoffset
-    (*(*info).winsizes).imrefyoffset = geometry.yoffset
-  ENDIF
-	IF ((*(*info).winids).reftlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).reftlb, /GEOMETRY)
-    (*(*info).winsizes).refxoffset = geometry.xoffset
-    (*(*info).winsizes).refyoffset = geometry.yoffset
-  ENDIF
-	IF ((*(*info).winids).refsptlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).refsptlb, /GEOMETRY)
-    (*(*info).winsizes).refspxoffset = geometry.xoffset
-    (*(*info).winsizes).refspyoffset = geometry.yoffset
-  ENDIF
-	IF ((*(*info).winids).reflstlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).reflstlb, /GEOMETRY)
-    (*(*info).winsizes).reflsxoffset = geometry.xoffset
-    (*(*info).winsizes).reflsyoffset = geometry.yoffset
-  ENDIF
-	IF ((*(*info).winids).sjitlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).sjitlb, /GEOMETRY)
-    (*(*info).winsizes).sjixoffset = geometry.xoffset
-    (*(*info).winsizes).sjiyoffset = geometry.yoffset
-  ENDIF
-	IF ((*(*info).winids).phistlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).phistlb, /GEOMETRY)
-    (*(*info).winsizes).phisxoffset = geometry.xoffset
-    (*(*info).winsizes).phisyoffset = geometry.yoffset
-  ENDIF
-	IF ((*(*info).winids).inttlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).inttlb, /GEOMETRY)
-    (*(*info).winsizes).intxoffset = geometry.xoffset
-    (*(*info).winsizes).intyoffset = geometry.yoffset
-  ENDIF
-	IF ((*(*info).winids).looptlb NE 0) THEN BEGIN
-    geometry = WIDGET_INFO((*(*info).winids).looptlb, /GEOMETRY)
-    (*(*info).winsizes).loopxoffset = geometry.xoffset
-    (*(*info).winsizes).loopyoffset = geometry.yoffset
-  ENDIF
+  CRISPEX_WINDOWS_GET_OFFSETS, event
   ; Save all pointers
 	ctrlsswitch = *(*info).ctrlsswitch	    &	curs = *(*info).curs
 	dataparams = *(*info).dataparams	      &	dataswitch = *(*info).dataswitch		
@@ -15808,6 +15812,68 @@ PRO CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, session=session
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [tlb], labels=['feedbacktlb was']
 END
 
+PRO CRISPEX_WINDOWS_GET_OFFSETS, event
+; Handles the determination current window offsets
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF ((*(*info).winids).sptlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).sptlb, /GEOMETRY)
+    (*(*info).winsizes).spxoffset = geometry.xoffset
+    (*(*info).winsizes).spyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).lstlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).lstlb, /GEOMETRY)
+    (*(*info).winsizes).lsxoffset = geometry.xoffset
+    (*(*info).winsizes).lsyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).doptlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).doptlb, /GEOMETRY)
+    (*(*info).winsizes).dopxoffset = geometry.xoffset
+    (*(*info).winsizes).dopyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).imreftlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).imreftlb, /GEOMETRY)
+    (*(*info).winsizes).imrefxoffset = geometry.xoffset
+    (*(*info).winsizes).imrefyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).reftlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).reftlb, /GEOMETRY)
+    (*(*info).winsizes).refxoffset = geometry.xoffset
+    (*(*info).winsizes).refyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).refsptlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).refsptlb, /GEOMETRY)
+    (*(*info).winsizes).refspxoffset = geometry.xoffset
+    (*(*info).winsizes).refspyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).reflstlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).reflstlb, /GEOMETRY)
+    (*(*info).winsizes).reflsxoffset = geometry.xoffset
+    (*(*info).winsizes).reflsyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).sjitlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).sjitlb, /GEOMETRY)
+    (*(*info).winsizes).sjixoffset = geometry.xoffset
+    (*(*info).winsizes).sjiyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).phistlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).phistlb, /GEOMETRY)
+    (*(*info).winsizes).phisxoffset = geometry.xoffset
+    (*(*info).winsizes).phisyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).inttlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).inttlb, /GEOMETRY)
+    (*(*info).winsizes).intxoffset = geometry.xoffset
+    (*(*info).winsizes).intyoffset = geometry.yoffset
+  ENDIF
+	IF ((*(*info).winids).looptlb NE 0) THEN BEGIN
+    geometry = WIDGET_INFO((*(*info).winids).looptlb, /GEOMETRY)
+    (*(*info).winsizes).loopxoffset = geometry.xoffset
+    (*(*info).winsizes).loopyoffset = geometry.yoffset
+  ENDIF
+END
+
 ;==================== ZOOM PROCEDURES
 PRO CRISPEX_ZOOM, event, NO_DRAW=no_draw
 ; Handles the zoom event
@@ -16128,6 +16194,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		IF (N_ELEMENTS(gamma_val) NE 1) THEN gamma_val = default_gamma_val
     ; Warnings
 		IF (N_ELEMENTS(warnings) NE 1) THEN warnings = default_warnings
+    ; Window offsets
+		IF (N_ELEMENTS(window_offsets) NE 1) THEN window_offsets = {set:0}
 	ENDIF ELSE BEGIN                        ; If no preference file is present, set defaults
 		startupwin = default_startupwin           &  interpspslice = default_interpspslice
 		autoplay = default_autoplay               &  defsaveid = default_defsaveid
@@ -18397,37 +18465,62 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	WIDGET_CONTROL, cpanel, /REALIZE, TLB_GET_SIZE=cpanel_size
   ; Determine window offsets based on realised control panel size and position
   ; If reference cube present, check if it would fit next to main image
-  refxoffset = cpanel_size[0]
-  refyoffset = ydelta
-  IF hdr.showref THEN BEGIN
-    windows_xextent = cpanel_size[0]+ spwinx + imwinx + lswinx + xdelta*3
-    IF (windows_xextent LE x_scr_size) THEN refxoffset += xdelta 
-  ENDIF 
-
-  ; Set offsets for other windows
-  showsp_local = ((hdr.nlp GT 1) AND (hdr.mainnt GT 1)) 
-  spxoffset = refxoffset+(hdr.showref*imwinx)+xdelta
-  spyoffset = lswiny + ydelta
-  lsxoffset = spxoffset
-  lsyoffset = 0
-  phisxoffset = spxoffset 
-  phisyoffset = (hdr.nlp GT 1) * lswiny + ydelta + showsp_local * ydelta
-  dopxoffset = xdelta
-  dopyoffset = ydelta
-  intxoffset = lsxoffset
-  intyoffset = 0
-  loopxoffset = imwinx + xdelta
-  loopyoffset = showsp_local * ydelta
-  ; Reference related
-  imrefxoffset = xdelta
-  imrefyoffset = ydelta
-  refspxoffset = spxoffset
-  refspyoffset = spyoffset + showsp_local * ydelta
-  reflsxoffset = lsxoffset
-  reflsyoffset = showsp_local * ydelta
-  ; SJI related
-  sjixoffset = lsxoffset + lswinx + xdelta
-  sjiyoffset = 0
+  IF (window_offsets.set NE 0) THEN BEGIN
+    spxoffset = window_offsets.spxoffset
+    spyoffset = window_offsets.spyoffset
+    lsxoffset = window_offsets.lsxoffset
+    lsyoffset = window_offsets.lsyoffset
+    dopxoffset = window_offsets.dopxoffset
+    dopyoffset = window_offsets.dopyoffset
+    imrefxoffset = window_offsets.imrefxoffset
+    imrefyoffset = window_offsets.imrefyoffset
+    refxoffset = window_offsets.refxoffset
+    refyoffset = window_offsets.refyoffset
+    refspxoffset = window_offsets.refspxoffset
+    refspyoffset = window_offsets.refspyoffset
+    reflsxoffset = window_offsets.reflsxoffset
+    reflsyoffset = window_offsets.reflsyoffset
+    sjixoffset = window_offsets.sjixoffset
+    sjiyoffset = window_offsets.sjiyoffset
+    phisxoffset = window_offsets.phisxoffset
+    phisyoffset = window_offsets.phisyoffset
+    intxoffset = window_offsets.intxoffset
+    intyoffset = window_offsets.intyoffset
+    loopxoffset = window_offsets.loopxoffset
+    loopyoffset = window_offsets.loopyoffset
+  ENDIF ELSE BEGIN
+    refxoffset = cpanel_size[0]
+    refyoffset = ydelta
+    IF hdr.showref THEN BEGIN
+      windows_xextent = cpanel_size[0]+ spwinx + imwinx + lswinx + xdelta*3
+      IF (windows_xextent LE x_scr_size) THEN refxoffset += xdelta 
+    ENDIF 
+  
+    ; Set offsets for other windows
+    showsp_local = ((hdr.nlp GT 1) AND (hdr.mainnt GT 1)) 
+    spxoffset = refxoffset+(hdr.showref*imwinx)+xdelta
+    spyoffset = lswiny + ydelta
+    lsxoffset = spxoffset
+    lsyoffset = 0
+    phisxoffset = spxoffset 
+    phisyoffset = (hdr.nlp GT 1) * lswiny + ydelta + showsp_local * ydelta
+    dopxoffset = xdelta
+    dopyoffset = ydelta
+    intxoffset = lsxoffset
+    intyoffset = 0
+    loopxoffset = imwinx + xdelta
+    loopyoffset = showsp_local * ydelta
+    ; Reference related
+    imrefxoffset = xdelta
+    imrefyoffset = ydelta
+    refspxoffset = spxoffset
+    refspyoffset = spyoffset + showsp_local * ydelta
+    reflsxoffset = lsxoffset
+    reflsyoffset = showsp_local * ydelta
+    ; SJI related
+    sjixoffset = lsxoffset + lswinx + xdelta
+    sjiyoffset = 0
+  ENDELSE
   
   WIDGET_CONTROL, xydrawid, GET_VALUE=imwid
 
@@ -18550,7 +18643,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 ;-------------------- PREFERENCE BUTTONS
 	ctrlspref = { $
 		startup_autopl:0, startup_win:0, displays_bgcols:0, displays_plcols:0, displays_interp:0, $
-		displays_phislice:0, displays_slices:0, histo_opt_txt:0, gamma_slid:0, gamma_label:0,  $	
+		displays_phislice:0, displays_slices:0, displays_offsets:0, $
+    histo_opt_txt:0, gamma_slid:0, gamma_label:0,  $	
 		paths_i_def_but:0, paths_i_sav_but:0, paths_ipath_text:0, $
 		paths_o_def_but:0, paths_o_sav_but:0, paths_opath_text:0, $
 		paths_iopath:0, save_defsaveid:0, save_defsaveid_sample:0, $
@@ -18920,7 +19014,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		defipath:defipath, prefipath:prefipath, defopath:defopath, prefopath:prefopath, $
 		bgplotcol_old:bgplotcol, plotcol_old:plotcol, interpspslice_old:interpspslice, $
 		slices_imscale_old:slices_imscale, histo_opt_val:histo_opt_val, gamma_val:gamma_val, $
-    warnings:warnings, $
+    warnings:warnings, current_offsets:window_offsets.set, $
 		tmp_autoplay:autoplay, tmp_startupwin:startupwin, tmp_defsaveid:defsaveid, $
 		tmp_bgplotcol:bgplotcol, tmp_plotcol:plotcol, tmp_defipath:defipath, tmp_prefipath:prefipath, $
 		tmp_defopath:defopath, tmp_prefopath:prefopath, tmp_interpspslice:interpspslice, $
