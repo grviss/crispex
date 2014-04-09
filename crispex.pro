@@ -13088,11 +13088,15 @@ PRO CRISPEX_SESSION_RESTORE, event
           SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 2)
         ; Raster overlays
         WIDGET_CONTROL, (*(*info).ctrlscp).raster_button_ids[0], $
-          SENSITIVE=((*(*info).dataswitch).reffile AND (nrasterdims[0] GT 1)), $
-          SET_BUTTON=((*(*info).overlayswitch).refraster AND (nrasterdims[0] GT 1))
+          SENSITIVE=((*(*info).dataswitch).reffile AND $
+          ((nrasterdims[0] GT 1) OR ((*(*info).dataparams).nx EQ 1))), $
+          SET_BUTTON=((*(*info).overlayswitch).refraster AND $
+          ((nrasterdims[0] GT 1) OR ((*(*info).dataparams).nx EQ 1)))
         WIDGET_CONTROL, (*(*info).ctrlscp).raster_button_ids[1], $
-          SENSITIVE=((*(*info).dataswitch).sjifile AND (nrasterdims[0] GT 1)), $
-          SET_BUTTON=((*(*info).overlayswitch).sjiraster AND (nrasterdims[0] GT 1))
+          SENSITIVE=((*(*info).dataswitch).sjifile AND $
+          ((nrasterdims[0] GT 1) OR ((*(*info).dataparams).nx EQ 1))), $
+          SET_BUTTON=((*(*info).overlayswitch).sjiraster AND $
+          ((nrasterdims[0] GT 1) OR ((*(*info).dataparams).nx EQ 1)))
   			IF (*(*info).meas).spatial_measurement THEN CRISPEX_MEASURE_CALC, event
   			; Open windows for replotting and replot
   			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Opening windows and refreshing displays...'
@@ -17951,11 +17955,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                           /NONEXCLUSIVE, /COLUMN, $
                           EVENT_FUNC='CRISPEX_BGROUP_RASTER_OVERLAY')
   WIDGET_CONTROL, raster_button_ids[0], $
-    SET_BUTTON=(hdr.showref AND (nrasterdims[0] GT 1)), $
-    SENSITIVE=(hdr.showref AND (nrasterdims[0] GT 1))
+    SET_BUTTON=(hdr.showref AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1))), $
+    SENSITIVE=(hdr.showref AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1)))
   WIDGET_CONTROL, raster_button_ids[1], $
-    SET_BUTTON=(hdr.sjifile AND (nrasterdims[0] GT 1)),$
-    SENSITIVE=(hdr.sjifile AND (nrasterdims[0] GT 1))
+    SET_BUTTON=(hdr.sjifile AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1))),$
+    SENSITIVE=(hdr.sjifile AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1)))
   overlays_divider3   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
 
   ; ==================== Parameters Overview ====================
@@ -18890,8 +18894,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	overlayswitch = { $
 		det_overlay_all:0, loopslit:0, overlalways:1, looppath_feedback:1, $
     mask:hdr.maskfile, maskim:[hdr.maskfile,hdr.showref,0], $
-    sjiraster:(hdr.sjifile AND (nrasterdims[0] GT 1)), $
-    refraster:(hdr.showref AND (nrasterdims[0] GT 1)) $		
+    sjiraster:(hdr.sjifile AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1))), $
+    refraster:(hdr.showref AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1))) $		
 	}
 ;-------------------- PARAMETER WINDOW CONTROLS 
 	paramparams = { $
