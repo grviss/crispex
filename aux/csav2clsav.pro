@@ -55,9 +55,33 @@
 ;---------------------------------------------------------------------------------------------------------
 
 PRO CSAV2CLSAV, inputfilename, nx, ny
+  
+;==================== VERSION AND REVISION NUMBER
+  ; Version 1.0 (rev 1) == version 1.0.0
+	base_version_number = '1.0'
 
+  ; Get revision number from CVS $Id
+  id_string = '; $Id$'
+  split_id_string = STRSPLIT(id_string[0],' ',/EXTRACT)
+  cvs_idn = split_id_string[3]
+  cvs_rev = (STRSPLIT(cvs_idn,'.',/EXTRACT))[1]
+  cvs_msg = STRJOIN(split_id_string[3:6],' ')
+  
+  ; Assumption: CVS committed revision number will always be 1.x, with x
+  ; increasing linearly
+  revnr = 2+FIX(cvs_rev)-2     ; rev_nr=2, cvs_rev=2 when implemented
+
+  ; Change rev_nr and cvs_rev below whenever changing base_versions_number!
+  subvnr = 2 + (FIX(cvs_rev)-2) - 1  ; rev_nr=2, cvs_rev=2 when implemented
+  ; Convert revision and version numbers to strings
+  revision_number = STRTRIM(revnr,2)   
+  version_number = base_version_number +'.'+ STRTRIM(subvnr,2)
+  vnr_msg = version_number+' (r'+revision_number+'; '+cvs_msg+')'
+
+;==================== PROGRAM-INFO ON CALL W/O PARAMS
 	IF (N_PARAMS() NE 3) THEN BEGIN
-		PRINT,'CSAV2CLSAV, INPUTFILENAME, NX, NY'
+    MESSAGE,'Version '+vnr_msg, /INFO
+		MESSAGE,'CSAV2CLSAV, Inputfilename, Nx, Ny',/INFO
 		RETURN
 	ENDIF
 
@@ -74,19 +98,33 @@ PRO CSAV2CLSAV, inputfilename, nx, ny
 		y_loop_pts = yr
 		w_loop_pts = w_lpts
 		
-		IF (N_ELEMENTS(t_saved) EQ 1) THEN tsav = 1 ELSE tsav = 0
-		IF (N_ELEMENTS(crispex_version) EQ 2) THEN cvers = 1 ELSE cvers = 0
+		tsav_set = (N_ELEMENTS(t_saved) EQ 1) 
+		cvers_set = (N_ELEMENTS(crispex_version) EQ 2) 
+    IF ((N_ELEMENTS(ngaps) NE 1) AND (nw_lpts NE 0)) THEN BEGIN
+      result = CRISPEX_ARRAY_GET_GAPS(w_loop_pts, N_ELEMENTS(x_loop_pts))
+      ngaps = result.ngaps
+      databounds = result.databounds
+      wdatabounds = result.wdatabounds
+    ENDIF
 	
 		dirfilename = FILE_DIRNAME(inputfilename[i],/MARK_DIRECTORY)
 		splitfilename = STRMID(inputfilename[i],STRLEN(dirfilename),STRLEN(inputfilename[i]))
 		outputfilename = STRMID(splitfilename,0,STRPOS(splitfilename,'.',/REVERSE_SEARCH))+'.clsav'
-		IF (tsav AND cvers) THEN $
-			SAVE, crispex_version, spect_pos, x_coords, y_coords, x_loop_pts, y_loop_pts, w_loop_pts, t_saved, FILENAME = dirfilename+outputfilename ELSE $
-		IF tsav THEN $
-			SAVE, spect_pos, x_coords, y_coords, x_loop_pts, y_loop_pts, w_loop_pts, t_saved, FILENAME = dirfilename+outputfilename ELSE $
-		IF cvers THEN $
-			SAVE, crispex_version, spect_pos, x_coords, y_coords, x_loop_pts, y_loop_pts, w_loop_pts, FILENAME = dirfilename+outputfilename ELSE $
-			SAVE, spect_pos, x_coords, y_coords, x_loop_pts, y_loop_pts, w_loop_pts, FILENAME = dirfilename+outputfilename
+		IF (tsav_set AND cvers_set) THEN $
+      SAVE, crispex_version, spect_pos, x_coords, y_coords, x_loop_pts, $
+        y_loop_pts, w_loop_pts, t_saved, ngaps, databounds, wdatabounds, $
+        FILENAME = dirfilename+outputfilename $
+    ELSE IF tsav_set THEN $
+			SAVE, spect_pos, x_coords, y_coords, x_loop_pts, y_loop_pts, w_loop_pts, $
+        t_saved, ngaps, databounds, wdatabounds, $
+        FILENAME = dirfilename+outputfilename $
+    ELSE IF cvers_set THEN $
+      SAVE, crispex_version, spect_pos, x_coords, y_coords, x_loop_pts, $
+        y_loop_pts, w_loop_pts, ngaps, databounds, wdatabounds, $
+        FILENAME = dirfilename+outputfilename $
+    ELSE $
+      SAVE, spect_pos, x_coords, y_coords, x_loop_pts, y_loop_pts, w_loop_pts, $
+        ngaps, databounds, wdatabounds, FILENAME = dirfilename+outputfilename
 		PRINT,'Written: '+dirfilename+outputfilename
 	ENDFOR
 END
