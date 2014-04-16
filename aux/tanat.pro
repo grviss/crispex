@@ -169,7 +169,7 @@ PRO TANAT_CALCULATE_DELTA, event
 		(*(*info).measparams).act_delta_lx = FLOAT(TOTAL((*(*(*info).dataparams).lxdist)[lower:upper])) 
 	ENDIF ELSE (*(*info).measparams).act_delta_lx = 0.
 	time = FLOAT((*(*info).measparams).delta_t) * FLOAT((*(*info).measparams).secondststep)
-	distance = 149597870. * TAN(FLOAT((*(*info).measparams).arcsecpix) * FLOAT((*(*info).measparams).act_delta_lx) / 3600. * !DTOR)
+	distance = 149597870. * TAN(FLOAT((*(*info).measparams).act_delta_lx) / 3600. * !DTOR)
 	IF ((time EQ 0.) OR ((time EQ 0.) AND (distance EQ 0.))) THEN BEGIN
 		WIDGET_CONTROL, (*(*info).ctrlsmeas).speed_text, SET_VALUE = 'UNDEF'
 	ENDIF ELSE BEGIN
@@ -592,7 +592,13 @@ PRO TANAT_FILE_OPEN, event
 		(*(*info).dataparams).nlp = nlp			&	(*(*info).dispswitch).slab_set = slab_set
 		*(*(*info).data).loopdata = loop_data		&	*(*(*info).data).loopslice = FLTARR(nlx,nt)
 		(*(*info).dataparams).filename = new_filename	
-    (*(*info).dataparams).lp = spect_pos - spect_pos_low
+    ; Failsafe against older save files where spect_pos(_low/upp) were saved
+    ; differently in CRISPEX
+    IF ((spect_pos NE spect_pos_low) AND (spect_pos_low EQ spect_pos_upp)) THEN $
+      (*(*info).dataparams).lp = spect_pos_low $
+    ELSE $
+      (*(*info).dataparams).lp = spect_pos - spect_pos_low
+;    (*(*info).dataparams).lp = spect_pos - spect_pos_low
 		(*(*info).dataparams).w_first = w_first		&	(*(*info).dataparams).w_last = w_last
 		(*(*info).dataparams).w_set = w_set
 		TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center,$
@@ -603,8 +609,11 @@ PRO TANAT_FILE_OPEN, event
 		(*(*info).dispswitch).v_dop_set = v_dop_set	
     (*(*info).dataparams).lp_first = 0
 		(*(*info).dataparams).lp_last = spect_pos_upp - spect_pos_low
-		TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, LXDIST=lxdist, LX_FIRST=lx_first, LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
+  	TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, $
+      (*(*info).measparams).arcsecpix, LXDIST=lxdist, CUMUL_LXDIST=cumul_lxdist,$
+      LX_FIRST=lx_first, LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
 		*(*(*info).dataparams).lxdist = lxdist		&	(*(*info).dataparams).lx = FLOAT(lx_first)
+    *(*(*info).dataparams).cumul_lxdist = cumul_lxdist
 		(*(*info).dataparams).t = FLOAT(t_first)	&	(*(*info).curs).slx = FLOAT(lx_first)
 		(*(*info).dataparams).t_low = FLOAT(t_first)	&	(*(*info).dataparams).t_upp = FLOAT(t_last)
 		(*(*info).dataparams).t_first = FLOAT(t_first)	&	(*(*info).dataparams).t_last = FLOAT(t_last)
@@ -711,7 +720,9 @@ PRO TANAT_PARABOLIC_FIT, event
 	degree = degree > 0
 	s_result = POLY_FIT(FLOAT(*(*(*info).measparams).st_array), FLOAT(*(*(*info).measparams).slx_array), degree)
 	act_t_array = *(*(*info).measparams).t_array * (*(*info).measparams).secondststep
-	act_lx_array =  149597870. * TAN(FLOAT((*(*info).measparams).arcsecpix) * FLOAT(*(*(*info).measparams).lx_array) / 3600. * !DTOR)
+  tmp_act_lx_array = INTERPOLATE(*(*(*info).dataparams).cumul_lxdist,$
+    *(*(*info).measparams).lx_array)
+	act_lx_array =  149597870. * TAN(FLOAT(tmp_act_lx_array) / 3600. * !DTOR)
 	act_s_result = POLY_FIT(act_t_array,act_lx_array, degree)
 	IF ((*(*info).measparams).np GT 2) THEN BEGIN	
 		IF ((*(*(*info).measparams).slx_array)[(*(*info).measparams).np-1] LT (*(*(*info).measparams).slx_array)[0]) THEN sign = -1. ELSE sign = 1.
@@ -1106,12 +1117,21 @@ PRO TANAT_SERIES_SET, event
 END
 
 ;================================================================================= SET PROCEDURES
-PRO TANAT_SET_ARCSEC, event
+PRO TANAT_SET_ARCSEC_X, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     TANAT_VERBOSE_GET_ROUTINE, event
-	WIDGET_CONTROL, (*(*info).ctrlssetup).arcsec_text, GET_VALUE = textvalue
-	(*(*info).measparams).arcsecpix = FLOAT(textvalue[0])
+	WIDGET_CONTROL, (*(*info).ctrlssetup).dx_text, GET_VALUE = textvalue
+	(*(*info).measparams).arcsecpix[0] = FLOAT(textvalue[0])
+	IF ((*(*info).curs).lockset GE 1) THEN TANAT_CALCULATE_DELTA, event
+END
+
+PRO TANAT_SET_ARCSEC_Y, event
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    TANAT_VERBOSE_GET_ROUTINE, event
+	WIDGET_CONTROL, (*(*info).ctrlssetup).dy_text, GET_VALUE = textvalue
+	(*(*info).measparams).arcsecpix[1] = FLOAT(textvalue[0])
 	IF ((*(*info).curs).lockset GE 1) THEN TANAT_CALCULATE_DELTA, event
 END
 
@@ -1204,8 +1224,8 @@ PRO TANAT_SET_CONTROLS, event
 	WIDGET_CONTROL, (*(*info).ctrlsgen).det_spect, SENSITIVE = (*(*info).dispswitch).slab_set
   WIDGET_CONTROL, (*(*info).ctrlsgen).filetext, $
     SET_VALUE=FILE_BASENAME((*(*info).dataparams).filename)
-	; Set to tab 2
-	WIDGET_CONTROL, (*(*info).winids).tab_tlb, SET_TAB_CURRENT = 2
+	; Set to tab 3
+	WIDGET_CONTROL, (*(*info).winids).tab_tlb, SET_TAB_CURRENT = 3
 END
 
 PRO TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center, $
@@ -1257,17 +1277,27 @@ PRO TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center, $
 		lc = 0
 END
 
-PRO TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, LXDIST=lxdist, LX_FIRST=lx_first, LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
+PRO TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, arcsecpix, $
+  LXDIST=lxdist, CUMUL_LXDIST=cumul_lxdist, LX_FIRST=lx_first, $
+  LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
 	lxdist = DBLARR(nlx)
+	cumul_lxdist = DBLARR(nlx)
 	IF (TOTAL(x_loop_pts) EQ 0) AND (TOTAL(y_loop_pts) EQ 0) THEN lxdist = REPLICATE(1.,nlx) ELSE BEGIN
 		FOR i=0,nlx-2 DO BEGIN
 			x_up = x_loop_pts[i+1]
 			x_dn = x_loop_pts[i]
 			y_up = y_loop_pts[i+1]
 			y_dn = y_loop_pts[i]
-			lxdist[i] = SQRT( (x_up - x_dn)^2 + (y_up - y_dn)^2 )
+			lxdist[i] = SQRT( $
+        ((x_up - x_dn)*arcsecpix[0])^2 + $
+        ((y_up - y_dn)*arcsecpix[1])^2 )
+      IF (i EQ 0) THEN $
+        cumul_lxdist[i] = lxdist[i] $
+      ELSE $
+        cumul_lxdist[i] = lxdist[i] + cumul_lxdist[i-1]
 		ENDFOR
 		lxdist[nlx-1] = MEAN(lxdist[0:nlx-2])
+    cumul_lxdist[nlx-1] = lxdist[nlx-1] + cumul_lxdist[nlx-2]
 	ENDELSE
 	lx_first	= 0						; Set number of first x-coordinate
 	lx_last		= nlx-1						; Set number of last x-coordinate
@@ -1751,7 +1781,12 @@ PRO TANAT,$							; call program
   TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center,$
     LPS=lps, LC=lc, SPXTITLE=spxtitle, V_DOP_VALS=v_dop_vals, $
     V_DOP_SET=v_dop_set
-  lp_start = spect_pos - spect_pos_low
+  ; Failsafe against older save files where spect_pos(_low/upp) were saved
+  ; differently in CRISPEX
+  IF ((spect_pos NE spect_pos_low) AND (spect_pos_low EQ spect_pos_upp)) THEN $
+    lp_start = spect_pos_low $
+  ELSE $
+    lp_start = spect_pos - spect_pos_low
   lp_first = 0
   lp_last = spect_pos_upp - spect_pos_low
 	IF (nfiles EQ 2) THEN BEGIN
@@ -1770,8 +1805,15 @@ PRO TANAT,$							; call program
 	ENDELSE
 
 ;--------------------------------------------------------------------------------- INITIAL TIMESLICE PARAMETERS
-	TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, LXDIST=lxdist, LX_FIRST=lx_first, LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
-	IF (N_ELEMENTS(ASECPIX) EQ 1) THEN arcsecpix = asecpix ELSE arcsecpix = 0.0592
+	IF (N_ELEMENTS(ASECPIX) GE 1) THEN BEGIN
+    IF (N_ELEMENTS(ASECPIX) EQ 1) THEN $
+      arcsecpix = REPLICATE(asecpix,2) $
+    ELSE $
+      arcsecpix = asecpix 
+  ENDIF ELSE arcsecpix = REPLICATE(0.0592,2)
+	TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, arcsecpix, $
+    LXDIST=lxdist, CUMUL_LXDIST=cumul_lxdist, LX_FIRST=lx_first, $
+    LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
 	IF (N_ELEMENTS(DT) EQ 1) THEN secondststep = dt ELSE secondststep = 1.
 
 ;--------------------------------------------------------------------------------- WINDOW SIZES (CHANGE ONLY
@@ -2105,8 +2147,11 @@ PRO TANAT,$							; call program
 	arcsec_field	      = WIDGET_BASE(dimensions, /ROW)
 	arcsec_label	      = WIDGET_LABEL(arcsec_field, $
                           VALUE='Arcseconds per pixel:', /ALIGN_LEFT)
-	arcsec_text	        = WIDGET_TEXT(arcsec_field, VALUE=STRTRIM(arcsecpix,2),$
-                          /EDITABLE, XSIZE=5, EVENT_PRO='TANAT_SET_ARCSEC')
+	dx_text   	        = WIDGET_TEXT(arcsec_field, VALUE=STRTRIM(arcsecpix[0],2),$
+                          /EDITABLE, XSIZE=7, EVENT_PRO='TANAT_SET_ARCSEC_X')
+	x_label		          = WIDGET_LABEL(arcsec_field, VALUE = 'X', /ALIGN_CENTER)
+	dy_text   	        = WIDGET_TEXT(arcsec_field, VALUE=STRTRIM(arcsecpix[1],2),$
+                          /EDITABLE, XSIZE=7, EVENT_PRO='TANAT_SET_ARCSEC_Y')
 	seconds_field	      = WIDGET_BASE(dimensions, /ROW)
 	seconds_label	      = WIDGET_LABEL(seconds_field, $
                           VALUE='Seconds per timestep:', /ALIGN_LEFT)
@@ -2170,7 +2215,7 @@ PRO TANAT,$							; call program
 	}
 ;--------------------------------------------------------------------------------- SETUP CONTROLS
 	ctrlssetup = { $
-		arcsec_text:arcsec_text, seconds_text:seconds_text, $
+		dx_text:dx_text, dy_text:dy_text, seconds_text:seconds_text, $
 		savefile_text:savefile_text $
 	}
 ;--------------------------------------------------------------------------------- VIEW TAB CONTROLS
@@ -2195,7 +2240,8 @@ PRO TANAT,$							; call program
 ;--------------------------------------------------------------------------------- DATA PARAMETERS
 	dataparams = { $
 		filename:filename, reffilename:reffilename, spec:PTR_NEW(spectrum), lps:PTR_NEW(lps), ms:ms, nlx:nlx, nt:nt, nlp:nlp, $
-		lxdist:PTR_NEW(lxdist), lx:FLOAT(lx_first), t:FLOAT(t_first), lx_first:lx_first, lx_last:lx_last, $
+		lxdist:PTR_NEW(lxdist), cumul_lxdist:PTR_NEW(cumul_lxdist), $
+    lx:FLOAT(lx_first), t:FLOAT(t_first), lx_first:lx_first, lx_last:lx_last, $
 		t_first:t_first, t_last:t_last, lp:lp_start, lc:lc, lp_first:lp_first, lp_last:lp_last, $
 		t_low:t_first, t_upp:t_last, t_range:nt, d_nt:nt, low_low_val:0,$
     upp_low_val:1, low_upp_val:(nlp-2)>1, upp_upp_val:(1+(nlp GE 3)), $
