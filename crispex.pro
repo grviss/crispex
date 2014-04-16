@@ -9256,16 +9256,28 @@ PRO CRISPEX_MASK_BUTTONS_SET, event
 END
 
 ;==================== MEASUREMENT PROCEDURES
-PRO CRISPEX_MEASURE_ARCSEC, event
+PRO CRISPEX_MEASURE_DX, event
 ; Handles the change of arcseconds per pixel resolution
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
-	WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, GET_VALUE = textvalue
-	(*(*info).meas).arcsecpix = FLOAT(textvalue[0])
+	WIDGET_CONTROL, (*(*info).ctrlscp).dx_text, GET_VALUE = textvalue
+	(*(*info).dataparams).dx = FLOAT(textvalue[0])
 	IF ((*(*info).meas).np GT 0) THEN CRISPEX_MEASURE_CALC, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, [(*(*info).meas).arcsecpix], labels=['arcsecpix']
+    CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).dx], labels=['dx']
+END
+
+PRO CRISPEX_MEASURE_DY, event
+; Handles the change of arcseconds per pixel resolution
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
+	WIDGET_CONTROL, (*(*info).ctrlscp).dy_text, GET_VALUE = textvalue
+	(*(*info).dataparams).dy = FLOAT(textvalue[0])
+	IF ((*(*info).meas).np GT 0) THEN CRISPEX_MEASURE_CALC, event
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).dy], labels=['dy']
 END
 
 PRO CRISPEX_MEASURE_ENABLE, event, DISABLE=disable
@@ -9274,7 +9286,9 @@ PRO CRISPEX_MEASURE_ENABLE, event, DISABLE=disable
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, SENSITIVE = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, SENSITIVE = event.SELECT
+	WIDGET_CONTROL, (*(*info).ctrlscp).dx_text, SENSITIVE = event.SELECT
+	WIDGET_CONTROL, (*(*info).ctrlscp).x_label, SENSITIVE = event.SELECT
+	WIDGET_CONTROL, (*(*info).ctrlscp).dy_text, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_lab, SENSITIVE = event.SELECT
 	WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, SENSITIVE = event.SELECT
@@ -9343,7 +9357,6 @@ PRO CRISPEX_MEASURE_CALC, event
   IF (STRCMP((*(*info).dataparams).xunit,'arcsec') OR $
       STRCMP((*(*info).dataparams).xunit,'asec')) THEN BEGIN
   	delta_asec = SQRT(delta_x^2 + delta_y^2)
-;	delta_asec = delta_pix * FLOAT((*(*info).meas).arcsecpix)
   	delta_km = au * TAN(delta_asec / 3600. * !DTOR)
   ENDIF ELSE BEGIN
     IF STRCMP((*(*info).dataparams).xunit,'m') THEN fact = 1E3 ELSE $
@@ -11223,7 +11236,8 @@ PRO CRISPEX_RESTORE_LOOPS_OPEN_TANAT_OPEN, event
 		event.TOP = (*(*info).winids).root
 	ENDIF
 	file_csav = DIALOG_PICKFILE(PATH=(*(*info).paths).ipath, FILTER='*.csav', /FIX_FILTER, /MUST_EXIST, TITLE='CRISPEX'+(*(*info).sesparams).instance_label+': Choose CSAV file to load in TANAT')
-	IF (STRLEN(file_csav) GT 0) THEN TANAT, file_csav, ASECPIX = (*(*info).meas).arcsecpix, DT = (*(*info).plotaxes).dt
+	IF (STRLEN(file_csav) GT 0) THEN $
+    TANAT, file_csav, ASECPIX=(*(*info).dataparams).dx, DT=(*(*info).plotaxes).dt
 END
 
 
@@ -13051,8 +13065,13 @@ PRO CRISPEX_SESSION_RESTORE, event
           SENSITIVE = (*(*info).meas).spatial_measurement
   	    WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, $
           SENSITIVE = (*(*info).meas).spatial_measurement
-  			WIDGET_CONTROL, (*(*info).ctrlscp).apix_text, $
-          SET_VALUE = STRTRIM((*(*info).meas).arcsecpix,2), $
+  			WIDGET_CONTROL, (*(*info).ctrlscp).dx_text, $
+          SET_VALUE = STRTRIM((*(*info).dataparams).dx,2), $
+          SENSITIVE = (*(*info).meas).spatial_measurement
+  			WIDGET_CONTROL, (*(*info).ctrlscp).x_label, $
+          SENSITIVE = (*(*info).meas).spatial_measurement
+  			WIDGET_CONTROL, (*(*info).ctrlscp).dy_text, $
+          SET_VALUE = STRTRIM((*(*info).dataparams).dy,2), $
           SENSITIVE = (*(*info).meas).spatial_measurement
   			WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_lab, $
           SENSITIVE = (*(*info).meas).spatial_measurement
@@ -14576,7 +14595,9 @@ PRO CRISPEX_SAVE_OPTIONS_OVERLAYS_ASECBAR_LENGTH, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savparams).overlays_asecbar_length = event.VALUE
-	(*(*info).savparams).overlays_asecbar_pix = (*(*info).savparams).overlays_asecbar_length / FLOAT((*(*info).meas).arcsecpix) * (*(*info).zooming).factor
+	(*(*info).savparams).overlays_asecbar_pix = $
+    (*(*info).savparams).overlays_asecbar_length / $
+    FLOAT((*(*info).dataparams).dx) * (*(*info).zooming).factor
 	CRISPEX_SAVE_OPTIONS_OVERLAYS_INCLUDE_UPDATE_DISPLAY, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savparams).overlays_asecbar_length, (*(*info).savparams).overlays_asecbar_pix],$
 		labels=['Arcseconds bar length','Arcseconds bar length in pixels']
@@ -17035,7 +17056,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	y_start		= FLOAT(FLOOR(hdr.ny/2))
 	sx_start	= x_start * imwinx / FLOAT(hdr.nx)										
 	sy_start	= y_start * imwiny / FLOAT(hdr.ny)
-  arcsecpix	= hdr.dx
 
   ; Determine starting positions for reference image
   xyref_out_of_range = 0
@@ -17888,11 +17908,19 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                           EVENT_PRO = 'CRISPEX_MEASURE_ENABLE')
 	apix_base		        = WIDGET_BASE(analysis_tab, /ROW)
 	apix_label		      = WIDGET_LABEL(apix_base, VALUE = 'Pixel size:', /ALIGN_LEFT, SENSITIVE = 0)
-  IF hdr.dx_fixed THEN $
-  	apix_text		= WIDGET_LABEL(apix_base, VALUE = STRTRIM(hdr.dx,2), /ALIGN_LEFT, SENSITIVE = 0) $
-  ELSE $
-  	apix_text		= WIDGET_TEXT(apix_base, VALUE = STRTRIM(hdr.dx,2), /EDITABLE, XSIZE = 5, $
-                    EVENT_PRO = 'CRISPEX_MEASURE_ARCSEC', SENSITIVE = 0)
+  IF hdr.dx_fixed THEN BEGIN
+  	dx_text		        = WIDGET_LABEL(apix_base, VALUE=STRTRIM(hdr.dx,2), $
+                          /ALIGN_LEFT, XSIZE=7, SENSITIVE=0) 
+	  x_label		        = WIDGET_LABEL(apix_base, VALUE = 'X', /ALIGN_CENTER, SENSITIVE = 0)
+  	dy_text		        = WIDGET_LABEL(apix_base, VALUE=STRTRIM(hdr.dy,2), $
+                          /ALIGN_LEFT, XSIZE=7, SENSITIVE = 0) 
+  ENDIF ELSE BEGIN
+  	dx_text		= WIDGET_TEXT(apix_base, VALUE = STRTRIM(hdr.dx,2), /EDITABLE, XSIZE=7, $
+                    EVENT_PRO = 'CRISPEX_MEASURE_DX', SENSITIVE = 0)
+	  x_label		        = WIDGET_LABEL(apix_base, VALUE = 'X', /ALIGN_CENTER, SENSITIVE = 0)
+  	dy_text		= WIDGET_TEXT(apix_base, VALUE = STRTRIM(hdr.dy,2), /EDITABLE, XSIZE=7, $
+                    EVENT_PRO = 'CRISPEX_MEASURE_DY', SENSITIVE = 0)
+  ENDELSE
 	apix_unit		        = WIDGET_LABEL(apix_base, VALUE = '['+hdr.xunit+']', /ALIGN_LEFT, SENSITIVE = 0)
 	measure_asec		    = WIDGET_BASE(analysis_tab, /ROW)
 	measure_asec_lab	  = WIDGET_LABEL(measure_asec, VALUE = 'Distance [arcsec]:', /ALIGN_LEFT, $
@@ -18584,7 +18612,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		loop_slit_but:loop_slit_but, rem_loop_pt_but:rem_loop_pt_but, loop_slice_but:loop_slice_but, $	
 		overlay_but:overlay_but, loop_overlay_all:loop_overlay_al, loop_overlay_sav:loop_overlay_sav, $		
 		linestyle_0:linestyle_0, linestyle_1:linestyle_1, linestyle_2:linestyle_2, $			
-		measure_but:measure_but, apix_label:apix_label, apix_unit:apix_unit, apix_text:apix_text, $
+		measure_but:measure_but, apix_label:apix_label, apix_unit:apix_unit,$
+    dx_text:dx_text, dy_text:dy_text, x_label:x_label, $
 		measure_asec_lab:measure_asec_lab, measure_asec_text:measure_asec_text, $
 		measure_km_lab:measure_km_lab, measure_km_text:measure_km_text, $					
 		mask_button_ids:mask_button_ids, masks_overlay_ct_cbox:masks_overlay_ct_cbox, $
@@ -18877,7 +18906,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	}
 ;-------------------- MEASUREMENT
 	meas = { $
-		arcsecpix:hdr.dx, spatial_measurement:0, np:0, $					
+		spatial_measurement:0, np:0, $					
 		xp:PTR_NEW(0), yp:PTR_NEW(0), sxp:PTR_NEW(0), syp:PTR_NEW(0), $					
 		xp_ref:PTR_NEW(0), yp_ref:PTR_NEW(0), sxp_ref:PTR_NEW(0), syp_ref:PTR_NEW(0), $					
 		xp_sji:PTR_NEW(0), yp_sji:PTR_NEW(0), sxp_sji:PTR_NEW(0), syp_sji:PTR_NEW(0) $					
