@@ -16209,6 +16209,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     histo_opt_val = default_histo_opt_val     &  gamma_val = default_gamma_val
     warnings = default_warnings
 		resave_preferences = 0
+		window_offsets = {set:0}
 	ENDELSE
 
 ;------------------------- SETTINGS FOR PERFORMANCE SAVE FILE
