@@ -11237,7 +11237,8 @@ PRO CRISPEX_RESTORE_LOOPS_OPEN_TANAT_OPEN, event
 	ENDIF
 	file_csav = DIALOG_PICKFILE(PATH=(*(*info).paths).ipath, FILTER='*.csav', /FIX_FILTER, /MUST_EXIST, TITLE='CRISPEX'+(*(*info).sesparams).instance_label+': Choose CSAV file to load in TANAT')
 	IF (STRLEN(file_csav) GT 0) THEN $
-    TANAT, file_csav, ASECPIX=(*(*info).dataparams).dx, DT=(*(*info).plotaxes).dt
+    TANAT, file_csav, ASECPIX=[(*(*info).dataparams).dx,$
+      (*(*info).dataparams).dy], DT=(*(*info).plotaxes).dt
 END
 
 
