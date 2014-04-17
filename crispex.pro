@@ -7358,13 +7358,15 @@ PRO CRISPEX_FIND_CLSAV, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [imagefilename, filename, STRTRIM((*(*info).retrparams).clfilecount,2)], labels=['filename','basename','clfilecount']
 END
 
-PRO CRISPEX_FIND_CSAV, event
+PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir
 ; Finds CSAV output files (i.e. saved loopslice/slab files)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
+  refcfilecount = 0
 	imagefilename = FILE_BASENAME((*(*info).dataparams).imfilename)
 	firstsplit = STRMID(imagefilename,0,STRPOS(imagefilename,'.',/REVERSE_SEARCH))
+  ; Do initial search
 	cfiles = FILE_SEARCH((*(*info).paths).ipath+firstsplit+"*csav", $
     COUNT = cfilecount)
 	IF (*(*info).dataswitch).reffile THEN BEGIN
@@ -7373,6 +7375,27 @@ PRO CRISPEX_FIND_CSAV, event
       /REVERSE_SEARCH))
 		refcfiles = FILE_SEARCH((*(*info).paths).ipath+reffirstsplit+"*csav", $
       COUNT = refcfilecount)
+  ENDIF
+  ; If no *csav files found, allow selection of new path and redo the search
+  IF ((cfilecount EQ 0) AND (refcfilecount EQ 0) AND $
+    KEYWORD_SET(ALLOW_SELECT_DIR)) THEN BEGIN
+		CRISPEX_WINDOW_OK, event,'ERROR!',$
+      'No saved time slice (*csav) files found corresponding '+$
+      'to the current data file. Please select an alternative input path.',$
+			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb, /BLOCK
+		(*(*info).winids).errtlb = tlb
+    newpath = DIALOG_PICKFILE(TITLE='CRISPEX'+(*(*info).sesparams).instance_label+$
+      ': Select input path', /DIRECTORY, $
+      PATH=(*(*info).paths).ipath,/MUST_EXIST)
+    ; Redo the search at the new path
+  	cfiles = FILE_SEARCH(newpath+firstsplit+"*csav", $
+      COUNT = cfilecount)
+  	IF (*(*info).dataswitch).reffile THEN $
+  		refcfiles = FILE_SEARCH(newpath+reffirstsplit+"*csav", $
+        COUNT = refcfilecount)
+  ENDIF
+  ; Save variables
+	IF (*(*info).dataswitch).reffile THEN BEGIN
 		*(*(*info).restoreparams).cfiles  = [cfiles,refcfiles]
 		(*(*info).restoreparams).cfilecount = cfilecount+refcfilecount
 	ENDIF ELSE BEGIN
@@ -10915,24 +10938,26 @@ PRO CRISPEX_RESTORE_LOOPS_MAIN, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).loopswitch).restore_loops = event.SELECT
-	CRISPEX_FIND_CSAV, event
-	IF ((*(*info).restoreparams).cfilecount GT 0) THEN BEGIN
-		IF (*(*info).loopswitch).restore_loops THEN BEGIN
-			CRISPEX_RESTORE_LOOPS_MENU, event
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_all, SENSITIVE = 1
-			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, SENSITIVE = 1
-		ENDIF ELSE CRISPEX_RESTORE_LOOPS_MENU_CLOSE, event
-	ENDIF ELSE BEGIN
-		CRISPEX_WINDOW_OK, event,'ERROR!',$
-      'No saved time slice (*csav) files found corresponding '+$
-      'to the current data file. Unable to produce loop overlays.',$
-			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
-		(*(*info).winids).errtlb = tlb
-		WIDGET_CONTROL, (*(*info).ctrlscp).overlay_but, SET_BUTTON = 0
-	ENDELSE
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, [(*(*info).loopswitch).restore_loops],$
-      labels=['Restoring loops']
+  IF event.SELECT THEN BEGIN
+  	CRISPEX_FIND_CSAV, event, /ALLOW_SELECT_DIR
+  	IF ((*(*info).restoreparams).cfilecount GT 0) THEN BEGIN
+  		IF (*(*info).loopswitch).restore_loops THEN BEGIN
+  			CRISPEX_RESTORE_LOOPS_MENU, event
+  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_all, SENSITIVE = 1
+  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, SENSITIVE = 1
+  		ENDIF ELSE CRISPEX_RESTORE_LOOPS_MENU_CLOSE, event
+  	ENDIF ELSE BEGIN
+  		CRISPEX_WINDOW_OK, event,'ERROR!',$
+        'No saved time slice (*csav) files found corresponding '+$
+        'to the current data file. Unable to produce loop overlays.',$
+  			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
+  		(*(*info).winids).errtlb = tlb
+  		WIDGET_CONTROL, (*(*info).ctrlscp).overlay_but, SET_BUTTON = 0
+  	ENDELSE
+  	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+      CRISPEX_VERBOSE_GET, event, [(*(*info).loopswitch).restore_loops],$
+        labels=['Restoring loops']
+  ENDIF
 END
 
 PRO CRISPEX_RESTORE_LOOPS_MENU, event, set_but_array
