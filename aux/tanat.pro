@@ -102,7 +102,10 @@ FUNCTION TANAT_TRANSFORM_DATA2DEVICE, info, LX_IN=lx_in, T_IN=t_in, MAIN=main, $
   IF KEYWORD_SET(MAIN) THEN BEGIN
     winlx = (*(*info).winsizes).windowx
     wint = (*(*info).winsizes).windowy
-    d_nlx = (*(*info).dataparams).nlx
+    IF (*(*info).dispswitch).gap_consider THEN $
+      d_nlx =  (*(*info).dataparams).nlxpts $
+    ELSE $
+      d_nlx = (*(*info).dataparams).nlx
     d_nt = (*(*info).dataparams).d_nt
     tpos = (*(*info).dataparams).t_low
   ENDIF 
@@ -279,6 +282,13 @@ PRO TANAT_CURSOR, event
         labels=['WIDGET_DRAW: event.Type','WIDGET_DRAW: event.Press']
     lxt = TANAT_TRANSFORM_DATA2DEVICE(info, LX_IN=event.X, $
       T_IN=event.Y, /MAIN, /INVERSE)
+    IF (*(*info).dispswitch).gap_consider THEN BEGIN
+      lowsub = INDGEN((*(*info).dataparams).ngaps)*2
+      uppsub = lowsub+1
+      (*(*info).dispswitch).curs_out_of_range = $
+        ABS( TOTAL((lxt.lx GE (*(*(*info).dataparams).databounds)[lowsub]) AND $
+              (lxt.lx LE (*(*(*info).dataparams).databounds)[uppsub]))-1) 
+    ENDIF
 		CASE event.TYPE OF
 		0:	CASE event.PRESS OF	; pressed a mouse button
 			1:	BEGIN	; left mouse button --> lock cursor to first (and subsequent) position(s)
@@ -473,10 +483,20 @@ PRO TANAT_DRAW_SLICE, event, REFERENCE=reference
 	  WSET, (*(*info).winids).wid
     imrefscaling = 0
     selected_data = *(*(*info).data).loopslice
+    ngaps = (*(*info).dataparams).ngaps
+    databounds = *(*(*info).dataparams).databounds
+    wdatabounds = *(*(*info).dataparams).wdatabounds
+    empty_slice = *(*(*info).data).empty_slice
+    gap_consider = (*(*info).dispswitch).gap_consider
   ENDIF ELSE BEGIN
 	  WSET, (*(*info).winids).refwid
     imrefscaling = 1
     selected_data = *(*(*info).data).refloopslice
+    ngaps = (*(*info).dataparams).ngaps_ref
+    databounds = *(*(*info).dataparams).databounds_ref
+    wdatabounds = *(*(*info).dataparams).wdatabounds_ref
+    empty_slice = *(*(*info).data).ref_empty_slice
+    gap_consider = (*(*info).dispswitch).ref_gap_consider
   ENDELSE
   IF ((*(*info).scaling).gamma[imrefscaling] NE 1.) THEN BEGIN
     wherelt0 = WHERE(selected_data LT 0, count)
@@ -497,7 +517,23 @@ PRO TANAT_DRAW_SLICE, event, REFERENCE=reference
 ;  ENDIF
   minmax = TANAT_SCALING_CONTRAST(minimum,maximum,$
     (*(*info).scaling).minimum[imrefscaling],(*(*info).scaling).maximum[imrefscaling])
-	finalimage = BYTSCL(selected_data, MIN = minmax[0], MAX = minmax[1], /NAN) 
+  ; Handle gaps in the data
+  IF gap_consider THEN BEGIN
+    dispslice_data = selected_data
+    ; Arbitrary, but consistent, minimum value such that the gaps are really
+    ; black compared to the data values
+    min_dispslice_data = $
+      -(1+(MIN(dispslice_data) LT 0)*2) * ABS(MIN(dispslice_data))
+    IF (empty_slice[0,0] NE min_dispslice_data) THEN $
+      REPLICATE_INPLACE, empty_slice, min_dispslice_data
+    dispslice = empty_slice[*, $
+      (*(*info).dataparams).t_low:(*(*info).dataparams).t_upp]
+    FOR i=0,N_ELEMENTS(databounds)/2-1 DO $
+      dispslice[wdatabounds[2*i]:wdatabounds[2*i+1], *] = $
+        dispslice_data[databounds[2*i]:databounds[2*i+1],*]
+  ENDIF ELSE $
+    dispslice = selected_data
+	finalimage = BYTSCL(dispslice, MIN = minmax[0], MAX = minmax[1], /NAN) 
   TV, CONGRID(finalimage,(*(*info).winsizes).windowx,$
     (*(*info).winsizes).windowy,INTERP=(*(*info).dispswitch).smoothed)
 	TANAT_DRAW_CURSCROSS_PLOT, event
@@ -553,11 +589,19 @@ PRO TANAT_DRAW_LS, event
     TANAT_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).slab_set THEN BEGIN
 		WSET, (*(*info).winids).ls_drawid
-		PLOT, *(*(*info).dataparams).lps, *(*(*info).dataparams).spec, POS=[(*(*info).plotpos).lsx0,(*(*info).plotpos).lsy0,(*(*info).plotpos).lsx1,(*(*info).plotpos).lsy1],/NORM, CHARSIZE=1,YS=1,$
-			YR=[(*(*info).plotaxes).ls_low_y,(*(*info).plotaxes).ls_upp_y],XSTYLE = (*(*info).dispswitch).v_dop_set * 8 + 1, XTITLE = (*(*info).plotaxes).spxtitle, YTITLE = 'Scaled intensity', $
-			BACKGROUND = (*(*info).plotparams).bgplotcol,COLOR = (*(*info).plotparams).plotcol, /NODATA
+		PLOT, *(*(*info).dataparams).lps, *(*(*info).dataparams).spec, $
+      POS=[(*(*info).plotpos).lsx0,(*(*info).plotpos).lsy0,$
+      (*(*info).plotpos).lsx1,(*(*info).plotpos).lsy1],/NORM, CHARSIZE=1,YS=1,$
+			YR=[(*(*info).plotaxes).ls_low_y,(*(*info).plotaxes).ls_upp_y],$
+      XSTYLE = (*(*info).dispswitch).v_dop_set * 8 + 1, $
+      XTITLE = (*(*info).plotaxes).spxtitle, YTITLE = 'Scaled intensity', $
+			BACKGROUND = (*(*info).plotparams).bgplotcol,$
+      COLOR = (*(*info).plotparams).plotcol, /NODATA
 		IF ( (*(*info).dispswitch).v_dop_set EQ 1) THEN BEGIN
-			AXIS, XAXIS=1, XRANGE = [((*(*info).plotaxes).v_dop)[0], ((*(*info).plotaxes).v_dop)[(*(*info).dataparams).lp_last]], XSTYLE=1, XTITLE = 'Doppler velocity [km/s]', COLOR = (*(*info).plotparams).plotcol
+			AXIS, XAXIS=1, XRANGE = [((*(*info).plotaxes).v_dop)[0], $
+        ((*(*info).plotaxes).v_dop)[(*(*info).dataparams).lp_last]], $
+        XSTYLE=1, XTITLE = 'Doppler velocity [km/s]', $
+        COLOR = (*(*info).plotparams).plotcol
 			XYOUTS,(*(*(*info).dataparams).lps)[FLOOR((*(*info).dataparams).lp_last-6/23.*(*(*info).dataparams).lp_last)],0.9*(*(*info).plotaxes).ls_yrange + (*(*info).plotaxes).ls_low_y, $
 				STRTRIM(STRING((*(*info).plotaxes).v_dop[(*(*info).dataparams).lp],FORMAT='(3(F9.2,x))'),2)+' km/s', COLOR = (*(*info).plotparams).plotcol
 		ENDIF
@@ -575,13 +619,20 @@ PRO TANAT_DRAW_LS, event
 				PLOTS, [1,1] * (*(*(*info).dataparams).lps)[(*(*info).dataparams).upp_low_val],[(*(*info).plotaxes).ls_low_y,(*(*info).plotaxes).ls_upp_y], COLOR = (*(*info).plotparams).plotcol, LINESTYLE = 5
 			ENDIF
 		ENDIF
-		ssp = (  *(*(*info).data).loopdata)[FIX((*(*info).dataparams).lx),FIX((*(*info).dataparams).t),*]/REPLICATE((*(*info).dataparams).ms,(*(*info).dataparams).nlp)
-		OPLOT, (*(*(*info).dataparams).lps)+(*(*info).dataparams).lp_first, ssp, LINE=2, COLOR = (*(*info).plotparams).plotcol
-		OPLOT, (*(*(*info).dataparams).lps),*(*(*info).dataparams).spec,COLOR = (*(*info).plotparams).plotcol
-		IF (*(*info).dispswitch).subtract THEN BEGIN
-			OPLOT, (*(*(*info).dataparams).lps), *(*(*info).dataparams).spec-ssp, COLOR = (*(*info).plotparams).plotcol
-			OPLOT, (*(*(*info).dataparams).lps), *(*(*info).dataparams).spec-ssp, PSYM = 4, COLOR = (*(*info).plotparams).plotcol
-		ENDIF
+		OPLOT, (*(*(*info).dataparams).lps),*(*(*info).dataparams).spec,$
+      COLOR = (*(*info).plotparams).plotcol
+    IF ((*(*info).dispswitch).curs_out_of_range EQ 0) THEN BEGIN
+  		ssp = (  *(*(*info).data).loopdata)[FIX((*(*info).dataparams).lx),FIX((*(*info).dataparams).t),*]/REPLICATE((*(*info).dataparams).ms,(*(*info).dataparams).nlp)
+  		OPLOT, (*(*(*info).dataparams).lps)+(*(*info).dataparams).lp_first, ssp, LINE=2, COLOR = (*(*info).plotparams).plotcol
+  		IF (*(*info).dispswitch).subtract THEN BEGIN
+  			OPLOT, (*(*(*info).dataparams).lps), *(*(*info).dataparams).spec-ssp, COLOR = (*(*info).plotparams).plotcol
+  			OPLOT, (*(*(*info).dataparams).lps), *(*(*info).dataparams).spec-ssp, PSYM = 4, COLOR = (*(*info).plotparams).plotcol
+  		ENDIF
+    ENDIF ELSE $
+      XYOUTS, (!X.CRANGE[1]-!X.CRANGE[0])/2.+!X.CRANGE, $
+        (!Y.CRANGE[1]-!Y.CRANGE[0])/2.+!Y.CRANGE, $
+        'No data available for!Cselected pixel position', $
+        COLOR=(*(*info).plotparams).plotcol, ALIGN=0.5, CHARSIZE=1.2, /DATA
 		IF ((*(*info).plotaxes).ls_low_y LT 0.) THEN PLOTS, [((*(*(*info).dataparams).lps))[0],((*(*(*info).dataparams).lps))[(*(*info).dataparams).nlp-1]],[0.,0.], COLOR = (*(*info).plotparams).plotcol
 		PLOTS, [1,1] * (*(*(*info).dataparams).lps)[(*(*info).dataparams).lp],[(*(*info).plotaxes).ls_low_y,(*(*info).plotaxes).ls_upp_y], COLOR = (*(*info).plotparams).plotcol
 	ENDIF 
@@ -661,7 +712,7 @@ PRO TANAT_EVENT, event
     TANAT_VERBOSE_GET_ROUTINE, event
 END
 
-;================================================================================= FILE OPENING PROCEDURES
+;==================== FILE OPENING PROCEDURES
 PRO TANAT_FILE_OPEN, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
@@ -674,7 +725,8 @@ PRO TANAT_FILE_OPEN, event
       SPECT_POS_UPP=spect_pos_upp, $
       X_LOOP_PTS=x_loop_pts, Y_LOOP_PTS=y_loop_pts,$
       NLX=nlx, NT=nt, NLP=nlp, LOOP_DATA=loop_data, SLAB_SET=slab_set,$
-      W_FIRST=w_first, W_LAST=w_last, W_SET=w_set
+      W_FIRST=w_first, W_LAST=w_last, W_SET=w_set, $
+      NGAPS=ngaps, DATABOUNDS=databounds, WDATABOUNDS=wdatabounds
 		*(*(*info).dataparams).spec = spectrum		&	(*(*info).dataparams).ms = ms
 		(*(*info).dataparams).nlx = nlx			&	(*(*info).dataparams).nt = nt
 		(*(*info).dataparams).nlp = nlp			&	(*(*info).dispswitch).slab_set = slab_set
@@ -699,28 +751,36 @@ PRO TANAT_FILE_OPEN, event
 		(*(*info).dataparams).lp_last = spect_pos_upp - spect_pos_low
   	TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, $
       (*(*info).measparams).arcsecpix, LXDIST=lxdist, CUMUL_LXDIST=cumul_lxdist,$
-      LX_FIRST=lx_first, LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
+      LX_FIRST=lx_first, LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last, $
+      NLXPTS=nlxpts
+    (*(*info).dispswitch).gap_consider = $
+      ((ngaps GE 1) AND (*(*info).dispswitch).ref)
 		*(*(*info).dataparams).lxdist = lxdist		&	(*(*info).dataparams).lx = FLOAT(lx_first)
     *(*(*info).dataparams).cumul_lxdist = cumul_lxdist
+    (*(*info).dataparams).nlxpts = nlxpts
+    (*(*info).dataparams).lx_first = lx_first
+    IF (*(*info).dispswitch).gap_consider THEN $
+      (*(*info).dataparams).lx_last = lx_last $
+    ELSE $
+      (*(*info).dataparams).lx_last = nlx-1
 		(*(*info).dataparams).t = FLOAT(t_first)	&	(*(*info).curs).slx = FLOAT(lx_first)
 		(*(*info).dataparams).t_low = FLOAT(t_first)	&	(*(*info).dataparams).t_upp = FLOAT(t_last)
 		(*(*info).dataparams).t_first = FLOAT(t_first)	&	(*(*info).dataparams).t_last = FLOAT(t_last)
 		(*(*info).curs).st = FLOAT(t_first)		&	(*(*info).curs).lxlock = FLOAT(lx_first)
 		(*(*info).curs).tlock = FLOAT(t_first)		&	(*(*info).curs).slxlock	= FLOAT(lx_first)
 		(*(*info).curs).stlock = FLOAT(t_first)
+    (*(*info).dataparams).ngaps = ngaps
+    (*(*info).dataparams).databounds = PTR_NEW(databounds)
+    (*(*info).dataparams).wdatabounds = PTR_NEW(wdatabounds)
+    (*(*info).data).empty_slice = $
+      PTR_NEW(MAKE_ARRAY(N_ELEMENTS(x_loop_pts),nt,TYPE=(SIZE(loop_data, /TYPE))))
 		TANAT_SET_CONTROLS, event
 		TANAT_T_RANGE, event
-;		TANAT_UPDATE_LP, event
-;		TANAT_DRAW, event
 		IF (slab_set NE 1) THEN BEGIN
 			WSET, (*(*info).winids).ls_drawid
 			TV,CONGRID(REPLICATE(200,10,10),(*(*info).winsizes).lswinx,(*(*info).winsizes).lswiny)
 			XYOUTS,(*(*info).winsizes).lswinx/2.,(*(*info).winsizes).lswiny/2.,'Could not display spectral information as!Conly one spectral position is available.', COLOR = 0, ALIGNMENT = 0.5, /DEVICE
 		ENDIF
-;		*(*(*info).overlays).lxbpoint = PTR_NEW(0.)
-;		*(*(*info).overlays).lxepoint = PTR_NEW(0.)
-;		*(*(*info).overlays).tbpoint = PTR_NEW(0.)
-;		*(*(*info).overlays).tepoint = PTR_NEW(0.)
 		TANAT_SET_SAVEFILENAME, event
 	ENDIF
 END
@@ -729,7 +789,8 @@ PRO TANAT_FILE_RESTORE, filename, SPECTRUM=spectrum, MS=ms, $
   SPECT_POS_SAV=spect_pos_sav, SPECT_POS_LOW=spect_pos_low, SPECT_POS_UPP=spect_pos_upp,$
   X_LOOP_PTS=x_loop_pts, Y_LOOP_PTS=y_loop_pts, NLX=nlx,$
   NT=nt, NLP=nlp, LOOP_DATA=loop_data, SLAB_SET=slab_set, W_FIRST=w_first,$
-  W_LAST=w_last, W_SET=w_set
+  W_LAST=w_last, W_SET=w_set, NGAPS=ngaps, DATABOUNDS=databounds, $
+  WDATABOUNDS=wdatabounds
 	RESTORE, filename
 	slab_set = 0
 	IF (N_ELEMENTS(loop_slab) GT 0) THEN BEGIN			; Old CRISPEX versions failsafe
@@ -743,7 +804,6 @@ PRO TANAT_FILE_RESTORE, filename, SPECTRUM=spectrum, MS=ms, $
 	ENDIF
 	IF slab_set THEN BEGIN
 		spectrum = average_spectrum
-;	IF (N_ELEMENTS(spectrum) GT 1) THEN BEGIN
 		ms	= scaling_factor
 		nlp	= (SIZE(spectrum))[1]
 	ENDIF ELSE BEGIN
@@ -762,6 +822,12 @@ PRO TANAT_FILE_RESTORE, filename, SPECTRUM=spectrum, MS=ms, $
 	nt = (SIZE(loop_data))[2]
 	w_first = 0
 	IF w_set THEN w_last = (SIZE(loop_data))[3]-1 ELSE w_last = 1
+  ; Handle gaps in data, failsafe against older csav files
+  IF (N_ELEMENTS(ngaps) NE 1) THEN BEGIN
+    ngaps = 0
+    databounds = 0
+    wdatabounds = 0
+  ENDIF 
 END
 
 ;================================================================================= DETAILED SPECTRUM PROCEDURES
@@ -1367,11 +1433,15 @@ END
 
 PRO TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, arcsecpix, $
   LXDIST=lxdist, CUMUL_LXDIST=cumul_lxdist, LX_FIRST=lx_first, $
-  LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
-	lxdist = DBLARR(nlx)
-	cumul_lxdist = DBLARR(nlx)
-	IF (TOTAL(x_loop_pts) EQ 0) AND (TOTAL(y_loop_pts) EQ 0) THEN lxdist = REPLICATE(1.,nlx) ELSE BEGIN
-		FOR i=0,nlx-2 DO BEGIN
+  LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last, NLXPTS=nlxpts
+  nlxpts = N_ELEMENTS(x_loop_pts)
+	lxdist = DBLARR(nlxpts)
+	cumul_lxdist = DBLARR(nlxpts)
+	IF (TOTAL(x_loop_pts) EQ 0) AND (TOTAL(y_loop_pts) EQ 0) THEN BEGIN
+    nlxpts = nlx
+    lxdist = REPLICATE(1.,nlxpts) 
+  ENDIF ELSE BEGIN
+		FOR i=0,nlxpts-2 DO BEGIN
 			x_up = x_loop_pts[i+1]
 			x_dn = x_loop_pts[i]
 			y_up = y_loop_pts[i+1]
@@ -1384,16 +1454,16 @@ PRO TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, arcsecpix, $
       ELSE $
         cumul_lxdist[i] = lxdist[i] + cumul_lxdist[i-1]
 		ENDFOR
-		lxdist[nlx-1] = MEAN(lxdist[0:nlx-2])
-    cumul_lxdist[nlx-1] = lxdist[nlx-1] + cumul_lxdist[nlx-2]
+		lxdist[nlxpts-1] = MEAN(lxdist[0:nlxpts-2])
+    cumul_lxdist[nlxpts-1] = lxdist[nlxpts-1] + cumul_lxdist[nlxpts-2]
 	ENDELSE
 	lx_first	= 0						; Set number of first x-coordinate
-	lx_last		= nlx-1						; Set number of last x-coordinate
+	lx_last		= nlxpts-1						; Set number of last x-coordinate
 	t_first		= 0						; Set number of first frame		
 	t_last		= nt-1						; Set number of last frame
 END
 
-;================================================================================= SLIDER PROCEDURES
+;==================== SLIDER PROCEDURES
 PRO TANAT_SLIDER_LOW_LOW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
@@ -1489,6 +1559,15 @@ PRO TANAT_SLIDER_LX, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lx = event.VALUE
+  IF (*(*info).dispswitch).gap_consider THEN BEGIN
+    lowsub = INDGEN((*(*info).dataparams).ngaps)*2
+    uppsub = lowsub+1
+    (*(*info).dispswitch).curs_out_of_range = $
+      ABS( TOTAL(((*(*info).dataparams).lx GE $
+                (*(*(*info).dataparams).databounds)[lowsub]) AND $
+            ((*(*info).dataparams).lx LE $
+             (*(*(*info).dataparams).databounds)[uppsub]))-1) 
+  ENDIF
   slxt = TANAT_TRANSFORM_DATA2DEVICE(info, LX_IN=(*(*info).dataparams).lx, $
     /MAIN)
   (*(*info).curs).slx = slxt.lx
@@ -1850,14 +1929,21 @@ PRO TANAT,$							; call program
         SPECT_POS_SAV=spect_pos, SPECT_POS_LOW=spect_pos_low,$
         SPECT_POS_UPP=spect_pos_upp, X_LOOP_PTS=x_loop_pts, Y_LOOP_PTS=y_loop_pts,$
         NLX=nlx, NT=nt, NLP=nlp, LOOP_DATA=loop_data, SLAB_SET=slab_set,$
-        W_FIRST=w_first, W_LAST=w_last, W_SET=w_set
+        W_FIRST=w_first, W_LAST=w_last, W_SET=w_set, $
+        NGAPS=ngaps, DATABOUNDS=databounds, WDATABOUNDS=wdatabounds
+        empty_slice = MAKE_ARRAY(N_ELEMENTS(x_loop_pts),nt,$
+          TYPE=(SIZE(loop_data, /TYPE)))
 			IF (nfiles EQ 2) THEN BEGIN
         TANAT_FILE_RESTORE, filename[1], SPECTRUM=refspectrum, MS=refms,$
           SPECT_POS_SAV=ref_spect_pos, SPECT_POS_LOW=ref_spect_pos_low,$
           SPECT_POS_UPP=ref_spect_pos_upp, X_LOOP_PTS=ref_x_loop_pts,$
           Y_LOOP_PTS=ref_y_loop_pts, NLX=refnlx, NT=refnt, NLP=refnlp, $
           LOOP_DATA=ref_loop_data, SLAB_SET=ref_slab_set, W_FIRST=w_first,$
-          W_LAST=w_last, W_SET=w_set
+          W_LAST=w_last, W_SET=w_set, $
+          NGAPS=ngaps_ref, DATABOUNDS=databounds_ref, $
+          WDATABOUNDS=wdatabounds_ref
+          ref_empty_slice = MAKE_ARRAY(N_ELEMENTS(ref_x_loop_pts),refnt,$
+            TYPE=(SIZE(ref_loop_data, /TYPE)))
         reffilename = STRMID(filename[1], STRPOS(filename[1],'/',/REVERSE_SEARCH)+1,STRLEN(filename[1])-1)		; Failsafe to remove leading /
 				IF ((refnlx NE nlx) OR (refnt NE nt)) THEN BEGIN
 					PRINT,'ERROR: Dimensions of the reference file (['+STRTRIM(refnlx,2)+','+STRTRIM(refnt,2)+']) are not compatible with those of the main file '+$
@@ -1871,7 +1957,13 @@ PRO TANAT,$							; call program
 				refnlx = 0
 				refnt = 0
 				refnlp = 0
+        ngaps_ref = 0
+        databounds_ref = 0
+        wdatabounds_ref = 0
+        ref_empty_slice = 0
 			ENDELSE
+      gap_consider = ((ngaps GE 1) AND ref)
+      ref_gap_consider = (ngaps_ref GE 1)
 			filename = STRMID(filename[0], STRPOS(filename[0],'/',/REVERSE_SEARCH)+1,STRLEN(filename[0])-1)		; Failsafe to remove leading /
 	ENDIF ELSE BEGIN
 		PRINT,'ERROR: You may only supply up to two files for read-in!'
@@ -1882,8 +1974,8 @@ PRO TANAT,$							; call program
 		IF (type EQ 1) THEN PRINT,'WARNING: You are currently analysing data from an approximated loop slice!'
 	ENDIF
 
-;========================================================================= SETTING START-UP OPTIONS 
-;--------------------------------------------------------------------------------- INITIAL SPECTRAL PARAMETERS
+;==================== SETTING START-UP OPTIONS 
+;-------------------- INITIAL SPECTRAL PARAMETERS
   TANAT_SET_SPECTPARAMS, spectrum, nlp, spect_pos, LINE_CENTER=line_center,$
     LPS=lps, LC=lc, SPXTITLE=spxtitle, V_DOP_VALS=v_dop_vals, $
     V_DOP_SET=v_dop_set
@@ -1910,7 +2002,7 @@ PRO TANAT,$							; call program
 		reflp_last = 1
 	ENDELSE
 
-;--------------------------------------------------------------------------------- INITIAL TIMESLICE PARAMETERS
+;-------------------- INITIAL TIMESLICE PARAMETERS
 	IF (N_ELEMENTS(ASECPIX) GE 1) THEN BEGIN
     IF (N_ELEMENTS(ASECPIX) EQ 1) THEN $
       arcsecpix = REPLICATE(asecpix,2) $
@@ -1919,11 +2011,11 @@ PRO TANAT,$							; call program
   ENDIF ELSE arcsecpix = REPLICATE(0.0592,2)
 	TANAT_SET_TIMESLICE_PARAMS, nlx, nt, x_loop_pts, y_loop_pts, arcsecpix, $
     LXDIST=lxdist, CUMUL_LXDIST=cumul_lxdist, LX_FIRST=lx_first, $
-    LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last
+    LX_LAST=lx_last, T_FIRST=t_first, T_LAST=t_last, NLXPTS=nlxpts
+  IF (gap_consider EQ 0) THEN lx_last = nlx-1
 	IF (N_ELEMENTS(DT) EQ 1) THEN secondststep = dt ELSE secondststep = 1.
 
-;--------------------------------------------------------------------------------- WINDOW SIZES (CHANGE ONLY
-;--------------------------------------------------------------------------------- NUMERICAL VALUES!)
+;-------------------- WINDOW SIZES (CHANGE ONLY NUMERICAL VALUES!)
 	windowx		= 0.2 * screensize[0]				; Set maximum x-extent of spectral win(s)
 	windowy		= 0.85 * screensize[1]				; Set maximum y-extent of spectral win(s)
 	lswinx 		= 0.25 * screensize[0]				; Set maximum x-extent of loc spec win
@@ -2341,23 +2433,33 @@ PRO TANAT,$							; call program
 	}
 ;--------------------------------------------------------------------------------- DATA 
 	data = { $
-		loopdata:loopdata, loopslice:loopslice, refloopdata:refloopdata, refloopslice:refloopslice $
+		loopdata:loopdata, loopslice:loopslice, refloopdata:refloopdata, $
+    refloopslice:refloopslice, empty_slice:PTR_NEW(empty_slice),$
+    ref_empty_slice:PTR_NEW(ref_empty_slice)  $
 	}
 ;--------------------------------------------------------------------------------- DATA PARAMETERS
 	dataparams = { $
-		filename:filename, reffilename:reffilename, spec:PTR_NEW(spectrum), lps:PTR_NEW(lps), ms:ms, nlx:nlx, nt:nt, nlp:nlp, $
+		filename:filename, reffilename:reffilename, spec:PTR_NEW(spectrum), $
+    lps:PTR_NEW(lps), ms:ms, nlx:nlx, nlxpts:nlxpts, nt:nt, nlp:nlp, $
 		lxdist:PTR_NEW(lxdist), cumul_lxdist:PTR_NEW(cumul_lxdist), $
     lx:FLOAT(lx_first), t:FLOAT(t_first), lx_first:lx_first, lx_last:lx_last, $
 		t_first:t_first, t_last:t_last, lp:lp_start, lc:lc, lp_first:lp_first, lp_last:lp_last, $
 		t_low:t_first, t_upp:t_last, t_range:nt, d_nt:nt, low_low_val:0,$
     upp_low_val:1, low_upp_val:(nlp-2)>1, upp_upp_val:(1+(nlp GE 3)), $
-		refnlp:refnlp, reflp:reflp_start, reflp_first:reflp_first, reflp_last:reflp_last, w_first:w_first, w_last:w_last, w_set:w_set, w:w_first $
+		refnlp:refnlp, reflp:reflp_start, reflp_first:reflp_first, $
+    reflp_last:reflp_last, w_first:w_first, w_last:w_last, w_set:w_set, $
+    w:w_first, ngaps:ngaps, databounds:PTR_NEW(databounds), $
+    wdatabounds:PTR_NEW(wdatabounds), $
+    ngaps_ref:ngaps_ref, databounds_ref:PTR_NEW(databounds_ref), $
+    wdatabounds_ref:PTR_NEW(wdatabounds_ref) $
 	}
 ;--------------------------------------------------------------------------------- DISPLAY SWITCHES
 	dispswitch = { $
 		overlay_measurements:0, singlepos:1, doublepos:0, multpos:0, subtract:0, $
 		man_scale:0, smoothed:0, v_dop_set:v_dop_set, slab_set:slab_set, $
-		ref:ref, ref_slab_set:ref_slab_set, reflp_lock:eqnlps, series_feedback:1 $
+		ref:ref, ref_slab_set:ref_slab_set, reflp_lock:eqnlps, series_feedback:1, $
+    gap_consider:gap_consider, ref_gap_consider:ref_gap_consider, $
+    curs_out_of_range:0 $
 	}
 ;--------------------------------------------------------------------------------- FEEDBACK PARAMS
 	feedbparams = { $
