@@ -96,12 +96,41 @@ FUNCTION TANAT_SCALING_CONTRAST, minimum_init, maximum_init, $
   RETURN, minmax
 END
 
+;------------------------- COORDINATE TRANSFORM FUNCTIONS
+FUNCTION TANAT_TRANSFORM_DATA2DEVICE, info, LX_IN=lx_in, T_IN=t_in, MAIN=main, $
+  INVERSE=inverse
+  IF KEYWORD_SET(MAIN) THEN BEGIN
+    winlx = (*(*info).winsizes).windowx
+    wint = (*(*info).winsizes).windowy
+    d_nlx = (*(*info).dataparams).nlx
+    d_nt = (*(*info).dataparams).d_nt
+    tpos = (*(*info).dataparams).t_low
+  ENDIF 
+  lx_out = -1
+  t_out = -1
+  IF ~KEYWORD_SET(INVERSE) THEN BEGIN
+    ; Data -> Device: add 0.5 pixel offset to center cursor on pixel, instead of
+    ; on IDL default lower left corner
+    IF (N_ELEMENTS(LX_IN) NE 0) THEN lx_out = (lx_in+0.5) * winlx / FLOAT(d_nlx)
+    IF (N_ELEMENTS(T_IN) NE 0) THEN t_out = (t_in+0.5 - tpos) * wint / FLOAT(d_nt)
+  ENDIF ELSE BEGIN
+    ; Device -> Data
+    IF (N_ELEMENTS(LX_IN) NE 0) THEN lx_out = lx_in * (d_nlx) / winlx 
+    IF (N_ELEMENTS(T_IN) NE 0) THEN t_out = t_in * (d_nt) / wint + tpos
+  ENDELSE
+  result = {lx:lx_out, t:t_out}
+  RETURN, result
+END
+
+
 ;------------------------- WIDGET FUNCTION
 FUNCTION TANAT_WIDGET_DIVIDER, base
   divider_base = WIDGET_BASE(base, /FRAME, /YSIZE)
   divider_labl = WIDGET_LABEL(divider_base, VALUE=' ')
   RETURN, divider_base
 END
+
+
 
 ;================================================================================= ABOUT WINDOW PROCEDURES
 PRO TANAT_ABOUT_WINDOW, event 
@@ -216,14 +245,23 @@ PRO TANAT_CURSOR, event
 			ci = UINTARR(16) & cim = ci & cim[8] = 1
 			DEVICE, CURSOR_IMAGE = ci, CURSOR_MASK = cim, CURSOR_XY = [8,8]
 		ENDIF ELSE BEGIN
-			IF (((*(*info).measparams).parabolic_fit OR (*(*info).measparams).series) AND ((*(*info).measparams).np GE 1)) THEN BEGIN
-				*(*(*info).measparams).lx_array = (*(*(*info).measparams).lx_array)[0:(*(*info).measparams).np-1]
-				*(*(*info).measparams).t_array = (*(*(*info).measparams).t_array)[0:(*(*info).measparams).np-1]
-				*(*(*info).measparams).slx_array = (*(*(*info).measparams).slx_array)[0:(*(*info).measparams).np-1]
-				*(*(*info).measparams).st_array = (*(*(*info).measparams).st_array)[0:(*(*info).measparams).np-1]
+			IF (((*(*info).measparams).parabolic_fit OR $
+          (*(*info).measparams).series) AND $
+          ((*(*info).measparams).np GE 1)) THEN BEGIN
+				*(*(*info).measparams).lx_array = $
+          (*(*(*info).measparams).lx_array)[0:(*(*info).measparams).np-1]
+				*(*(*info).measparams).t_array = $
+          (*(*(*info).measparams).t_array)[0:(*(*info).measparams).np-1]
+				*(*(*info).measparams).slx_array = $
+          (*(*(*info).measparams).slx_array)[0:(*(*info).measparams).np-1]
+				*(*(*info).measparams).st_array = $
+          (*(*(*info).measparams).st_array)[0:(*(*info).measparams).np-1]
 				IF (*(*info).measparams).parabolic_fit THEN TANAT_PARABOLIC_FIT, event
-				IF ((*(*info).measparams).series AND (*(*info).dispswitch).series_feedback) THEN BEGIN
-					IF ((*(*info).measparams).np GE 2) THEN TANAT_SERIES_PATH, event ELSE BEGIN
+				IF ((*(*info).measparams).series AND $
+            (*(*info).dispswitch).series_feedback) THEN BEGIN
+					IF ((*(*info).measparams).np GE 2) THEN $
+            TANAT_SERIES_PATH, event $
+           ELSE BEGIN
 						*(*(*info).measparams).sxr = *(*(*info).measparams).slx_array
 						*(*(*info).measparams).syr = *(*(*info).measparams).st_array
 					ENDELSE
@@ -232,14 +270,21 @@ PRO TANAT_CURSOR, event
 			ENDIF 
 			DEVICE, /CURSOR_CROSSHAIR
 		ENDELSE
-		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN TANAT_VERBOSE_GET, event, [event.ENTER], labels=['WIDGET_TRACKING: event.Enter']
+		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+      TANAT_VERBOSE_GET, event, [event.ENTER], $
+        labels=['WIDGET_TRACKING: event.Enter']
 	ENDIF ELSE IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_DRAW' THEN BEGIN
-		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN TANAT_VERBOSE_GET, event, [event.TYPE,event.PRESS], labels=['WIDGET_DRAW: event.Type','WIDGET_DRAW: event.Press']
+		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+      TANAT_VERBOSE_GET, event, [event.TYPE,event.PRESS], $
+        labels=['WIDGET_DRAW: event.Type','WIDGET_DRAW: event.Press']
+    lxt = TANAT_TRANSFORM_DATA2DEVICE(info, LX_IN=event.X, $
+      T_IN=event.Y, /MAIN, /INVERSE)
 		CASE event.TYPE OF
 		0:	CASE event.PRESS OF	; pressed a mouse button
 			1:	BEGIN	; left mouse button --> lock cursor to first (and subsequent) position(s)
 					(*(*info).curs).lockset = 1
-					IF (((*(*info).measparams).parabolic_fit EQ 0) AND ((*(*info).measparams).series EQ 0)) THEN BEGIN
+					IF (((*(*info).measparams).parabolic_fit EQ 0) AND $
+            ((*(*info).measparams).series EQ 0)) THEN BEGIN
 						WIDGET_CONTROL, (*(*info).ctrlsmeas).delta_lx_label, SENSITIVE = 1
 						WIDGET_CONTROL, (*(*info).ctrlsmeas).delta_t_label, SENSITIVE = 1
 						WIDGET_CONTROL, (*(*info).ctrlsmeas).delta_lx_text, SENSITIVE = 1
@@ -253,14 +298,13 @@ PRO TANAT_CURSOR, event
 					ENDIF
 					(*(*info).curs).slxlock = event.X
 					(*(*info).curs).stlock = event.Y
-					(*(*info).curs).lxlock = FLOAT((*(*info).curs).slxlock) * (*(*info).dataparams).nlx / (*(*info).winsizes).windowx
-					IF ((*(*info).dataparams).d_nt NE (*(*info).dataparams).nt) THEN $
-						(*(*info).curs).tlock = FLOAT((*(*info).curs).stlock) * (*(*info).dataparams).d_nt / (*(*info).winsizes).windowy + (*(*info).dataparams).t_low ELSE $
-						(*(*info).curs).tlock = FLOAT((*(*info).curs).stlock) * (*(*info).dataparams).nt / (*(*info).winsizes).windowy
+          (*(*info).curs).lxlock = lxt.lx
+          (*(*info).curs).tlock = lxt.t
 					(*(*info).dataparams).lx = (*(*info).curs).lxlock
 					(*(*info).dataparams).t = (*(*info).curs).tlock
 					TANAT_CURSOR_SET_COORDSLIDERS, 0, 0, event
-					IF ((*(*info).measparams).parabolic_fit OR (*(*info).measparams).series) THEN BEGIN
+					IF ((*(*info).measparams).parabolic_fit OR $
+              (*(*info).measparams).series) THEN BEGIN
 						(*(*info).measparams).np += 1
 						IF ((*(*info).measparams).np LT 2) THEN BEGIN
 							*(*(*info).measparams).lx_array = (*(*info).curs).lxlock
@@ -268,35 +312,50 @@ PRO TANAT_CURSOR, event
 							*(*(*info).measparams).slx_array = (*(*info).curs).slxlock
 							*(*(*info).measparams).st_array = (*(*info).curs).stlock
 						ENDIF ELSE BEGIN
-							*(*(*info).measparams).lx_array = [*(*(*info).measparams).lx_array, (*(*info).curs).lxlock]
-							*(*(*info).measparams).t_array = [*(*(*info).measparams).t_array, (*(*info).curs).tlock]
-							*(*(*info).measparams).slx_array = [*(*(*info).measparams).slx_array, (*(*info).curs).slxlock]
-							*(*(*info).measparams).st_array = [*(*(*info).measparams).st_array, (*(*info).curs).stlock]
+							*(*(*info).measparams).lx_array = $
+                [*(*(*info).measparams).lx_array, (*(*info).curs).lxlock]
+							*(*(*info).measparams).t_array = $
+                [*(*(*info).measparams).t_array, (*(*info).curs).tlock]
+							*(*(*info).measparams).slx_array = $
+                [*(*(*info).measparams).slx_array, (*(*info).curs).slxlock]
+							*(*(*info).measparams).st_array = $
+                [*(*(*info).measparams).st_array, (*(*info).curs).stlock]
 						ENDELSE
-						WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_but, SENSITIVE = (((*(*info).measparams).np GE 2) AND (*(*info).measparams).parabolic_fit)
-						WIDGET_CONTROL, (*(*info).ctrlsmeas).acc_label, SENSITIVE = (((*(*info).measparams).np GE 2) AND (*(*info).measparams).parabolic_fit)
-						WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_series_but, SENSITIVE = (((*(*info).measparams).np GE 3) AND (*(*info).measparams).series)
-						WIDGET_CONTROL, (*(*info).ctrlsmeas).save_series_but, SENSITIVE = (((*(*info).measparams).np GE 3) AND (*(*info).measparams).series)
-						IF ((*(*info).measparams).series AND ((*(*info).measparams).np GE 2) AND (*(*info).dispswitch).series_feedback) THEN TANAT_SERIES_PATH, event
+						WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_but, $
+              SENSITIVE = (((*(*info).measparams).np GE 2) AND $
+                            (*(*info).measparams).parabolic_fit)
+						WIDGET_CONTROL, (*(*info).ctrlsmeas).acc_label, $
+              SENSITIVE = (((*(*info).measparams).np GE 2) AND $
+                            (*(*info).measparams).parabolic_fit)
+						WIDGET_CONTROL, (*(*info).ctrlsmeas).rem_series_but, $
+              SENSITIVE = (((*(*info).measparams).np GE 3) AND $
+                            (*(*info).measparams).series)
+						WIDGET_CONTROL, (*(*info).ctrlsmeas).save_series_but, $
+              SENSITIVE = (((*(*info).measparams).np GE 3) AND $
+                            (*(*info).measparams).series)
+						IF ((*(*info).measparams).series AND $
+               ((*(*info).measparams).np GE 2) AND $
+                (*(*info).dispswitch).series_feedback) THEN TANAT_SERIES_PATH, event
 					ENDIF
-;					IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN TANAT_VERBOSE_GET, event, [*(*(*info).measparams).lx_array,*(*(*info).measparams).t_array,*(*(*info).measparams).slx_array,$
-;						*(*(*info).measparams).st_array], labels=['lx_array','t_array','slx_array','st_array']
 				END
 			2:	BEGIN	; middle mouse button --> lock cursor to last position
 					IF (*(*info).curs).lockset THEN BEGIN
 						(*(*info).curs).lockset = 2
 						(*(*info).curs).slx = event.X
 						(*(*info).curs).st = event.Y
-						(*(*info).dataparams).lx = FLOAT((*(*info).curs).slx) * (*(*info).dataparams).nlx / (*(*info).winsizes).windowx
-						IF ((*(*info).dataparams).d_nt NE (*(*info).dataparams).nt) THEN $
-							(*(*info).dataparams).t = FLOAT((*(*info).curs).st) * (*(*info).dataparams).d_nt / (*(*info).winsizes).windowy + (*(*info).dataparams).t_low ELSE $
-							(*(*info).dataparams).t = FLOAT((*(*info).curs).st) * (*(*info).dataparams).nt / (*(*info).winsizes).windowy
-						IF ((*(*info).measparams).parabolic_fit OR (*(*info).measparams).series) THEN BEGIN
+            (*(*info).dataparams).lx = lxt.lx
+            (*(*info).dataparams).t = lxt.t
+						IF ((*(*info).measparams).parabolic_fit OR $
+                (*(*info).measparams).series) THEN BEGIN
 							(*(*info).measparams).np += 1
-							*(*(*info).measparams).lx_array = [*(*(*info).measparams).lx_array, (*(*info).dataparams).lx]
-							*(*(*info).measparams).t_array = [*(*(*info).measparams).t_array, (*(*info).dataparams).t]
-							*(*(*info).measparams).slx_array = [*(*(*info).measparams).slx_array, (*(*info).curs).slx]
-							*(*(*info).measparams).st_array = [*(*(*info).measparams).st_array, (*(*info).curs).st]
+							*(*(*info).measparams).lx_array = $
+                [*(*(*info).measparams).lx_array, (*(*info).dataparams).lx]
+							*(*(*info).measparams).t_array = $
+                [*(*(*info).measparams).t_array, (*(*info).dataparams).t]
+							*(*(*info).measparams).slx_array = $
+                [*(*(*info).measparams).slx_array, (*(*info).curs).slx]
+							*(*(*info).measparams).st_array = $
+                [*(*(*info).measparams).st_array, (*(*info).curs).st]
 							WIDGET_CONTROL, (*(*info).ctrlsmeas).save_button, SENSITIVE = ((*(*info).measparams).parabolic_fit AND ((*(*info).measparams).np EQ 3))
 						ENDIF ELSE WIDGET_CONTROL, (*(*info).ctrlsmeas).save_button, /SENSITIVE
 						WIDGET_CONTROL, (*(*info).ctrlsmeas).flag_label, /SENSITIVE
@@ -317,20 +376,33 @@ PRO TANAT_CURSOR, event
 				IF ((*(*info).curs).lockset NE 2) THEN BEGIN
 					(*(*info).curs).slx = event.X
 					(*(*info).curs).st = event.Y
-					(*(*info).dataparams).lx = FLOAT((*(*info).curs).slx) * (*(*info).dataparams).nlx / (*(*info).winsizes).windowx
-					IF ((*(*info).dataparams).d_nt NE (*(*info).dataparams).nt) THEN $
-						(*(*info).dataparams).t = FLOAT((*(*info).curs).st) * (*(*info).dataparams).d_nt / (*(*info).winsizes).windowy+(*(*info).dataparams).t_low ELSE $
-						(*(*info).dataparams).t = FLOAT((*(*info).curs).st) * (*(*info).dataparams).nt / (*(*info).winsizes).windowy
+          lxt = TANAT_TRANSFORM_DATA2DEVICE(info, LX_IN=(*(*info).curs).slx, $
+            T_IN=(*(*info).curs).st, /MAIN, /INVERSE)
+          (*(*info).dataparams).lx = lxt.lx
+          (*(*info).dataparams).t = lxt.t
 					IF ((*(*info).curs).lockset EQ 1) THEN BEGIN
 						TANAT_CURSOR_SET_COORDSLIDERS, 0, 0, event
-						IF (((*(*info).measparams).parabolic_fit EQ 0) AND ((*(*info).measparams).series EQ 0)) THEN TANAT_CALCULATE_DELTA, event
-						IF (((*(*info).measparams).parabolic_fit OR (*(*info).measparams).series) AND ((*(*info).measparams).np GE 1)) THEN BEGIN
-							*(*(*info).measparams).lx_array = [(*(*(*info).measparams).lx_array)[0:(*(*info).measparams).np-1], (*(*info).dataparams).lx]
-							*(*(*info).measparams).t_array = [(*(*(*info).measparams).t_array)[0:(*(*info).measparams).np-1], (*(*info).dataparams).t]
-							*(*(*info).measparams).slx_array = [(*(*(*info).measparams).slx_array)[0:(*(*info).measparams).np-1], (*(*info).curs).slx]
-							*(*(*info).measparams).st_array = [(*(*(*info).measparams).st_array)[0:(*(*info).measparams).np-1], (*(*info).curs).st]
+						IF (((*(*info).measparams).parabolic_fit EQ 0) AND $
+                ((*(*info).measparams).series EQ 0)) THEN $
+              TANAT_CALCULATE_DELTA, event
+						IF (((*(*info).measparams).parabolic_fit OR $
+                 (*(*info).measparams).series) AND $
+                ((*(*info).measparams).np GE 1)) THEN BEGIN
+							*(*(*info).measparams).lx_array = $
+                [(*(*(*info).measparams).lx_array)[$
+                0:(*(*info).measparams).np-1], (*(*info).dataparams).lx]
+							*(*(*info).measparams).t_array = $
+                [(*(*(*info).measparams).t_array)[$
+                0:(*(*info).measparams).np-1], (*(*info).dataparams).t]
+							*(*(*info).measparams).slx_array = $
+                [(*(*(*info).measparams).slx_array)[$
+                0:(*(*info).measparams).np-1], (*(*info).curs).slx]
+							*(*(*info).measparams).st_array = $
+                [(*(*(*info).measparams).st_array)[$
+                0:(*(*info).measparams).np-1], (*(*info).curs).st]
 							IF (*(*info).measparams).parabolic_fit THEN TANAT_PARABOLIC_FIT, event
-							IF ((*(*info).measparams).series AND (*(*info).dispswitch).series_feedback) THEN TANAT_SERIES_PATH, event
+							IF ((*(*info).measparams).series AND $
+                (*(*info).dispswitch).series_feedback) THEN TANAT_SERIES_PATH, event
 						ENDIF
 					ENDIF ELSE BEGIN
 						TANAT_CURSOR_SET_COORDSLIDERS, 1, 1, event
@@ -438,28 +510,38 @@ PRO TANAT_DRAW_OVERLAYS, event
     TANAT_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).overlay_measurements THEN BEGIN
 		FOR k=0,999 DO BEGIN
-			IF ((*(*(*info).overlays).lxbpoint)[k] NE (*(*(*info).overlays).lxepoint)[k]) AND ((*(*(*info).overlays).tbpoint)[k] NE (*(*(*info).overlays).tepoint)[k]) THEN BEGIN
-				PLOTS,[(*(*(*info).overlays).lxbpoint)[k], (*(*(*info).overlays).lxepoint)[k]],[((*(*(*info).overlays).tbpoint)[k]-(*(*info).dataparams).t_low)*(*(*info).winsizes).windowy/(*(*info).dataparams).d_nt,$
-					((*(*(*info).overlays).tepoint)[k]-(*(*info).dataparams).t_low)*(*(*info).winsizes).windowy/(*(*info).dataparams).d_nt],/DEVICE
-				PLOTS,[(*(*(*info).overlays).lxbpoint)[k], (*(*(*info).overlays).lxepoint)[k]],[((*(*(*info).overlays).tbpoint)[k]-(*(*info).dataparams).t_low)*(*(*info).winsizes).windowy/(*(*info).dataparams).d_nt,$
-					((*(*(*info).overlays).tepoint)[k]-(*(*info).dataparams).t_low)*(*(*info).winsizes).windowy/(*(*info).dataparams).d_nt],/DEVICE, PSYM = 6
-				PLOTS,[(*(*(*info).overlays).lxbpoint)[k], (*(*(*info).overlays).lxepoint)[k]],[((*(*(*info).overlays).tbpoint)[k]-(*(*info).dataparams).t_low)*(*(*info).winsizes).windowy/(*(*info).dataparams).d_nt,$
-					((*(*(*info).overlays).tepoint)[k]-(*(*info).dataparams).t_low)*(*(*info).winsizes).windowy/(*(*info).dataparams).d_nt],/DEVICE, PSYM = 7
-				IF ((*(*(*info).overlays).lxepoint)[k] GT (*(*(*info).overlays).lxbpoint)[k]) THEN BEGIN
-					upp_x = (*(*(*info).overlays).lxepoint)[k]
-					low_x = (*(*(*info).overlays).lxbpoint)[k]
+			IF ((*(*(*info).overlays).lxbpoint)[k] NE $
+          (*(*(*info).overlays).lxepoint)[k]) AND $
+         ((*(*(*info).overlays).tbpoint)[k] NE $
+          (*(*(*info).overlays).tepoint)[k]) THEN BEGIN
+          slxtb = TANAT_TRANSFORM_DATA2DEVICE(info,$
+            LX_IN=(*(*(*info).overlays).lxbpoint)[k], $
+            T_IN=(*(*(*info).overlays).tbpoint)[k], /MAIN)
+          slxte = TANAT_TRANSFORM_DATA2DEVICE(info,$
+            LX_IN=(*(*(*info).overlays).lxepoint)[k], $
+            T_IN=(*(*(*info).overlays).tepoint)[k], /MAIN)
+        PLOTS, [slxtb.lx, slxtb.t], [slxte.lx, slxte.t], /DEVICE
+        PLOTS, [slxtb.lx, slxtb.t], [slxte.lx, slxte.t], /DEVICE, PSYM=6
+        PLOTS, [slxtb.lx, slxtb.t], [slxte.lx, slxte.t], /DEVICE, PSYM=7
+        ; Get coordinates for xyout of measurement ID
+				IF ((*(*(*info).overlays).lxepoint)[k] GT $
+            (*(*(*info).overlays).lxbpoint)[k]) THEN BEGIN
+					upp_x = slxte.lx  
+					low_x = slxtb.lx 
 				ENDIF ELSE BEGIN
-					upp_x = (*(*(*info).overlays).lxbpoint)[k]
-					low_x = (*(*(*info).overlays).lxepoint)[k]
-				END
-				IF ((*(*(*info).overlays).tepoint)[k] GT (*(*(*info).overlays).tbpoint)[k]) THEN BEGIN
-					upp_t = ((*(*(*info).overlays).tepoint)[k]-(*(*info).dataparams).t_low) * (*(*info).winsizes).windowy / (*(*info).dataparams).d_nt
-					low_t = ((*(*(*info).overlays).tbpoint)[k]-(*(*info).dataparams).t_low) * (*(*info).winsizes).windowy / (*(*info).dataparams).d_nt
-				ENDIF ELSE BEGIN
-					upp_t = ((*(*(*info).overlays).tbpoint)[k]-(*(*info).dataparams).t_low) * (*(*info).winsizes).windowy / (*(*info).dataparams).d_nt
-					low_t = ((*(*(*info).overlays).tepoint)[k]-(*(*info).dataparams).t_low) * (*(*info).winsizes).windowy / (*(*info).dataparams).d_nt
-				END
-				XYOUTS, (upp_x-low_x)/2.+low_x, (upp_t-low_t)/2.+low_t+5, (*(*(*info).measparams).meas_id)[k], /DEVICE
+					upp_x = slxtb.lx
+					low_x = slxte.lx
+        ENDELSE
+				IF ((*(*(*info).overlays).tepoint)[k] GT $
+            (*(*(*info).overlays).tbpoint)[k]) THEN BEGIN
+          upp_t = slxte.t
+          low_t = slxtb.t
+        ENDIF ELSE BEGIN
+          upp_t = slxtb.t
+          low_t = slxte.t
+        ENDELSE
+				XYOUTS, (upp_x-low_x)/2.+low_x, (upp_t-low_t)/2.+low_t+5, $
+          (*(*(*info).measparams).meas_id)[k], /DEVICE
 			ENDIF
 		ENDFOR
 	ENDIF
@@ -541,16 +623,22 @@ PRO TANAT_DRAW_OVERLAY_SAVED_MEASUREMENTS, event
 			READF,unit1,datarr
 			FREE_LUN,unit1
 			k=0
-			cutfilename = STRMID((*(*info).dataparams).filename,STRPOS((*(*info).dataparams).filename,'/')+1,STRLEN((*(*info).dataparams).filename))
+			cutfilename = STRMID((*(*info).dataparams).filename,$
+        STRPOS((*(*info).dataparams).filename,'/')+1,$
+        STRLEN((*(*info).dataparams).filename))
 			FOR i=0,nlines-1 DO BEGIN
 				lastline_1 = STRSPLIT(datarr(0,i), ' ', /EXTRACT)
 				lastline_2 = STRSPLIT(datarr(0,i), '	', /EXTRACT)
-				IF (SIZE(lastline_1, /DIMENSIONS) GT 1) THEN splitline = lastline_1 ELSE IF (SIZE(lastline_2, /DIMENSIONS) GT 1) THEN splitline = lastline_2
-				IF ((splitline[0] EQ (*(*info).dataparams).filename) OR (splitline[0] EQ cutfilename)) THEN BEGIN
-					(*(*(*info).overlays).lxbpoint)[k] = (FLOAT(splitline[3])) * (*(*info).winsizes).windowx / FLOAT((*(*info).dataparams).nlx)
-					(*(*(*info).overlays).lxepoint)[k] = (FLOAT(splitline[4])) * (*(*info).winsizes).windowx / FLOAT((*(*info).dataparams).nlx)
-					(*(*(*info).overlays).tbpoint)[k] = (FLOAT(splitline[6])); * (*(*info).winsizes).windowy / FLOAT((*(*info).dataparams).nt)
-					(*(*(*info).overlays).tepoint)[k] = (FLOAT(splitline[7])); * (*(*info).winsizes).windowy / FLOAT((*(*info).dataparams).nt)
+				IF (SIZE(lastline_1, /DIMENSIONS) GT 1) THEN $
+          splitline = lastline_1 $
+        ELSE IF (SIZE(lastline_2, /DIMENSIONS) GT 1) THEN $
+          splitline = lastline_2
+				IF ((splitline[0] EQ (*(*info).dataparams).filename) OR $
+            (splitline[0] EQ cutfilename)) THEN BEGIN
+					(*(*(*info).overlays).lxbpoint)[k] = (FLOAT(splitline[3]))
+					(*(*(*info).overlays).lxepoint)[k] = (FLOAT(splitline[4]))
+					(*(*(*info).overlays).tbpoint)[k] = (FLOAT(splitline[6]))
+					(*(*(*info).overlays).tepoint)[k] = (FLOAT(splitline[7]))
 					(*(*(*info).measparams).meas_id)[k] = (STRSPLIT(splitline[2],'.',/EXTRACT))[1]
 					k = k+1
 				ENDIF
@@ -1401,7 +1489,9 @@ PRO TANAT_SLIDER_LX, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lx = event.VALUE
-	(*(*info).curs).slx = (*(*info).dataparams).lx * (*(*info).winsizes).windowx / (*(*info).dataparams).nlx
+  slxt = TANAT_TRANSFORM_DATA2DEVICE(info, LX_IN=(*(*info).dataparams).lx, $
+    /MAIN)
+  (*(*info).curs).slx = slxt.lx
 	TANAT_DRAW, event
 END
 
@@ -1424,7 +1514,9 @@ PRO TANAT_SLIDER_T, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     TANAT_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).t = event.VALUE
-	(*(*info).curs).st = (*(*info).dataparams).t * (*(*info).winsizes).windowy / (*(*info).dataparams).nt
+  slxt = TANAT_TRANSFORM_DATA2DEVICE(info, T_IN=(*(*info).dataparams).t, $
+    /MAIN)
+  (*(*info).curs).st = slxt.t
 	TANAT_DRAW, event
 END
 
@@ -1472,7 +1564,7 @@ PRO TANAT_SLIDER_UPP_UPP, event
 	TANAT_DRAW, event
 END
 		
-;================================================================================= DISPLAY PROCEDURES
+;==================== DISPLAY PROCEDURES
 PRO TANAT_SMOOTH_VIEW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
@@ -1481,7 +1573,7 @@ PRO TANAT_SMOOTH_VIEW, event
 	TANAT_DRAW, event
 END
 
-;================================================================================= DISPLAY T PROCEDURES
+;==================== DISPLAY T PROCEDURES
 PRO TANAT_T_LOW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
@@ -1520,13 +1612,27 @@ PRO TANAT_T_RANGE, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     TANAT_VERBOSE_GET_ROUTINE, event
-	(*(*info).dataparams).t_range = (*(*info).dataparams).t_upp - (*(*info).dataparams).t_low
-	IF ((*(*info).dataparams).t_range+1 NE (*(*info).dataparams).nt) THEN WIDGET_CONTROL, (*(*info).ctrlsview).reset_trange_but, /SENSITIVE ELSE WIDGET_CONTROL, (*(*info).ctrlsview).reset_trange_but, SENSITIVE = 0
-	WIDGET_CONTROL, (*(*info).ctrlsmeas).t_slider, SET_SLIDER_MIN = (*(*info).dataparams).t_low
-	WIDGET_CONTROL, (*(*info).ctrlsmeas).t_slider, SET_SLIDER_MAX = (*(*info).dataparams).t_upp
+	(*(*info).dataparams).t_range = $
+    (*(*info).dataparams).t_upp - (*(*info).dataparams).t_low
+  WIDGET_CONTROL, (*(*info).ctrlsview).reset_trange_but, $
+    SENSITIVE=((*(*info).dataparams).t_range+1 NE (*(*info).dataparams).nt)
+	WIDGET_CONTROL, (*(*info).ctrlsmeas).t_slider, $
+    SET_SLIDER_MIN = (*(*info).dataparams).t_low
+	WIDGET_CONTROL, (*(*info).ctrlsmeas).t_slider, $
+    SET_SLIDER_MAX = (*(*info).dataparams).t_upp
 	(*(*info).dataparams).d_nt = (*(*info).dataparams).t_range+1
-	(*(*info).curs).st = ((*(*info).dataparams).t-(*(*info).dataparams).t_low) * (*(*info).winsizes).windowy / (*(*info).dataparams).d_nt
-	(*(*info).curs).stlock = ((*(*info).curs).tlock-(*(*info).dataparams).t_low) * (*(*info).winsizes).windowy / (*(*info).dataparams).d_nt
+  slxt = TANAT_TRANSFORM_DATA2DEVICE(info, $
+    T_IN=[(*(*info).dataparams).t, (*(*info).curs).tlock], $
+    /MAIN)
+  (*(*info).curs).st = slxt.t[0]
+  (*(*info).curs).stlock = slxt.t[1]
+	IF (((*(*info).measparams).parabolic_fit OR $
+      (*(*info).measparams).series) AND $
+      ((*(*info).measparams).np GE 1)) THEN BEGIN
+    slxtarray = TANAT_TRANSFORM_DATA2DEVICE(info, $
+      T_IN=*(*(*info).measparams).t_array, /MAIN)
+    *(*(*info).measparams).st_array = slxtarray.t
+  ENDIF
 	TANAT_UPDATE_LP, event
 	IF ((*(*info).curs).lockset GE 1) THEN TANAT_CALCULATE_DELTA, event
 	TANAT_DRAW, event
