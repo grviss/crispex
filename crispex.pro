@@ -8382,7 +8382,10 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
       hdr_out.refspxtitle = (['Spectral position','Wavelength'])[hdr_out.v_dop_set[1]] $
     ELSE $
       hdr_out.refspxtitle = hdr_out.xtitle[1]
-  ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'reflc', 0L, 'v_dop_ref', 0)
+  ENDIF ELSE BEGIN
+    IF (hdr_out.refnlp EQ 0) THEN hdr_out = CREATE_STRUCT(hdr_out, 'reflc', 0L)
+    hdr_out = CREATE_STRUCT(hdr_out, 'v_dop_ref', 0)
+  ENDELSE
   IF hdr_out.imcube_compatibility THEN $
     hdr_out.spxtitle = (['Spectral position','Wavelength'])[hdr_out.v_dop_set[0]] $
   ELSE $
