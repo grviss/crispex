@@ -8375,7 +8375,6 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
                                   IO_FAILSAFE_ERROR=io_failsafe_line_center_error
   hdr_out = CREATE_STRUCT(hdr_out, 'dlambda', dlambda, 'dlambda_set', dlambda_set, $
                           'v_dop_set', v_dop_set)
-  
   ; Process settings from LINE_CENTER parsing 
   IF (hdr_out.refnlp GT 1) THEN BEGIN
     IF hdr_out.refimcube_compatibility THEN $
@@ -8383,7 +8382,9 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
     ELSE $
       hdr_out.refspxtitle = hdr_out.xtitle[1]
   ENDIF ELSE BEGIN
-    IF (hdr_out.refnlp EQ 0) THEN hdr_out = CREATE_STRUCT(hdr_out, 'reflc', 0L)
+    wheretag = WHERE(TAG_NAMES(hdr_out) EQ 'REFLC', count)
+    IF (count EQ 0) THEN $
+      hdr_out = CREATE_STRUCT(hdr_out, 'reflc', 0L)
     hdr_out = CREATE_STRUCT(hdr_out, 'v_dop_ref', 0)
   ENDELSE
   IF hdr_out.imcube_compatibility THEN $
@@ -8454,7 +8455,7 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
 	v_dop_set = BYTARR(2) &  dlambda_set = BYTARR(2)
   nlp_select = [hdr_out.nlp,hdr_out.refnlp]
   spectfile_set = [spectfile_set,refspectfile_set]
-  
+ 
   FOR d=0,nfiles-1 DO BEGIN
     IF (d EQ 0) THEN tag2 = 'lc' ELSE tag2 = 'reflc'
     IF ((cube_compatibility[d] NE 1) AND (N_ELEMENTS(LINE_CENTER) GT 0) AND (d NE ndims-1)) THEN BEGIN
