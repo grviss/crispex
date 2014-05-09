@@ -16215,11 +16215,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 ;========================= PROGRAM-INFO ON CALL W/O PARAMS
 	IF N_PARAMS() LT 1 THEN BEGIN
     MESSAGE,'Version '+vnr_msg, /INFO
-		MESSAGE,'Syntax: CRISPEX, imcube, spcube, REFCUBE=refcube, MASKCUBE=maskcube, '+$
-            'SPECTFILE=spectfile, LINE_CENTER=line_center, DT=dt, EXTS=exts, MNSPEC=mnspec, '+$
+		MESSAGE,'Syntax: CRISPEX, Imcube, Spcube, REFCUBE=refcube, '+$
+            'SJICUBE=sjicube, MASKCUBE=maskcube, SPECTFILE=spectfile, '+$
+            'LINE_CENTER=line_center, DT=dt, EXTS=exts, MNSPEC=mnspec, '+$
             'SINGLE_CUBE=single_cube, SCALE_STOKES=scale_stokes, NO_WARP=no_warp, '+$
-            'SCALE_CUBES=scale_cubes, XTITLE=xtitle, YTITLE=ytitle, WINDOW_LARGE=window_large, '+$
-            'VERBOSE=verbose', /INFO
+            'SCALE_CUBES=scale_cubes, XTITLE=xtitle, YTITLE=ytitle, '+$
+            'WINDOW_LARGE=window_large, VERBOSE=verbose', /INFO
 		RETURN
 	ENDIF
 
