@@ -7987,10 +7987,11 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
   ; Read in main image cube 
 	OPENR, lunim, hdr_out.imfilename, /get_lun, $
          SWAP_ENDIAN = ((hdr_out.imtype GT 1) AND (hdr_out.endian NE hdr_out.imendian))									
-	imagefile = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny, TYPE=hdr_out.imtype),hdr_out.imoffset)
+	imagefile = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny, $
+                TYPE=hdr_out.imtype,/NOZERO),hdr_out.imoffset)
   ; Re-read in of the image cube for slices
 	scanfile  = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns, $
-                      TYPE=hdr_out.imtype),hdr_out.imoffset)			
+                      TYPE=hdr_out.imtype,/NOZERO),hdr_out.imoffset)			
 	hdr_out.imdata	= PTR_NEW(imagefile, /NO_COPY)
 	hdr_out.scan	= PTR_NEW(scanfile, /NO_COPY)
   hdr_out.lunim = lunim
@@ -8000,7 +8001,8 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
   IF hdr_out.spfile THEN BEGIN
     OPENR, lunsp, hdr_out.spfilename, /get_lun, $
            SWAP_ENDIAN = ((hdr_out.sptype GT 1) AND (hdr_out.endian NE hdr_out.spendian))
-    spectra = ASSOC(lunsp,MAKE_ARRAY(hdr_out.nlp,hdr_out.mainnt, TYPE=hdr_out.sptype),hdr_out.spoffset)
+    spectra = ASSOC(lunsp,MAKE_ARRAY(hdr_out.nlp,hdr_out.mainnt,$
+                TYPE=hdr_out.sptype,/NOZERO),hdr_out.spoffset)
     hdr_out.lunsp = lunsp
 	  hdr_out.spdata = PTR_NEW(spectra, /NO_COPY) 
   ENDIF
@@ -8107,12 +8109,13 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
 	IF ((N_ELEMENTS(REFCUBE) GE 1) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN	; REFIMCUBE as filename
 		OPENR, lunrefim, refcube[0], /get_lun, $
            SWAP_ENDIAN = ((hdr_out.refimtype GT 1) AND (hdr_out.endian NE hdr_out.refimendian))
-    referencefile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny, TYPE=hdr_out.refimtype),$
-                      hdr_out.refimoffset)
+    referencefile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny,$
+                      TYPE=hdr_out.refimtype,/NOZERO),hdr_out.refimoffset)
 		hdr_out.showref = 1
     IF ((hdr_out.refnlp GT 1) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN BEGIN
       refscanfile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny,$
-                      hdr_out.refnlp*hdr_out.refns, TYPE=hdr_out.refimtype),hdr_out.refimoffset)
+                      hdr_out.refnlp*hdr_out.refns, TYPE=hdr_out.refimtype,$
+                      /NOZERO),hdr_out.refimoffset)
     ENDIF 
     hdr_out.lunrefim = lunrefim
     CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, REFIMCUBE=hdr_out.refimfilename
@@ -8121,7 +8124,7 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
 			OPENR, lunrefsp, refcube[1], /get_lun, $
              SWAP_ENDIAN = ((hdr_out.refsptype GT 1) AND (hdr_out.endian NE hdr_out.refspendian))						
       referencespectra = ASSOC(lunrefsp,MAKE_ARRAY(hdr_out.refnlp,hdr_out.refnt, $
-                            TYPE=hdr_out.refsptype),hdr_out.refspoffset)
+                            TYPE=hdr_out.refsptype,/NOZERO),hdr_out.refspoffset)
 			hdr_out.refspfile = 1	
       hdr_out.lunrefsp = lunrefsp
       CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, REFSPCUBE=hdr_out.refspfilename
@@ -8212,8 +8215,8 @@ PRO CRISPEX_IO_OPEN_SJICUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
   hdr_out = hdr_in
 		OPENR, lunsji, hdr_out.sjifilename, /get_lun, $
            SWAP_ENDIAN = ((hdr_out.sjitype GT 1) AND (hdr_out.endian NE hdr_out.sjiendian))
-    sji = ASSOC(lunsji,MAKE_ARRAY(hdr_out.sjinx,hdr_out.sjiny, TYPE=hdr_out.sjitype),$
-             hdr_out.sjioffset)
+    sji = ASSOC(lunsji,MAKE_ARRAY(hdr_out.sjinx,hdr_out.sjiny, $
+            TYPE=hdr_out.sjitype,/NOZERO),hdr_out.sjioffset)
 		hdr_out.sjifile = 1	
 	  hdr_out.sjidata = PTR_NEW(sji, /NO_COPY)
     hdr_out.lunsji = lunsji
@@ -8250,8 +8253,8 @@ PRO CRISPEX_IO_OPEN_MASKCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
   hdr_out = hdr_in
 		OPENR, lunmask, hdr_out.maskfilename, /get_lun, $
            SWAP_ENDIAN = ((hdr_out.masktype GT 1) AND (hdr_out.endian NE hdr_out.maskendian))
-    mask = ASSOC(lunmask,MAKE_ARRAY(hdr_out.masknx,hdr_out.maskny, TYPE=hdr_out.masktype),$
-             hdr_out.maskoffset)
+    mask = ASSOC(lunmask,MAKE_ARRAY(hdr_out.masknx,hdr_out.maskny, $
+              TYPE=hdr_out.masktype,/NOZERO),hdr_out.maskoffset)
 		hdr_out.maskfile = 1	
 	  hdr_out.maskdata = PTR_NEW(mask, /NO_COPY)
     hdr_out.lunmask = lunmask
@@ -8334,9 +8337,11 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=
       RETURN
     ENDIF
   ENDIF
-  CRISPEX_IO_PARSE_SPECTFILE, spectfile, *hdr_out.imdata, hdr_out.verbosity, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
-                              MNSPEC=mnspec, /IMCUBE, CUBE_COMPATIBILITY=hdr_out.imcube_compatibility, $
-                              STARTUPTLB=startuptlb, IO_FAILSAFE_ERROR=io_failsafe_imspectfile_error
+  CRISPEX_IO_PARSE_SPECTFILE, spectfile, *hdr_out.imdata, hdr_out.verbosity, $
+    SCANFILE=(*hdr_out.scan)[hdr_out.tsel_main[0]], $
+    HDR_IN=hdr_out, HDR_OUT=hdr_out, MNSPEC=mnspec, /IMCUBE, $
+    CUBE_COMPATIBILITY=hdr_out.imcube_compatibility, $
+    STARTUPTLB=startuptlb, IO_FAILSAFE_ERROR=io_failsafe_imspectfile_error
   IF (io_failsafe_imspectfile_error EQ 1) THEN RETURN 
   refspectfile_set = ((N_ELEMENTS(SPECTFILE) EQ 2) AND (SIZE(SPECTFILE,/TYPE) EQ 7)) 
   IF refspectfile_set THEN BEGIN
@@ -8562,7 +8567,8 @@ PRO CRISPEX_IO_PARSE_SINGLE_CUBE, input_single_cube, HDR_IN=hdr_in, HDR_OUT=hdr_
   ENDIF
 END
 
-PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, SCANFILE=scanfile, $
+                                HDR_IN=hdr_in, HDR_OUT=hdr_out, $
                                 MNSPEC=mnspec, IMCUBE=imcube, REFCUBE=refcube, $
                                 CUBE_COMPATIBILITY=cube_compatibility, STARTUPTLB=startuptlb, $
                                 IO_FAILSAFE_ERROR=io_failsafe_error
@@ -8654,11 +8660,10 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, HDR_IN=hdr_in, H
       norm_factor = FLTARR(ns_select)
     FOR s=0,ns_select-1 DO BEGIN        ; Loop over all "Stokes" positions
       FOR lp=0,nlp_select-1 DO BEGIN    ; Loop over all "spectral" positions
-        spect = 0.                      ; (Re-)define spect variable
         FOR t=t_lower,t_upper DO $      ; Loop over all time steps
-          spect += MEAN(datafile[t*nlp_select*ns_select + s*nlp_select + lp], /NAN)
-        spectrum[lp,s] = spect / FLOAT(t_upper - t_lower + 1)
+          spectrum[lp,s] += MEAN(datafile[t*nlp_select*ns_select + s*nlp_select + lp], /NAN)
       ENDFOR
+      spectrum[*,s] /= FLOAT(t_upper - t_lower + 1)
       IF (ns_select GT 1) THEN BEGIN                                  
         IF (N_ELEMENTS(scale_stokes) NE 1) THEN BEGIN ; If ns>1 & not scale_stokes, find norm_factor
           min_spectrum = MIN(spectrum[*,s], MAX=max_spectrum, /NAN)
@@ -10871,7 +10876,7 @@ PRO CRISPEX_READ_HEADER, filename, header=header, datatype=datatype, dims=dims,$
       diagnostics=diagnostics
 ; Handles the read in of the header of the input files
 	OPENR, lun, filename, /GET_LUN
-	rec	= ASSOC(lun, BYTARR(512))	&	header	= STRING(rec[0])
+	rec	= ASSOC(lun, BYTARR(512,/NOZERO))	&	header	= STRING(rec[0])
 	FREE_LUN, lun
 	len	= STRLEN(header)
 
@@ -16177,6 +16182,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		verbose >= 0	&	verbose <= 26
 	ENDELSE
 	verbosity = CRISPEX_TRANSFORM_DEC2BIN(verbose)   ; Convert verbosity value to binary array
+  IF verbosity[1] THEN setup_starttime = SYSTIME(/SECONDS)
 
 ;========================= CRISPEX DIRECTORY TREE CHECK
 	file_crispex    = (ROUTINE_INFO('CRISPEX',/SOURCE)).PATH      ; Path to compiled CRISPEX
@@ -17169,51 +17175,49 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	imagescale = PTR_NEW([0,0,0,0])												; Image scaling based on first image
 	relative_scaling = PTR_NEW([0,0,0,0])
-	immin = DBLARR(hdr.nlp,hdr.ns)
-	immax = DBLARR(hdr.nlp,hdr.ns)
-	immean = DBLARR(hdr.nlp,hdr.ns)
-	imsdev = DBLARR(hdr.nlp,hdr.ns)
-	dopplermin = DBLARR(hdr.nlp,hdr.ns)
-	dopplermax = DBLARR(hdr.nlp,hdr.ns)
-  dopplerscan = FLTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns)
-	ls_low_y = FLTARR(hdr.ns)
-	ls_upp_y = FLTARR(hdr.ns)
-	ls_yrange = FLTARR(hdr.ns)
-	int_low_y = FLTARR(hdr.ns)
-	int_upp_y = FLTARR(hdr.ns)
-	FOR j=0,hdr.ns-1 DO BEGIN
-		FOR k=0,lp_last DO BEGIN
-			temp_image = (*hdr.imdata)[j*hdr.nlp + k]
-			immean[k,j] = MEAN(temp_image, /NAN)
-			imsdev[k,j] = STDDEV(temp_image, /NAN)
-  		immin[k,j] = MIN(temp_image, MAX=max_val, /NAN)
-  		immax[k,j] = max_val
-			temp_k = 2*hdr.lc - k
-			IF ((temp_k EQ hdr.lc) OR (temp_k LT 0) OR (temp_k GT lp_last)) THEN BEGIN
-				dopplermin[k,j] = 0
-				dopplermax[k,j] = 0
-			ENDIF ELSE BEGIN
-				mirror_temp_image = (*hdr.imdata)[j*hdr.nlp + temp_k]
-  			IF (temp_k LT hdr.lc) THEN $
+	immin = DBLARR(hdr.nlp,hdr.ns,/NOZERO)
+	immax = DBLARR(hdr.nlp,hdr.ns,/NOZERO)
+	immean = DBLARR(hdr.nlp,hdr.ns,/NOZERO)
+	imsdev = DBLARR(hdr.nlp,hdr.ns,/NOZERO)
+	dopplermin = DBLARR(hdr.nlp,hdr.ns,/NOZERO)
+	dopplermax = DBLARR(hdr.nlp,hdr.ns,/NOZERO)
+  dopplerscan = FLTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns,/NOZERO)
+	ls_low_y = FLTARR(hdr.ns,/NOZERO)
+	ls_upp_y = FLTARR(hdr.ns,/NOZERO)
+	ls_yrange = FLTARR(hdr.ns,/NOZERO)
+	int_low_y = FLTARR(hdr.ns,/NOZERO)
+	int_upp_y = FLTARR(hdr.ns,/NOZERO)
+  IF scalestokes THEN $
+    tmp_ms = REPLICATE(hdr.ms,hdr.ns) $
+  ELSE $
+    tmp_ms = hdr.ms
+	FOR s=0,hdr.ns-1 DO BEGIN
+		FOR lp=0,lp_last DO BEGIN
+			temp_image = (*hdr.imdata)[s*hdr.nlp + lp]
+			immean[lp,s] = MEAN(temp_image, /NAN)
+			imsdev[lp,s] = STDDEV(temp_image, /NAN)
+  		immin[lp,s] = MIN(temp_image, MAX=max_val, /NAN)
+  		immax[lp,s] = max_val
+			temp_lp = 2*hdr.lc - lp
+			IF ((temp_lp GE 0) AND (temp_lp LT lp_last)) THEN BEGIN
+				mirror_temp_image = (*hdr.imdata)[s*hdr.nlp + temp_lp]
+  			IF (temp_lp LT hdr.lc) THEN $
           dopplerim = temp_image - mirror_temp_image $
   			ELSE $
           dopplerim = mirror_temp_image - temp_image
-        dopplerscan[*,*,j*hdr.nlp+k] = dopplerim
-  			dopplermin[k,j] = MIN(dopplerim, MAX=max_val, /NAN)
-  			dopplermax[k,j] = max_val
-      ENDELSE
+        dopplerscan[*,*,s*hdr.nlp+lp] = dopplerim
+  			dopplermin[lp,s] = MIN(dopplerim, MAX=max_val, /NAN)
+  			dopplermax[lp,s] = max_val
+      ENDIF
 		ENDFOR
-		IF scalestokes THEN BEGIN
-			ls_low_y[j] = MIN((immean[*,j]-3.*imsdev[*,j])/hdr.ms, /NAN)
-			ls_upp_y[j] = MAX((immean[*,j]+3.*imsdev[*,j])/hdr.ms, /NAN)
-		ENDIF ELSE BEGIN
-			ls_low_y[j] = MIN((immean[*,j]-3.*imsdev[*,j])/hdr.ms[j], /NAN)
-			ls_upp_y[j] = MAX((immean[*,j]+3.*imsdev[*,j])/hdr.ms[j], /NAN)
-		ENDELSE
-		ls_yrange[j] = ls_upp_y[j] - ls_low_y[j]
-		max_imsdev = MAX(imsdev[*,j], /NAN)
-		int_low_y[j] = (MEAN(immean[*,j], /NAN)-3.*max_imsdev)/ABS(MEAN(immean[*,j], /NAN))
-		int_upp_y[j] = (MEAN(immean[*,j], /NAN)+3.*max_imsdev)/ABS(MEAN(immean[*,j], /NAN))
+    dopplermin[hdr.lc,s] = 0.
+    dopplermax[hdr.lc,s] = 0.
+	  ls_low_y[s] = MIN((immean[*,s]-3.*imsdev[*,s])/tmp_ms[s], /NAN)
+	  ls_upp_y[s] = MAX((immean[*,s]+3.*imsdev[*,s])/tmp_ms[s], /NAN)
+		ls_yrange[s] = ls_upp_y[s] - ls_low_y[s]
+		max_imsdev = MAX(imsdev[*,s], /NAN)
+		int_low_y[s] = (MEAN(immean[*,s], /NAN)-3.*max_imsdev)/ABS(MEAN(immean[*,s], /NAN))
+		int_upp_y[s] = (MEAN(immean[*,s], /NAN)+3.*max_imsdev)/ABS(MEAN(immean[*,s], /NAN))
 	ENDFOR
 	ls_low_y_init = ls_low_y[0]
 	ls_upp_y_init = ls_upp_y[0]
@@ -17256,12 +17260,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 			refmax = FLTARR(hdr.refnlp)
 			refmean = FLTARR(hdr.refnlp)
 			refdev = FLTARR(hdr.refnlp)
-			FOR k=0,hdr.refnlp-1 DO BEGIN
-				temp_referencefile = (*hdr.refdata)[k]
-				refmean[k] = MEAN(temp_referencefile, /NAN)
-				refdev[k] = STDDEV(temp_referencefile, /NAN)
-				refmin[k] = MIN(temp_referencefile, MAX=max_val, /NAN)
-				refmax[k] = max_val
+			FOR lp=0,hdr.refnlp-1 DO BEGIN
+				temp_referencefile = (*hdr.refdata)[lp]
+				refmean[lp] = MEAN(temp_referencefile, /NAN)
+				refdev[lp] = STDDEV(temp_referencefile, /NAN)
+				refmin[lp] = MIN(temp_referencefile, MAX=max_val, /NAN)
+				refmax[lp] = max_val
 			ENDFOR
 		ENDELSE
 		IF showrefls THEN BEGIN
@@ -18455,7 +18459,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                                         '(setting up data pointers)', /WIDGET, /OVER
 	feedback_text = [feedback_text,'> Setting up data pointers... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	index = INTARR(hdr.nx,hdr.ny,2)
+	index = INTARR(hdr.nx,hdr.ny,2,/NOZERO)
 	xarr = INDGEN(hdr.nx)
 	yarr = INDGEN(hdr.ny)
 	FOR i=0,hdr.nx-1 DO index[i,*,1] = yarr
@@ -18463,16 +18467,17 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	indexmap= PTR_NEW(index, /NO_COPY)
 	indices = PTR_NEW(INTARR(hdr.nx,hdr.ny,2))
 
-	xyslice	= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
-	sel_xyslice	= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
-	dopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
-	sel_dopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
+	xyslice	= PTR_NEW(BYTARR(hdr.nx,hdr.ny,/NOZERO))
+	sel_xyslice	= PTR_NEW(BYTARR(hdr.nx,hdr.ny,/NOZERO))
+	dopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny,/NOZERO))
+	sel_dopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny,/NOZERO))
 	emptydopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
-	maskslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
+	maskslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny,/NOZERO))
 
-  phiscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp, TYPE=hdr.imtype))
-  sspscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp*hdr.ns, TYPE=hdr.imtype))
-	phislice= PTR_NEW(BYTARR(hdr.nlp,nphi))
+  phiscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp, TYPE=hdr.imtype,/NOZERO))
+  sspscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp*hdr.ns, $
+    TYPE=hdr.imtype,/NOZERO))
+	phislice= PTR_NEW(BYTARR(hdr.nlp,nphi,/NOZERO))
 	IF ((hdr.spfile EQ 1) OR (hdr.single_cube[0] GE 1)) THEN BEGIN
 		loopslab= PTR_NEW(0)
 		loopslice = PTR_NEW(0)
@@ -19298,6 +19303,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		WIDGET_CONTROL, sp_toggle_but, SET_BUTTON = 1
 		(*(*info).winswitch).showsp = 1
 	ENDIF ELSE BEGIN
+    ; If no spectral file is provided
 		IF (hdr.single_cube[0] EQ 1) THEN BEGIN
 			(*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_low
 			(*(*info).winswitch).showphis = 0
@@ -19311,15 +19317,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 			WIDGET_CONTROL, phis_toggle_but, SENSITIVE = 0
 		ENDIF ELSE BEGIN
 			IF (hdr.single_cube[0] GE 1) THEN WIDGET_CONTROL, approxmenu, SENSITIVE = 0
-			WIDGET_CONTROL, phis_toggle_but, SET_BUTTON = 1
 			WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 0
-			(*(*info).winswitch).showphis = 1
-			WIDGET_CONTROL, (*(*info).ctrlscp).phi_slider, SENSITIVE = 1
-			WIDGET_CONTROL, (*(*info).ctrlscp).nphi_slider, SENSITIVE = 1
-			(*(*info).ctrlsswitch).bwd_insensitive = 0
-			(*(*info).ctrlsswitch).fwd_insensitive = 0
-			WIDGET_CONTROL, (*(*info).ctrlscp).bwd_move_slit, SENSITIVE = (*(*info).ctrlsswitch).bwd_insensitive+1
-			WIDGET_CONTROL, (*(*info).ctrlscp).fwd_move_slit, SENSITIVE = (*(*info).ctrlsswitch).fwd_insensitive+1
+			(*(*info).winswitch).showphis = 0
 		ENDELSE
 		WIDGET_CONTROL, sp_toggle_but, SENSITIVE=0
 		IF (hdr.mainnt EQ 1) THEN BEGIN
@@ -19368,13 +19367,15 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 ;--------------------------------------------------------------------------------- OPENING WINDOWS
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
-                                        '(realising widget)', /WIDGET, /OVER
-	feedback_text = [feedback_text,'> Realising widget... ']
+                                        '(realising widget and updating windows)', $
+                                        /WIDGET, /OVER
+	feedback_text = [feedback_text,'> Realising widget and updating windows... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	CRISPEX_MASK_BUTTONS_SET, pseudoevent
   set_zoomfac = CRISPEX_BGROUP_ZOOMFAC_SET(pseudoevent, /NO_DRAW, SET_FACTOR=0)
   IF (hdr.mainnt GT 1) THEN CRISPEX_DISPRANGE_T_RANGE, pseudoevent, /NO_DRAW
-  IF ((*(*info).dataswitch).spfile EQ 0) THEN CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW, /NO_PHIS
+  ; Can the next one go?
+;  IF ((*(*info).dataswitch).spfile EQ 0) THEN CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW, /NO_PHIS
   IF ((*(*info).winswitch).showsp OR (*(*info).winswitch).showls OR $
     (*(*info).winswitch).showphis) THEN $
     CRISPEX_DRAW_GET_SPECTRAL_AXES, pseudoevent, /MAIN
@@ -19427,7 +19428,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	ENDIF
   
 	CRISPEX_UPDATE_T, pseudoevent
-	IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN $
+	IF ((((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube) $
+    AND ((*(*info).winswitch).showphis NE 1)) THEN $
     CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW
 	IF showrefls THEN BEGIN
 		IF (ref_detspect_scale EQ 0) THEN BEGIN
@@ -19451,10 +19453,12 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
    ELSE $
 		lsoffset = (*(*info).winswitch).showrefls * (reflswiny + (*(*info).winsizes).ydelta)
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
-                                        '(realising widget)', /WIDGET, /OVER, /DONE
+                                        '(realising widget and updating windows)', $
+                                        /WIDGET, /OVER, /DONE
 	IF startupwin THEN BEGIN
 		WSET, startupwid
-		feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Realising widget... done!']
+		feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],$
+      '> Realising widget and updating windows... done!']
 		CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	ENDIF
 
@@ -19473,7 +19477,13 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	WAIT,0.1
 	IF (*(*info).prefs).autoplay THEN CRISPEX_PB_FORWARD, pseudoevent
 	IF resave_preferences THEN CRISPEX_PREFERENCES_SAVE_SETTINGS, pseudoevent, /RESAVE
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Set-up done!'
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN BEGIN
+    msg = 'Set-up done!'
+    IF verbosity[1] THEN $
+      msg += ' Finished in '+$
+        STRTRIM(SYSTIME(/SECONDS)-setup_starttime,2)+' s.' 
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, msg
+  ENDIF
 	IF startupwin THEN BEGIN
 		WSET, startupwid
 		CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Set-up done!'
