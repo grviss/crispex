@@ -1609,8 +1609,10 @@ PRO CRISPEX_CURSOR, event
 					ENDIF
 				END
 			4:	BEGIN	; right mouse button press -> release locked cursor
-					(*(*info).curs).lockset = 0
-          CRISPEX_MEASURE_ENABLE, event, /DISABLE
+          IF ((*(*info).overlayswitch).loopslit EQ 0) THEN BEGIN
+  					(*(*info).curs).lockset = 0
+            CRISPEX_MEASURE_ENABLE, event, /DISABLE
+          ENDIF
 				END
 			ELSE: BREAK
 			ENDCASE
@@ -9317,19 +9319,30 @@ PRO CRISPEX_MEASURE_ENABLE, event, DISABLE=disable
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
-	WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, SENSITIVE = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlscp).dx_text, SENSITIVE = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlscp).x_label, SENSITIVE = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlscp).dy_text, SENSITIVE = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, SENSITIVE = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_lab, SENSITIVE = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, SENSITIVE = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_lab, SENSITIVE = event.SELECT
-	WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_text, SENSITIVE = event.SELECT
 	IF KEYWORD_SET(DISABLE) THEN $
     (*(*info).meas).spatial_measurement = 0 $
   ELSE $
     (*(*info).meas).spatial_measurement = event.SELECT
+  WIDGET_CONTROL, (*(*info).ctrlscp).measure_but, $
+    SET_BUTTON=(*(*info).meas).spatial_measurement
+	WIDGET_CONTROL, (*(*info).ctrlscp).apix_label, $
+    SENSITIVE=(*(*info).meas).spatial_measurement
+	WIDGET_CONTROL, (*(*info).ctrlscp).dx_text, $
+    SENSITIVE=(*(*info).meas).spatial_measurement
+	WIDGET_CONTROL, (*(*info).ctrlscp).x_label, $
+    SENSITIVE=(*(*info).meas).spatial_measurement
+	WIDGET_CONTROL, (*(*info).ctrlscp).dy_text, $
+    SENSITIVE=(*(*info).meas).spatial_measurement
+	WIDGET_CONTROL, (*(*info).ctrlscp).apix_unit, $
+    SENSITIVE=(*(*info).meas).spatial_measurement
+	WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_lab, $
+    SENSITIVE=(*(*info).meas).spatial_measurement
+	WIDGET_CONTROL, (*(*info).ctrlscp).measure_asec_text, $
+    SENSITIVE=(*(*info).meas).spatial_measurement
+	WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_lab, $
+    SENSITIVE=(*(*info).meas).spatial_measurement
+	WIDGET_CONTROL, (*(*info).ctrlscp).measure_km_text, $
+    SENSITIVE=(*(*info).meas).spatial_measurement
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).meas).spatial_measurement], $
       labels=['Enabled measurement']
@@ -9374,8 +9387,10 @@ PRO CRISPEX_MEASURE_ENABLE, event, DISABLE=disable
 		CRISPEX_COORDSLIDERS_SET, 1, 1, event
 		IF ~KEYWORD_SET(DISABLE) THEN CRISPEX_DRAW, event
 	ENDIF
-	WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, SENSITIVE = ABS(event.SELECT-1)
-	WIDGET_CONTROL, (*(*info).ctrlscp).loop_feedb_but, SENSITIVE = ABS(event.SELECT-1)
+	WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, $
+    SENSITIVE=ABS((*(*info).meas).spatial_measurement-1)
+	WIDGET_CONTROL, (*(*info).ctrlscp).loop_feedb_but, $
+    SENSITIVE=ABS((*(*info).meas).spatial_measurement-1)
 END
 
 PRO CRISPEX_MEASURE_CALC, event
