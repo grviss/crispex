@@ -7691,25 +7691,6 @@ PRO CRISPEX_IO_FAILSAFES_REF, refcube, input_single_cube, HDR_IN=hdr_in, HDR_OUT
 	ENDIF 
 END
 
-PRO CRISPEX_IO_FAILSAFES_MAIN_SJI, sjicube, HDR=hdr, STARTUPTLB=startuptlb, $
-                              IO_FAILSAFE_ERROR=io_failsafe_error
-; Handles failsafes against wrongly supplied slit-jaw image cube
-  IF ((hdr.sjinx GE hdr.nx) AND (hdr.sjiny GE hdr.ny)) THEN $ ; Require ge xy-dimensions than main
-    io_failsafe_error = 0 $
-	ELSE BEGIN
-	  IF ((hdr.sjinx LT hdr.nx) OR (hdr.sjiny LT hdr.ny)) THEN BEGIN
-      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Dimensions of the slit-jaw image cube (['+$
-        STRTRIM(hdr.sjinx,2)+','+STRTRIM(hdr.sjiny,2)+','+STRTRIM(hdr.sjint,2)+']) are not '+$
-        'compatible with those of the main image cube (['+STRTRIM(hdr.nx,2)+','+STRTRIM(hdr.ny,2)+$
-        ','+STRTRIM(hdr.mainnt,2)+'])! Number of pixels in the x- and y-dimension must greater than '+$
-        'or equal to those of the main image cube.', /ERROR, /NO_ROUTINE, /NEWLINE
-	  ENDIF 
-    IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
-    io_failsafe_error = 1
-		RETURN
-  ENDELSE
-END
-
 PRO CRISPEX_IO_FAILSAFES_MASK, maskcube, HDR=hdr, STARTUPTLB=startuptlb, $
                               IO_FAILSAFE_ERROR=io_failsafe_error
 ; Handles failsafes against wrongly supplied mask cube
@@ -8191,15 +8172,10 @@ PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         /ERROR, /NO_ROUTINE, /NEWLINE
   		IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
       io_failsafe_sji_error = 1
-    ENDIF ELSE BEGIN
+    ENDIF ELSE $
       ; Parse the SJICUBE header
       CRISPEX_IO_PARSE_HEADER, hdr_out.sjifilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                              CUBE_COMPATIBILITY=sjicube_compatibility, EXTEN_NO=0, /SJICUBE
-      ; Check whether dimensions are compatible with main cube
-      CRISPEX_IO_FAILSAFES_MAIN_SJI, HDR=hdr_out, STARTUPTLB=startuptlb, $
-                                   IO_FAILSAFE_ERROR=io_failsafe_sji_error
-    ENDELSE
-    IF (io_failsafe_sji_error EQ 1) THEN RETURN
     IF (hdr_out.sjint GT 1) THEN BEGIN
       tsel_sji = LONARR(hdr_out.mainnt)
       FOR tt=0,hdr_out.mainnt-1 DO BEGIN
