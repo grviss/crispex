@@ -18459,6 +18459,15 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		zoom_txt = WIDGET_LABEL(zoom_base, VALUE = 'Zoom:')
 		zoom_val = WIDGET_LABEL(zoom_base, $
       VALUE = STRING(zoomfactors[0]*100.,FORMAT='(I4)')+'%', /DYNAMIC_RESIZE)
+    ; DATE_OBS
+    date_base = WIDGET_BASE(param_base, /ROW, /FRAME)
+    date_txt = WIDGET_LABEL(date_base, VALUE='Date:')
+    IF (hdr.date_obs_main NE '0') THEN $
+      dateval = STRMID(hdr.date_obs_main,0,STRPOS(hdr.date_obs_main,'T')) $
+    ELSE $
+      dateval = 'N/A'
+    date_val = WIDGET_LABEL(date_base, VALUE=dateval, /DYNAMIC_RESIZE)
+    ; OBSID
 		obsid_base = WIDGET_BASE(param_base, /ROW, /FRAME)
 		obsid_txt = WIDGET_LABEL(obsid_base, VALUE = 'OBSID:')
     IF (hdr.obsid NE '0') THEN $
