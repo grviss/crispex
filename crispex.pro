@@ -768,6 +768,7 @@ FUNCTION CRISPEX_BGROUP_RASTER_OVERLAY, event
   CASE event.VALUE OF
     0:  (*(*info).overlayswitch).refraster = event.SELECT
     1:  (*(*info).overlayswitch).sjiraster = event.SELECT
+    2:  (*(*info).overlayswitch).rastertiming = event.SELECT
   ENDCASE
 	CRISPEX_DRAW, event
 END
@@ -4854,10 +4855,16 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
     sy_loc = (*(*info).curs).syref
     IF (*(*info).overlayswitch).refraster THEN $
       CRISPEX_DRAW_RASTER_OVERLAYS, event, /REFERENCE
+    IF ((*(*info).overlayswitch).rastertiming AND $
+        (SIZE((*(*info).dataparams).tarr_raster_ref, /N_DIM) EQ 2)) THEN $
+      CRISPEX_DRAW_RASTER_TIMING_OVERLAYS, event, /REFERENCE
   ENDIF ELSE BEGIN
     main_wid = ((*(*info).winids).current_wid EQ (*(*info).winids).xydrawid)
     sx_loc = (*(*info).curs).sx
     sy_loc = (*(*info).curs).sy
+    IF ((*(*info).overlayswitch).rastertiming AND $
+        (SIZE((*(*info).dataparams).tarr_raster_main, /N_DIM) EQ 2)) THEN $
+      CRISPEX_DRAW_RASTER_TIMING_OVERLAYS, event, /MAIN
   ENDELSE
   ; Get current colour table arrays
   TVLCT, r_cur, g_cur, b_cur, /GET
@@ -5371,6 +5378,94 @@ PRO CRISPEX_DRAW_RASTER_OVERLAYS, event, REFERENCE=reference, SJI=sji
         Y=(*(*info).dataparams).pix_main2sji[1,i,*], /SJI)
     PLOTS, sxyraster.x, sxyraster.y, COLOR=(*(*info).overlayparams).maskcolor, /DEVICE
   ENDFOR
+	LOADCT, 0, /SILENT
+END
+
+PRO CRISPEX_DRAW_RASTER_TIMING_OVERLAYS, event, MAIN=main, REFERENCE=reference
+; Handles the overlay of raster contours on REFERENCE or SJI
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF ((*(*info).dispparams).master_time EQ 0) OR ((*(*info).dispparams).master_time EQ 2) THEN BEGIN
+    IF (SIZE((*(*info).dataparams).tarr_raster_main, /N_DIM) EQ 2) THEN $
+      tarr_raster_ref = REFORM(((*(*info).dataparams).tarr_raster_main)[*,$
+                          (*(*info).dispparams).t_main])  $
+    ELSE $
+      tarr_raster_ref = *(*(*info).dispparams).tarr_main
+  ENDIF 
+  IF ((*(*info).dispparams).master_time GE 1) THEN BEGIN
+    IF (SIZE((*(*info).dataparams).tarr_raster_main, /N_DIM) EQ 2) THEN $
+      tarr_raster_main = REFORM(((*(*info).dataparams).tarr_raster_main)[*,$
+                          (*(*info).dispparams).t_main])  $
+    ELSE $
+      tarr_raster_main = *(*(*info).dispparams).tarr_main
+  ENDIF
+  CASE (*(*info).dispparams).master_time OF
+    0:  BEGIN
+          IF KEYWORD_SET(MAIN) THEN $
+            ; Main is master timer, so sets "reference"
+            tidx_main_sel = (*(*info).dispparams).toffset_main $
+          ELSE BEGIN
+            ; Check whether main is a raster, else get from single array
+            IF (SIZE((*(*info).dataparams).tarr_raster_main, /N_DIM) EQ 2) THEN $
+              tval_main_sel = ((*(*info).dataparams).tarr_raster_main)[$
+                (*(*info).dispparams).toffset_main, (*(*info).dispparams).t_main] $
+            ELSE $
+              tval_main_sel = $
+                (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_main]
+            tdiff = ABS(tarr_raster_ref - tval_main_sel)
+            tidx_ref_sel = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
+          ENDELSE
+        END
+    1:  BEGIN
+          ; Reference is master timer, so sets "reference"
+          IF KEYWORD_SET(REFERENCE) THEN $
+            tidx_ref_sel = (*(*info).dispparams).toffset_ref $
+          ELSE BEGIN
+            ; Check whether reference is a raster, else get from single array
+            IF (SIZE((*(*info).dataparams).tarr_raster_ref, /N_DIM) EQ 2) THEN $
+              tval_ref_sel = ((*(*info).dataparams).tarr_raster_ref)[$
+                (*(*info).dispparams).toffset_ref, (*(*info).dispparams).t_ref] $
+            ELSE $
+              tval_ref_sel = $
+                (*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t_ref]
+            tdiff = ABS(tarr_raster_main - tval_ref_sel)
+            tidx_main_sel = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
+          ENDELSE
+        END
+    2:  BEGIN
+          ; SJI is master timer, so sets "reference"
+          tval_sji_sel = $
+            (*(*(*info).dispparams).tarr_sji)[(*(*info).dispparams).t_sji]
+          IF KEYWORD_SET(MAIN) THEN BEGIN
+            tdiff = ABS(tarr_raster_main - tval_sji_sel)
+            tidx_main_sel = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
+          ENDIF ELSE BEGIN
+            tdiff = ABS(tarr_raster_ref - tval_sji_sel)
+            tidx_ref_sel = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
+          ENDELSE
+        END
+  ENDCASE
+	LOADCT, (*(*info).overlayparams).maskct, /SILENT
+  IF KEYWORD_SET(MAIN) THEN BEGIN
+    xyout_low = CRISPEX_TRANSFORM_DATA2DEVICE(info, X_IN=tidx_main_sel, $
+      Y_IN=(*(*info).zooming).ypos, /MAIN) 
+    xyout_upp = CRISPEX_TRANSFORM_DATA2DEVICE(info, X_IN=tidx_main_sel, $
+      Y_IN=(*(*info).zooming).ypos+(*(*info).dataparams).d_ny, /MAIN) 
+  ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
+    xyout_low = CRISPEX_TRANSFORM_DATA2DEVICE(info, X_IN=tidx_ref_sel, $
+      Y_IN=(*(*info).zooming).yrefpos, /REF) 
+    xyout_upp = CRISPEX_TRANSFORM_DATA2DEVICE(info, X_IN=tidx_ref_sel, $
+      Y_IN=(*(*info).zooming).yrefpos+(*(*info).dataparams).d_refny, /REF) 
+  ENDIF
+  x0 = REPLICATE(xyout_low.x, 2)
+  y0 = [xyout_low.y, xyout_upp.y]
+  x1 = x0
+  y1 = y0 + [20,-20]
+  FOR i=0,N_ELEMENTS(x0)-1 DO $
+    ARROW, x0[i], y0[i], x1[i], y1[i], HSIZE=7, HTHICK=7, $
+      COLOR=(*(*info).overlayparams).maskcolor, THICK=2, /SOLID, $
+      /DEVICE
 	LOADCT, 0, /SILENT
 END
 
@@ -17664,7 +17759,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     toffset_max = N_ELEMENTS(hdr.tarr_raster_main[*,0])-1 $
   ELSE $
     toffset_max = 1
-  time_offset_slid  = WIDGET_SLIDER(playback_tab, TITLE='Raster timing offset', $
+  time_offset_slid  = WIDGET_SLIDER(playback_tab, $
+                        TITLE='Raster timing offset [raster position]', $
                         VALUE=hdr.toffset_main, MIN=0, MAX=toffset_max>1,$
                         EVENT_PRO='CRISPEX_SLIDER_TIME_OFFSET', $
                         SENSITIVE=((toffset_max GT 1) AND (TOTAL(showdata) GT 1)), /DRAG)
@@ -18042,9 +18138,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   raster_overlay_label= WIDGET_LABEL(overlays_tab, VALUE='Raster:',/ALIGN_LEFT)
   raster_overlay      = WIDGET_BASE(overlays_tab, /COLUMN)
   raster_but_labels   = ['Overlay slit positions on reference image', $
-                          'Overlay slit positions on slit-jaw image'] 
+                          'Overlay slit positions on slit-jaw image', $
+                          'Overlay timing markers on rasters'] 
   raster_buts         = CW_BGROUP(raster_overlay, raster_but_labels, $
-                          BUTTON_UVALUE=INDGEN(2), IDS=raster_button_ids, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(raster_but_labels)), $
+                          IDS=raster_button_ids, $
                           /NONEXCLUSIVE, /COLUMN, $
                           EVENT_FUNC='CRISPEX_BGROUP_RASTER_OVERLAY')
   WIDGET_CONTROL, raster_button_ids[0], $
@@ -18053,6 +18151,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   WIDGET_CONTROL, raster_button_ids[1], $
     SET_BUTTON=(hdr.sjifile AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1))),$
     SENSITIVE=(hdr.sjifile AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1)))
+  WIDGET_CONTROL, raster_button_ids[2], $
+    SET_BUTTON=((nrasterdims[0] GT 1) OR (nrasterdims[1] GT 1)), $
+    SENSITIVE=((nrasterdims[0] GT 1) OR (nrasterdims[1] GT 1))
   overlays_divider3   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
 
   ; ==================== Parameters Overview ====================
@@ -18999,7 +19100,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		det_overlay_all:0, loopslit:0, overlalways:1, looppath_feedback:1, $
     mask:hdr.maskfile, maskim:[hdr.maskfile,hdr.showref,0], $
     sjiraster:(hdr.sjifile AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1))), $
-    refraster:(hdr.showref AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1))) $		
+    refraster:(hdr.showref AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1))), $		
+    rastertiming:((nrasterdims[0] GT 1) OR (nrasterdims[1] GT 1)) $
 	}
 ;-------------------- PARAMETER WINDOW CONTROLS 
 	paramparams = { $
