@@ -14876,10 +14876,17 @@ PRO CRISPEX_SLIDER_TIME_OFFSET, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   CASE (*(*info).dispparams).master_time OF
-    0:  (*(*info).dispparams).toffset_main = event.VALUE
-    1:  (*(*info).dispparams).toffset_ref = event.VALUE
+    0:  BEGIN
+          (*(*info).dispparams).toffset_main = event.VALUE
+          t_old = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_main]
+        END
+    1:  BEGIN
+          (*(*info).dispparams).toffset_ref = event.VALUE
+          t_old = (*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t_ref]
+        END
   ENDCASE
-  CRISPEX_COORDS_TRANSFORM_T, event, NT_OLD=(*(*info).dataparams).nt
+  CRISPEX_COORDS_TRANSFORM_T, event, NT_OLD=(*(*info).dataparams).nt, $
+    T_OLD=t_old
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [event.VALUE], labels=['Raster timing offset']
 	CRISPEX_UPDATE_T, event
@@ -15127,53 +15134,56 @@ PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw, NO_PHIS=no_phis, $
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  WIDGET_CONTROL,/HOURGLASS
-  IF ~KEYWORD_SET(NO_FEEDBACK) THEN BEGIN
-    totslices = $
-      ((*(*info).winswitch).showrefls AND ((*(*info).dataswitch).refspfile EQ 0))+$
-	    ((*(*info).winswitch).showphis OR $
-      ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls))+$
-      (~KEYWORD_SET(NO_PHIS) AND (*(*info).winswitch).showphis) 
-    base_txt = 'Updating '+STRLOWCASE((*(*info).paramparams).sp_h[$
-      (*(*info).plotswitch).heightset])+' slices... '
-    CRISPEX_WINDOW_USER_FEEDBACK, event, 'Updating slices', base_txt+'(may take some time)'
-  ENDIF
-  IF ((*(*info).winswitch).showrefls AND ((*(*info).dataswitch).refspfile EQ 0)) THEN BEGIN
-  	IF ((*(*info).dataparams).refnt GT 1) THEN $
-      *(*(*info).data).refsspscan = (*(*(*info).data).refscan)[(*(*info).dispparams).t_ref] 
-    IF KEYWORD_SET(REFSSP_UPDATE) THEN BEGIN
-      CRISPEX_UPDATE_REFSSP, event
-      IF KEYWORD_SET(REFLS_DRAW) THEN CRISPEX_DRAW_SPECTRAL_REF, event, /LS_ONLY
+  IF (~KEYWORD_SET(NO_PHIS) OR KEYWORD_SET(SSP_UPDATE) OR $
+    KEYWORD_SET(REFSSP_UPDATE)) THEN BEGIN
+    WIDGET_CONTROL,/HOURGLASS
+    IF ~KEYWORD_SET(NO_FEEDBACK) THEN BEGIN
+      totslices = $
+        ((*(*info).winswitch).showrefls AND ((*(*info).dataswitch).refspfile EQ 0))+$
+  	    ((*(*info).winswitch).showphis OR $
+        ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls))+$
+        (~KEYWORD_SET(NO_PHIS) AND (*(*info).winswitch).showphis) 
+      base_txt = 'Updating '+STRLOWCASE((*(*info).paramparams).sp_h[$
+        (*(*info).plotswitch).heightset])+' slices... '
+      CRISPEX_WINDOW_USER_FEEDBACK, event, 'Updating slices', base_txt+'(may take some time)'
     ENDIF
-    IF ~KEYWORD_SET(NO_FEEDBACK) THEN $
-      WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, $
-        SET_VALUE=base_txt+'1/'+STRTRIM(totslices,2)+' done            '
-  ENDIF
-	IF ((*(*info).winswitch).showphis OR $
-      ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls)) THEN BEGIN
-		IF ((*(*info).dataparams).mainnt GT 1) THEN $
-      *(*(*info).data).sspscan = (*(*(*info).data).scan)[(*(*info).dispparams).t_main] $
-    ELSE $
-      *(*(*info).data).sspscan = (*(*(*info).data).scan)
-    IF KEYWORD_SET(SSP_UPDATE) THEN CRISPEX_UPDATE_SSP, event
-    IF ~KEYWORD_SET(NO_FEEDBACK) THEN $
-      WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, SET_VALUE=base_txt+$
-        STRTRIM(KEYWORD_SET(REFSSP_UPDATE)+1,2)+'/'+STRTRIM(totslices,2)+$
-        ' done            '
-    IF (~KEYWORD_SET(NO_PHIS) AND (*(*info).winswitch).showphis) THEN BEGIN
-  		*(*(*info).data).phiscan = (*(*(*info).data).sspscan)[*,*,$
-         ((*(*info).dataparams).s * (*(*info).dataparams).nlp):$
-        (((*(*info).dataparams).s+1)*(*(*info).dataparams).nlp-1)] 
-      CRISPEX_UPDATE_PHISLICE, event, NO_DRAW=no_draw
+    IF ((*(*info).winswitch).showrefls AND ((*(*info).dataswitch).refspfile EQ 0)) THEN BEGIN
+    	IF ((*(*info).dataparams).refnt GT 1) THEN $
+        *(*(*info).data).refsspscan = (*(*(*info).data).refscan)[(*(*info).dispparams).t_ref] 
+      IF KEYWORD_SET(REFSSP_UPDATE) THEN BEGIN
+        CRISPEX_UPDATE_REFSSP, event
+        IF KEYWORD_SET(REFLS_DRAW) THEN CRISPEX_DRAW_SPECTRAL_REF, event, /LS_ONLY
+      ENDIF
+      IF ~KEYWORD_SET(NO_FEEDBACK) THEN $
+        WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, $
+          SET_VALUE=base_txt+'1/'+STRTRIM(totslices,2)+' done            '
+    ENDIF
+  	IF ((*(*info).winswitch).showphis OR $
+        ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls)) THEN BEGIN
+  		IF ((*(*info).dataparams).mainnt GT 1) THEN $
+        *(*(*info).data).sspscan = (*(*(*info).data).scan)[(*(*info).dispparams).t_main] $
+      ELSE $
+        *(*(*info).data).sspscan = (*(*(*info).data).scan)
+      IF KEYWORD_SET(SSP_UPDATE) THEN CRISPEX_UPDATE_SSP, event
       IF ~KEYWORD_SET(NO_FEEDBACK) THEN $
         WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, SET_VALUE=base_txt+$
-          STRTRIM(KEYWORD_SET(REFSSP_UPDATE)+KEYWORD_SET(SSP_UPDATE)+1,2)+$
-          '/'+STRTRIM(totslices,2)+' done            '
-    ENDIF
-	ENDIF
-  WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE=0
-  IF ~KEYWORD_SET(NO_FEEDBACK) THEN $
-    CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event
+          STRTRIM(KEYWORD_SET(REFSSP_UPDATE)+1,2)+'/'+STRTRIM(totslices,2)+$
+          ' done            '
+      IF (~KEYWORD_SET(NO_PHIS) AND (*(*info).winswitch).showphis) THEN BEGIN
+    		*(*(*info).data).phiscan = (*(*(*info).data).sspscan)[*,*,$
+           ((*(*info).dataparams).s * (*(*info).dataparams).nlp):$
+          (((*(*info).dataparams).s+1)*(*(*info).dataparams).nlp-1)] 
+        CRISPEX_UPDATE_PHISLICE, event, NO_DRAW=no_draw
+        IF ~KEYWORD_SET(NO_FEEDBACK) THEN $
+          WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, SET_VALUE=base_txt+$
+            STRTRIM(KEYWORD_SET(REFSSP_UPDATE)+KEYWORD_SET(SSP_UPDATE)+1,2)+$
+            '/'+STRTRIM(totslices,2)+' done            '
+      ENDIF
+  	ENDIF
+    WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE=0
+    IF ~KEYWORD_SET(NO_FEEDBACK) THEN $
+      CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event
+  ENDIF
 END
 
 PRO CRISPEX_UPDATE_SPSLICE, event
