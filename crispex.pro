@@ -5462,6 +5462,8 @@ PRO CRISPEX_DRAW_RASTER_TIMING_OVERLAYS, event, MAIN=main, REFERENCE=reference
   y0 = [xyout_low.y, xyout_upp.y]
   x1 = x0
   y1 = y0 + [20,-20]
+  PLOTS,x0,[y0[0],y1[1]], COLOR=(*(*info).overlayparams).maskcolor, $
+    LINE=1,/DEVICE
   FOR i=0,N_ELEMENTS(x0)-1 DO $
     ARROW, x0[i], y0[i], x1[i], y1[i], HSIZE=7, HTHICK=7, $
       COLOR=(*(*info).overlayparams).maskcolor, THICK=2, /SOLID, $
