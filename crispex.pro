@@ -17358,7 +17358,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
         ls_upp_tmp=MAX((immax[hdr.diag_start[d]:(hdr.diag_start[d]+(hdr.diag_width[d]-1)),$
           j]+3.*imsdev[hdr.diag_start[d]:(hdr.diag_start[d]+(hdr.diag_width[d]-1)),j])/$
           hdr.ms[j], /NAN)
-        ls_range_tmp[d,j] = ls_upp_tmp - ls_low_tmp
+        ; Failsafe against equal ls_upp_tmp and ls_low_tmp
+        IF (ls_upp_tmp NE ls_low_tmp) THEN $
+          ls_range_tmp[d,j] = ls_upp_tmp - ls_low_tmp $
+        ELSE $
+          ls_range_tmp[d,j] = 1.
       ENDFOR
     ENDFOR
     main_mult_val = REPLICATE(ls_range_tmp[WHERE(ls_range_tmp EQ MAX(ls_range_tmp, /NAN))],$
@@ -17410,6 +17414,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
           (hdr.refdiag_start[d]+(hdr.refdiag_width[d]-1))]+$
           3.*refdev[hdr.refdiag_start[d]:(hdr.refdiag_start[d]+$
           (hdr.refdiag_width[d]-1))])/hdr.refms, /NAN)
+        ; Failsafe against equal ls_upp_tmp and ls_low_tmp
+        IF (ls_upp_tmp NE ls_low_tmp) THEN $
+          ls_range_tmp[d] = ls_upp_tmp - ls_low_tmp $
+        ELSE $
+          ls_range_tmp[d] = 1.
         ls_range_tmp[d] = ls_upp_tmp - ls_low_tmp
       ENDFOR
       ref_mult_val = REPLICATE(ls_range_tmp[WHERE(ls_range_tmp EQ $
