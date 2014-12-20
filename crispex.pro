@@ -16948,7 +16948,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 
   ; Handle pixel aspect ratio for default sizes
   IF (pixelratio GT 1) THEN imwinx_default *= pixelratio ELSE $
-    IF (pixelratio LT 1) THEN imwiny_default *= pixelratio
+    IF (pixelratio LT 1) THEN imwiny_default /= pixelratio
   
   ; Check for extreme aspect ratio and small dimensions
   extreme_aspect = (((ratio GT 5.) AND (imwiny_default LT minsize)) OR $
@@ -17025,7 +17025,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   IF (pixelratio GT 1) THEN $
     imwinx *= pixelratio $
   ELSE IF (pixelratio LT 1) THEN $
-    imwiny *= pixelratio
+    imwiny /= pixelratio
   IF (verbosity[1] EQ 1) THEN $
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, msg+'Main image window set to '+$
       STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.', /NEWLINE, /NO_ROUTINE
@@ -17047,7 +17047,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
       refwiny_default = hdr.refny
       ; Handle pixel aspect ratio
       IF (refpixelratio GT 1) THEN refwinx_default *= refpixelratio ELSE $
-        IF (refpixelratio LT 1) THEN refwiny_default *= refpixelratio
+        IF (refpixelratio LT 1) THEN refwiny_default /= refpixelratio
       ; Check for extreme aspect ratio and small dimensions
       extreme_aspect_ref = $
         (((refratio GT 5.) AND (refwiny_default LT minsize)) OR $
@@ -17062,7 +17062,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
         refwinx = refwiny * refratio 
       ; Handle pixel aspect ratio
       IF (refpixelratio GT 1) THEN refwinx *= refpixelratio ELSE $
-        IF (refpixelratio LT 1) THEN refwiny *= refpixelratio
+        IF (refpixelratio LT 1) THEN refwiny /= refpixelratio
     ENDELSE
     result = CRISPEX_GET_IMREF_BLINK_BOUNDS(pix_main2ref, pix_ref2main, $
       0, (hdr.nx-1), 0, (hdr.ny-1), 0, (hdr.refnx-1), 0, (hdr.refny-1))
@@ -17095,7 +17095,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     sjiwiny_default = hdr.sjiny
     ; Handle pixel aspect ratio
     IF (sjipixelratio GT 1) THEN sjiwinx_default *= sjipixelratio ELSE $
-      IF (sjipixelratio LT 1) THEN sjiwiny_default *= sjipixelratio
+      IF (sjipixelratio LT 1) THEN sjiwiny_default /= sjipixelratio
     sjiwiny = sjiwiny_default/FLOAT(imwiny_default)*imwiny
     sjiwinx = sjiwinx_default/FLOAT(sjiwiny_default)*sjiwiny
   ENDIF ELSE BEGIN
