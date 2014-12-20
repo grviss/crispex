@@ -1974,28 +1974,47 @@ PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old, NT_OLD=nt_old
     IF ((*(*info).dataparams).mainnt GT 1) THEN BEGIN
       *(*(*info).dispparams).tsel_main = tsel_main
       *(*(*info).dispparams).tarr_main = tarr_main[tsel_main]
-      IF (SIZE((*(*info).dataparams).utc_raster_main, /N_DIMENSIONS) EQ 2) THEN $
+      IF (SIZE((*(*info).dataparams).utc_raster_main, /N_DIMENSIONS) EQ 2) THEN BEGIN
         *(*(*info).dispparams).utc_main = (*(*info).dataparams).utc_raster_main[$
-          (*(*info).dispparams).toffset_main, tsel_main] $
-      ELSE $
+          (*(*info).dispparams).toffset_main, tsel_main] 
+        IF ((*(*info).dispparams).master_time EQ 0) THEN $
+          *(*(*info).dispparams).date_arr = $
+            (*(*info).dataparams).date_raster_main[$
+            (*(*info).dispparams).toffset_main, tsel_main] 
+      ENDIF ELSE BEGIN
         *(*(*info).dispparams).utc_main = $
           (*(*info).dataparams).utc_raster_main[tsel_main]
+        IF ((*(*info).dispparams).master_time EQ 0) THEN $
+          *(*(*info).dispparams).date_arr = $
+            (*(*info).dataparams).date_raster_main[tsel_main]
+      ENDELSE
     ENDIF
     IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN 
       *(*(*info).dispparams).tsel_ref = tsel_ref
       *(*(*info).dispparams).tarr_ref = tarr_ref[tsel_ref]
-      IF (SIZE((*(*info).dataparams).utc_raster_ref, /N_DIMENSIONS) EQ 2) THEN $
+      IF (SIZE((*(*info).dataparams).utc_raster_ref, /N_DIMENSIONS) EQ 2) THEN BEGIN
         *(*(*info).dispparams).utc_ref = (*(*info).dataparams).utc_raster_ref[$
-          (*(*info).dispparams).toffset_ref,tsel_ref] $
-      ELSE $
+          (*(*info).dispparams).toffset_ref,tsel_ref] 
+        IF ((*(*info).dispparams).master_time EQ 1) THEN $
+          *(*(*info).dispparams).date_arr = $
+            (*(*info).dataparams).date_raster_ref[$
+            (*(*info).dispparams).toffset_ref,tsel_ref] 
+      ENDIF ELSE BEGIN
         *(*(*info).dispparams).utc_ref = $
           (*(*info).dataparams).utc_raster_ref[tsel_ref]
+        IF ((*(*info).dispparams).master_time EQ 1) THEN $
+          *(*(*info).dispparams).date_arr = $
+            (*(*info).dataparams).date_raster_ref[tsel_ref]
+      ENDELSE
     ENDIF
     IF ((*(*info).dataparams).sjint GT 1) THEN BEGIN 
       *(*(*info).dispparams).tsel_sji = tsel_sji
       *(*(*info).dispparams).tarr_sji = (*(*info).dataparams).tarr_sji[tsel_sji]
       *(*(*info).dispparams).utc_sji = $
         (*(*info).dataparams).utc_sji[tsel_sji]
+      IF ((*(*info).dispparams).master_time EQ 2) THEN $
+        *(*(*info).dispparams).date_arr = $
+          (*(*info).dataparams).date_sji[tsel_sji]
     ENDIF
     ; Reset temporal boundaries and get T_SET
     (*(*info).dispparams).t_last = (*(*info).dataparams).nt-1
@@ -5864,6 +5883,10 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event
     WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_sji_real_val, $
       SET_VALUE=dataval_sji_real_txt
   ENDIF
+
+  ; Date value
+  WIDGET_CONTROL, (*(*info).ctrlsparam).date_val, $
+    SET_VALUE=(*(*(*info).dispparams).date_arr)[(*(*info).dispparams).t]
 
   ; Zoom value
 	WIDGET_CONTROL, (*(*info).ctrlsparam).zoom_val, $
@@ -10522,6 +10545,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.date_obs_main = key.date_obs
       utc_main = key.utc_sel
       utc_raster_main = key.utc_raster_sel
+      date_main = key.date_sel
+      date_raster_main = key.date_raster_sel
       hdr_out = CREATE_STRUCT(hdr_out, 'lps', key.lam, 'lc', lc)
       ; Handle spectral windows, if present
       hdr_out.ndiagnostics = key.ndiagnostics
@@ -10549,6 +10574,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tarr_raster_main = tarr_main
       utc_main = tarr_main
       utc_raster_main = tarr_raster_main
+      date_main = REPLICATE('N/A',hdr_out.mainnt)
+      date_raster_main = REPLICATE('N/A',hdr_out.mainnt)
       toffset_main = 0
       IF (ndiagnostics GT 0) THEN BEGIN
         diagnostics = STRTRIM(STRSPLIT(STRMID(diagnostics,1,$
@@ -10570,7 +10597,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       'diag_start', wstart, 'diag_width', wwidth, 'tarr_main', tarr_main, $
       'tarr_raster_main', tarr_raster_main, 'toffset_main', toffset_main, $
       'twave', twave, 'hdrs_main', headers, 'wcs_main', wcs_main, $
-      'utc_main', utc_main, 'utc_raster_main', utc_raster_main)
+      'utc_main', utc_main, 'utc_raster_main', utc_raster_main, $
+      'date_main', date_main, 'date_raster_main', date_raster_main)
   ENDIF ELSE IF KEYWORD_SET(SPCUBE) THEN BEGIN                  ; Fill hdr parameters for SPCUBE
     hdr_out.spoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -10602,6 +10630,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.date_obs_ref = STRTRIM(key.date_obs,2)
       utc_ref = key.utc_sel
       utc_raster_ref = key.utc_raster_sel
+      date_ref = key.date_sel
+      date_raster_ref = key.date_raster_sel
       hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', reflc)
       ; Handle spectral windows, if present
       hdr_out.nrefdiagnostics = key.ndiagnostics
@@ -10632,6 +10662,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tarr_raster_ref = tarr_ref
       utc_ref = tarr_ref
       utc_raster_ref = tarr_raster_ref
+      date_ref = REPLICATE('N/A',hdr_out.refnt)
+      date_raster_ref = REPLICATE('N/A',hdr_out.refnt)
       toffset_ref = 0
       ndiagnostics = N_ELEMENTS(diagnostics)
       IF (ndiagnostics GT 0) THEN BEGIN
@@ -10654,7 +10686,8 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       'refdiag_start', wstart, 'refdiag_width', wwidth, 'tarr_ref', tarr_ref, $
       'tarr_raster_ref', tarr_raster_ref, 'toffset_ref', toffset_ref, $
       'twave_ref', twave, 'hdrs_ref', headers, 'wcs_ref', wcs_ref, $
-      'utc_ref', utc_ref, 'utc_raster_ref', utc_raster_ref)
+      'utc_ref', utc_ref, 'utc_raster_ref', utc_raster_ref, $
+      'date_ref', date_ref, 'date_raster_ref', date_raster_ref)
   ENDIF ELSE IF KEYWORD_SET(REFSPCUBE) THEN BEGIN               ; Fill hdr parameters for REFSPCUBE
     hdr_out.refspoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -10681,7 +10714,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.date_obs_sji = STRTRIM(key.date_obs,2)
       hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
         'sjixoff', key.sjixoff, 'sjiyoff', key.sjiyoff, 'hdrs_sji', headers, $
-        'wcs_sji', key.wcs_str, 'utc_sji', key.utc_sel) 
+        'wcs_sji', key.wcs_str, 'utc_sji', key.utc_sel, 'date_sji', key.date_sel) 
   ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                
     ; Fill hdr parameters for MASKCUBE
     hdr_out.maskoffset = offset
@@ -10900,43 +10933,56 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ; IF DATE_OBS is set, derive the UTC (raster) time array
   IF (date_obs NE '0') THEN BEGIN
     utc_sel = STRARR(nt)
+    date_sel = STRARR(nt)
     ; Check for N_DIMENSIONS of tarr_raster
-    IF (SIZE(tarr_raster, /N_DIMENSIONS) EQ 2) THEN $
-      utc_raster_sel = STRARR(nx,nt) $
-    ELSE BEGIN
+    IF (SIZE(tarr_raster, /N_DIMENSIONS) EQ 2) THEN BEGIN
+      utc_raster_sel = STRARR(nx,nt) 
+      date_raster_sel = STRARR(nx,nt)
+    ENDIF ELSE BEGIN
       ; If N_DIMS!=2, then either:
       ; - IRIS sit-and-stare (nx=1,nt>1) 
       ; - non-raster time series (nx>1,nt>1)
       ; - IRIS single timestep (nx>1,nt=1)
-      IF (nt GT 1) THEN $
-        utc_raster_sel = STRARR(nt)  $
-      ELSE $
+      IF (nt GT 1) THEN BEGIN
+        utc_raster_sel = STRARR(nt)  
+        date_raster_sel = STRARR(nt)
+      ENDIF ELSE BEGIN
         utc_raster_sel = STRARR(nx)
+        date_raster_sel = STRARR(nx)
+      ENDELSE
     ENDELSE
     orig_str = STR2UTC(date_obs)
+    dayinms = 86400000    ; Full day in milliseconds
     ; Loop over time
     FOR t=0,nt-1 DO BEGIN
       ; Create new main time structure and save time to utc_sel
-      new_str = {mjd:orig_str.mjd, $
-        time:(orig_str.time+LONG(tarr_sel[t]*1000*tfactor))}
+      new_time_tmp = orig_str.time+LONG(tarr_sel[t]*1000*tfactor)
+      new_str = {mjd:orig_str.mjd+(new_time_tmp GT dayinms), $
+        time:(new_time_tmp MOD dayinms)}
       utc_sel[t] = UTC2STR(new_str, /TIME_ONLY)
+      date_sel[t] = UTC2STR(new_str, /DATE_ONLY)
       ; Do the same for the raster in case of N_DIMS=2
       IF (SIZE(tarr_raster, /N_DIMENSIONS) EQ 2) THEN BEGIN
         FOR x=0,nx-1 DO BEGIN
-          new_str = {mjd:orig_str.mjd, time:(orig_str.time+$
-            LONG(tarr_raster[x,t]*1000*tfactor))}
+          new_time_tmp = orig_str.time+LONG(tarr_raster[x,t]*1000*tfactor)
+          new_str = {mjd:orig_str.mjd+(new_time_tmp GT dayinms), $
+            time:(new_time_tmp MOD dayinms)}
           utc_raster_sel[x,t] = UTC2STR(new_str, /TIME_ONLY)
+          date_raster_sel[x,t] = UTC2STR(new_str, /DATE_ONLY)
         ENDFOR
       ENDIF ELSE BEGIN
         ; Alternatively, if nt>1, then nx=1 and set utc_raster_sel = utc_sel
-        IF (nt GT 1) THEN $
-          utc_raster_sel[t] = utc_sel[t] $
-        ELSE BEGIN
+        IF (nt GT 1) THEN BEGIN
+            utc_raster_sel[t] = utc_sel[t] 
+            date_raster_sel[t] = date_sel[t]
+        ENDIF ELSE BEGIN
         ; Else, if nt=1, then nx>1 and get utc_raster_sel for each slit pos
           FOR x=0,nx-1 DO BEGIN
-            new_str = {mjd:orig_str.mjd, time:(orig_str.time+$
-              LONG(tarr_raster[x]*1000*tfactor))}
+            new_time_tmp = orig_str.time+LONG(tarr_sel[t]*1000*tfactor)
+            new_str = {mjd:orig_str.mjd+(new_time_tmp GT dayinms), $
+              time:(new_time_tmp MOD dayinms)}
             utc_raster_sel[x] = UTC2STR(new_str, /TIME_ONLY)
+            date_raster_sel[x] = UTC2STR(new_str, /DATE_ONLY)
           ENDFOR
         ENDELSE
       ENDELSE
@@ -10944,6 +10990,8 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ENDIF ELSE BEGIN
     utc_sel = tarr_sel
     utc_raster_sel = tarr_raster
+    date_sel = 'N/A'
+    date_raster_sel = 'N/A'
   ENDELSE
   ;
   key = {nx:nx,ny:ny,nlp:nlp,nt:nt,ns:ns,cslab:cslab, $
@@ -10957,7 +11005,8 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
        xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,$
        wstart:wstart, wwidth:wwidth, diagnostics:diagnostics, $
        ndiagnostics:ndiagnostics, twave:twave, headers:headers, obsid:obsid, $
-       date_obs:date_obs, utc_sel:utc_sel, utc_raster_sel:utc_raster_sel $
+       date_obs:date_obs, utc_sel:utc_sel, utc_raster_sel:utc_raster_sel, $
+       date_sel:date_sel, date_raster_sel:date_raster_sel $
        }
 END
 
@@ -16615,7 +16664,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     hdr = CREATE_STRUCT(hdr, 'refdiagnostics', 'N/A', 'refdiag_start', 0, $
             'refdiag_width', 1, 'tarr_ref', 0, 'tarr_raster_ref', 0, $
             'toffset_ref', 0, 'hdrs_ref', PTR_NEW(''), 'wcs_ref', 0, $
-            'utc_ref', '0', 'utc_raster_ref', 0)
+            'utc_ref', '0', 'utc_raster_ref', 0, 'date_ref', 'N/A', $
+            'date_raster_ref', 'N/A')
 
   CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr, HDR_OUT=hdr, $  
                             STARTUPTLB=startuptlb, $
@@ -16630,7 +16680,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   ENDIF
   IF (N_ELEMENTS(sjicube) NE 1) THEN $
     hdr = CREATE_STRUCT(hdr, 'tarr_sji', 0, 'tsel_sji', 0, $
-            'hdrs_sji', PTR_NEW(''), 'wcs_sji', 0, 'utc_sji', '0')
+            'hdrs_sji', PTR_NEW(''), 'wcs_sji', 0, 'utc_sji', '0', $
+            'date_sji', 'N/A')
 
   ; If WCS information is present, use that to get conversion maps
   ; Set defaults first
@@ -18857,7 +18908,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     t_raster_ref_real_val:t_raster_ref_real_val, $
     t_sji_idx_val:t_sji_idx_val, t_sji_real_val:t_sji_real_val, $
     dataval_real_val:dataval_real_val, dataval_ref_real_val:dataval_ref_real_val, $
-    dataval_sji_real_val:dataval_sji_real_val, $
+    dataval_sji_real_val:dataval_sji_real_val, date_val:date_val, $
     zoom_val:zoom_val $
 	}
 ;-------------------- PREFERENCE BUTTONS
@@ -18948,6 +18999,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     tarr_raster_main:hdr.tarr_raster_main, tarr_raster_ref:hdr.tarr_raster_ref,$
     utc_raster_main:hdr.utc_raster_main, utc_raster_ref:hdr.utc_raster_ref,$
     utc_sji:hdr.utc_sji, $
+    date_raster_main:hdr.date_raster_main, date_raster_ref:hdr.date_raster_ref,$
+    date_sji:hdr.date_sji, $
 		lc:hdr.lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp,$
     refnlp:hdr.refnlp, ns:hdr.ns, s:0L, $					
 		lps:hdr.lps, ms:hdr.ms, spec:hdr.mainspec, $
@@ -19004,6 +19057,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     utc_main:PTR_NEW(hdr.utc_main[hdr.tsel_main]), $
     utc_ref:PTR_NEW(hdr.utc_ref[hdr.tsel_ref]), $
     utc_sji:PTR_NEW(hdr.utc_sji[hdr.tsel_sji]), $
+    date_arr:PTR_NEW(hdr.date_main[hdr.tsel_main]), $
     t:t_start, t_main:hdr.tsel_main[0], t_ref:hdr.tsel_ref[0], t_sji:hdr.tsel_sji[0], $
     t_low_main:hdr.tarr_main[0], t_upp_main:hdr.tarr_main[(hdr.mainnt-1)>0], $
     t_low_ref:hdr.tarr_ref[0], t_upp_ref:hdr.tarr_ref[(hdr.refnt-1)>0], $
