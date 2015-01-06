@@ -8411,7 +8411,12 @@ PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
                     (sji_pc21*(sji_crpix1 - hdr_out.wcs_sji.crpix[0]) + $
                      sji_pc22*(sji_crpix2 - hdr_out.wcs_sji.crpix[1]))
         ; Get mid-point timing at which main CRVALs have been determined
-        t_sel_main = hdr_out.tarr_raster_main[hdr_out.nx/2,main_tsel_idx]
+        ; with failsafe against non-raster sit-and-stare
+        IF (SIZE(hdr_out.tarr_raster_main, /N_DIM) EQ 2) THEN $
+          t_sel_main = hdr_out.tarr_raster_main[hdr_out.nx/2,main_tsel_idx] $
+        ELSE $
+          t_sel_main = hdr_out.tarr_main[main_tsel_idx]
+        stop
         ; Get closest SJI timestep
         diff_time = ABS(hdr_out.tarr_sji - t_sel_main)
         t_sel_sji = WHERE(diff_time EQ MIN(diff_time))
@@ -11044,6 +11049,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ; Get OBSID and DATE_OBS
   obsid = SXPAR(header,'OBSID')
   date_obs = STRTRIM(SXPAR(header,'DATE_OBS'),2)
+  startobs = STRTRIM(SXPAR(header,'STARTOBS'),2)
   ; IF DATE_OBS is set, derive the UTC (raster) time array
   IF (date_obs NE '0') THEN BEGIN
     utc_sel = STRARR(nt)
@@ -11065,7 +11071,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
         date_raster_sel = STRARR(nx)
       ENDELSE
     ENDELSE
-    orig_str = STR2UTC(date_obs)
+    orig_str = STR2UTC(startobs)
     dayinms = 86400000    ; Full day in milliseconds
     ; Loop over time
     FOR t=0,nt-1 DO BEGIN
