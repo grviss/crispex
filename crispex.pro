@@ -3,11 +3,12 @@
 ;   CRISPEX: CRIsp SPectral EXplorer
 ;
 ; PURPOSE:
-;   This procedure allows browsing and analysis of multidimensional data cubes. The procedure was
-;   initially written for analysis of temporal spectropolarimetric data obtained with the CRISP 
-;   instrument at the Swedish Solar Telescope (SST) at La Palma (Spain), however any data formatted 
-;   in a particular way (cf. the online reference pages) may be fed to CRISPEX for browsing and/on
-;	  analysis purposes
+;   This procedure allows browsing and analysis of multidimensional data cubes.
+;   The procedure was initially written for analysis of temporal
+;   spectropolarimetric data obtained with the CRISP instrument at the Swedish 
+;   Solar Telescope (SST) at La Palma (Spain), however any data formatted in a
+;   particular way (cf. the online reference pages) may be fed to CRISPEX for
+;   browsing and/on analysis purposes
 ;
 ; CATEGORY:
 ;   Data browsing and analysis
@@ -16,118 +17,148 @@
 ;   CRISPEX, Imcube
 ;
 ; INPUTS:
-;	  Imcube        - 3D image datacube (dimensions [nx,ny,nt*nlp*ns]) or, if SPCUBE is not provided,
-;                   a scan (dimensions [nx,ny,nlp]). If SINGLE_CUBE is specified a 3D datacube may 
-;                   be provided even if SPCUBE is not. Allowed data types: BYTE, INTEGER, FLOAT.
+;	  Imcube        - 3D image datacube (dimensions [nx,ny,nt*nlp*ns]) or, if
+;                   SPCUBE is not provided, a scan (dimensions [nx,ny,nlp]). If
+;                   SINGLE_CUBE is specified a 3D datacube may be provided even
+;                   if SPCUBE is not. Allowed data types: BYTE, INTEGER, FLOAT.
 ;
 ; OPTIONAL INPUTS:
-;	  Spcube        - 3D spectral datacube (dimensions [nlp,nt,nx*ny*ns]). Required input if 
-;                   SINGLE_CUBE is not supplied with the number of linepositions and Imcube is a 
-;                   time series. Allowed data types: BYTE, INTEGER, FLOAT.
+;	  Spcube        - 3D spectral datacube (dimensions [nlp,nt,nx*ny*ns]).
+;                   Required input if SINGLE_CUBE is not supplied with the
+;                   number of linepositions and Imcube is a time series. Allowed
+;                   data types: BYTE, INTEGER, FLOAT.
 ;
 ; KEYWORDS:
-;	  REFCUBE	      - Reference data of same spatial dimensions as main data. REFCUBE may be supplied
-;                   with either:
+;	  REFCUBE	      - Reference data of same spatial dimensions as main data.
+;                   REFCUBE may be supplied with either:
 ;			                * 2D data array: dimensions [nx,ny].
-;			                * 3D data array: dimensions [nx,ny,refnt], where refnt must be equal to nt.
-;			                * Scalar string: pointing to a reference image cube of dimensions [nx,nx,
-;                       refnt*refnlp] where refnt must be equal to 1 or to nt, but refnlp need not 
-;                       be equal to nlp.
-;		 	                * 2-element string array: first element pointing to a reference image cube 
-;                       (dimensions [nx,ny,nt*refnlp]), the second element pointing to the 
-;                       corresponding reference spectral cube (dimensions [refnlp,refnt,nx*ny]). 
-;                       Again, refnt must be equal to 1 or nt, while any (positive integer) value of 
-;                       refnlp is allowed. 
+;			                * 3D data array: dimensions [nx,ny,refnt], where refnt 
+;                       must be equal to nt.
+;			                * Scalar string: pointing to a reference image cube of
+;                       dimensions [nx,nx,refnt*refnlp] where refnt must be
+;                       equal to 1 or to nt, but refnlp need not be equal to
+;                       nlp.
+;		 	                * 2-element string array: first element pointing to a
+;                       reference image cube (dimensions [nx,ny,nt*refnlp]), the
+;                       second element pointing to the corresponding reference
+;                       spectral cube (dimensions [refnlp,refnt,nx*ny]).  Again,
+;                       refnt must be equal to 1 or nt, while any (positive
+;                       integer) value of refnlp is allowed. 
 ;                   Allowed data types: BYTE, INTEGER, FLOAT.
-;   SJICUBE       - Slit-jaw image data corresponding to the main data. Must be supplied with a
-;                   scalar string pointing to a slit-jaw image cube of dimensions
-;                   [sjinx,sjiny,sjint], where sjinx, sjiny and sjint need not be equal to nx, ny or
-;                   nt, respectively. Allowed data types: BYTE, INTEGER, FLOAT.
-;	  MASKCUBE	    - Mask data of same spatial dimensions as main data. Must be supplied with a scalar
-;                   string pointing to a mask image cube of dimensions [nx,ny,masknt] where masknt 
-;                   must be equal to nt or 1. Allowed data types: BYTE, INTEGER, FLOAT.
-;	  SPECTFILE	    - File containing the normalised spectrum as function of the linepositions or 
-;                   wavelength. Contains the required variables:
+;   SJICUBE       - Slit-jaw image data corresponding to the main data. Must be
+;                   supplied with a scalar string pointing to a slit-jaw image
+;                   cube of dimensions [sjinx,sjiny,sjint], where sjinx, sjiny
+;                   and sjint need not be equal to nx, ny or nt, respectively.
+;                   Allowed data types: BYTE, INTEGER, FLOAT.
+;	  MASKCUBE	    - Mask data of same spatial dimensions as main data. Must be
+;                    supplied with a scalar string pointing to a mask image cube
+;                    of dimensions [nx,ny,masknt] where masknt must be equal to
+;                    nt or 1. Allowed data types: BYTE, INTEGER, FLOAT.
+;	  SPECTFILE	    - File containing the normalised spectrum as function of the
+;                   linepositions or wavelength. Contains the required
+;                   variables:
 ;			                * NORM_SPECT (normalised spectrum)
-;                     * NORM_FACTOR (normalisation factor used to produce NORM_SPECT) 
-;                     * SPECT_POS (spectral wavelength positions in any desired unit). 
-;                       Optional variables: XTITLE and YTITLE (x- and y-title label for plots, 
-;                       respectively). If not set, the mean spectrum is determined from the scan(s) 
-;                       determined by the MNSPEC keyword (i.e. from all x,y pixels at all 
-;                       linepositions at t given by the setting of MNSPEC).
+;                     * NORM_FACTOR (normalisation factor used to produce
+;                       NORM_SPECT) 
+;                     * SPECT_POS (spectral wavelength positions in any desired
+;                       unit).  
+;                   Optional variables: XTITLE and YTITLE (x- and y-title label
+;                   for plots, respectively). If not set, the mean spectrum is
+;                   determined from the scan(s) determined by the MNSPEC keyword
+;                   (i.e. from all x,y pixels at all linepositions at t given by
+;                   the setting of MNSPEC).
 ;                   SPECTFILE may be supplied with either:
 ;			                * Scalar string: spectral file corresponding to main data.
-;			                * 2-element string array: first element is the spectral file corresponding to 
-;                       the main data, second element corresponds to the reference data.
-;			              Set first element to '' if you only want to set the reference spectral file, e.g. 
+;			                * 2-element string array: first element is the spectral
+;                       file corresponding to the main data, second element
+;                       corresponds to the reference data.
+;			              Set first element to '' if you only want to set the
+;                   reference spectral file, e.g., 
 ;                   SPECTFILE=['','reference.spectfile'].
-;                   Setting of SPECTFILE will be ignored if FITS cubes are provided to Imcube, Spcube
-;                   and/or REFCUBE.
-;	  LINE_CENTER	  - Specifies line centre or wavelength information. LINE_CENTER may be supplied with:
-;			                * Integer scalar: linecentre is set to position specified by LINE_CENTER.
-;			                * 1D 2-element array (format: [WAVELENGTH, DELTA_LAMBDA]): linecentre is 
-;                       determined from the data and set to WAVELENGTH. The distance in wavelength 
-;                       between the linepositions is specified by DELTA_LAMBDA.
-;			                * 1D 3-element array (format: [Integer scalar, WAVELENGTH, DELTA_LAMBDA]): 
-;                       combination of the two above.
-;			                * 2D 1-element integer array (format: [[Integer scalar], [Integer scalar]]): 
-;                       first element sets the linecentre position for the main data, the second 
-;                       element that of the reference data.
-;			                * 2D 2-element array (format: [[MAIN_WAVELENGTH, MAIN_DELTA_LAMBDA],
-;                       [REF_WAVELENGTH, REF_DELTA_LAMBDA]]): the elements from the first subarray 
-;                       set the linecentre wavelength and wavelength spacing for the main data, 
-;                       while those of the second subarray set those values for the reference data.
-;			                * 2D 3-element array (format: [[Integer scalar, MAIN_WAVELENGTH, 
-;                       MAIN_DELTA_LAMBDA],[Integer scalar, REF_WAVELENGTH, REF_DELTA_LAMBDA]]): 
-;                       combination of the two above.
-;                   If not set: linecentre is determined from the data or from SPECTFILE.
-;                   Setting of LINE_CENTER will be ignored if FITS cubes are provided to Imcube,
-;                   Spcube and/or REFCUBE.
-;	  MNSPEC        - Determines the calculation of the average spectrum for in-program display. 
-;                   MNSPEC may be supplied with:
-;			                * Integer scalar: mean spectrum is determined from the t=MNSPEC scan.
-;			                * 2-element integer array: mean spectrum is determined from the t=MNSPEC[0] 
-;                       through t=MNSPEC[1] scans.
+;                   NOTE: Setting of SPECTFILE will be ignored if FITS cubes are
+;                   provided to Imcube, Spcube and/or REFCUBE.
+;	  LINE_CENTER	  - Specifies line centre or wavelength information. LINE_CENTER
+;                   may be supplied with:
+;			                * Integer scalar: linecentre is set to position specified
+;                       by LINE_CENTER.
+;			                * 1D 2-element array (format: [WAVELENGTH, DELTA_LAMBDA]):
+;                       linecentre is determined from the data and set to
+;                       WAVELENGTH. The distance in wavelength between the
+;                       linepositions is specified by DELTA_LAMBDA.
+;			                * 1D 3-element array (format: [Integer scalar, WAVELENGTH,
+;                       DELTA_LAMBDA]): combination of the two above.
+;			                * 2D 1-element integer array (format: [[Integer scalar],
+;                       [Integer scalar]]): first element sets the linecentre
+;                       position for the main data, the second element that of
+;                       the reference data.
+;			                * 2D 2-element array (format: [[MAIN_WAVELENGTH,
+;                       MAIN_DELTA_LAMBDA], [REF_WAVELENGTH,
+;                       REF_DELTA_LAMBDA]]): the elements from the first
+;                       subarray set the linecentre wavelength and wavelength
+;                       spacing for the main data, while those of the second
+;                       subarray set those values for the reference data.
+;			                * 2D 3-element array (format: [[Integer scalar,
+;                       MAIN_WAVELENGTH, MAIN_DELTA_LAMBDA],[Integer scalar,
+;                       REF_WAVELENGTH, REF_DELTA_LAMBDA]]): combination of the
+;                       two above.
+;                   If not set: linecentre is determined from the data or from
+;                   SPECTFILE.
+;                   Setting of LINE_CENTER will be ignored if FITS cubes are
+;                   provided to Imcube, Spcube and/or REFCUBE.
+;	  MNSPEC        - Determines the calculation of the average spectrum for
+;                   in-program display. MNSPEC may be supplied with:
+;			                * Integer scalar: mean spectrum is determined from the
+;                       t=MNSPEC scan.
+;			                * 2-element integer array: mean spectrum is determined
+;                       from the t=MNSPEC[0] through t=MNSPEC[1] scans.
 ;                   If not set: mean spectrum is determined from the t=0 scan.
-;	  DT            - Specifies the elapsed time in seconds per time step. Defaults to not defined, 
-;                   showing frame number instead of time on the vertical axes.
-;	  EXTS          -	If set, the time slices/slabs displayed in the program will be exact timeslices, 
-;			              obtained through linear interpolation, rather than approximated timeslices, 
-;                   obtained through nearest-neighbour interpolation (which is the default setting). 
-;                   Note that setting this keyword may slow down the browsing of the spectral range 
-;                   (i.e. movement of the spectral slider) considerably, because of the
+;	  DT            - Specifies the elapsed time in seconds per time step.
+;                   Defaults to not defined, showing frame number instead of
+;                   time on the vertical axes.
+;	  EXTS          -	If set, the time slices/slabs displayed in the program will
+;                   be exact timeslices, obtained through linear interpolation,
+;                   rather than approximated timeslices, obtained through
+;                   nearest-neighbour interpolation (which is the default
+;                   setting).  Note that setting this keyword may slow down the
+;                   browsing of the spectral range (i.e. movement of the
+;                   spectral slider) considerably, because of the
 ;                   computationally more expensive linear interpolation.
-;	  SINGLE_CUBE	  - Single integer value specifying the number of spectral positions of the 
-;                   datacube. Only to be used when IMCUBE is provided with a 3D spectrotemporal 
-;                   datacube and SPCUBE is not specified.
-;	  SCALE_STOKES  - If set, the detailed and average spectra of Stokes Q, U and/or V will be scaled
-;                   to the maximum of Stokes I (i.e. I/I, Q/I, U/I and/or V/I). If not set, each 
-;                   Stokes component will be scaled to its respective maximum.
-;	  SCALE_CUBES	  - Specifies the value that the data should be multiplied with. SCALE_CUBES may be
-;                   supplied with:
+;	  SINGLE_CUBE	  - Single integer value specifying the number of spectral
+;                   positions of the datacube. Only to be used when Imcube is
+;                   provided with a 3D spectrotemporal datacube and Spcube is
+;                   not specified AND Imcube is not a FITS file.
+;	  SCALE_STOKES  - If set, the detailed and average spectra of Stokes Q, U
+;                   and/or V will be scaled to the maximum of Stokes I (i.e.
+;                   I/I, Q/I, U/I and/or V/I). If not set, each Stokes component
+;                   will be scaled to its respective maximum.
+;	  SCALE_CUBES	  - Specifies the value that the data should be multiplied with.
+;                   SCALE_CUBES may be supplied with:
 ;			                * Integer scalar: value used for the main data.
-;			                * 2-element integer array: first element is used for the main data, the second
-;                       for the reference data.
+;			                * 2-element integer array: first element is used for the
+;                        main data, the second for the reference data.
 ;                   Defaults to 1.
-;	  NO_WARP		    - Prevents the warping of the temporal spectrum when the wavelength spacing is 
-;                   non-equidistant. Applies equally to both sets of data if reference data is 
-;                   supplied. Defaults to not set.
-;	  XTITLE		    - Sets the x-title of the temporal spectrum and the detailed spectrum. XTITLE may
-;                   be supplied with:
-;			                * Scalar string: x-title labels for the main temporal spectrum and detailed 
-;                       spectrum.
-;			                * 2-element string array: first element sets the x-title labels for the main 
-;                       temporal spectrum and detailed spectrum, while the second element sets the 
-;                       labels for the reference data.
-;			              Set first element to '' if you only want to set the reference x-title, e.g. 
-;                   XTITLE=['','Height [km]'].
-;   YTITLE		    - Sets the y-title of the detailed spectrum. YTITLE may be supplied with:
+;	  NO_WARP		    - Prevents the warping of the temporal spectrum when the
+;                   wavelength spacing is non-equidistant. Applies equally to
+;                   both sets of data if reference data is supplied. Defaults to
+;                   not set.
+;	  XTITLE		    - Sets the x-title of the temporal spectrum and the detailed
+;                   spectrum. XTITLE may be supplied with:
+;			                * Scalar string: x-title labels for the main temporal
+;                       spectrum and detailed spectrum.
+;			                * 2-element string array: first element sets the x-title
+;                       labels for the main temporal spectrum and detailed
+;                       spectrum, while the second element sets the labels for
+;                       the reference data.  Set first element to '' if you only
+;                       want to set the reference x-title, e.g.
+;                       XTITLE=['','Height [km]'].
+;   YTITLE		    - Sets the y-title of the detailed spectrum. YTITLE may be
+;                   supplied with:
 ;			                * Scalar string: y-title label for the detailed spectrum.
-;			                * 2-element string array: first element sets the y-title label for the main 
-;                       detailed spectrum, while the second element sets the label for the 
-;                       reference data.
-;			              Set first element to '' if you only want to set the reference y-title, e.g. 
-;                   YTITLE=['','Velocity [km/s]'].
+;			                * 2-element string array: first element sets the y-title
+;                       label for the main detailed spectrum, while the second
+;                       element sets the label for the reference data.  Set
+;                       first element to '' if you only want to set the
+;                       reference y-title, e.g. YTITLE=['','Velocity [km/s]'].
 ;	  WINDOW_LARGE	- Override the "1:1 window scaling whenever possible" setting.
 ;                   Useful for data with small nx and/or ny, where 1:1 image
 ;                   display is possible, but would yield small image display
@@ -136,39 +167,48 @@
 ;                   value larger than 1, the main image y-size will be set to
 ;                   that value, but only if it exceeds the native image y-size.
 ;                   Defaults to not set.
-;	  VERBOSE		    - Verbosity setting for program setup and running. Mainly for maintenance purposes. 
-;                   Verbosity levels can be set by supplying the keyword with the following values 
-;                   (add bitwise):
+;	  VERBOSE		    - Verbosity setting for program setup and running. Mainly for
+;                   maintenance purposes.  Verbosity levels can be set by
+;                   supplying the keyword with the following values (add
+;                   bitwise):
 ;				              * 0:  No verbosity.
 ;				              * 1:  Basic setup verbosity.
 ;				              * 2:  Extended setup verbosity.
 ;				              * 4:  Basic runtime verbosity.
 ;				              * 8:  Extended runtime verbosity.
 ;				              * 16: Playback statistics verbosity.
-;			              In practice the values 3 and 7 are not useful and 1 has become obsolete for all 
-;                   practical purposes. All values larger than 26 are reduced to 26, all values 
-;                   smaller than 0 are set to 0. Note that verbosity levels may also be set or
+;			              In practice the values 3 and 7 are not useful and 1 has
+;                   become obsolete for all practical purposes. All values
+;                   larger than 26 are reduced to 26, all values smaller than 0
+;                   are set to 0. Note that verbosity levels may also be set or 
 ;                   changed at runtime.
 ;
 ; OUTPUTS:
 ;	  Window outputs:
-;     Depending on the call. In all cases at least three windows will appear, one of which being the
-;		  control panel, one the main image window and one the detailed spectrum window. If called with:
-;			  - one datacube, then an additional window will open, showing the spectrum along a slit;
-;			  - two datacubes, then an additional window will open, showing the temporal spectrum;
-;			  - three datacubes, then two additional windows will open, one showing the temporal
-;			    spectrum and one showing the reference image from the third cube;
-;			  - four datacubes, then four additional windows will open, one showing the main temporal spectrum,
-;			    one showing the reference temporal spectrum, one showing the reference detailed spectrum and
-;			    one showing the reference image.
-;		  Additional data display windows may be accessed through the tabs in the control panel in all 
-;		  cases, although not all data display windows may be available, depending on the number of data 
-;		  cubes with which the program is called.
+;     Depending on the call. In all cases at least three windows will appear,
+;     one of which being the control panel, one the main image window and one
+;     the detailed spectrum window. If called with:
+;			  - one datacube, then an additional window will open, showing the
+;         spectrum along a slit;
+;			  - two datacubes, then an additional window will open, showing the
+;         temporal spectrum;
+;			  - three datacubes, then two additional windows will open, one showing
+;         the temporal spectrum and one showing the reference image from the
+;         third cube;
+;			  - four datacubes, then four additional windows will open, one showing
+;         the main temporal spectrum, one showing the reference temporal
+;         spectrum, one showing the reference detailed spectrum and one showing
+;         the reference image.
+;		  Additional data display windows may be accessed through the tabs in the
+;     control panel in all cases, although not all data display windows may be
+;     available, depending on the number of data cubes with which the program
+;     is called.
 ;	  Saveable outputs:
 ;		  - loop path points (*.CLSAV file);
-;		  - loop path or detection space-time diagram (*.CSAV file). Note that only that part of the
-;       space-time diagram between the current lower and upper t-values will be saved, i.e., if you
-;       wish to save it for the full range in time, be sure to reset the temporal boundaries.
+;		  - loop path or detection space-time diagram (*.CSAV file). Note that only
+;       that part of the space-time diagram between the current lower and upper
+;       t-values will be saved, i.e., if you wish to save it for the full range
+;       in time, be sure to reset the temporal boundaries.
 ;	  	- intensity versus time data for specific linepositions (*.CINT file);
 ;		  - (selected) timeseries as MPEG movie;
 ;		  - selected frame as JPEG snapshot;
@@ -180,27 +220,27 @@
 ;     Procedures: FITS_OPEN, FITS_CLOSE         [if reading FITS cubes]
 ;     Functions:  IRIS_HISTO_OPT(), STR2UTC(),  [general; included in SolarSoft]
 ;                 UTC2STR()  
-;                 READFITS()                    [if reading FITS cubes]
+;                 READFITS(), FITSHEAD2STRUCT() [if reading FITS cubes]
 ;
 ; PROCEDURE:
-;   In default setting, four windows are opened, one control panel and three subsidiary windows 
-;   containing the main image, the temporal spectrum and the detailed spectrum, respectively. 
-;   Additional data browsing and analysis options/windows may be obtained through control panel 
-;   options.
+;   In default setting, four windows are opened, one control panel and three
+;   subsidiary windows containing the main image, the temporal spectrum and the
+;   detailed spectrum, respectively.  Additional data browsing and analysis
+;   options/windows may be obtained through control panel options.
 ;
-;	  Some example calling sequences are discussed below. The most common calling sequence is:
-;
+;	  Some example calling sequences are discussed below. The most common calling
+;   sequence is: 
 ;		  CRISPEX, 'main.imcube', 'main.spcube'
 ;
-;	  Spectral information may be supplied either through the use of a spectral save file or the use 
-;   of the LINE_CENTER keyword, e.g.:
+;	  Spectral information may be supplied either through the use of a spectral
+;   save file or the use of the LINE_CENTER keyword, e.g.:
 ;
 ;		  CRISPEX, 'main.imcube', 'main.spcube', SPECTFILE='main.spectfile'
 ;	  or
 ;		  CRISPEX, 'main.imcube', 'main.spcube', LINE_CENTER=[6562,0.1]
 ;
-;	  Reference data may be viewed by supplying such data to the REFCUBE keyword, either in the 
-;   simple reference mode:
+;	  Reference data may be viewed by supplying such data to the REFCUBE keyword,
+;   either in the simple reference mode:
 ;
 ;		  CRISPEX, 'main.imcube', 'main.spcube', REFCUBE='ref.imcube'
 ;
@@ -208,8 +248,9 @@
 ;
 ;		  CRISPEX, 'main.imcube', 'main.spcube', REFCUBE=['ref.imcube', 'ref.spcube']
 ;
-;	  In addition, when running in dual cube mode, one may provide arrays to certain keywords in 
-;   order to set options for both the main and the reference data, e.g.:
+;	  In addition, when running in dual cube mode, one may provide arrays to
+;   certain keywords in order to set options for both the main and the reference
+;   data, e.g.:
 ;	
 ;		  CRISPEX, 'main.imcube', 'main.spcube', REFCUBE=['ref.imcube', 'ref.spcube'], 
 ;			  SPECTFILE=['main.spectfile','ref.specftile']
@@ -218,68 +259,88 @@
 ;			  LINE_CENTER=[[6562,0.1],[8542,0.1]]
 ;	  etc.
 ;
-;	  One may also set some of the options for the reference cube only (while retaining the default 
-;   options for the main data) by setting the element corresponding to the main data to an empty 
-;   scalar string, e.g.:
+;	  One may also set some of the options for the reference cube only (while
+;   retaining the default options for the main data) by setting the element
+;   corresponding to the main data to an empty scalar string, e.g.:
 ;
 ;		  CRISPEX, 'main.imcube', 'main.spcube', REFCUBE=['ref.imcube', 'ref.spcube'], 
 ;			  YTITLE=['','Velocity [km/s]']
 ;
-;	  Further information on the calling sequence and specific options can be found in the online 
-;   reference pages, which can be reached through the in-program help function or by going directly 
-;   to http://folk.uio.no/~gregal/crispex
+;	  Further information on the calling sequence and specific options can be
+;   found in the online reference pages, which can be reached through the
+;   in-program help function or by going directly to
+;   http://folk.uio.no/gregal/crispex
 ;
 ; MODIFICATION HISTORY:
-;	  2009 Feb 11 GV: start buildup of program, based on Øystein Langangen's August 2008 
-;			              version of CRISP_SPECTRAL_EXPLORER.PRO. Further (structural) inspiration from 
-;                   XIMOVIE.PRO by Oivind Wikstol and XSLICE.PRO by Alfred de Wijn
+;	  2009 Feb 11 GV: start buildup of program, based on Øystein Langangen's
+;                   August 2008 version of CRISP_SPECTRAL_EXPLORER.PRO. Further
+;                   (structural) inspiration from XIMOVIE.PRO by Oivind Wikstol
+;                   and XSLICE.PRO by Alfred de Wijn
 ;	  2009 Feb 21 GV: incorporation of LP_HEADER.PRO functionality
-;	  2009 Feb 24 GV: release of beta version (v0.9)
-;	  2009 Mar 02 GV: implementation of x- and y-slice display (v0.9.1)
-;	  2009 Mar 04 GV: implementation of display of spectral slice along a slit, including controls to
-;			              set slit angle and length (v0.9.3)
-;	  2009 Mar 09 GV: implementation of movement along the slit direction	(v0.9.4)
-;	  2009 Mar 10 GV: implementation of option to study spectral scan and show a reference image or
-;			              cube (v0.9.5)
-;	  2009 Mar 15 GV: implementation of zoom option (v0.9.6)
-;	  2009 Mar 23 GV: implementation of time slice along a segmented line and	option to save the
-;			              resulting data(v0.9.7)
-;	  2009 Apr 14 GV: corrected extraction and saving of time slice, removed x- and y-slice display
-;			              due to redundancy from spectral slice along a slit (v0.9.8)
-;	  2009 May 15 GV: implementation of extended save and retrieve options, extended image scaling	
-;			              options, save and restore session options, adjustable time and spectral range, 
-;			              different loop linestyles, selection menu for loop overlays, parameter overview 
-;			              window and display of saved timeslices (v0.9.9)
-;	  2009 Aug 24 GV: implementation of extra zoomfactors, save as MPEG and JPEG options, save from	
-;			              detection file, spectral and temporal range choice in saving timeslabs, exact 
-;			              timeslice display in-program, resizable display windows, read-in of full 
-;			              reference cubes and an option to calculate mean spectrum over a range in 
-;			              timesteps (v1.0)
-;	  2009 Nov 05 GV: implementation of loop path feedback, shortcut controls through keyboard,	
-;			              single full cube call and also fixed a number of bugs (v1.1)
-;	  2010 Mar 10 GV: enabled visualisation of Stokes cube data, display of reference and image cube	
-;			              data values, drawing of loop paths for 3D temporal image cube, retreival and
-;			              saving timeslices from reference cube, extended scaling options for reference
-;			              cube image, implemented spatial measurement tool and help function, moved user
-;			              feedback to pop-up windows, disposed of obsolete keywords and fixed a number
-;			              of bugs (v1.5)
-;	  2011 Jul 11 GV: enabled dual cube mode, in-program Doppler images, extended (Stokes) spectral	
-;			              options, extended plot options, blinking while playing, setting of preferences, 
-;			              extraction of intensity-time plots, and made aesthetic improvements (bitmap
-;			              play buttons, better cursor visibility and startup screen) (v1.6)
-;	  2011 Aug 22 GV: extended save as options, implemented save as PNG, saving of color MPEG, an	
-;			              option to open a restored loop in TANAT and fixed a number of bugs(v1.6.1)
-;	  2012 Mar 23 GV: extended reference and Stokes data input options, implemented mask overlays,	
-;			              enabled display of multiple space-time diagrams and fixed a number of bugs (v1.6.2)
-;	  2012 Dec 04 GV: extended in-program analysis options through display of reference space-time 	
-;			              diagram, extended image and space-time diagram scaling options and fixed a
-;			              number of bugs (v1.6.3)
+;	  2009 Feb 24 GV: v0.9    - release of beta version 
+;	  2009 Mar 02 GV: v0.9.1  - implementation of x- and y-slice display 
+;	  2009 Mar 04 GV: v0.9.3  - implementation of display of spectral slice along
+;                             a slit, including controls to set slit angle and 
+;                             length 
+;	  2009 Mar 09 GV: v0.9.4  - implementation of movement along the slit direction	
+;	  2009 Mar 10 GV: v0.9.5  - implementation of option to study spectral scan
+;                             and show a reference image or cube 
+;	  2009 Mar 15 GV: v0.9.6  - implementation of zoom option 
+;	  2009 Mar 23 GV: v0.9.7  - implementation of time slice along a segmented
+;                             line and	option to save the resulting data
+;	  2009 Apr 14 GV: v0.9.8  - corrected extraction and saving of time slice,
+;                             removed x- and y-slice display due to redundancy
+;                             from spectral slice along a slit 
+;	  2009 May 15 GV: v0.9.9  - implementation of extended save and retrieve
+;                             options, extended image scaling	options, save and
+;                             restore session options, adjustable time and
+;                             spectral range, different loop linestyles,
+;                             selection menu for loop overlays, parameter
+;                             overview window and display of saved timeslices 
+;	  2009 Aug 24 GV: v1.0    - implementation of extra zoomfactors, save as MPEG
+;                             and JPEG options, save from	detection file,
+;                             spectral and temporal range choice in saving
+;                             timeslabs, exact timeslice display in-program,
+;                             resizable display windows, read-in of full
+;                             reference cubes and an option to calculate mean
+;                             spectrum over a range in timesteps 
+;	  2009 Nov 05 GV: v1.1    - implementation of loop path feedback, shortcut
+;                             controls through keyboard,	single full cube call
+;                             and also fixed a number of bugs 
+;	  2010 Mar 10 GV: v1.5    - enabled visualisation of Stokes cube data, display
+;                             of reference and image cube	data values, drawing
+;                             of loop paths for 3D temporal image cube,
+;                             retreival and saving timeslices from reference
+;                             cube, extended scaling options for reference cube
+;                             image, implemented spatial measurement tool and
+;                             help function, moved user feedback to pop-up
+;                             windows, disposed of obsolete keywords and fixed a
+;                             number of bugs 
+;	  2011 Jul 11 GV: v1.6    - enabled dual cube mode, in-program Doppler images,
+;                             extended (Stokes) spectral	options, extended plot
+;                             options, blinking while playing, setting of
+;                             preferences, extraction of intensity-time plots,
+;                             and made aesthetic improvements (bitmap play
+;                             buttons, better cursor visibility and startup
+;                             screen) 
+;	  2011 Aug 22 GV: v1.6.1  - extended save as options, implemented save as PNG,
+;                             saving of color MPEG, an option to open a restored
+;                             loop in TANAT and fixed a number of bugs
+;	  2012 Mar 23 GV: v1.6.2  - extended reference and Stokes data input options,
+;                             implemented mask overlays, enabled display of
+;                             multiple space-time diagrams and fixed a number of
+;                             bugs 
+;	  2012 Dec 04 GV: v1.6.3  - extended in-program analysis options through
+;                             display of reference space-time diagram, extended
+;                             image and space-time diagram scaling options and
+;                             fixed a number of bugs 
 ;
 ; ACKNOWLEDGEMENTS:
-;	  This code would not be present in its current state and with the current functionalities without
-;	  the relentless practical testing and the valuable input and ideas of Luc Rouppe van der Voort,
-;	  Sven Wedemeyer-Böhm, Mats Carlsson, Patrick Antolin, Jorrit Leenaarts, Bart de Pontieu, 
-;	  Eamon Scullion and Jaime de la Cruz Rodriguez. 
+;	  This code would not be present in its current state and with the current
+;   functionalities without the relentless practical testing and the valuable
+;   input and ideas of Luc Rouppe van der Voort, Sven Wedemeyer-Böhm, Mats
+;   Carlsson, Patrick Antolin, Jorrit Leenaarts, Bart de Pontieu, Eamon Scullion
+;   and Jaime de la Cruz Rodriguez. 
 ;
 ; AUTHOR:
 ;	  Gregal Vissers (g.j.m.vissers@astro.uio.no)
@@ -1241,7 +1302,7 @@ PRO CRISPEX_ABOUT_WINDOW, event
 		'Developed by: Gregal Vissers', $
 		'               Institute of Theoretical Astrophysics,',$
 		'               University of Oslo',$
-		'               2009-2014','','Close']
+		'               2009-2015','','Close']
 	WIDGET_CONTROL, aboutdrawid, EVENT_PRO = 'CRISPEX_ABOUT_CURSOR', /SENSITIVE, /DRAW_MOTION_EVENTS, /TRACKING_EVENTS, /DRAW_BUTTON_EVENTS
 	WIDGET_CONTROL, abouttlb, SET_UVALUE = info
 	XMANAGER, 'CRISPEX', abouttlb,/NO_BLOCK
@@ -8276,23 +8337,26 @@ PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     hdr_out.sjifilename = sjicube[0]
     ; Check existence of file, else throw error message
     IF (FILE_TEST(hdr_out.sjifilename) EQ 0) THEN BEGIN
-      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The slit-jaw image file "'+hdr_out.sjifilename+$
-        '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The slit-jaw image file "'+$
+        hdr_out.sjifilename+'" does not exist. Please check your input.', $
+        /ERROR,/NO_ROUTINE
       io_failsafe_sji_error = 1
       RETURN
     ENDIF
-  	sjiext = STRMID(hdr_out.sjifilename,STRPOS(hdr_out.sjifilename,'.',/REVERSE_SEARCH)+1,$
-                      STRLEN(hdr_out.sjifilename))
+  	sjiext = STRMID(hdr_out.sjifilename,STRPOS(hdr_out.sjifilename,'.',$
+      /REVERSE_SEARCH)+1,STRLEN(hdr_out.sjifilename))
   	sjicube_compatibility = ABS(STRMATCH(sjiext,'fits',/FOLD_CASE)-1)
     IF sjicube_compatibility THEN BEGIN
-      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The slit-jaw image cube must be in FITS format.', $
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+        'The slit-jaw image cube must be in FITS format.', $
         /ERROR, /NO_ROUTINE, /NEWLINE
   		IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
       io_failsafe_sji_error = 1
     ENDIF ELSE $
       ; Parse the SJICUBE header
-      CRISPEX_IO_PARSE_HEADER, hdr_out.sjifilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
-                             CUBE_COMPATIBILITY=sjicube_compatibility, EXTEN_NO=0, /SJICUBE
+      CRISPEX_IO_PARSE_HEADER, hdr_out.sjifilename, HDR_IN=hdr_out, $
+        HDR_OUT=hdr_out, CUBE_COMPATIBILITY=sjicube_compatibility, $
+        EXTEN_NO=0, /SJICUBE
     IF (hdr_out.sjint GT 1) THEN BEGIN
       tsel_sji = LONARR(hdr_out.mainnt)
       FOR tt=0,hdr_out.mainnt-1 DO BEGIN
@@ -8300,6 +8364,66 @@ PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         tsel_sji[tt] = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
       ENDFOR
       hdr_out = CREATE_STRUCT(hdr_out, 'tsel_sji', tsel_sji)
+      ; Correct WCS information if necessary
+      ; Check version of main FITS files
+      ver_rf3 = SXPAR(*hdr_out.hdrs_main[0],'VER_RF3')
+      IF (ver_rf3 NE 0) THEN BEGIN
+        tai_ver_rf3 = ANYTIM2TAI(STRMID(ver_rf3,4,12))
+        tai0_ver_rf3 = ANYTIM2TAI('2014-06-13')
+        IF (tai_ver_rf3 EQ tai0_ver_rf3) THEN $
+          ; Main FITS created with iris_make_fits_level3 r1.41
+            main_tsel_idx = hdr_out.mainnt/2 $
+        ELSE BEGIN
+          IF (tai_ver_rf3 GT tai0_ver_rf3) THEN $
+            ; Main FITS created with iris_make_fits_level3 > r1.41
+            main_tsel_idx = (SXPAR(*hdr_out.hdrs_main[0],'CRPIX4'))-1 $
+          ELSE $
+            ; Main FITS created with iris_make_fits_level3 < r1.41
+            main_tsel_idx = 0
+        ENDELSE
+        offsetarray = READFITS(hdr_out.sjifilename, sjihdr, EXTEN_NO=1, /SILENT)
+        pc_ix_exist = (SXPAR(sjihdr,'PC1_1IX') NE 0)
+        sjihdr = FITSHEAD2STRUCT(sjihdr)
+        ; Get time-dependent slit XCEN,YCEN
+        xcensjit = REFORM(offsetarray[sjihdr.xcenix,*])
+        ycensjit = REFORM(offsetarray[sjihdr.ycenix,*])
+        ; Populate time-dependent SJI PC-matrix variables
+        IF (pc_ix_exist) THEN BEGIN
+          sji_pc11 = REFORM(offsetarray[sjihdr.PC1_1IX,*])
+          sji_pc12 = REFORM(offsetarray[sjihdr.PC1_2IX,*])
+          sji_pc21 = REFORM(offsetarray[sjihdr.PC2_1IX,*])
+          sji_pc22 = REFORM(offsetarray[sjihdr.PC2_2IX,*])
+        ENDIF ELSE BEGIN
+          nt_loc = N_ELEMENTS(xcensjit)
+          sji_pc11 = REPLICATE(hdr_out.wcs_sji.pc[0,0],nt_loc)
+          sji_pc12 = REPLICATE(hdr_out.wcs_sji.pc[0,1],nt_loc)
+          sji_pc21 = REPLICATE(hdr_out.wcs_sji.pc[1,0],nt_loc)
+          sji_pc22 = REPLICATE(hdr_out.wcs_sji.pc[1,1],nt_loc)
+        ENDELSE
+        ; Get time-dependent slit pixels
+        sji_crpix1 = REFORM(offsetarray[sjihdr.SLTPX1IX,*])
+        sji_crpix2 = REFORM(offsetarray[sjihdr.SLTPX2IX,*])
+        ; Compute time-dependent slit position (Solar X,Y)
+        sji_crval1 = xcensjit + hdr_out.wcs_sji.cdelt[0] * $
+                    (sji_pc11*(sji_crpix1 - hdr_out.wcs_sji.crpix[0]) + $
+                     sji_pc12*(sji_crpix2 - hdr_out.wcs_sji.crpix[1]))
+        sji_crval2 = ycensjit + hdr_out.wcs_sji.cdelt[1] * $
+                    (sji_pc21*(sji_crpix1 - hdr_out.wcs_sji.crpix[0]) + $
+                     sji_pc22*(sji_crpix2 - hdr_out.wcs_sji.crpix[1]))
+        ; Get mid-point timing at which main CRVALs have been determined
+        t_sel_main = hdr_out.tarr_raster_main[hdr_out.nx/2,main_tsel_idx]
+        ; Get closest SJI timestep
+        diff_time = ABS(hdr_out.tarr_sji - t_sel_main)
+        t_sel_sji = WHERE(diff_time EQ MIN(diff_time))
+        ; Update WCS structure parameters
+        hdr_out.wcs_sji.crval = $
+          [sji_crval1[t_sel_sji],sji_crval2[t_sel_sji]]
+        hdr_out.wcs_sji.crpix = $
+          [sji_crpix1[t_sel_sji],sji_crpix2[t_sel_sji]]
+        hdr_out.wcs_sji.pc = $
+          [[sji_pc11[t_sel_sji],sji_pc21[t_sel_sji]],$
+            [sji_pc12[t_sel_sji],sji_pc22[t_sel_sji]]]
+      ENDIF
     ENDIF ELSE $
       hdr_out = CREATE_STRUCT(hdr_out, 'tsel_sji', 0)
     CRISPEX_IO_OPEN_SJICUBE_READ, HDR_IN=hdr_out, HDR_OUT=hdr_out
@@ -10503,7 +10627,7 @@ PRO CRISPEX_PREFERENCES_REDRAW, event
 	IF (*(*info).winswitch).showint THEN CRISPEX_DRAW_INT, event
 END
 
-;================================================================================= READ HEADER PROCEDURE
+;==================== READ HEADER PROCEDURE
 PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
                          IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, REFSPCUBE=refspcube, $
                          SJICUBE=sjicube, MASKCUBE=maskcube, CUBE_COMPATIBILITY=cube_compatibility,$
@@ -10705,15 +10829,13 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.sjidx = key.dx            &  hdr_out.sjidy = key.dy
       hdr_out.xpix_sji = key.xpix       &  hdr_out.ypix_sji = key.ypix
       hdr_out.xval_sji = key.xval       &  hdr_out.yval_sji = key.yval
-      hdr_out.sjix0 = key.sjix0         &  hdr_out.sjiy0 = key.sjiy0
       hdr_out.sjibunit = key.bunit      &  headers = key.headers
       hdr_out.sjibscale = key.bscale    &  hdr_out.sjibzero = key.bzero
       hdr_out.sji_wcs_set = key.wcs_set
       ; Check for scaled integer
       hdr_out.sjiscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
       hdr_out.date_obs_sji = STRTRIM(key.date_obs,2)
-      hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
-        'sjixoff', key.sjixoff, 'sjiyoff', key.sjiyoff, 'hdrs_sji', headers, $
+      hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, 'hdrs_sji', headers, $
         'wcs_sji', key.wcs_str, 'utc_sji', key.utc_sel, 'date_sji', key.date_sel) 
   ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                
     ; Fill hdr parameters for MASKCUBE
@@ -10853,19 +10975,11 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
       tarr_sel = [0] 
       tarr_raster = 0
     ENDELSE
-    sjixoff = 0
-    sjiyoff = 0
-    sjix0 = 0
-    sjiy0 = 0
   ENDIF ELSE BEGIN
     ; Get timing array for the SJI cube
     offsetarray = READFITS(filename, hdr1, EXTEN_NO=1, SILENT=~KEYWORD_SET(VERBOSE))
     tarr_sel = REFORM(offsetarray[0,*]) ; TIME
     tarr_raster = tarr_sel
-    sjixoff = REFORM(offsetarray[1,*])  ; PZTX
-    sjiyoff = REFORM(offsetarray[2,*])  ; PZTY
-    sjix0 = SXPAR(header, 'ROWSTAR')
-    sjiy0 = SXPAR(header, 'COLSTAR')
     nt = naxis[sortorder[2]]
     tunit = STRTRIM(cunit[sortorder[2]],2)
   ENDELSE
@@ -10999,7 +11113,6 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
        xpix:xpix, ypix:ypix, xval:xval, yval:yval, $
        wcs_set:wcs_set, wcs_str:wcs_str, $
        tarr_sel:tarr_sel, tarr_raster:tarr_raster, tini_col:tini_col, $
-       sjixoff:sjixoff, sjiyoff:sjiyoff, sjix0:sjix0, sjiy0:sjiy0, $
        xlab:xlab,ylab:ylab,lplab:lplab,tlab:tlab, $
        btype:btype,bunit:bunit, bscale:bscale, bzero:bzero, $ 
        xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,$
@@ -16596,7 +16709,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
             ; Spatial reference values
             xpix:0L, ypix:0L, xval:0., yval:0., xpix_ref:0L, ypix_ref:0L, $
             xval_ref:0., yval_ref:0., xpix_sji:0L, ypix_sji:0L, $
-            xval_sji:0., yval_sji:0., sjix0:0L, sjiy0:0L, $
+            xval_sji:0., yval_sji:0., $
             main2ref_no_map:1, wcs_set:0, ref_wcs_set:0, sji_wcs_set:0, $
             ; Pixel sizes
             dx:1., dy:1., dt:dt, dx_fixed:0B, refdx:1., refdy:1., $
@@ -19043,7 +19156,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		xi:hdr.xi, yi:hdr.yi, xo:hdr.xo, yo:hdr.yo, xi_ref:hdr.xi_ref, yi_ref:hdr.yi_ref, $
     xo_ref:hdr.xo_ref, yo_ref:hdr.yo_ref, phisxtri:PTR_NEW(0), phisytri:PTR_NEW(0), $
     phisxi:PTR_NEW(0), phisyi:PTR_NEW(0), phisxo:PTR_NEW(0), phisyo:PTR_NEW(0), $
-    sjix0:hdr.sjix0, sjiy0:hdr.sjiy0, $
     xsji_first:0L, xsji_last:(hdr.sjinx-1), $
     ysji_first:0L, ysji_last:(hdr.sjiny-1),  $
     xref_first:xref_first, xref_last:xref_last, $
