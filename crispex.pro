@@ -8410,6 +8410,20 @@ PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         ; Get time-dependent slit pixels
         sji_crpix1 = REFORM(offsetarray[sjihdr.SLTPX1IX,*])
         sji_crpix2 = REFORM(offsetarray[sjihdr.SLTPX2IX,*])
+        ; Failsafe against zero values in variables
+        wherenozero = WHERE(REFORM(offsetarray[sjihdr.dsrcsix,*]) GT 0., $
+          nwherenozero)
+        IF (nwherenozero NE hdr_out.sjint) THEN BEGIN
+          it = INDGEN(hdr_out.sjint)
+          xcensjit = INTERPOL(xcensjit[wherenozero],wherenozero,it)
+          ycensjit = INTERPOL(ycensjit[wherenozero],wherenozero,it)
+          sji_pc11 = INTERPOL(sji_pc11[wherenozero],wherenozero,it)
+          sji_pc12 = INTERPOL(sji_pc12[wherenozero],wherenozero,it)
+          sji_pc21 = INTERPOL(sji_pc21[wherenozero],wherenozero,it)
+          sji_pc22 = INTERPOL(sji_pc22[wherenozero],wherenozero,it)
+          sji_crpix1 = INTERPOL(sji_crpix1[wherenozero],wherenozero,it)
+          sji_crpix2 = INTERPOL(sji_crpix2[wherenozero],wherenozero,it)
+        ENDIF
         ; Compute time-dependent slit position (Solar X,Y)
         sji_crval1 = xcensjit + hdr_out.wcs_sji.cdelt[0] * $
                     (sji_pc11*(sji_crpix1 - hdr_out.wcs_sji.crpix[0]) + $
