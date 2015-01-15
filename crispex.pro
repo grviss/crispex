@@ -8377,17 +8377,22 @@ PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       IF (ver_rf3 NE 0) THEN BEGIN
         tai_ver_rf3 = ANYTIM2TAI(STRMID(ver_rf3,4,12))
         tai0_ver_rf3 = ANYTIM2TAI('2014-06-13')
-        IF (tai_ver_rf3 EQ tai0_ver_rf3) THEN $
-          ; Main FITS created with iris_make_fits_level3 r1.41
+        IF (tai_ver_rf3 LE tai0_ver_rf3) THEN BEGIN
+          IF (tai_ver_rf3 EQ tai0_ver_rf3) THEN $
+            ; Main FITS created with iris_make_fits_level3 r1.41
             main_tsel_idx = hdr_out.mainnt/2 $
-        ELSE BEGIN
-          IF (tai_ver_rf3 GT tai0_ver_rf3) THEN $
-            ; Main FITS created with iris_make_fits_level3 > r1.41
-            main_tsel_idx = (SXPAR(*hdr_out.hdrs_main[0],'CRPIX4'))-1 $
           ELSE $
             ; Main FITS created with iris_make_fits_level3 < r1.41
-            main_tsel_idx = 0
-        ENDELSE
+            main_tsel_idx = 0 
+          ; Get mid-point timing at which main CRVALs have been determined
+          ; with failsafe against non-raster sit-and-stare
+          IF (SIZE(hdr_out.tarr_raster_main, /N_DIM) EQ 2) THEN $
+            t_sel_main = hdr_out.tarr_raster_main[hdr_out.nx/2,main_tsel_idx] $
+          ELSE $
+            t_sel_main = hdr_out.tarr_main[main_tsel_idx]
+        ENDIF ELSE $
+          ; Main FITS created with iris_make_fits_level3 > r1.41
+          t_sel_main = (SXPAR(*hdr_out.hdrs_main[0],'CRVAL4'))
         offsetarray = READFITS(hdr_out.sjifilename, sjihdr, EXTEN_NO=1, /SILENT)
         pc_ix_exist = (SXPAR(sjihdr,'PC1_1IX') NE 0)
         sjihdr = FITSHEAD2STRUCT(sjihdr)
@@ -8431,13 +8436,7 @@ PRO CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         sji_crval2 = ycensjit + hdr_out.wcs_sji.cdelt[1] * $
                     (sji_pc21*(sji_crpix1 - hdr_out.wcs_sji.crpix[0]) + $
                      sji_pc22*(sji_crpix2 - hdr_out.wcs_sji.crpix[1]))
-        ; Get mid-point timing at which main CRVALs have been determined
-        ; with failsafe against non-raster sit-and-stare
-        IF (SIZE(hdr_out.tarr_raster_main, /N_DIM) EQ 2) THEN $
-          t_sel_main = hdr_out.tarr_raster_main[hdr_out.nx/2,main_tsel_idx] $
-        ELSE $
-          t_sel_main = hdr_out.tarr_main[main_tsel_idx]
-        ; Get closest SJI timestep
+        ; Get closest SJI timestep to t_sel_main
         diff_time = ABS(hdr_out.tarr_sji - t_sel_main)
         t_sel_sji = WHERE(diff_time EQ MIN(diff_time))
         ; Update WCS structure parameters
@@ -11091,7 +11090,11 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
         date_raster_sel = STRARR(nx)
       ENDELSE
     ENDELSE
-    orig_str = STR2UTC(startobs)
+    ; Failsafe against non-existing STARTOBS
+    IF (startobs NE '0') THEN $
+      orig_str = STR2UTC(startobs) $
+    ELSE $
+      orig_str = STR2UTC(date_obs)
     dayinms = 86400000    ; Full day in milliseconds
     ; Loop over time
     FOR t=0,nt-1 DO BEGIN
