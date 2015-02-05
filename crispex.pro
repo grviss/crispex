@@ -591,16 +591,21 @@ END
 FUNCTION CRISPEX_BGROUP_DIAGNOSTICS_SELECT, event
 ; Handles selection of diagnostics and calls necessary replot procedures
   WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (event.VALUE EQ 0) THEN BEGIN
-    (*(*info).intparams).disp_diagnostics = REPLICATE(1,(*(*info).intparams).ndiagnostics)   
-    (*(*info).intparams).ndisp_diagnostics = TOTAL((*(*info).intparams).disp_diagnostics)
+    (*(*info).intparams).disp_diagnostics = $
+      REPLICATE(1,(*(*info).intparams).ndiagnostics)   
+    (*(*info).intparams).ndisp_diagnostics = $
+      TOTAL((*(*info).intparams).disp_diagnostics)
     FOR i=0,(*(*info).intparams).ndiagnostics-1 DO $
-      WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i+1], /SET_BUTTON, /SENSITIVE
+      WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i+1], $
+        /SET_BUTTON, /SENSITIVE
   ENDIF ELSE BEGIN
     sel_idx = event.VALUE-1
     (*(*info).intparams).disp_diagnostics[sel_idx] = event.SELECT 
-    (*(*info).intparams).ndisp_diagnostics = TOTAL((*(*info).intparams).disp_diagnostics)
+    (*(*info).intparams).ndisp_diagnostics = $
+      TOTAL((*(*info).intparams).disp_diagnostics)
     IF ((*(*info).intparams).ndisp_diagnostics EQ 1) THEN $
       WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[$
         WHERE((*(*info).intparams).disp_diagnostics EQ 1)+1], SENSITIVE=0 $
@@ -609,24 +614,20 @@ FUNCTION CRISPEX_BGROUP_DIAGNOSTICS_SELECT, event
         WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i+1], /SENSITIVE
   ENDELSE
   WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[0], $
-    SENSITIVE=((*(*info).intparams).ndisp_diagnostics NE (*(*info).intparams).ndiagnostics), $
-    SET_BUTTON=((*(*info).intparams).ndisp_diagnostics EQ (*(*info).intparams).ndiagnostics)
-  ; Adjust slider settings based on available lp-range
-  low_sel = (WHERE((*(*info).intparams).disp_diagnostics EQ 1, nwhereq1))[0]
-  upp_sel = (WHERE((*(*info).intparams).disp_diagnostics EQ 1))[nwhereq1-1]
-  lp_low = (*(*info).intparams).diag_start[low_sel]
-  lp_upp = (*(*info).intparams).diag_start[upp_sel] + (*(*info).intparams).diag_width[upp_sel]-1
-  IF (lp_low NE (*(*info).dispparams).lp_low) THEN $
-    CRISPEX_DISPRANGE_LP_LOW, event, LP_SET=lp_low, /NO_DRAW
-  IF (lp_upp NE (*(*info).dispparams).lp_upp) THEN $
-    CRISPEX_DISPRANGE_LP_UPP, event, LP_SET=lp_upp, /NO_DRAW
-  IF ((*(*info).intparams).ndisp_diagnostics NE (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
+    SENSITIVE=((*(*info).intparams).ndisp_diagnostics NE $
+               (*(*info).intparams).ndiagnostics), $
+    SET_BUTTON=((*(*info).intparams).ndisp_diagnostics EQ $
+                (*(*info).intparams).ndiagnostics)
+  IF ((*(*info).intparams).ndisp_diagnostics NE $
+      (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
     IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
       CRISPEX_SLIDER_LP_REF_LOCK, event, /UNLOCK, /NO_DRAW
     WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE=0
   ENDIF ELSE $
     WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
   CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /MAIN
+  ; Adjust slider settings based on available lp-range
+  CRISPEX_DISPRANGE_LP_RANGE, event, /NO_DRAW
   CRISPEX_UPDATE_T, event
   CRISPEX_SCALING_APPLY_SELECTED, event
   IF (*(*info).winswitch).showsp THEN BEGIN
@@ -643,16 +644,21 @@ END
 FUNCTION CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT, event
 ; Handles selection of reference diagnostics and calls necessary replot procedures
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
   IF (event.VALUE EQ 0) THEN BEGIN
-    (*(*info).intparams).disp_refdiagnostics = REPLICATE(1,(*(*info).intparams).nrefdiagnostics)   
-    (*(*info).intparams).ndisp_refdiagnostics = TOTAL((*(*info).intparams).disp_refdiagnostics)
+    (*(*info).intparams).disp_refdiagnostics = $
+      REPLICATE(1,(*(*info).intparams).nrefdiagnostics)   
+    (*(*info).intparams).ndisp_refdiagnostics = $
+      TOTAL((*(*info).intparams).disp_refdiagnostics)
     FOR i=0,(*(*info).intparams).nrefdiagnostics-1 DO $
-      WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[i+1], /SET_BUTTON, /SENSITIVE
+      WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[i+1], $
+        /SET_BUTTON, /SENSITIVE
   ENDIF ELSE BEGIN
     sel_idx = event.VALUE-1
     (*(*info).intparams).disp_refdiagnostics[sel_idx] = event.SELECT
-    (*(*info).intparams).ndisp_refdiagnostics = TOTAL((*(*info).intparams).disp_refdiagnostics)
+    (*(*info).intparams).ndisp_refdiagnostics = $
+      TOTAL((*(*info).intparams).disp_refdiagnostics)
     IF ((*(*info).intparams).ndisp_refdiagnostics EQ 1) THEN $
       WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[$
         WHERE((*(*info).intparams).disp_refdiagnostics EQ 1)+1], SENSITIVE=0 $
@@ -661,24 +667,20 @@ FUNCTION CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT, event
         WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[i+1], /SENSITIVE
   ENDELSE
   WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[0], $
-    SENSITIVE=((*(*info).intparams).ndisp_refdiagnostics NE (*(*info).intparams).nrefdiagnostics), $
-    SET_BUTTON=((*(*info).intparams).ndisp_refdiagnostics EQ (*(*info).intparams).nrefdiagnostics)
-  ; Adjust slider settings based on available lp-range
-  low_sel = (WHERE((*(*info).intparams).disp_refdiagnostics EQ 1, nwhereq1))[0]
-  upp_sel = (WHERE((*(*info).intparams).disp_refdiagnostics EQ 1))[nwhereq1-1]
-  lp_low = (*(*info).intparams).refdiag_start[low_sel]
-  lp_upp = (*(*info).intparams).refdiag_start[upp_sel] + (*(*info).intparams).refdiag_width[upp_sel]-1
-  IF (lp_low NE (*(*info).dispparams).lp_ref_low) THEN $
-    CRISPEX_DISPRANGE_LP_REF_RANGE, event, LP_LOW=lp_low, /NO_DRAW
-  IF (lp_upp NE (*(*info).dispparams).lp_ref_upp) THEN $
-    CRISPEX_DISPRANGE_LP_REF_RANGE, event, LP_UPP=lp_upp, /NO_DRAW
-  IF ((*(*info).intparams).ndisp_diagnostics NE (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
+    SENSITIVE=((*(*info).intparams).ndisp_refdiagnostics NE $
+                (*(*info).intparams).nrefdiagnostics), $
+    SET_BUTTON=((*(*info).intparams).ndisp_refdiagnostics EQ $
+                (*(*info).intparams).nrefdiagnostics)
+  IF ((*(*info).intparams).ndisp_diagnostics NE $
+    (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
     IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
       CRISPEX_SLIDER_LP_REF_LOCK, event, /UNLOCK, /NO_DRAW
     WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE=0
   ENDIF ELSE $
     WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
   CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /REFERENCE
+  ; Adjust slider settings based on available lp-range
+  CRISPEX_DISPRANGE_LP_REF_RANGE, event, /NO_DRAW
   CRISPEX_UPDATE_T, event
   CRISPEX_SCALING_APPLY_SELECTED, event
   IF (*(*info).winswitch).showrefsp THEN BEGIN
@@ -686,6 +688,38 @@ FUNCTION CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT, event
     CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
   ENDIF
   CRISPEX_DRAW, event, /NO_MAIN
+END
+
+FUNCTION CRISPEX_BGROUP_LP_RESTRICT, event
+  ; Handles selecing main/reference to restrict wavelength range for
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  (*(*info).dispswitch).lp_restrict[event.VALUE] = event.SELECT
+  (*(*info).dispswitch).lp_restrict[ABS(event.VALUE-1)] = ABS(event.SELECT-1)
+  CASE event.VALUE OF
+    0:  BEGIN
+          slider_low_min = (*(*info).dispparams).v_dop_low_min
+          slider_low_max = (*(*info).dispparams).v_dop_low_max
+          slider_upp_min = (*(*info).dispparams).v_dop_upp_min
+          slider_upp_max = (*(*info).dispparams).v_dop_upp_max
+        END
+    1:  BEGIN
+          slider_low_min = (*(*info).dispparams).v_dop_ref_low_min
+          slider_low_max = (*(*info).dispparams).v_dop_ref_low_max
+          slider_upp_min = (*(*info).dispparams).v_dop_ref_upp_min
+          slider_upp_max = (*(*info).dispparams).v_dop_ref_upp_max
+        END
+  ENDCASE
+  WIDGET_CONTROL, (*(*info).ctrlscp).lp_restr_slider_low, $
+    SET_SLIDER_MIN=slider_low_min, SET_SLIDER_MAX=slider_low_max, $
+    SET_VALUE=(*(*info).dispparams).v_dop_low[event.VALUE]
+  WIDGET_CONTROL, (*(*info).ctrlscp).lp_restr_slider_upp, $
+    SET_SLIDER_MIN=slider_upp_min, SET_SLIDER_MAX=slider_upp_max, $
+    SET_VALUE=(*(*info).dispparams).v_dop_upp[event.VALUE]
+	WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, SENSITIVE=($
+    ((*(*info).dispparams).v_dop_low[event.VALUE] NE slider_low_min) OR $
+    ((*(*info).dispparams).v_dop_upp[event.VALUE] NE slider_upp_max))
 END
 
 FUNCTION CRISPEX_BGROUP_MASTER_TIME, event
@@ -1155,32 +1189,80 @@ FUNCTION CRISPEX_SCALING_DESCALE, data, bscale, bzero
 END
 
 ;------------------------- SLIDER FUNCTION
-FUNCTION CRISPEX_SLIDER_LP_DIAG, event, lp_diag_all, REFERENCE=reference, BLINK=blink
+FUNCTION CRISPEX_SLIDER_LP_DIAG, event, lp_diag, REFERENCE=reference, $
+  BLINK=blink, OVERRIDE_DIAGNOSTIC=override_diagnostic
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
   IF KEYWORD_SET(REFERENCE) THEN BEGIN
-    disp_diag = WHERE((*(*info).intparams).refdisp_diagnostics EQ 1)
+    disp_diag = WHERE((*(*info).intparams).disp_refdiagnostics EQ 1)
     lp = (*(*info).dataparams).lp_ref
-    diag_start = (*(*info).intparams).refdiag_start
-    diag_width = (*(*info).intparams).refdiag_width
+    diag_start = (*(*info).intparams).refdiag_start[disp_diag]
+    lp_low_bounds = (*(*info).dispparams).lp_ref_low_bounds[disp_diag]
+    lp_upp_bounds = (*(*info).dispparams).lp_ref_upp_bounds[disp_diag]
   ENDIF ELSE BEGIN
     disp_diag = WHERE((*(*info).intparams).disp_diagnostics EQ 1)
     IF KEYWORD_SET(BLINK) THEN $
       lp = (*(*info).pbparams).lp_blink $
     ELSE $
       lp = (*(*info).dataparams).lp
-    diag_start = (*(*info).intparams).diag_start
-    diag_width = (*(*info).intparams).diag_width
+    diag_start = (*(*info).intparams).diag_start[disp_diag]
+    lp_low_bounds = (*(*info).dispparams).lp_low_bounds[disp_diag]
+    lp_upp_bounds = (*(*info).dispparams).lp_upp_bounds[disp_diag]
   ENDELSE
-  disp_diff = lp_diag_all - disp_diag
-  constraint_low = WHERE(disp_diff GT 0, COMPLEMENT=constraint_upp) 
-  disp_low_next = (disp_diag[constraint_low])[$
-    (WHERE(disp_diff[constraint_low] EQ MIN(disp_diff[constraint_low])))[0]]
-  disp_upp_next = (disp_diag[constraint_upp])[$
-    (WHERE(ABS(disp_diff[constraint_upp]) EQ MIN(ABS(disp_diff[constraint_upp]))))[0]]
-  dist_low = lp - (diag_start[disp_low_next]+diag_width[disp_low_next]-1)
-  dist_upp = ABS(lp - diag_start[disp_upp_next])
-  RETURN, [dist_low,dist_upp,disp_low_next,disp_upp_next]
+  ; Determine boundary crossed
+  diff_low_bounds = lp_low_bounds - lp
+  diff_upp_bounds = lp_upp_bounds - lp
+  diff_diag_start = diag_start - lp 
+  dist_low_bounds = MIN(ABS(diff_low_bounds), where_dist_low_bounds)
+  dist_upp_bounds = MIN(ABS(diff_upp_bounds), where_dist_upp_bounds)
+  dist_diag_start = MIN(ABS(diff_diag_start), where_dist_diag_start)
+  dists_min = [dist_diag_start, dist_low_bounds, dist_upp_bounds]
+  where_min = [where_dist_diag_start, where_dist_low_bounds, $
+                where_dist_upp_bounds]
+  min_dist = MIN(dists_min, where_min_dist)
+  IF KEYWORD_SET(OVERRIDE_DIAGNOSTIC) THEN BEGIN
+    CASE where_min_dist OF 
+      0:  BEGIN ; Crossed diag start
+            ; Crossed from below 
+            IF (diff_diag_start[where_dist_diag_start] LT $
+              diff_low_bounds[where_dist_diag_start]) THEN BEGIN
+              lp_diag_new = disp_diag[lp_diag]
+              lp_new = lp_low_bounds[WHERE(disp_diag EQ lp_diag_new)]
+            ENDIF ELSE BEGIN
+              lp_diag_new = disp_diag[lp_diag]
+              lp_new = lp_upp_bounds[WHERE(disp_diag EQ lp_diag_new)]
+            ENDELSE
+          END
+      1:  BEGIN ; Crossed lower boundary
+            where_cur_lp_diag = WHERE(disp_diag EQ disp_diag[lp_diag])
+            new_idx = (where_cur_lp_diag - 1) MOD N_ELEMENTS(disp_diag)
+            IF (new_idx LT 0) THEN new_idx = N_ELEMENTS(disp_diag)-1
+            lp_diag_new = disp_diag[new_idx]
+            lp_new = lp_upp_bounds[new_idx]
+          END
+      2:  BEGIN ; Crossed upper boundary
+            where_cur_lp_diag = WHERE(disp_diag EQ disp_diag[lp_diag])
+            new_idx = (where_cur_lp_diag + 1) MOD N_ELEMENTS(disp_diag)
+            lp_diag_new = disp_diag[new_idx]
+            lp_new = lp_low_bounds[new_idx]
+          END
+    ENDCASE
+  ENDIF ELSE BEGIN
+    ; Accessed when dragging slider
+    ; If distance to lower boundary is closer, jump there
+    IF (dists_min[1] LT dists_min[2]) THEN BEGIN
+      lp_diag_new = disp_diag[where_min[1]]
+      lp_new = lp_low_bounds[WHERE(disp_diag EQ lp_diag_new)]
+    ENDIF ELSE BEGIN
+      lp_diag_new = disp_diag[where_min[2]]
+      lp_new = lp_upp_bounds[WHERE(disp_diag EQ lp_diag_new)]
+    ENDELSE
+  ENDELSE
+
+  ; Create result structure and return
+  result = {lp_diag_new:lp_diag_new, lp_new:lp_new}
+  RETURN, result
 END
 
 ;------------------------- PLOTAXES FUNCTION
@@ -1247,8 +1329,8 @@ FUNCTION CRISPEX_PLOTAXES_XTICKVALS_SELECT, xtickvals_in, TICKSEP=ticksep, DOPPL
     ndecimals = STRLEN(check_array[0])
   ENDIF ELSE ndecimals = 0
   IF (ndecimals GT 0) THEN $
-    xtick_format ='(F'+STRTRIM(STRLEN(split_array[whereselect,0])+ndecimals+(ndecimals GT 0),2)+'.'+$
-      STRTRIM(ndecimals,2)+')' $
+    xtick_format ='(F'+STRTRIM(STRLEN(split_array[whereselect,0])+$
+      ndecimals+(ndecimals GT 0),2)+'.'+STRTRIM(ndecimals,2)+')' $
   ELSE $
     xtick_format ='(I'+STRTRIM(STRLEN(split_array[whereselect,0]),2)+')'
   FOR i=0,N_ELEMENTS(whereselect)-1 DO $
@@ -1762,8 +1844,6 @@ PRO CRISPEX_CURSOR, event
 						*(*(*info).meas).syp_sji = $
               [(*(*(*info).meas).syp_sji)[0],(*(*info).curs).sysji]
           ENDIF
-;          print,*(*(*info).meas).sxp,(*(*info).curs).sx, (*(*info).dataparams).x
-;          print,*(*(*info).meas).syp,(*(*info).curs).sy, (*(*info).dataparams).y
 					CRISPEX_MEASURE_CALC, event
 					CRISPEX_COORDSLIDERS_SET, 1, 1, event
 				ENDIF ELSE RETURN
@@ -3025,11 +3105,13 @@ END
 PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
 ; Updates temporal spectrum display window plot axes range according to set parameters
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).phiswid
 	IF (*(*info).plotswitch).v_dop_set THEN extratitle = '!C' ELSE extratitle = ''
 	IF (*(*info).plotswitch).multichannel THEN $
-    title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle $
+    title = 'Stokes '+((*(*info).stokesparams).labels)[$
+      (*(*info).dataparams).s]+extratitle $
   ELSE $
     title = ''
   ytitle = 'Position along slit [pixel]'
@@ -3053,7 +3135,6 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
     yticklen = (*(*info).plotaxes).phisyticklen
     xtickname = ''  & ytickname = ''
   ENDELSE
-;  xticklen = xtlen_basic_fac * (*(*info).plotaxes).phisxticklen
   topxtitle = title
   IF (*(*info).plotswitch).v_dop_set THEN topxtitle += 'Doppler velocity [km/s]'
   ; Determine plot ranges
@@ -3062,8 +3143,13 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
                  (*(*info).phiparams).sphi)-0.5, (*(*info).phiparams).nw_cur - $
                (((*(*info).phiparams).nw_cur - (*(*info).phiparams).nphi)/2. + $
                  (*(*info).phiparams).sphi)-0.5]
-    phis_xrange = [(*(*info).dataparams).lps[(*(*info).dispparams).lp_low],$
-          (*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]]
+    lp_low_overall = (*(*info).dispparams).lp_low_tmp[$
+                      (*(*(*info).intparams).wheredispdiag)[0]] 
+    lp_upp_overall = (*(*info).dispparams).lp_upp_tmp[$
+                      (*(*(*info).intparams).wheredispdiag)[$
+                      (*(*info).intparams).ndisp_diagnostics-1]] 
+    phis_xrange = [(*(*info).dataparams).lps[lp_low_overall], $
+              (*(*info).dataparams).lps[lp_upp_overall]]
   ; Plot basic axes box
 	PLOT, (*(*info).dataparams).lps, FINDGEN((*(*info).phiparams).nw_cur), /NODATA, $
     YRANGE = (*(*info).plotaxes).phis_yrange, /YS, XRANGE=phis_xrange, $
@@ -3072,7 +3158,8 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
     XTICKLEN = xticklen, XTITLE=xtitle, XTICKNAME=xtickname, $
 		POS = [(*(*info).plotpos).phisx0,(*(*info).plotpos).phisy0,$
              (*(*info).plotpos).phisx1,(*(*info).plotpos).phisy1], $
-    BACKGROUND = (*(*info).plotparams).bgplotcol, COLOR = (*(*info).plotparams).plotcol;, $
+    BACKGROUND = (*(*info).plotparams).bgplotcol, $
+    COLOR = (*(*info).plotparams).plotcol, $
     NOERASE=((*(*info).intparams).ndiagnostics GT 1)
   IF ~KEYWORD_SET(NO_AXES) THEN BEGIN
     ; Plot xtitle(s)
@@ -3085,14 +3172,15 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
       ; No need to check for count: there is always at least one diagnostic displayed 
       disp_idx = (WHERE((*(*info).intparams).disp_diagnostics EQ 1))[d]
       ; Determine xrange to display
-      IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-        phis_xrange = (*(*info).dataparams).lps[[(*(*info).intparams).diag_start[disp_idx],$
-          ((*(*info).intparams).diag_start[disp_idx]+(*(*info).intparams).diag_width[disp_idx]-1)]]
-        vdop_xrange = (*(*(*info).plotaxes).v_dop[disp_idx])[$
-          [0,(*(*(*info).intparams).diag_widths)[d]-1]]
-      ENDIF ELSE $
-        vdop_xrange = (*(*(*info).plotaxes).v_dop[0])[$
-          [(*(*info).dispparams).lp_low,(*(*info).dispparams).lp_upp]]
+      lp_low_loc = (*(*info).dispparams).lp_low_tmp[disp_idx]+$
+        (*(*info).intparams).diag_start[disp_idx]
+      lp_upp_loc = (*(*info).dispparams).lp_upp_tmp[disp_idx]+$
+        (*(*info).intparams).diag_start[disp_idx]
+      phis_xrange = (*(*info).dataparams).lps[[lp_low_loc,lp_upp_loc]]
+      vdop_xrange = $
+        (*(*(*info).plotaxes).v_dop[disp_idx])[[$
+        (*(*info).dispparams).lp_low_tmp[disp_idx], $
+        (*(*info).dispparams).lp_upp_tmp[disp_idx]]]
       IF (d EQ 0) THEN offset = 0 ELSE offset = TOTAL((*(*(*info).plotaxes).diag_range_phis)[0:(d-1)])
       ; Determine lower left corner position of plot
       phisx0 = (*(*info).plotpos).phisx0 + offset
@@ -3445,7 +3533,8 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_SELECT, event
 			IF ((TOTAL(*(*(*info).dispswitch).restricted_lp_range) EQ 0) AND $
         old_restricted_lp_range) THEN CRISPEX_DISPRANGE_LP_RESET, event
 			IF ((TOTAL(*(*(*info).dispswitch).restricted_lp_ref_range) EQ 0) AND $
-        old_restricted_lp_ref_range) THEN CRISPEX_DISPRANGE_LP_REF_RESET, event
+        old_restricted_lp_ref_range) THEN $
+        CRISPEX_DISPRANGE_LP_RESET, event, /REFERENCE
 			WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, $
         SENSITIVE = (TOTAL(*(*(*info).restoreparams).disp_slices) EQ 0) 
 			WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, $
@@ -3486,7 +3575,7 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_SELECT, event
 			(*(*info).winswitch).showrestloop = 0
 			CRISPEX_DISPRANGE_T_RESET, event
 			CRISPEX_DISPRANGE_LP_RESET, event
-			CRISPEX_DISPRANGE_LP_REF_RESET, event
+			CRISPEX_DISPRANGE_LP_RESET, event, /REFERENCE
 			FOR i=0,N_ELEMENTS(*(*(*info).winids).restlooptlb)-1 DO BEGIN
 				WIDGET_CONTROL, (*(*(*info).winids).restlooptlb)[i], /DESTROY
 				list_values[(*(*(*info).restoreparams).disp_loopnr)[i]+1] = $
@@ -3683,7 +3772,6 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB, event, NO_DRAW=no_draw, INDEX=index
 		CRISPEX_WINDOW, (*(*info).winsizes).restloopxres, (*(*info).winsizes).restloopyres, (*(*info).winids).root, wintitle+STRTRIM((*(*(*info).restoreparams).disp_loopnr)[idx],2), tlb, wid, $
 			(*(*info).winsizes).xywinx+(*(*info).winsizes).xdelta,((*(*info).winswitch).showsp + (*(*info).winswitch).showphis) * (*(*info).winsizes).ydelta, DRAWID = disp_rest_loopdrawid, RESIZING = 1, $
 			RES_HANDLER = 'CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_RESIZE'
-;		PLOT, FINDGEN((*(*(*info).loopsdata).rest_loopsize)[idx]), $
 		PLOT, FINDGEN(N_ELEMENTS(*(*(*(*info).restoreparams).xr)[idx])), $
       *(*(*info).dispparams).tarr_main, $
       /NODATA, YR=[(*(*info).dispparams).t_low_main, (*(*info).dispparams).t_upp_main], $
@@ -3903,8 +3991,13 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
   xticklen = xtlen_basic_fac * (*(*info).plotaxes).spxticklen
   t_low_y = (*(*info).dispparams).t_low_ref
   t_upp_y = (*(*info).dispparams).t_upp_ref
-  xrange = [(*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low], $
-            (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_upp]]
+  lp_low_overall = (*(*info).dispparams).lp_ref_low_tmp[$
+                    (*(*(*info).intparams).wheredisprefdiag)[0]] 
+  lp_upp_overall = (*(*info).dispparams).lp_ref_upp_tmp[$
+                    (*(*(*info).intparams).wheredisprefdiag)[$
+                    (*(*info).intparams).ndisp_refdiagnostics-1]] 
+  xrange = [(*(*info).dataparams).reflps[lp_low_overall], $
+            (*(*info).dataparams).reflps[lp_upp_overall]]
   correct_axes = (FLOOR(ALOG10(ABS(t_upp_y))) GE 3)
   IF ((t_low_y NE 0.) AND ~KEYWORD_SET(correct_axes)) THEN $
     correct_axes = (FLOOR(ALOG10(ABS(t_low_y))) LE -2) 
@@ -3921,15 +4014,17 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
     XSTYLE = (*(*info).plotswitch).v_dop_set_ref * 8 + 1, $
   	YTICKLEN = yticklen, YTITLE = ytitle, YTICKNAME = ytickname, $
     XTICKLEN = 1E-9, XTITLE = xtitle, XTICKNAME = REPLICATE(' ',60), $
-    POS = [(*(*info).plotpos).refspx0,(*(*info).plotpos).refspy0,(*(*info).plotpos).refspx1,$
-    (*(*info).plotpos).refspy1], BACKGROUND=(*(*info).plotparams).bgplotcol, $
+    POS = [(*(*info).plotpos).refspx0,(*(*info).plotpos).refspy0,$
+           (*(*info).plotpos).refspx1,(*(*info).plotpos).refspy1], $
+    BACKGROUND=(*(*info).plotparams).bgplotcol, $
     COLOR=(*(*info).plotparams).plotcol, /NODATA, NOERASE=KEYWORD_SET(NO_AXES)
   ; In case of multiple diagnostics and regular replotting of axes
   ; Determine proportional spectral window sizes
-  diag_widths = (*(*info).intparams).refdiag_width[$
-    WHERE((*(*info).intparams).disp_refdiagnostics EQ 1)]
-  diag_ratio = diag_widths / FLOAT(TOTAL(diag_widths))
-  diag_range = diag_ratio * (*(*info).plotpos).refxplspw
+  diag_widths = (*(*info).dispparams).lp_ref_upp_tmp[$
+                  *(*(*info).intparams).wheredisprefdiag] - $
+                (*(*info).dispparams).lp_ref_low_tmp[$
+                  *(*(*info).intparams).wheredisprefdiag] ;+ 1
+  diag_range = *(*(*info).plotaxes).refdiag_ratio * (*(*info).plotpos).refxplspw 
   IF ~KEYWORD_SET(NO_AXES) THEN BEGIN
     ; Plot xtitle(s)
     IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN $
@@ -3940,13 +4035,15 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
     FOR d=0,(*(*info).intparams).ndisp_refdiagnostics-1 DO BEGIN
       disp_idx = (WHERE((*(*info).intparams).disp_refdiagnostics EQ 1))[d]
       ; Determine xrange to display
-      IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
-        xrange = (*(*info).dataparams).reflps[[(*(*info).intparams).refdiag_start[disp_idx],$
-          ((*(*info).intparams).refdiag_start[disp_idx]+(*(*info).intparams).refdiag_width[disp_idx]-1)]]
-        vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[disp_idx])[[0,diag_widths[d]-1]]
-      ENDIF ELSE $
-        vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[0])[$
-          [(*(*info).dispparams).lp_ref_low,(*(*info).dispparams).lp_ref_upp]]
+      lp_low_loc = (*(*info).dispparams).lp_ref_low_tmp[disp_idx]+$
+        (*(*info).intparams).refdiag_start[disp_idx]
+      lp_upp_loc = (*(*info).dispparams).lp_ref_upp_tmp[disp_idx]+$
+        (*(*info).intparams).refdiag_start[disp_idx]
+      xrange = (*(*info).dataparams).reflps[[lp_low_loc,lp_upp_loc]]
+      vdop_xrange = $
+        (*(*(*info).plotaxes).v_dop_ref[disp_idx])[[$
+        (*(*info).dispparams).lp_ref_low_tmp[disp_idx], $
+        (*(*info).dispparams).lp_ref_upp_tmp[disp_idx]]]
       IF (d EQ 0) THEN offset = 0 ELSE offset = TOTAL(diag_range[0:(d-1)])
       ; Determine lower left corner position of plot
       refspx0 = (*(*info).plotpos).refspx0 + offset
@@ -3954,12 +4051,13 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
       PLOT, (*(*info).dataparams).lps, *(*(*info).dispparams).tarr_ref, $
         /NODATA, YR=[t_low_y,t_upp_y], /YS, $
   			XRANGE=xrange, XSTYLE = (*(*info).plotswitch).v_dop_set_ref * 8 + 1, $
-        POS = [refspx0,(*(*info).plotpos).refspy0,refspx1,(*(*info).plotpos).refspy1], $
+        POS = [refspx0,(*(*info).plotpos).refspy0,$
+               refspx1,(*(*info).plotpos).refspy1], $
         YTICKLEN=(*(*info).plotaxes).refspyticklen, $
         XTICKLEN=xticklen, YTICKNAME=REPLICATE(' ',60), XTICKNAME=xtickname, $
         XTICKINTERVAL=(*(*(*info).plotaxes).xreftickinterval)[0], $
-        BACKGROUND = (*(*info).plotparams).bgplotcol, COLOR = (*(*info).plotparams).plotcol,$
-        /NOERASE, XTICK_GET=xtickvals, $
+        BACKGROUND=(*(*info).plotparams).bgplotcol, $
+        COLOR=(*(*info).plotparams).plotcol,/NOERASE, XTICK_GET=xtickvals, $
         XMINOR=(0-((*(*info).intparams).ndisp_refdiagnostics GT 1))
       ; In case of multiple diagnostics
       IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
@@ -4142,11 +4240,13 @@ END
 PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
 ; Updates temporal spectrum display window plot axes range according to set parameters
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).spwid
 	IF (*(*info).plotswitch).v_dop_set THEN extratitle = '!C' ELSE extratitle = ''
 	IF (*(*info).plotswitch).multichannel THEN $
-    title = 'Stokes '+((*(*info).stokesparams).labels)[(*(*info).dataparams).s]+extratitle $
+    title = 'Stokes '+((*(*info).stokesparams).labels)[$
+      (*(*info).dataparams).s]+extratitle $
   ELSE $
     title = ''
   ; Set axes parameters depending on # of diagnostics
@@ -4174,8 +4274,13 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
   xticklen = xtlen_basic_fac * (*(*info).plotaxes).spxticklen
   t_low_y = (*(*info).dispparams).t_low_main
   t_upp_y = (*(*info).dispparams).t_upp_main
-  xrange = [(*(*info).dataparams).lps[(*(*info).dispparams).lp_low], $
-            (*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]]
+  lp_low_overall = (*(*info).dispparams).lp_low_tmp[$
+                    (*(*(*info).intparams).wheredispdiag)[0]] 
+  lp_upp_overall = (*(*info).dispparams).lp_upp_tmp[$
+                    (*(*(*info).intparams).wheredispdiag)[$
+                    (*(*info).intparams).ndisp_diagnostics-1]] 
+  xrange = [(*(*info).dataparams).lps[lp_low_overall], $
+            (*(*info).dataparams).lps[lp_upp_overall]]
   correct_axes = (FLOOR(ALOG10(ABS(t_upp_y))) GE 3)
   IF ((t_low_y NE 0.) AND ~KEYWORD_SET(correct_axes)) THEN $
     correct_axes = (FLOOR(ALOG10(ABS(t_low_y))) LE -2) 
@@ -4200,10 +4305,11 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
   ; In case of multiple diagnostics and regular replotting of axes
   IF ~KEYWORD_SET(NO_AXES) THEN BEGIN
     ; Determine proportional spectral window sizes
-    diag_widths = (*(*info).intparams).diag_width[$
-      WHERE((*(*info).intparams).disp_diagnostics EQ 1)]
-    diag_ratio = diag_widths / FLOAT(TOTAL(diag_widths))
-    diag_range = diag_ratio * (*(*info).plotpos).xplspw 
+    diag_widths = (*(*info).dispparams).lp_upp_tmp[$
+                    *(*(*info).intparams).wheredispdiag] - $
+                  (*(*info).dispparams).lp_low_tmp[$
+                    *(*(*info).intparams).wheredispdiag] ;+ 1
+    diag_range = *(*(*info).plotaxes).diag_ratio * (*(*info).plotpos).xplspw 
     ; Plot xtitle(s)
     IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN $
       XYOUTS,(*(*info).plotpos).xplspw/2.+(*(*info).plotpos).spx0,$
@@ -4213,13 +4319,15 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
       disp_idx = (WHERE((*(*info).intparams).disp_diagnostics EQ 1))[d]
       ; Determine xrange to display
-      IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-        xrange = (*(*info).dataparams).lps[[(*(*info).intparams).diag_start[disp_idx],$
-          ((*(*info).intparams).diag_start[disp_idx]+(*(*info).intparams).diag_width[disp_idx]-1)]]
-        vdop_xrange = (*(*(*info).plotaxes).v_dop[disp_idx])[[0,diag_widths[d]-1]]
-      ENDIF ELSE $
-        vdop_xrange = (*(*(*info).plotaxes).v_dop[0])[$
-          [(*(*info).dispparams).lp_low,(*(*info).dispparams).lp_upp]]
+      lp_low_loc = (*(*info).dispparams).lp_low_tmp[disp_idx]+$
+        (*(*info).intparams).diag_start[disp_idx]
+      lp_upp_loc = (*(*info).dispparams).lp_upp_tmp[disp_idx]+$
+        (*(*info).intparams).diag_start[disp_idx]
+      xrange = (*(*info).dataparams).lps[[lp_low_loc,lp_upp_loc]]
+      vdop_xrange = $
+        (*(*(*info).plotaxes).v_dop[disp_idx])[[$
+        (*(*info).dispparams).lp_low_tmp[disp_idx], $
+        (*(*info).dispparams).lp_upp_tmp[disp_idx]]]
       IF (d EQ 0) THEN offset = 0 ELSE offset = TOTAL(diag_range[0:(d-1)])
       ; Determine lower left corner position of plot
       spx0 = (*(*info).plotpos).spx0 + offset
@@ -4227,12 +4335,12 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
   		PLOT, (*(*info).dataparams).lps, *(*(*info).dispparams).tarr_main, $
         /NODATA, YR=[t_low_y,t_upp_y], $
   			/YS, XRANGE=xrange, XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
-        POS = [spx0,(*(*info).plotpos).spy0,spx1,(*(*info).plotpos).spy1], $
+        POS=[spx0,(*(*info).plotpos).spy0,spx1,(*(*info).plotpos).spy1], $
         YTICKLEN=(*(*info).plotaxes).spyticklen, $
         XTICKLEN=xticklen, YTICKNAME=REPLICATE(' ',60), XTICKNAME=xtickname, $
         XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0], $
-        BACKGROUND = (*(*info).plotparams).bgplotcol, COLOR = (*(*info).plotparams).plotcol,$
-        /NOERASE, XTICK_GET=xtickvals, $
+        BACKGROUND=(*(*info).plotparams).bgplotcol, $
+        COLOR=(*(*info).plotparams).plotcol,/NOERASE, XTICK_GET=xtickvals, $
         XMINOR=(0-((*(*info).intparams).ndisp_diagnostics GT 1))
       ; In case of multiple diagnostics
       IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
@@ -4271,9 +4379,9 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
         IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
           ; Plot the initial tick marks and get the tick vals
           AXIS, XAXIS=1, XRANGE=vdop_xrange, $
-            XSTYLE=1, XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol,$
-            XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], XTICKNAME=REPLICATE(' ',60), $
-            XTICK_GET=xdoptickvals, XTICKLEN=1E-9
+            XSTYLE=1, XTITLE=topxtitle, COLOR=(*(*info).plotparams).plotcol,$
+            XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], $
+            XTICKNAME=REPLICATE(' ',60), XTICK_GET=xdoptickvals, XTICKLEN=1E-9
           ; Redraw x-axis with custom labelling
           IF (*(*info).plotswitch).xdoptick_reset THEN BEGIN
             (*(*info).plotaxes).xdoptickvals[d] = $
@@ -4291,8 +4399,7 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
           FOR k=0,N_ELEMENTS(*(*(*info).plotaxes).xdoptickloc[d])-1 DO BEGIN
             PLOTS,[1.,1.]*(*(*(*info).plotaxes).xdoptickloc[d])[k], $
               [t_upp_y,-xtlen_major_fac*(*(*info).plotaxes).spxticklen*(t_upp_y-t_low_y)+$
-              t_upp_y], $
-              COLOR=(*(*info).plotparams).plotcol
+              t_upp_y], COLOR=(*(*info).plotparams).plotcol
           ENDFOR
           ; Add the labels
           AXIS, XAXIS=1, XRANGE=vdop_xrange, /XS, $
@@ -4780,61 +4887,34 @@ PRO CRISPEX_DISPRANGE_GET_WARP_TRIANGULATE, event, xo, yo, xi, yi, slice, PHIS=p
   ENDELSE
 END
 
-PRO CRISPEX_DISPRANGE_LP_LOW, event, LP_SET=lp_set, NO_DRAW=no_draw
-; Handles change in lower lp-value of accessed data cube
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-  IF (N_ELEMENTS(LP_SET) EQ 1) THEN $
-    textvalue = lp_set $
-  ELSE $
-	  WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, GET_VALUE = textvalue
-	(*(*info).dispparams).lp_low = FLOAT(textvalue[0])
-	IF ((*(*info).dispparams).lp_low GE (*(*info).dispparams).lp_upp) THEN $
-    (*(*info).dispparams).lp_low = (*(*info).dispparams).lp_upp - 1
-	IF ((*(*info).dispparams).lp_low LT (*(*info).dispparams).lp_first) THEN $
-    (*(*info).dispparams).lp_low = (*(*info).dispparams).lp_first
-	WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, SET_VALUE = STRTRIM((*(*info).dispparams).lp_low,2)
-	CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
-END
-
-PRO CRISPEX_DISPRANGE_LP_UPP, event, LP_SET=lp_set, NO_DRAW=no_draw
-; Handles change in upper lp-value of accessed data cube
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-  IF (N_ELEMENTS(LP_SET) EQ 1) THEN $
-    textvalue = lp_set $
-  ELSE $
-	WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, GET_VALUE = textvalue
-	(*(*info).dispparams).lp_upp = FLOAT(textvalue[0])
-	IF ((*(*info).dispparams).lp_upp LE (*(*info).dispparams).lp_low) THEN $
-    (*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_low + 1
-	IF ((*(*info).dispparams).lp_upp GT (*(*info).dispparams).lp_last) THEN $
-    (*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_last
-	WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, SET_VALUE = STRTRIM((*(*info).dispparams).lp_upp,2)
-	CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
-END
-
 PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
-; Determines range from change in lower or upper s-value and calls (re)display routine
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).dispparams).lp_range = (*(*info).dispparams).lp_upp - (*(*info).dispparams).lp_low + 1
-	IF (((*(*info).intparams).ndiagnostics EQ 1) AND $
-    ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp)) THEN $
-    WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, /SENSITIVE $
-  ELSE $
-    WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, SENSITIVE = 0
-	IF ((*(*info).dataparams).lp LT (*(*info).dispparams).lp_low) THEN $
-    (*(*info).dataparams).lp = (*(*info).dispparams).lp_low $
-  ELSE IF ((*(*info).dataparams).lp GT (*(*info).dispparams).lp_upp) THEN $
-    (*(*info).dataparams).lp = (*(*info).dispparams).lp_upp $
-  ELSE $
-		(*(*info).dataparams).lp = (*(*info).dataparams).lp
+; Determines range from change in lower or upper s-value and calls (re)display
+; routine
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  lp_low_overall = (*(*info).dispparams).lp_low_bounds[$
+                    (*(*(*info).intparams).wheredispdiag)[0]]
+  lp_upp_overall = (*(*info).dispparams).lp_upp_bounds[$
+                    (*(*(*info).intparams).wheredispdiag)[$
+                    (*(*info).intparams).ndisp_diagnostics-1]]
+	(*(*info).dispparams).lp_range = lp_upp_overall - lp_low_overall + 1
+  ; Adjust lp depending on changing boundaries
+  lp_diag = $
+    TOTAL((*(*info).dataparams).lp GE (*(*info).intparams).diag_start)-1
+  lp_low_loc = (*(*info).dispparams).lp_low_bounds[lp_diag]
+  lp_upp_loc = (*(*info).dispparams).lp_upp_bounds[lp_diag]
+	IF ((*(*info).dataparams).lp LT $
+    (*(*info).dispparams).lp_low_bounds[lp_diag]) THEN $
+      (*(*info).dataparams).lp = (*(*info).dispparams).lp_low_bounds[lp_diag] $
+  ELSE IF ((*(*info).dataparams).lp GT $
+    (*(*info).dispparams).lp_upp_bounds[lp_diag]) THEN $
+      (*(*info).dataparams).lp = (*(*info).dispparams).lp_upp_bounds[lp_diag]
   CRISPEX_SLIDER_LP_UPDATE, event, /NO_DRAW
-	WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_SLIDER_MIN = (*(*info).dispparams).lp_low, $
-                  SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, SET_VALUE = (*(*info).dataparams).lp
-	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_SLIDER_MIN=(*(*info).dispparams).lp_low, $
-    SET_SLIDER_MAX=(*(*info).dispparams).lp_upp, SET_VALUE=(*(*info).dataparams).lp, $
+	WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_SLIDER_MIN=lp_low_overall, $
+                  SET_SLIDER_MAX=lp_upp_overall, SET_VALUE=(*(*info).dataparams).lp
+	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_SLIDER_MIN=lp_low_overall, $
+    SET_SLIDER_MAX=lp_upp_overall, SET_VALUE=(*(*info).dataparams).lp, $
     SENSITIVE=(((*(*info).dispparams).lp_range-1) NE 1)
   IF ((*(*info).dispswitch).warpspslice AND (*(*info).winswitch).showphis) THEN BEGIN
     WIDGET_CONTROL, /HOURGLASS
@@ -4842,9 +4922,11 @@ PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
     CRISPEX_DISPRANGE_GET_WARP_TRIANGULATE, event, $
       *(*(*info).dispparams).phisxo,*(*(*info).dispparams).phisyo,$
       *(*(*info).dispparams).phisxi,*(*(*info).dispparams).phisyi, $
-      *(*(*info).data).phislice, /PHIS, NX=(*(*info).dispparams).lp_range, NY=(*(*info).phiparams).nphi
+      *(*(*info).data).phislice, /PHIS, NX=(*(*info).dispparams).lp_range, $
+      NY=(*(*info).phiparams).nphi
   ENDIF
 	IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
+    CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /MAIN
 		CRISPEX_UPDATE_T, event
 		IF (*(*info).winswitch).showsp THEN BEGIN
       CRISPEX_UPDATE_SPSLICE, event
@@ -4858,53 +4940,90 @@ PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
 	ENDIF
 	IF (*(*info).winswitch).showphis THEN BEGIN
 		IF (*(*info).dataswitch).onecube THEN $
-      WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SET_VALUE = 'Update spectral windows', $
-                      SENSITIVE = 1  $
+      WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, $
+        SET_VALUE = 'Update spectral windows', SENSITIVE = 1  $
     ELSE $
       WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 1
 	ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).lp_low,(*(*info).dispparams).lp_upp], $
-                        labels=['Lower lp-value','Upper lp-value']
+    CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).lp_low,$
+      (*(*info).dispparams).lp_upp], $
+      labels=['Lower lp-value','Upper lp-value']
 END
 
-PRO CRISPEX_DISPRANGE_LP_RESET, event, NO_DRAW=no_draw
+PRO CRISPEX_DISPRANGE_LP_RESET, event, REFERENCE=reference, NO_DRAW=no_draw
 ; Handles reset of spectral boundaries and calls (re)display routine
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_last
-	(*(*info).dispparams).lp_low = (*(*info).dispparams).lp_first
-	WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, $
-                  SET_VALUE = STRTRIM((*(*info).dispparams).lp_upp,2), /SENSITIVE
-	WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, $
-                  SET_VALUE = STRTRIM((*(*info).dispparams).lp_low,2), /SENSITIVE
-	WIDGET_CONTROL, (*(*info).ctrlscp).reset_trange_but, SENSITIVE = 0
-	WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, /SENSITIVE
-	CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF KEYWORD_SET(REFERENCE) THEN $
+    ; wheresel override in case /REFERENCE is set
+    wheresel = 1 $
+  ELSE $
+    wheresel = WHERE((*(*info).dispswitch).lp_restrict EQ 1)
+  CASE wheresel OF
+    0:  BEGIN
+          (*(*info).dispparams).v_dop_low[wheresel] = $
+            (*(*info).dispparams).v_dop_low_min
+          (*(*info).dispparams).v_dop_upp[wheresel] = $
+            (*(*info).dispparams).v_dop_upp_max
+        END
+    1:  BEGIN
+          (*(*info).dispparams).v_dop_low[wheresel] = $
+            (*(*info).dispparams).v_dop_ref_low_min
+          (*(*info).dispparams).v_dop_upp[wheresel] = $
+            (*(*info).dispparams).v_dop_ref_upp_max
+        END
+  ENDCASE
+  WIDGET_CONTROL, (*(*info).ctrlscp).lp_restr_slider_low, $
+    SET_VALUE=(*(*info).dispparams).v_dop_low[wheresel]
+  WIDGET_CONTROL, (*(*info).ctrlscp).lp_restr_slider_upp, $
+    SET_VALUE=(*(*info).dispparams).v_dop_upp[wheresel]
+	WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, SENSITIVE = 0
+  CRISPEX_SLIDER_LP_RESTRICT, event, REFERENCE=reference, NO_DRAW=no_draw
 END
 
-PRO CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw, LP_LOW_SET=lp_low_set, $
-  LP_UPP_SET=lp_upp_set
-; Determines range from change in lower or upper s-value and calls (re)display routine
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-  IF (N_ELEMENTS(LP_LOW_SET) EQ 1) THEN (*(*info).dispparams).lp_ref_low = lp_low_set
-  IF (N_ELEMENTS(LP_UPP_SET) EQ 1) THEN (*(*info).dispparams).lp_ref_upp = lp_upp_set
-	(*(*info).dispparams).lp_ref_range = (*(*info).dispparams).lp_ref_upp - (*(*info).dispparams).lp_ref_low + 1
-	IF ((*(*info).dataparams).lp_ref LT (*(*info).dispparams).lp_ref_low) THEN $
-    (*(*info).dataparams).lp_ref = (*(*info).dispparams).lp_ref_low $
-  ELSE IF ((*(*info).dataparams).lp_ref GT (*(*info).dispparams).lp_ref_upp) THEN $
-    (*(*info).dataparams).lp_ref = (*(*info).dispparams).lp_ref_upp 
+PRO CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw, $
+  LP_LOW_SET=lp_low_set, LP_UPP_SET=lp_upp_set
+; Determines range from change in lower or upper s-value and calls (re)display
+; routine
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF (N_ELEMENTS(LP_LOW_SET) EQ 1) THEN $
+    (*(*info).dispparams).lp_ref_low = lp_low_set
+  IF (N_ELEMENTS(LP_UPP_SET) EQ 1) THEN $
+    (*(*info).dispparams).lp_ref_upp = lp_upp_set
+  lp_low_overall = (*(*info).dispparams).lp_ref_low_bounds[$
+                    (*(*(*info).intparams).wheredisprefdiag)[0]]
+  lp_upp_overall = (*(*info).dispparams).lp_ref_upp_bounds[$
+                    (*(*(*info).intparams).wheredisprefdiag)[$
+                    (*(*info).intparams).ndisp_refdiagnostics-1]]
+	(*(*info).dispparams).lp_ref_range = lp_upp_overall - lp_low_overall + 1
+  ; Adjust lp depending on changing boundaries
+  lp_diag = $
+    TOTAL((*(*info).dataparams).lp_ref GE (*(*info).intparams).refdiag_start)-1
+  lp_low_loc = (*(*info).dispparams).lp_ref_low_bounds[lp_diag]
+  lp_upp_loc = (*(*info).dispparams).lp_ref_upp_bounds[lp_diag]
+	IF ((*(*info).dataparams).lp_ref LT $
+    (*(*info).dispparams).lp_ref_low_bounds[lp_diag]) THEN $
+      (*(*info).dataparams).lp_ref = $
+        (*(*info).dispparams).lp_ref_low_bounds[lp_diag] $
+  ELSE IF ((*(*info).dataparams).lp_ref GT $
+    (*(*info).dispparams).lp_upp_bounds[lp_diag]) THEN $
+      (*(*info).dataparams).lp_ref = $
+        (*(*info).dispparams).lp_ref_upp_bounds[lp_diag]
   CRISPEX_SLIDER_LP_UPDATE, event, /NO_DRAW
-	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, $
-    SET_SLIDER_MIN = (*(*info).dispparams).lp_ref_low, $
-    SET_SLIDER_MAX = (*(*info).dispparams).lp_ref_upp, SET_VALUE = (*(*info).dataparams).lp_ref
+	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, SET_SLIDER_MIN=lp_low_overall, $
+                  SET_SLIDER_MAX=lp_upp_overall, $
+                  SET_VALUE=(*(*info).dataparams).lp_ref
 	IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
+    CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /REFERENCE
+		CRISPEX_UPDATE_T, event
 		IF (*(*info).winswitch).showrefsp THEN BEGIN
       CRISPEX_UPDATE_REFSPSLICE, event
       CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
     ENDIF
-		CRISPEX_UPDATE_T, event
 		CRISPEX_DRAW, event
 	ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
@@ -4912,14 +5031,6 @@ PRO CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw, LP_LOW_SET=lp_low_se
     (*(*info).dispparams).lp_ref_upp], labels=['Lower lp-value','Upper lp-value']
 END
 
-PRO CRISPEX_DISPRANGE_LP_REF_RESET, event, NO_DRAW=no_draw
-; Handles reset of reference spectral boundaries and calls (re)display routine
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).dispparams).lp_ref_upp = (*(*info).dispparams).lp_ref_last
-	(*(*info).dispparams).lp_ref_low = (*(*info).dispparams).lp_ref_first
-	CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw
-END
 ;==================== DISPLAY DRAW PROCEDURES
 PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
   no_number=no_number,thick=thick, no_endpoints=no_endpoints, $
@@ -5557,13 +5668,16 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
   ; should be called whenever changing the number of displayed diagnostics
   ; AND on startup
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Write current variables to dummy variables depending on case
   IF KEYWORD_SET(MAIN) THEN BEGIN
     disp_diagnostics = (*(*info).intparams).disp_diagnostics
     ndisp_diagnostics = (*(*info).intparams).ndisp_diagnostics
     diag_width = (*(*info).intparams).diag_width
     diag_start = (*(*info).intparams).diag_start
+    lp_low = (*(*info).dispparams).lp_low_tmp
+    lp_upp = (*(*info).dispparams).lp_upp_tmp
     lps = (*(*info).dataparams).lps
     v_dop = (*(*info).plotaxes).v_dop
   ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
@@ -5571,6 +5685,8 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
     ndisp_diagnostics = (*(*info).intparams).ndisp_refdiagnostics
     diag_width = (*(*info).intparams).refdiag_width
     diag_start = (*(*info).intparams).refdiag_start
+    lp_low = (*(*info).dispparams).lp_ref_low_tmp
+    lp_upp = (*(*info).dispparams).lp_ref_upp_tmp
     lps = (*(*info).dataparams).reflps
     v_dop = (*(*info).plotaxes).v_dop_ref
   ENDIF
@@ -5580,14 +5696,19 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
   diag_widths = diag_width[wheredisp]
   diag_starts = diag_start[wheredisp]
   diag_ratio = diag_widths / FLOAT(TOTAL(diag_widths))
+  lp_low_loc = lp_low[wheredisp]+diag_starts
+  lp_upp_loc = lp_upp[wheredisp]+diag_starts
   IF (ndisp_diagnostics GT 1) THEN BEGIN
     lambda_widths = FLTARR(ndisp_diagnostics)
     dop_widths = FLTARR(ndisp_diagnostics)
+    diag_widths_tmp = FLTARR(ndisp_diagnostics)
     FOR d=0,ndisp_diagnostics-1 DO BEGIN
-      lambda_widths[d] = lps[diag_starts[d]+diag_widths[d]-1] - lps[diag_starts[d]]
-      dop_widths[d] = (*v_dop[wheredisp[d]])[diag_widths[d]-1] - $
-        (*v_dop[wheredisp[d]])[0]
+      lambda_widths[d] = lps[lp_upp_loc[d]] - lps[lp_low_loc[d]]
+      dop_widths[d] = (*v_dop[wheredisp[d]])[lp_upp[wheredisp[d]]-1] - $
+                      (*v_dop[wheredisp[d]])[lp_low[wheredisp[d]]]
     ENDFOR
+    diag_widths_tmp = lp_upp[wheredisp] - lp_low[wheredisp] ;+ 1
+    diag_ratio = diag_widths_tmp / FLOAT(TOTAL(diag_widths_tmp))
     order = FLOOR(ALOG10(lambda_widths))
     int_widths = FLOOR(lambda_widths/10^FLOAT(order))*10^FLOAT(order)
     wheremin = WHERE(int_widths EQ MIN(int_widths, /NAN, MAX=int_widths_max))
@@ -5597,7 +5718,8 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
     xtickinterval = [xtickint_def, (int_widths[wheremax])[0]]
     doporder = FLOOR(ALOG10(dop_widths))
     int_dopwidths = FLOOR(dop_widths/10^FLOAT(doporder))*10^FLOAT(doporder)
-    wheredopmin = WHERE(int_dopwidths EQ MIN(int_dopwidths, /NAN, MAX=int_dopwidths_max))
+    wheredopmin = WHERE(int_dopwidths EQ MIN(int_dopwidths, /NAN, $
+      MAX=int_dopwidths_max))
     wheredopmax = WHERE(int_dopwidths EQ int_dopwidths_max)
     ; Have at least two major tickmarks per range for the smallest range
     xdoptickint_def = (int_dopwidths[wheredopmin]/2.)[0]
@@ -5606,7 +5728,8 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
       xtickinterval /= 2.
       xdoptickinterval[0] /= 2.
     ENDIF
-    ; Convert xtickinterval[1] to number of tickmarks, instead of tick value difference
+    ; Convert xtickinterval[1] to number of tickmarks, instead of tick value
+    ; difference
     xtickinterval[1] = ROUND(xtickinterval[1]/(xtickinterval[0] > 1.))
     xdoptickinterval[1] = ROUND(xdoptickinterval[1]/((2.*xdoptickinterval[0]) > 1.))
   ENDIF ELSE BEGIN
@@ -6038,8 +6161,7 @@ PRO CRISPEX_DRAW_SUBCOLOR, event, imref, subcolor, minimum, maximum, $
     ((imref EQ 0) OR (imref EQ 2)) * (*(*info).intparams).lp_diag_all + $
     ((imref GT 0)+(imref GT 2)) * (*(*info).intparams).ndiagnostics + $
     (imref EQ 1) * (*(*info).intparams).lp_ref_diag_all + $
-    (imref GT 1) * (*(*info).intparams).nrefdiagnostics ;+ $
-;    (imref GT 2)
+    (imref GT 1) * (*(*info).intparams).nrefdiagnostics 
 	IF (imref EQ 0) THEN $
 		selected_data = (*(*(*info).data).imagedata)[$
       (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * $
@@ -6103,8 +6225,7 @@ PRO CRISPEX_DRAW_SCALING, event, finalimage, minimum, maximum, $
   scale_idx = ((sel EQ 0) OR (sel EQ 2)) * (*(*info).intparams).lp_diag_all + $
     ((sel GT 0) + (sel GT 2)) * (*(*info).intparams).ndiagnostics + $
     (sel EQ 1) * (*(*info).intparams).lp_ref_diag_all + $
-    (sel GT 1) * (*(*info).intparams).nrefdiagnostics ;+ $
-;    (sel GT 2)
+    (sel GT 1) * (*(*info).intparams).nrefdiagnostics 
   IF KEYWORD_SET(MAIN) THEN BEGIN
    ; sel = 0
     datadims = SIZE(*(*(*info).data).xyslice,/N_DIMENSIONS)
@@ -6465,22 +6586,13 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
       IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showls) THEN BEGIN
         WSET, (*(*info).winids).lswid
+        disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
+        lp_lower = (*(*info).dispparams).lp_low_tmp[disp_idx]+$
+          (*(*info).intparams).diag_start[disp_idx]
+        lp_upper = (*(*info).dispparams).lp_upp_tmp[disp_idx]+$
+          (*(*info).intparams).diag_start[disp_idx]
         ; Determine xrange to display and xticklen
-        IF ((*(*info).intparams).ndiagnostics GT 1) THEN $
-          xrange = (*(*info).dataparams).lps[[$
-            (*(*info).intparams).diag_start[$
-              (*(*(*info).intparams).wheredispdiag)[d]],$
-            ((*(*info).intparams).diag_start[$
-              (*(*(*info).intparams).wheredispdiag)[d]]+$
-            (*(*info).intparams).diag_width[$
-              (*(*(*info).intparams).wheredispdiag)[d]]-1)]] $
-        ELSE $
-          xrange = [(*(*info).dataparams).lps[(*(*info).dispparams).lp_low], $
-            (*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]]
-        lp_lower = (*(*info).intparams).diag_start[$
-          (*(*(*info).intparams).wheredispdiag)[d]]
-        lp_upper = lp_lower+(*(*info).intparams).diag_width[$
-          (*(*(*info).intparams).wheredispdiag)[d]]-1
+        xrange = (*(*info).dataparams).lps[[lp_lower,lp_upper]] 
         ; Set y-axes parameters based on diagnostic plot
         IF (d EQ 0) THEN BEGIN
           offset = 0 
@@ -6497,8 +6609,7 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
         lsx1 = diag_range_ls[d] + lsx0
         ; Plot basic window with average spectrum
      		PLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
-          spec[lp_lower:lp_upper]*(*(*info).scaling).mult_val[$
-          (*(*(*info).intparams).wheredispdiag)[d]], $
+          spec[lp_lower:lp_upper]*(*(*info).scaling).mult_val[disp_idx], $
           /NORM, CHARSIZE=1, YS=1, YR=[ls_low_y,ls_upp_y], $
           XR=xrange, YTICKNAME=ytickname, $
           XMINOR=(0-((*(*info).intparams).ndisp_diagnostics GT 1)), $
@@ -6513,16 +6624,12 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           COLOR = (*(*info).plotparams).plotcol, LINE=3, $
           NOERASE=((((*(*info).intparams).ndiagnostics GT 1) AND (d GT 0)) OR $
           (i GT 0))
-        IF ((*(*info).scaling).mult_val[$
-          (*(*(*info).intparams).wheredispdiag)[d]] NE 1) THEN BEGIN
+        IF ((*(*info).scaling).mult_val[disp_idx] NE 1) THEN BEGIN
           XYOUTS,0.1*(xrange[1]-xrange[0])+xrange[0], $
             0.9*(ls_upp_y-ls_low_y)+ls_low_y, $
-            STRING((*(*info).scaling).mult_val[$
-            (*(*(*info).intparams).wheredispdiag)[d]], FORMAT='(F'+$
-            STRTRIM(FLOOR(ALOG10(ABS((*(*info).scaling).mult_val[$
-            (*(*(*info).intparams).wheredispdiag)[d]])))+3+$
-            ((*(*info).scaling).mult_val[$
-            (*(*(*info).intparams).wheredispdiag)[d]] LT 0),2)+'.1)')+'x',$
+            STRING((*(*info).scaling).mult_val[disp_idx], FORMAT='(F'+$
+            STRTRIM(FLOOR(ALOG10(ABS((*(*info).scaling).mult_val[disp_idx])))+$
+            3+((*(*info).scaling).mult_val[disp_idx] LT 0),2)+'.1)')+'x',$
             COLOR=(*(*info).plotparams).plotcol, /DATA
         ENDIF
         ; In case of multiple diagnostics
@@ -6534,9 +6641,9 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
               (*(*info).plottitles).spxtitle,ALIGNMENT=0.5, $
               COLOR = (*(*info).plotparams).plotcol,/NORMAL
           ; Set range for Doppler axis
-          vdop_xrange = (*(*(*info).plotaxes).v_dop[$
-            (*(*(*info).intparams).wheredispdiag)[d]])[$
-            [0,(*(*(*info).intparams).diag_widths)[d]-1]]
+          vdop_xrange = (*(*(*info).plotaxes).v_dop[disp_idx])[$
+            [(*(*info).dispparams).lp_low_tmp[disp_idx], $
+             (*(*info).dispparams).lp_upp_tmp[disp_idx]]]
           IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
             ; Redraw x-axis with custom labelling
             IF (*(*info).plotswitch).xtick_reset THEN BEGIN
@@ -6563,7 +6670,7 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           ENDIF
         ENDIF ELSE $
           vdop_xrange = (*(*(*info).plotaxes).v_dop[0])[$
-            [(*(*info).dispparams).lp_low,(*(*info).dispparams).lp_upp]]
+            [(*(*info).dispparams).lp_low_tmp,(*(*info).dispparams).lp_upp_tmp]]
         ; Display Stokes label if Stokes data
         IF (*(*info).plotswitch).multichannel THEN $
     		  XYOUTS, ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]-$
@@ -6633,15 +6740,13 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
         IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN BEGIN
           ; Overplot detailed spectrum
       		OPLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
-            ssp[lp_lower:lp_upper]*(*(*info).scaling).mult_val[$
-            (*(*(*info).intparams).wheredispdiag)[d]], $
+            ssp[lp_lower:lp_upper]*(*(*info).scaling).mult_val[disp_idx], $
             LINE=0, COLOR = (*(*info).plotparams).plotcol
           ; Overplot average minus detailed spectrum
       		IF (*(*info).plotswitch).subtract THEN $
       			OPLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
               (spec[lp_lower:lp_upper]-ssp[lp_lower:lp_upper])*$
-              (*(*info).scaling).mult_val[$
-              (*(*(*info).intparams).wheredispdiag)[d]], $
+              (*(*info).scaling).mult_val[disp_idx], $
               COLOR = (*(*info).plotparams).plotcol, LINE=2
           IF (d EQ lp_diag) THEN BEGIN
             ; Overplot spectral indicator
@@ -6673,7 +6778,7 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
         'No data availabe for!Cselected pixel position', $
         COLOR=(*(*info).plotparams).plotcol, ALIGN=0.5, CHARSIZE=1.2, /NORMAL
   ENDFOR
-  ; Pre-draw procedures for SP
+  ; Pre-draw procedures: spectrum-time diagram (SP)
   IF (~KEYWORD_SET(LS_ONLY) AND (*(*info).winswitch).showsp) THEN BEGIN
   	IF (*(*info).dispparams).slices_imscale THEN BEGIN
       CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum, /MAIN
@@ -6712,38 +6817,31 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
               (*(*info).dispparams).t_low_main) * (*(*info).plotpos).yplspw + $
               (*(*info).plotpos).spy0), /NORMAL, COLOR = 100
       ; Overplot lp indicator
-      IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-        ; Determine in which diagnostic the current LP lies
-        IF (lp_diag EQ 0) THEN $
-          offset = 0 $
-        ELSE $
-          offset = TOTAL((*(*(*info).plotaxes).diag_range_sp)[0:(lp_diag-1)])
-        spx0 = (*(*info).plotpos).spx0 + offset
-        xplspw = (*(*(*info).plotaxes).diag_range_sp)[lp_diag]
-        ; Get the corresponding lp_disprange
-        lp_disprange = (*(*info).dataparams).lps[$
-                        (*(*(*info).intparams).diag_starts)[lp_diag]+$
-                        (*(*(*info).intparams).diag_widths)[lp_diag]-1] - $
-                       (*(*info).dataparams).lps[$
-                        (*(*(*info).intparams).diag_starts)[lp_diag]]
-        lp_lower = $
-          (*(*info).dataparams).lps[(*(*(*info).intparams).diag_starts)[lp_diag]]
-      ENDIF ELSE BEGIN
-        lp_disprange = ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]-$
-                        (*(*info).dataparams).lps[(*(*info).dispparams).lp_low])
-        spx0 = (*(*info).plotpos).spx0
-        xplspw = (*(*info).plotpos).xplspw 
-        lp_lower = (*(*info).dataparams).lps[(*(*info).dispparams).lp_low]
-      ENDELSE
+      ; Determine in which diagnostic the current LP lies
+      IF (lp_diag EQ 0) THEN $
+        offset = 0 $
+      ELSE $
+        offset = TOTAL((*(*(*info).plotaxes).diag_range_sp)[0:(lp_diag-1)])
+      spx0 = (*(*info).plotpos).spx0 + offset
+      xplspw = (*(*(*info).plotaxes).diag_range_sp)[lp_diag]
+      ; Get the corresponding lp_disprange
+      lp_disprange = (*(*info).dataparams).lps[$
+                      (*(*info).dispparams).lp_upp_tmp[$
+                      (*(*info).intparams).lp_diag_all]+$
+                      (*(*(*info).intparams).diag_starts)[lp_diag]] - $
+                     (*(*info).dataparams).lps[$
+                      (*(*info).dispparams).lp_low_tmp[$
+                      (*(*info).intparams).lp_diag_all]+$
+                      (*(*(*info).intparams).diag_starts)[lp_diag]]
+      lp_lower = (*(*info).dataparams).lps[$
+        (*(*info).dispparams).lp_low_bounds[(*(*info).intparams).lp_diag_all]]
       PLOTS, [1,1] * ( ((*(*info).dataparams).lps[(*(*info).dataparams).lp] - $
                         lp_lower) / lp_disprange * xplspw + spx0 ), $
       	[(*(*info).plotpos).spy0, (*(*info).plotpos).spy1], /NORMAL, COLOR=100
       ; If drawing Doppler, overplot lp_dop indicator
       IF (*(*info).dispswitch).drawdop THEN $         
         PLOTS, [1,1] * (((*(*info).dataparams).lps[$
-                          (*(*info).dataparams).lp_dop]-$
-                        (*(*info).dataparams).lps[$
-                          (*(*(*info).intparams).diag_starts)[lp_diag]]) / $
+                          (*(*info).dataparams).lp_dop]-lp_lower) / $
                         lp_disprange * xplspw + spx0 ), $
       	  [(*(*info).plotpos).spy0, (*(*info).plotpos).spy1], /NORMAL, COLOR=100
       ; If drawing reference, and refnlp=nlp but lp_ref != lp, then overplot 
@@ -6751,14 +6849,24 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
       IF ((*(*info).winswitch).showref AND $
          ((*(*info).ctrlsswitch).lp_ref_lock EQ 0) AND $
          ((*(*info).dataswitch).refspfile EQ 0) AND $
-         ((*(*info).dataparams).refnlp GT 1)) THEN $
+         ((*(*info).dataparams).refnlp GT 1)) THEN BEGIN
+        lp_ref_diag = TOTAL((*(*info).dataparams).lp_ref GE $
+          *(*(*info).intparams).refdiag_starts)-1
       	PLOTS, [1,1] * ( $
+          ; Current lp_ref minus lower lp_ref value
           ((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref] - $
-           (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low]) / $
-          ((*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_upp] - $
-           (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low]) * $
+            (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low_bounds[$
+            (*(*info).intparams).lp_ref_diag_all]]) / $
+          ; Divided by lp_ref_disprange
+            ((*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_upp_tmp[$
+            (*(*info).intparams).lp_ref_diag_all]+$
+            (*(*(*info).intparams).refdiag_starts)[lp_ref_diag]] - $
+            (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low_tmp[$
+            (*(*info).intparams).lp_ref_diag_all]+$
+            (*(*(*info).intparams).refdiag_starts)[lp_ref_diag]]) * $
           (*(*info).plotpos).xplspw + (*(*info).plotpos).spx0 ), $
       		[(*(*info).plotpos).spy0, (*(*info).plotpos).spy1], /NORMAL, COLOR=100
+      ENDIF
     ENDIF ELSE $
   		XYOUTS, (*(*info).plotpos).xplspw/2.+(*(*info).plotpos).spx0,$
               (*(*info).plotpos).yplspw/2.+(*(*info).plotpos).spy0,$
@@ -6823,23 +6931,16 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
     diag_range_ls = *(*(*info).plotaxes).refdiag_ratio * $
       ((*(*info).plotpos).reflsx1 - (*(*info).plotpos).reflsx0)
     FOR d=0,(*(*info).intparams).ndisp_refdiagnostics-1 DO BEGIN
-      mult_idx = (*(*info).intparams).ndiagnostics+$
-        (*(*(*info).intparams).wheredisprefdiag)[d]
+      disp_idx = (*(*(*info).intparams).wheredisprefdiag)[d]
+      mult_idx = (*(*info).intparams).ndiagnostics+disp_idx
+      lp_lower = (*(*info).dispparams).lp_ref_low_tmp[disp_idx]+$
+        (*(*info).intparams).refdiag_start[disp_idx]
+      lp_upper = (*(*info).dispparams).lp_ref_upp_tmp[disp_idx]+$
+        (*(*info).intparams).refdiag_start[disp_idx]
       ; Draw REFLS window
 	    WSET, (*(*info).winids).reflswid
       ; Determine xrange to display
-      IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN $
-        xrange = (*(*info).dataparams).reflps[[$
-          (*(*info).intparams).refdiag_start[$
-            (*(*(*info).intparams).wheredisprefdiag)[d]],$
-          ((*(*info).intparams).refdiag_start[$
-            (*(*(*info).intparams).wheredisprefdiag)[d]]+$
-          (*(*info).intparams).refdiag_width[$
-            (*(*(*info).intparams).wheredisprefdiag)[d]]-1)]] $
-      ELSE $
-        xrange = $
-          [(*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low], $
-           (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_upp]]
+      xrange = (*(*info).dataparams).reflps[[lp_lower,lp_upper]] 
       lp_ref_lower = (*(*info).intparams).refdiag_start[$
         (*(*(*info).intparams).wheredisprefdiag)[d]]
       lp_ref_upper = lp_ref_lower+(*(*info).intparams).refdiag_width[$
@@ -6890,9 +6991,9 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
             (*(*info).plottitles).refspxtitle,ALIGNMENT=0.5, $
             COLOR=(*(*info).plotparams).plotcol, /NORMAL
         ; Set range for Doppler axis
-        vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[$
-          (*(*(*info).intparams).wheredisprefdiag)[d]])[$
-          [0,(*(*(*info).intparams).refdiag_widths)[d]-1]]
+        vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[disp_idx])[$
+          [(*(*info).dispparams).lp_ref_low_tmp[disp_idx], $
+           (*(*info).dispparams).lp_ref_upp_tmp[disp_idx]]]
         IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
           ; Redraw x-axis with custom labelling
           IF (*(*info).plotswitch).xreftick_reset THEN BEGIN
@@ -6919,7 +7020,8 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
         ENDIF
       ENDIF ELSE $
         vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[0])[$
-          [(*(*info).dispparams).lp_ref_low,(*(*info).dispparams).lp_ref_upp]]
+          [(*(*info).dispparams).lp_ref_low_tmp,$
+          (*(*info).dispparams).lp_ref_upp_tmp]]
       ; Display Doppler velocities on top axis if info available
       IF ((*(*info).plotswitch).v_dop_set_ref EQ 1) THEN BEGIN
         IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
@@ -7043,32 +7145,28 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
               (*(*info).dispparams).t_low_ref) * (*(*info).plotpos).refyplspw +$
               (*(*info).plotpos).refspy0), /NORMAL, COLOR = 100
       ; Overplot lp indicator
-      IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
-        ; Determine in which diagnostic the current LP lies
-        IF (lp_ref_diag EQ 0) THEN $
-          offset = 0 $
-        ELSE $
-          offset = $
-            TOTAL((*(*(*info).plotaxes).refdiag_range_sp)[0:(lp_ref_diag-1)])
-        refspx0 = (*(*info).plotpos).refspx0 + offset
-        refxplspw = (*(*(*info).plotaxes).refdiag_range_sp)[lp_ref_diag]
-        ; Get the corresponding lp_disprange
-        lp_ref_disprange = (*(*info).dataparams).reflps[$
-          (*(*(*info).intparams).refdiag_starts)[lp_ref_diag]+$
-          (*(*(*info).intparams).refdiag_widths)[lp_ref_diag]-1]-$
-          (*(*info).dataparams).reflps[$
-          (*(*(*info).intparams).refdiag_starts)[lp_ref_diag]]
-      ENDIF ELSE BEGIN
-        lp_ref_disprange = ((*(*info).dataparams).reflps[$
-          (*(*info).dispparams).lp_ref_upp] - $
-          (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low])
-        refspx0 = (*(*info).plotpos).refspx0
-        refxplspw = (*(*info).plotpos).refxplspw 
-      ENDELSE
-    	PLOTS, [1,1] * ( $
-        ((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref] - $
-        (*(*info).dataparams).reflps[(*(*(*info).intparams).refdiag_starts)[$
-        lp_ref_diag]])/lp_ref_disprange * refxplspw + refspx0 ), $
+      ; Determine in which diagnostic the current LP lies
+      IF (lp_ref_diag EQ 0) THEN $
+        offset = 0 $
+      ELSE $
+        offset = $
+          TOTAL((*(*(*info).plotaxes).refdiag_range_sp)[0:(lp_ref_diag-1)])
+      refspx0 = (*(*info).plotpos).refspx0 + offset
+      refxplspw = (*(*(*info).plotaxes).refdiag_range_sp)[lp_ref_diag]
+      ; Get the corresponding lp_disprange
+      lp_ref_disprange = (*(*info).dataparams).reflps[$
+                      (*(*info).dispparams).lp_ref_upp_tmp[$
+                      (*(*info).intparams).lp_ref_diag_all]+$
+                      (*(*(*info).intparams).refdiag_starts)[lp_ref_diag]] - $
+                     (*(*info).dataparams).reflps[$
+                      (*(*info).dispparams).lp_ref_low_tmp[$
+                      (*(*info).intparams).lp_ref_diag_all]+$
+                      (*(*(*info).intparams).refdiag_starts)[lp_ref_diag]]
+      lp_ref_lower = (*(*info).dataparams).reflps[$
+        (*(*info).dispparams).lp_ref_low_bounds[$
+        (*(*info).intparams).lp_ref_diag_all]]
+      PLOTS, [1,1] * (((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref]-$
+                        lp_ref_lower) / lp_ref_disprange * refxplspw + refspx0 ), $
     		[(*(*info).plotpos).refspy0, (*(*info).plotpos).refspy1], /NORMAL, $
         COLOR = 100
     ENDIF ELSE $
@@ -7082,24 +7180,29 @@ END
 PRO CRISPEX_DRAW_PHIS, event
 ; (Re)draw spectral slice along a slit procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).phiswid
   ; If 2D, then display
   IF ((SIZE(*(*(*info).data).phislice))[0] EQ 2) THEN BEGIN
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
+      disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
       ; Get spectrum-slit diagram by diagnostics
       IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-        lp_lower = TOTAL((*(*(*info).intparams).diag_widths)[0:d]) - $
-          (*(*(*info).intparams).diag_widths)[d]
-        lp_upper = lp_lower+(*(*(*info).intparams).diag_widths)[d]-1
+        lp_lower = (*(*info).dispparams).lp_low_tmp[disp_idx]+$
+          (*(*info).intparams).diag_start[disp_idx]
+        lp_upper = (*(*info).dispparams).lp_upp_tmp[disp_idx]+$
+          (*(*info).intparams).diag_start[disp_idx]
       ENDIF ELSE BEGIN
         lp_lower = 0
         lp_upper = (*(*info).dispparams).lp_upp-(*(*info).dispparams).lp_low
       ENDELSE
       ; Construct spectrum-slit diagram by diagnostic
       tmp_disp = BYTSCL( (*(*(*info).data).phislice)[lp_lower:lp_upper,*], $
-        MIN=(*(*info).scaling).phislice_min[(*(*(*info).intparams).wheredispdiag)[d]],$ 
-        MAX=(*(*info).scaling).phislice_max[(*(*(*info).intparams).wheredispdiag)[d]],$
+        MIN=(*(*info).scaling).phislice_min[$
+        (*(*(*info).intparams).wheredispdiag)[d]],$ 
+        MAX=(*(*info).scaling).phislice_max[$
+        (*(*(*info).intparams).wheredispdiag)[d]],$
         /NAN)
       IF (d EQ 0) THEN $
         final_disp = tmp_disp $
@@ -7108,19 +7211,24 @@ PRO CRISPEX_DRAW_PHIS, event
     ENDFOR
     ; Display full spectrum-slit diagram at once
     TV,(CONGRID( final_disp, (*(*info).dispparams).phisnlpreb, $
-      (*(*info).dispparams).nphireb, INTERP = (*(*info).dispparams).interpspslice, /CENTER) ), $
+      (*(*info).dispparams).nphireb, $
+      INTERP=(*(*info).dispparams).interpspslice, /CENTER) ), $
       (*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, /NORMAL
     !X.WINDOW = [(*(*info).plotpos).phisx0,(*(*info).plotpos).phisx1]
     !Y.WINDOW = [(*(*info).plotpos).phisy0,(*(*info).plotpos).phisy1]
     IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
       ; Loop over all but the last diagnostic for plotting separators
       FOR d=1,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
-        AXIS,TOTAL((*(*(*info).plotaxes).diag_range_phis)[0:(d-1)])+(*(*info).plotpos).phisx0, YAXIS=0, $
-          YTICKLEN=(*(*info).plotaxes).phisyticklen, YTICKNAME = REPLICATE(' ',60), COLOR=100,/NORMAL,$
-          YRANGE = (*(*info).plotaxes).phis_yrange, /YSTYLE, /NOERASE
-        AXIS,TOTAL((*(*(*info).plotaxes).diag_range_phis)[0:(d-1)])+(*(*info).plotpos).phisx0, YAXIS=1, $
-          YTICKLEN=(*(*info).plotaxes).phisyticklen, YTICKNAME = REPLICATE(' ',60), COLOR=100,/NORMAL,$
-          YRANGE = (*(*info).plotaxes).phis_yrange, /YSTYLE, /NOERASE
+        AXIS,TOTAL((*(*(*info).plotaxes).diag_range_phis)[0:(d-1)])+$
+          (*(*info).plotpos).phisx0, YAXIS=0, $
+          YTICKLEN=(*(*info).plotaxes).phisyticklen, $
+          YTICKNAME=REPLICATE(' ',60), COLOR=100,/NORMAL,$
+          YRANGE=(*(*info).plotaxes).phis_yrange, /YSTYLE, /NOERASE
+        AXIS,TOTAL((*(*(*info).plotaxes).diag_range_phis)[0:(d-1)])+$
+          (*(*info).plotpos).phisx0, YAXIS=1, $
+          YTICKLEN=(*(*info).plotaxes).phisyticklen, $
+          YTICKNAME=REPLICATE(' ',60), COLOR=100,/NORMAL,$
+          YRANGE=(*(*info).plotaxes).phis_yrange, /YSTYLE, /NOERASE
       ENDFOR
     ENDIF
     ; Overplot slit center indicator
@@ -7130,7 +7238,7 @@ PRO CRISPEX_DRAW_PHIS, event
                   (*(*info).plotpos).phisyplspw + (*(*info).plotpos).phisy0), /NORMAL, COLOR = 100
     ; Overplot lp indicator
     lp_diag = TOTAL((*(*info).dataparams).lp GE *(*(*info).intparams).diag_starts)-1
-    IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
+;    IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
       ; Determine in which diagnostic the current LP lies
       IF (lp_diag EQ 0) THEN $
         offset = 0 $
@@ -7140,29 +7248,34 @@ PRO CRISPEX_DRAW_PHIS, event
       phisxplspw = (*(*(*info).plotaxes).diag_range_phis)[lp_diag]
       ; Get the corresponding lp_disprange
       lp_disprange = (*(*info).dataparams).lps[$
-                      (*(*(*info).intparams).diag_starts)[lp_diag]+$
-                      (*(*(*info).intparams).diag_widths)[lp_diag]-1] - $
-                      (*(*info).dataparams).lps[$
+                      (*(*info).dispparams).lp_upp_tmp[lp_diag]+$
+                      (*(*(*info).intparams).diag_starts)[lp_diag]] - $
+                     (*(*info).dataparams).lps[$
+                      (*(*info).dispparams).lp_low_tmp[lp_diag]+$
                       (*(*(*info).intparams).diag_starts)[lp_diag]]
-      lp_lower = (*(*info).dataparams).lps[(*(*(*info).intparams).diag_starts)[lp_diag]]
-    ENDIF ELSE BEGIN
-      lp_disprange = ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp] - $
-                      (*(*info).dataparams).lps[(*(*info).dispparams).lp_low])
-      phisx0 = (*(*info).plotpos).phisx0
-      phisxplspw = (*(*info).plotpos).phisxplspw 
-      lp_lower = (*(*info).dataparams).lps[(*(*info).dispparams).lp_low]
-    ENDELSE
+      lp_lower = $
+        (*(*info).dataparams).lps[(*(*(*info).intparams).diag_starts)[lp_diag]+$
+          (*(*info).dispparams).lp_low_tmp[lp_diag]]
+;    ENDIF ELSE BEGIN
+;      lp_disprange = $
+;        ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp_tmp[0]] - $
+;        (*(*info).dataparams).lps[(*(*info).dispparams).lp_low_tmp[0]])
+;      phisx0 = (*(*info).plotpos).phisx0
+;      phisxplspw = (*(*info).plotpos).phisxplspw 
+;      lp_lower = (*(*info).dataparams).lps[(*(*info).dispparams).lp_low_tmp[0]]
+;    ENDELSE
   	PLOTS, [1,1] * ( ((*(*info).dataparams).lps[(*(*info).dataparams).lp] - $
                       lp_lower) / lp_disprange * phisxplspw + phisx0 ), $
   		[(*(*info).plotpos).phisy0, (*(*info).plotpos).phisy1], /NORMAL, COLOR = 100
   ; If not 2D, then show black screen and "error" message
   ENDIF ELSE BEGIN
     TV, CONGRID(*(*(*info).data).emptydopslice,(*(*info).dispparams).phisnlpreb, $
-      (*(*info).dispparams).nphireb), (*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, /NORMAL
+      (*(*info).dispparams).nphireb), (*(*info).plotpos).phisx0, $
+      (*(*info).plotpos).phisy0, /NORMAL
 		XYOUTS, (*(*info).plotpos).phisxplspw/2.+(*(*info).plotpos).phisx0,$
             (*(*info).plotpos).phisyplspw/2.+(*(*info).plotpos).phisy0,$
-            'No Phi-slice availabe for !C selected pixel position', COLOR = 255, ALIGNMENT = 0.5, $
-            CHARSIZE=1.2, /NORMAL
+            'No Phi-slice availabe for !C selected pixel position', $
+            COLOR=255, ALIGNMENT=0.5, CHARSIZE=1.2, /NORMAL
   ENDELSE
 END
 
@@ -8758,7 +8871,8 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
     v_dop = PTRARR(ndiagnostics)
     FOR dd=0,ndiagnostics-1 DO BEGIN
   	  IF v_dop_set[d] THEN BEGIN
-        lps_select_loc = lps_select[diag_start[dd]:(diag_start[dd]+(diag_width[dd]-1))]
+        lps_select_loc = lps_select[diag_start[dd]:(diag_start[dd]+$
+          (diag_width[dd]-1))]
         IF cube_compatibility[d] THEN $
           v_dop_loc = c_speed*(lps_select_loc/lps_select_loc[LONG(lc)]-1) $
         ELSE BEGIN
@@ -8767,7 +8881,10 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
         ENDELSE
       ENDIF ELSE BEGIN
         nlp_select_loc = diag_width[dd]
-        v_dop_loc = FLTARR(nlp_select_loc)					; array with Doppler velocities in km/s
+        wavearr = FINDGEN(nlp_select_loc)					
+        IF (cube_compatibility[d] EQ 0) THEN $
+          lc = twave[dd]
+        v_dop_loc = wavearr - wavearr[LONG(lc)] 
       ENDELSE
       v_dop[dd] = PTR_NEW(v_dop_loc)
     ENDFOR
@@ -11393,10 +11510,14 @@ END
 PRO CRISPEX_RESTORE_LOOPS_MENU_CLOSE, event
 ; Handles the closing of the restored loops menu and clean-up of display afterwards
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF ((*(*info).dispparams).t_range NE (*(*info).dataparams).nt) THEN CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW
-	IF ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp) THEN CRISPEX_DISPRANGE_LP_RESET, event, /NO_DRAW
-	IF ((*(*info).dispparams).lp_ref_range NE (*(*info).dataparams).refnlp) THEN CRISPEX_DISPRANGE_LP_REF_RESET, event, /NO_DRAW
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF ((*(*info).dispparams).t_range NE (*(*info).dataparams).nt) THEN $
+    CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW
+	IF ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp) THEN $
+    CRISPEX_DISPRANGE_LP_RESET, event, /NO_DRAW
+	IF ((*(*info).dispparams).lp_ref_range NE (*(*info).dataparams).refnlp) THEN $
+    CRISPEX_DISPRANGE_LP_RESET, event, /REFERENCE, /NO_DRAW
 	WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_all, SENSITIVE = 0
 	WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, SENSITIVE = 0
 	(*(*info).loopswitch).restore_loops = 0
@@ -11447,10 +11568,14 @@ END
 PRO CRISPEX_RESTORE_LOOPS_UPDATE_FILELIST, event
 ; Handles the update of the restored file list
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF ((*(*info).dispparams).t_range NE (*(*info).dataparams).nt) THEN CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW
-	IF ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp) THEN CRISPEX_DISPRANGE_LP_RESET, event, /NO_DRAW
-	IF ((*(*info).dispparams).lp_ref_range NE (*(*info).dataparams).refnlp) THEN CRISPEX_DISPRANGE_LP_REF_RESET, event, /NO_DRAW
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF ((*(*info).dispparams).t_range NE (*(*info).dataparams).nt) THEN $
+    CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW
+	IF ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp) THEN $
+    CRISPEX_DISPRANGE_LP_RESET, event, /NO_DRAW
+	IF ((*(*info).dispparams).lp_ref_range NE (*(*info).dataparams).refnlp) THEN $
+    CRISPEX_DISPRANGE_LP_RESET, event, /REFERENCE, /NO_DRAW
 	(*(*info).restoreparams).disp_loopfile = '0'
 	*(*(*info).restoreparams).disp_loopnr = -1
 	IF (*(*info).winswitch).showrestloop THEN BEGIN
@@ -14927,11 +15052,12 @@ PRO CRISPEX_SAVE_OPTIONS_INCLUDE_DETSPECT, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savparams).linescan_ls],labels=['Save detailed spectrum']
 END
 
-;================================================================================= SLIDER CONTROL PROCEDURES
+;==================== SLIDER CONTROL PROCEDURES
 PRO CRISPEX_SLIDER_NPHI, event
 ; Handles the change in spectral slit length slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).phiparams).nphi_set = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).phiparams).nphi_set],labels=['Phi-slit length']
@@ -14942,7 +15068,8 @@ END
 PRO CRISPEX_SLIDER_PHI_ANGLE, event
 ; Handles the change in spectral slit angle slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).phiparams).angle = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).phiparams).angle],labels=['Phi-slit angle']
@@ -14954,11 +15081,12 @@ END
 PRO CRISPEX_SLIDER_LP, event
 ; Handles the change in spectral position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp = event.VALUE
   WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
     SENSITIVE=((*(*info).pbparams).lp_blink NE (*(*info).dataparams).lp)
-	CRISPEX_SLIDER_LP_UPDATE, event
+	CRISPEX_SLIDER_LP_UPDATE, event, OVERRIDE_DIAGNOSTIC=(event.DRAG EQ 0)
 END
 
 PRO CRISPEX_SLIDER_LP_DECR, event
@@ -14986,7 +15114,7 @@ PRO CRISPEX_SLIDER_LP_REF, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).dataparams).lp_ref = event.VALUE
-	CRISPEX_SLIDER_LP_UPDATE, event
+	CRISPEX_SLIDER_LP_UPDATE, event, OVERRIDE_DIAGNOSTIC=(event.DRAG EQ 0)
 END
 
 PRO CRISPEX_SLIDER_LP_REF_DECR, event
@@ -15031,44 +15159,114 @@ PRO CRISPEX_SLIDER_LP_REF_LOCK, event, UNLOCK=unlock, NO_DRAW=no_draw
   ENDIF
 END
 
+PRO CRISPEX_SLIDER_LP_RESTRICT_LOW, event
+; Handles restricting the lower boundary of the wavelength/height range
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  (*(*info).dispparams).v_dop_low[$
+    ((*(*info).dispswitch).lp_restrict[1] EQ 1)] = event.VALUE 
+  CRISPEX_SLIDER_LP_RESTRICT, event
+END
+
+PRO CRISPEX_SLIDER_LP_RESTRICT_UPP, event
+; Handles restricting the upper boundary of the wavelength/height range
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  (*(*info).dispparams).v_dop_upp[$
+    ((*(*info).dispswitch).lp_restrict[1] EQ 1)] = event.VALUE 
+  CRISPEX_SLIDER_LP_RESTRICT, event
+END
+
+PRO CRISPEX_SLIDER_LP_RESTRICT, event, REFERENCE=reference, NO_DRAW=no_draw
+; Handles restricting the wavelength/height range
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF ((*(*info).dispswitch).lp_restrict[0] AND ~KEYWORD_SET(REFERENCE)) THEN BEGIN
+    reset_sens = ((*(*info).dispparams).v_dop_low[0] NE $
+                 (*(*info).dispparams).v_dop_low_min) OR $
+                 ((*(*info).dispparams).v_dop_upp[0] NE $
+                 (*(*info).dispparams).v_dop_upp_max)
+    FOR d=0,(*(*info).intparams).ndiagnostics-1 DO BEGIN
+      vdop_tmp = (*(*(*info).plotaxes).v_dop[d])[$
+        0:((*(*info).intparams).diag_width)[d]-1]
+      wheresel = WHERE((vdop_tmp GE (*(*info).dispparams).v_dop_low[0]) AND $
+                       (vdop_tmp LE (*(*info).dispparams).v_dop_upp[0]), $
+                       nwheresel)
+      (*(*info).dispparams).lp_low_tmp[d] = wheresel[0]
+      (*(*info).dispparams).lp_upp_tmp[d] = wheresel[nwheresel-1]
+    ENDFOR
+    (*(*info).dispparams).lp_low_bounds = $
+      (*(*info).intparams).diag_start + (*(*info).dispparams).lp_low_tmp
+    (*(*info).dispparams).lp_upp_bounds = $
+      (*(*info).intparams).diag_start + (*(*info).dispparams).lp_upp_tmp
+    CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
+  ENDIF 
+  IF ((*(*info).dispswitch).lp_restrict[1] OR KEYWORD_SET(REFERENCE)) THEN BEGIN
+    reset_sens = ((*(*info).dispparams).v_dop_low[1] NE $
+                 (*(*info).dispparams).v_dop_ref_low_min) OR $
+                 ((*(*info).dispparams).v_dop_upp[1] NE $
+                 (*(*info).dispparams).v_dop_ref_upp_max)
+    FOR d=0,(*(*info).intparams).nrefdiagnostics-1 DO BEGIN
+      vdop_tmp = (*(*(*info).plotaxes).v_dop_ref[d])[$
+        0:((*(*info).intparams).refdiag_width)[d]-1]
+      wheresel = WHERE((vdop_tmp GE (*(*info).dispparams).v_dop_low[1]) AND $
+                       (vdop_tmp LE (*(*info).dispparams).v_dop_upp[1]), $
+                       nwheresel)
+      (*(*info).dispparams).lp_ref_low_tmp[d] = wheresel[0]
+      (*(*info).dispparams).lp_ref_upp_tmp[d] = wheresel[nwheresel-1]
+    ENDFOR
+    (*(*info).dispparams).lp_ref_low_bounds = $
+      (*(*info).intparams).refdiag_start + (*(*info).dispparams).lp_ref_low_tmp
+    (*(*info).dispparams).lp_ref_upp_bounds = $
+      (*(*info).intparams).refdiag_start + (*(*info).dispparams).lp_ref_upp_tmp
+    CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw
+  ENDIF
+	WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, SENSITIVE=reset_sens
+END
+
+
 PRO CRISPEX_SLIDER_LP_UPDATE, event, OVERRIDE_DIAGNOSTIC=override_diagnostic, $
   NO_DRAW=no_draw
 ; Handles the the update after change in the spectral position slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-  ; Determine whether lp falls in not displayed diagnostic window, act accordingly
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  ; Determine whether lp falls in not displayed (portion of) diagnostic
+  ; window(s), act accordingly
   lp_diag_all = TOTAL((*(*info).dataparams).lp GE (*(*info).intparams).diag_start)-1
-  IF ((*(*info).intparams).disp_diagnostics[lp_diag_all] EQ 0) THEN BEGIN
-    ; Determine distance to upper and lower boundaries of closest displayed diagnostics window
-    ; 0=dist_low, 1=dist_upp, 2=disp_low_next, 3=disp_upp_next
-    dist_low_upp = CRISPEX_SLIDER_LP_DIAG(event, lp_diag_all) 
-    IF (((dist_low_upp[0] LT dist_low_upp[1]) AND KEYWORD_SET(OVERRIDE_DIAGNOSTIC)) OR $
-        ((dist_low_upp[0] GE dist_low_upp[1]) AND ~KEYWORD_SET(OVERRIDE_DIAGNOSTIC))) THEN BEGIN
-      (*(*info).dataparams).lp = (*(*info).intparams).diag_start[dist_low_upp[3]]
-      lp_diag_all = dist_low_upp[3]
-    ENDIF ELSE BEGIN
-      (*(*info).dataparams).lp = (*(*info).intparams).diag_start[dist_low_upp[2]]+$
-        (*(*info).intparams).diag_width[dist_low_upp[2]]-1 
-      lp_diag_all = dist_low_upp[2]
-    ENDELSE
-  ENDIF
+  above_low_bounds = ((*(*info).dataparams).lp GE (*(*info).dispparams).lp_low_bounds)
+  below_upp_bounds = ((*(*info).dataparams).lp LE (*(*info).dispparams).lp_upp_bounds)
+  IF ((TOTAL(above_low_bounds AND below_upp_bounds) EQ 0) OR $
+      ((*(*info).intparams).disp_diagnostics[lp_diag_all] EQ 0)) THEN BEGIN
+    ; Determine distance to upper and lower boundaries of closest displayed
+    ; diagnostics window
+    result = CRISPEX_SLIDER_LP_DIAG(event, $
+      TOTAL((*(*info).dataparams).lp GE *(*(*info).intparams).diag_starts)-1, $
+      OVERRIDE_DIAGNOSTIC=override_diagnostic)
+    (*(*info).dataparams).lp = result.lp_new
+    lp_diag_all = result.lp_diag_new
+  ENDIF 
   (*(*info).intparams).lp_diag_all = lp_diag_all
 	IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
     (*(*info).dataparams).lp_ref = (*(*info).dataparams).lp
   ; Determine whether lp_ref falls in not displayed diagnostic window, act accordingly
   lp_ref_diag_all = TOTAL((*(*info).dataparams).lp_ref GE (*(*info).intparams).refdiag_start)-1
-  IF ((*(*info).intparams).disp_refdiagnostics[lp_ref_diag_all] EQ 0) THEN BEGIN
+  above_low_bounds = ((*(*info).dataparams).lp_ref GE $
+                      (*(*info).dispparams).lp_ref_low_bounds)
+  below_upp_bounds = ((*(*info).dataparams).lp_ref LE $
+                      (*(*info).dispparams).lp_ref_upp_bounds)
+  IF ((TOTAL(above_low_bounds AND below_upp_bounds) EQ 0) OR $
+      ((*(*info).intparams).disp_refdiagnostics[lp_ref_diag_all] EQ 0)) THEN BEGIN
     ; Determine distance to upper and lower boundaries of closest displayed diagnostics window
     ; 0=dist_low, 1=dist_upp, 2=disp_low_next, 3=disp_upp_next
-    dist_low_upp = CRISPEX_SLIDER_LP_DIAG(event, lp_diag_all, /REFERENCE)
-    IF (dist_low_upp[0] GE dist_low_upp[1]) THEN BEGIN
-      (*(*info).dataparams).lp_ref = (*(*info).intparams).refdiag_start[dist_low_upp[3]]
-      lp_ref_diag_all = dist_low_upp[3]
-    ENDIF ELSE BEGIN
-      (*(*info).dataparams).lp_ref = (*(*info).intparams).refdiag_start[dist_low_upp[2]]+$
-        (*(*info).intparams).refdiag_width[dist_low_upp[2]]-1 
-      lp_ref_diag_all = dist_low_upp[2]
-    ENDELSE
+    result = CRISPEX_SLIDER_LP_DIAG(event, $
+      TOTAL((*(*info).dataparams).lp_ref GE *(*(*info).intparams).refdiag_starts)-1, $
+      OVERRIDE_DIAGNOSTIC=override_diagnostic, /REFERENCE)
+    (*(*info).dataparams).lp_ref = result.lp_new
+    lp_ref_diag_all = result.lp_diag_new
   ENDIF
   (*(*info).intparams).lp_ref_diag_all = lp_ref_diag_all
   (*(*info).scaling).idx = $
@@ -15098,22 +15296,29 @@ END
 PRO CRISPEX_SLIDER_SPECTBLINK, event
 ; Handles the change in spectral step (for spectral blink) slider
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).pbparams).lp_blink = event.VALUE
-  lp_blink_diag_all = TOTAL((*(*info).pbparams).lp_blink GE (*(*info).intparams).diag_start)-1
-  IF ((*(*info).intparams).disp_diagnostics[lp_blink_diag_all] EQ 0) THEN BEGIN
-    ; Determine distance to upper and lower boundaries of closest displayed diagnostics window
-    ; 0=dist_low, 1=dist_upp, 2=disp_low_next, 3=disp_upp_next
-    dist_low_upp = CRISPEX_SLIDER_LP_DIAG(event, lp_blink_diag_all, /BLINK) 
-    IF (dist_low_upp[0] GE dist_low_upp[1]) THEN $
-      (*(*info).pbparams).lp_blink = (*(*info).intparams).diag_start[dist_low_upp[3]] $
-    ELSE  $
-      (*(*info).pbparams).lp_blink = (*(*info).intparams).diag_start[dist_low_upp[2]]+$
-        (*(*info).intparams).diag_width[dist_low_upp[2]]-1 
+  lp_blink_diag_all = $
+    TOTAL((*(*info).pbparams).lp_blink GE (*(*info).intparams).diag_start)-1
+  above_low_bounds = $
+    ((*(*info).pbparams).lp_blink GE (*(*info).dispparams).lp_low_bounds)
+  below_upp_bounds = $
+    ((*(*info).pbparams).lp_blink LE (*(*info).dispparams).lp_upp_bounds)
+  IF ((TOTAL(above_low_bounds AND below_upp_bounds) EQ 0) OR $
+      ((*(*info).intparams).disp_diagnostics[lp_blink_diag_all] EQ 0)) THEN BEGIN
+    ; Determine distance to upper and lower boundaries of closest displayed
+    ; diagnostics window
+    result = CRISPEX_SLIDER_LP_DIAG(event, $
+      TOTAL((*(*info).pbparams).lp_blink GE *(*(*info).intparams).diag_starts)-1, $
+      OVERRIDE_DIAGNOSTIC=(event.DRAG EQ 0), /BLINK)
+    (*(*info).pbparams).lp_blink = result.lp_new
+    (*(*info).intparams).lp_diag_all = result.lp_diag_new
   ENDIF
   WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
     SENSITIVE=((*(*info).pbparams).lp_blink NE (*(*info).dataparams).lp)
-  WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_VALUE=(*(*info).pbparams).lp_blink
+  WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, $
+    SET_VALUE=(*(*info).pbparams).lp_blink
   (*(*info).dataparams).lp = (*(*info).pbparams).lp_blink
   CRISPEX_SLIDER_LP_UPDATE, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
@@ -15493,28 +15698,21 @@ PRO CRISPEX_UPDATE_SPSLICE, event
                             spslice) $
     ELSE $
       dispslice = spslice
-    dispslice = dispslice[$
-      (*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp,t_low:t_upp]
+    dispslice = dispslice[*,t_low:t_upp]
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
-      IF ((*(*info).intparams).ndiagnostics GT 1) THEN $
-        tmp_disp = dispslice[((*(*(*info).intparams).diag_starts)[d]-$
-                              (*(*(*info).intparams).diag_starts)[0]):$
-                              ((*(*(*info).intparams).diag_starts)[d]-$
-                              (*(*(*info).intparams).diag_starts)[0]+$
-                              (*(*(*info).intparams).diag_widths)[d]-1),*] $
-      ELSE $
-        tmp_disp = dispslice
+      disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
+      tmp_disp = dispslice[((*(*info).dispparams).lp_low_tmp[disp_idx]+$
+                           (*(*(*info).intparams).diag_starts)[d]):$
+                           ((*(*info).dispparams).lp_upp_tmp[disp_idx]+$
+                           (*(*(*info).intparams).diag_starts)[d]-1),*]
     	IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
         minmax = CRISPEX_SCALING_SLICES(tmp_disp, $
-          (*(*info).scaling).gamma[(*(*(*info).intparams).wheredispdiag)[d]], $
-          (*(*info).scaling).histo_opt_val[$
-            (*(*(*info).intparams).wheredispdiag)[d]],$
-          (*(*info).scaling).minimum[(*(*(*info).intparams).wheredispdiag)[d]],$
-          (*(*info).scaling).maximum[(*(*(*info).intparams).wheredispdiag)[d]])
-          (*(*info).scaling).spslice_min[$
-            (*(*(*info).intparams).wheredispdiag)[d]] = minmax[0]
-          (*(*info).scaling).spslice_max[$
-            (*(*(*info).intparams).wheredispdiag)[d]] = minmax[1]
+          (*(*info).scaling).gamma[disp_idx],$
+          (*(*info).scaling).histo_opt_val[disp_idx], $
+          (*(*info).scaling).minimum[disp_idx],$
+          (*(*info).scaling).maximum[disp_idx])
+          (*(*info).scaling).spslice_min[disp_idx] = minmax[0]
+          (*(*info).scaling).spslice_max[disp_idx] = minmax[1]
       ENDIF ELSE BEGIN
         IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN $
           minmax = [(*(*info).scaling).imagemin, (*(*info).scaling).imagemax] $
@@ -15558,28 +15756,22 @@ PRO CRISPEX_UPDATE_REFSPSLICE, event
   		  refspslice) $
   	ELSE $
       dispslice = refspslice
-    dispslice = dispslice[$
-      (*(*info).dispparams).lp_ref_low:(*(*info).dispparams).lp_ref_upp,$
-      t_low:t_upp]
+    dispslice = dispslice[*,t_low:t_upp]
     FOR d=0,(*(*info).intparams).ndisp_refdiagnostics-1 DO BEGIN
-      sel_idx = (*(*info).intparams).ndiagnostics+$
-                (*(*(*info).intparams).wheredisprefdiag)[d]
-      IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN $
-        tmp_disp = dispslice[((*(*(*info).intparams).refdiag_starts)[d]-$
-                              (*(*(*info).intparams).refdiag_starts)[0]):$
-                              ((*(*(*info).intparams).refdiag_starts)[d]-$
-                              (*(*(*info).intparams).refdiag_starts)[0]+$
-                              (*(*(*info).intparams).refdiag_widths)[d]-1),*] $
-      ELSE $
-        tmp_disp = dispslice
+      sel_idx = (*(*(*info).intparams).wheredisprefdiag)[d]
+      disp_idx = (*(*info).intparams).ndiagnostics+sel_idx
+      tmp_disp = dispslice[((*(*info).dispparams).lp_ref_low_tmp[sel_idx]+$
+                           (*(*(*info).intparams).refdiag_starts)[d]):$
+                           ((*(*info).dispparams).lp_ref_upp_tmp[sel_idx]+$
+                           (*(*(*info).intparams).refdiag_starts)[d]-1),*]
       IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
         refminmax = CRISPEX_SCALING_SLICES(tmp_disp, $
-          (*(*info).scaling).gamma[sel_idx], $
-          (*(*info).scaling).histo_opt_val[sel_idx], $
-          (*(*info).scaling).minimum[sel_idx],$
-          (*(*info).scaling).maximum[sel_idx])
-          (*(*info).scaling).spslice_min[sel_idx] = refminmax[0]
-          (*(*info).scaling).spslice_max[sel_idx] = refminmax[1]
+          (*(*info).scaling).gamma[disp_idx], $
+          (*(*info).scaling).histo_opt_val[disp_idx], $
+          (*(*info).scaling).minimum[disp_idx],$
+          (*(*info).scaling).maximum[disp_idx])
+          (*(*info).scaling).spslice_min[disp_idx] = refminmax[0]
+          (*(*info).scaling).spslice_max[disp_idx] = refminmax[1]
       ENDIF ELSE BEGIN
         IF ((*(*(*info).scaling).imagescale)[1] EQ 0) THEN $
           refminmax = [(*(*info).scaling).refmin, (*(*info).scaling).refmax] $
@@ -15688,40 +15880,43 @@ PRO CRISPEX_UPDATE_PHISLIT_COORDS, event
 END
 
 PRO CRISPEX_UPDATE_PHISLICE, event, NO_DRAW=no_draw
-; Handles the actual update of the spectral phi slit slice after change in framenumber
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
+; Handles the actual update of the spectral phi slit slice after change in
+;  framenumber
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
 	lp_pts = REBIN(FINDGEN(1,(*(*info).dataparams).nlp), (*(*info).phiparams).nw_cur, $
     (*(*info).dataparams).nlp)
 	tmp = INTERPOLATE( *(*(*info).data).phiscan, *(*(*info).phiparams).x_pts, $
     *(*(*info).phiparams).y_pts, lp_pts) ;$
-	phislice = (TRANSPOSE(tmp, [1,0]))[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp,*]
+	phislice = (TRANSPOSE(tmp, [1,0]))[(*(*info).dispparams).lp_low:$
+    (*(*info).dispparams).lp_upp,*]
   ; If 2D, then display
   IF ((SIZE(phislice))[0] EQ 2) THEN BEGIN
     ; Warp slice if non-equidistant lp
   	IF (*(*info).dispswitch).warpspslice THEN BEGIN
       dispslice = INTERPOLATE(phislice,$
-        (*(*(*info).dispparams).phisxtri)[0:((SIZE(phislice))[1]-1),0:((SIZE(phislice))[2]-1)],$
-        (*(*(*info).dispparams).phisytri)[0:((SIZE(phislice))[1]-1),0:((SIZE(phislice))[2]-1)])
+        (*(*(*info).dispparams).phisxtri)[0:((SIZE(phislice))[1]-1),$
+                                          0:((SIZE(phislice))[2]-1)],$
+        (*(*(*info).dispparams).phisytri)[0:((SIZE(phislice))[1]-1),$
+                                          0:((SIZE(phislice))[2]-1)])
     ENDIF ELSE $
       dispslice = phislice
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
-      IF ((*(*info).intparams).ndiagnostics GT 1) THEN $
-        tmp_disp = dispslice[((*(*(*info).intparams).diag_starts)[d]-$
-                              (*(*(*info).intparams).diag_starts)[0]):$
-                              ((*(*(*info).intparams).diag_starts)[d]-$
-                              (*(*(*info).intparams).diag_starts)[0]+$
-                              (*(*(*info).intparams).diag_widths)[d]-1),*] $
-      ELSE $
-        tmp_disp = dispslice
+      tmp_disp = dispslice[((*(*info).dispparams).lp_low_tmp[disp_idx]+$
+                           (*(*(*info).intparams).diag_starts)[d]):$
+                           ((*(*info).dispparams).lp_upp_tmp[disp_idx]+$
+                           (*(*(*info).intparams).diag_starts)[d]-1),*]
     	IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
         minmax = CRISPEX_SCALING_SLICES(tmp_disp, $
           (*(*info).scaling).gamma[(*(*(*info).intparams).wheredispdiag)[d]], $
           (*(*info).scaling).histo_opt_val[(*(*(*info).intparams).wheredispdiag)[d]],$
           (*(*info).scaling).minimum[(*(*(*info).intparams).wheredispdiag)[d]],$
           (*(*info).scaling).maximum[(*(*(*info).intparams).wheredispdiag)[d]])
-        (*(*info).scaling).phislice_min[(*(*(*info).intparams).wheredispdiag)[d]] = minmax[0]
-        (*(*info).scaling).phislice_max[(*(*(*info).intparams).wheredispdiag)[d]] = minmax[1]
+        (*(*info).scaling).phislice_min[$
+          (*(*(*info).intparams).wheredispdiag)[d]] = minmax[0]
+        (*(*info).scaling).phislice_max[$
+          (*(*(*info).intparams).wheredispdiag)[d]] = minmax[1]
       ENDIF
       IF (d EQ 0) THEN $
         final_disp = tmp_disp $
@@ -17001,7 +17196,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial playback parameters... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
-;--------------------------------------------------------------------------------- INITIAL SPECTRAL PARAMETERS
+;-------------------- INITIAL SPECTRAL PARAMETERS
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(initial spectral parameters)', /OPT, /OVER
 	feedback_text = [feedback_text,'> Initial spectral parameters... ']
@@ -17023,8 +17218,66 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	ENDELSE
   lp_ref_lock = eqnlps ;(eqnlps AND (lp_ref_start EQ lp_start))
   IF (lp_ref_lock) THEN lp_ref_start = lp_start
+
+  ; Get minimum and maximum Doppler verlocities
+  FOR dd=0,hdr.ndiagnostics-1 DO BEGIN
+    abs_vdop = ABS(*hdr.v_dop[dd])
+    maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
+      MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
+    min_sub_low = wheremin>0
+    min_sub_upp = min_sub_low+2
+    IF (dd EQ 0) THEN BEGIN
+      v_dop_low_min = (*hdr.v_dop[dd])[0]
+      v_dop_low_max = (*hdr.v_dop[dd])[min_sub_low]
+      v_dop_upp_min = (*hdr.v_dop[dd])[min_sub_upp]
+      v_dop_upp_max = (*hdr.v_dop[dd])[N_ELEMENTS(*hdr.v_dop[dd])-1]
+    ENDIF ELSE BEGIN
+      v_dop_low_min = [v_dop_low_min, (*hdr.v_dop[dd])[0]]
+      v_dop_low_max = [v_dop_low_max, (*hdr.v_dop[dd])[min_sub_low]]
+      v_dop_upp_min = [v_dop_upp_min, (*hdr.v_dop[dd])[min_sub_upp]]
+      v_dop_upp_max = [v_dop_upp_max, $
+        (*hdr.v_dop[dd])[N_ELEMENTS(*hdr.v_dop[dd])-1]]
+    ENDELSE
+  ENDFOR
+  v_dop_low_min = FLOOR(MIN(v_dop_low_min,/NAN))
+  v_dop_low_max = FLOOR(MIN(v_dop_low_max,/NAN))
+  v_dop_upp_min = CEIL(MAX(v_dop_upp_min,/NAN))
+  v_dop_upp_max = CEIL(MAX(v_dop_upp_max,/NAN))
+  IF (hdr.showref AND (hdr.refnlp GT 1)) THEN BEGIN
+    FOR dd=0,hdr.nrefdiagnostics-1 DO BEGIN
+      abs_vdop = ABS(*hdr.v_dop_ref[dd])
+      maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
+        MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
+      min_sub_low = wheremin>0
+      min_sub_upp = min_sub_low+2
+      IF (dd EQ 0) THEN BEGIN
+        v_dop_ref_low_min = (*hdr.v_dop_ref[dd])[0]
+        v_dop_ref_low_max = (*hdr.v_dop_ref[dd])[min_sub_low]
+        v_dop_ref_upp_min = (*hdr.v_dop_ref[dd])[min_sub_upp]
+        v_dop_ref_upp_max = (*hdr.v_dop_ref[dd])[$
+                              N_ELEMENTS(*hdr.v_dop_ref[dd])-1]
+      ENDIF ELSE BEGIN
+        v_dop_ref_low_min = [v_dop_ref_low_min, (*hdr.v_dop_ref[dd])[0]]
+        v_dop_ref_low_max = [v_dop_ref_low_max, (*hdr.v_dop_ref[dd])[min_sub_low]]
+        v_dop_ref_upp_min = [v_dop_ref_upp_min, (*hdr.v_dop_ref[dd])[min_sub_upp]]
+        v_dop_ref_upp_max = [v_dop_ref_upp_max, $
+          (*hdr.v_dop_ref[dd])[N_ELEMENTS(*hdr.v_dop_ref[dd])-1]]
+      ENDELSE
+    ENDFOR
+    v_dop_ref_low_min = FLOOR(MIN(v_dop_ref_low_min,/NAN))
+    v_dop_ref_low_max = FLOOR(MIN(v_dop_ref_low_max,/NAN))
+    v_dop_ref_upp_min = CEIL(MAX(v_dop_ref_upp_min,/NAN))
+    v_dop_ref_upp_max = CEIL(MAX(v_dop_ref_upp_max,/NAN))
+  ENDIF ELSE BEGIN
+    v_dop_ref_low_min = 0
+    v_dop_ref_low_max = 0
+    v_dop_ref_upp_min = 0
+    v_dop_ref_upp_max = 0
+  ENDELSE
+
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
-                                        '(initial spectral parameters)', /OPT, /OVER, /DONE
+                                        '(initial spectral parameters)', /OPT, $
+                                        /OVER, /DONE
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial spectral parameters... done!']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
@@ -17948,8 +18201,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   master_time_lab     = WIDGET_LABEL(master_time_opts, VALUE='Master time:', /ALIGN_LEFT)
   master_time_labels  = ['Main', 'Reference', 'SJI']
   master_time_buts    = CW_BGROUP(master_time_opts, master_time_labels, $
-                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(master_time_labels)), IDS=master_time_ids, $
-                          /EXCLUSIVE, /ROW, EVENT_FUNC='CRISPEX_BGROUP_MASTER_TIME', /NO_RELEASE)
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(master_time_labels)),$
+                          IDS=master_time_ids, /EXCLUSIVE, /ROW, $
+                          EVENT_FUNC='CRISPEX_BGROUP_MASTER_TIME', /NO_RELEASE)
   showdata = [(hdr.showref OR hdr.sjifile), hdr.showref, hdr.sjifile]
   nrasterdims = [SIZE(hdr.tarr_raster_main,/N_DIMENSIONS), $
                   SIZE(hdr.tarr_raster_ref,/N_DIMENSIONS), 1]
@@ -17972,19 +18226,33 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 
   ; ==================== Spectral Tab ====================
   ; Spectral range base
-	lp_ranges		        = WIDGET_BASE(spectral_tab, /COLUMN);, /FRAME)
-	lp_range_field		  = WIDGET_BASE(lp_ranges, /ROW)
-	lower_lp_label		  = WIDGET_LABEL(lp_range_field, VALUE = 'Lower index:', /ALIGN_LEFT)
-	lower_lp_text		    = WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_first,2), /EDITABLE, $
-                          XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_LOW', $
-                          SENSITIVE = lp_blink_vals_sens)
-	upper_lp_label		  = WIDGET_LABEL(lp_range_field, VALUE = 'Upper index:', /ALIGN_LEFT)
-	upper_lp_text		    = WIDGET_TEXT(lp_range_field, VALUE = STRTRIM(lp_last_vals,2),  /EDITABLE, $
-                          XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_LP_UPP', $
-                          SENSITIVE = lp_blink_vals_sens)
-	reset_lprange_but	  = WIDGET_BUTTON(lp_range_field, $
+	lp_ranges		        = WIDGET_BASE(spectral_tab, /COLUMN)
+	lp_range_field		  = WIDGET_BASE(lp_ranges, /COLUMN)
+  lp_range_sel_field  = WIDGET_BASE(lp_range_field, /ROW)
+  lp_restrict_label   = WIDGET_LABEL(lp_range_sel_field, $
+                          VALUE='Restrict spectral range of:', /ALIGN_LEFT)
+  lp_restrict_labels  = ['Main','Reference']
+  lp_restrict_sel_buts= CW_BGROUP(lp_range_sel_field, lp_restrict_labels, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(lp_restrict_labels)),$
+                          IDS=lp_restrict_button_ids, /EXCLUSIVE, /ROW, $
+                          EVENT_FUNC='CRISPEX_BGROUP_LP_RESTRICT', /NO_RELEASE)
+	reset_lprange_but	  = WIDGET_BUTTON(lp_range_sel_field, $
                           VALUE = '  Reset  ',$
                           EVENT_PRO = 'CRISPEX_DISPRANGE_LP_RESET', SENSITIVE = 0)
+  WIDGET_CONTROL, lp_restrict_button_ids[0], /SET_BUTTON, $
+    SENSITIVE=(hdr.nlp GT 1)
+  WIDGET_CONTROL, lp_restrict_button_ids[1], SENSITIVE=(hdr.refnlp GT 1)
+  restrict_sliders    = WIDGET_BASE(spectral_tab, /GRID_LAYOUT, COLUMN=2)
+  lp_restr_slid_low   = WIDGET_SLIDER(restrict_sliders, $
+                          TITLE='Doppler minimum [km/s]', VALUE=v_dop_low_min, $
+                          MIN=v_dop_low_min, MAX=v_dop_low_max, $
+                          EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_LOW', /DRAG,$
+                          XSIZE=FLOOR((tab_width-2*pad)/2.))
+  lp_restr_slid_upp   = WIDGET_SLIDER(restrict_sliders, $
+                          TITLE='Doppler maximum [km/s]', VALUE=v_dop_upp_max, $
+                          MIN=v_dop_upp_min, MAX=v_dop_upp_max, $
+                          EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_UPP', /DRAG,$
+                          XSIZE=FLOOR((tab_width-2*pad)/2.))
   spectral_divider1   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
   ; Spectral blink base
 	lp_blink_field		  = WIDGET_BASE(spectral_tab, /ROW,/NONEXCLUSIVE)
@@ -18010,11 +18278,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                           SENSITIVE = (refslid_sens AND ABS(eqnlps-1)))
   spectral_divider3   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
   ; Phi-slit base
-	slit_label		      = WIDGET_LABEL(spectral_tab, VALUE = 'Slit controls:', /ALIGN_LEFT)
-  phi_slid_base       = WIDGET_BASE(spectral_tab, /GRID_LAYOUT, COLUMN=2, /ALIGN_CENTER) 
-	phi_slid		        = WIDGET_SLIDER(phi_slid_base, TITLE = 'Slit angle [degrees]', MIN = 0, MAX = 179, $
-                          VALUE=angle, EVENT_PRO = 'CRISPEX_SLIDER_PHI_ANGLE', SENSITIVE=0, /DRAG, $
-                          XSIZE=FLOOR((tab_width-2*pad)/2.))
+	slit_label		      = WIDGET_LABEL(spectral_tab, VALUE = 'Slit controls:', $
+                          /ALIGN_LEFT)
+  phi_slid_base       = WIDGET_BASE(spectral_tab, /GRID_LAYOUT, COLUMN=2, $
+                          /ALIGN_CENTER) 
+	phi_slid		        = WIDGET_SLIDER(phi_slid_base, $
+                          TITLE='Slit angle [degrees]', MIN = 0, MAX = 179, $
+                          VALUE=angle, EVENT_PRO='CRISPEX_SLIDER_PHI_ANGLE', $
+                          SENSITIVE=0, /DRAG, XSIZE=FLOOR((tab_width-2*pad)/2.))
 	nphi_slid		        = WIDGET_SLIDER(phi_slid_base, TITLE = 'Slit length [pixel]', MIN = 2, MAX = nphi, $
                           VALUE=LONG(hdr.ny/3.), EVENT_PRO = 'CRISPEX_SLIDER_NPHI', SENSITIVE = 0, /DRAG)
 	slit_move_field		  = WIDGET_BASE(spectral_tab,/GRID_LAYOUT, COLUMN=2,/ALIGN_CENTER)
@@ -18342,7 +18613,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   raster_overlay_label= WIDGET_LABEL(overlays_tab, VALUE='Raster:',/ALIGN_LEFT)
   show_condition      = [hdr.showref,hdr.sjifile]
   raster_overlay      = WIDGET_BASE(overlays_tab, /ROW)
-  raster_but_labels   = ['reference', 'slit-jaw']
+  raster_but_labels   = ['Reference', 'SJI']
   raster_label        = WIDGET_LABEL(raster_overlay, $
                           VALUE='Overlay slit positions on:', /ALIGN_LEFT, $
                           SENSITIVE=((TOTAL(show_condition) GE 1) AND $
@@ -18361,7 +18632,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                           VALUE='Overlay timing marker on:', /ALIGN_LEFT, $
                           SENSITIVE=((nrasterdims[0] GT 1) AND $
                           (TOTAL(show_condition) GE 1)))
-  raster_timing_labels = ['main','reference','slit-jaw']
+  raster_timing_labels = ['Main','Reference','SJI']
   raster_timing_buts  = CW_BGROUP(raster_timing_base, raster_timing_labels, $
                           BUTTON_UVALUE=INDGEN(N_ELEMENTS(raster_timing_labels)),$
                           IDS=raster_timing_button_ids, /NONEXCLUSIVE, /ROW, $
@@ -18977,8 +19248,11 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		reset_trange_but:reset_trange_but, slice_button:slice_update_but, $			
 		t_speed_slider:t_speed_slid, t_step_slider:t_step_slid, imref_blink_but:imref_blink_but, $					
     master_time_ids:master_time_ids, time_offset_slider:time_offset_slid, $
-		lower_lp_text:lower_lp_text, upper_lp_text:upper_lp_text, $	
-		reset_lprange_but:reset_lprange_but, lp_slider:lp_slid, lp_blink_slider:lp_blink_slid, $	
+		reset_lprange_but:reset_lprange_but,  $
+    lp_restrict_button_ids:lp_restrict_button_ids, $
+    lp_restr_slider_low:lp_restr_slid_low,$
+    lp_restr_slider_upp:lp_restr_slid_upp, $
+    lp_slider:lp_slid, lp_blink_slider:lp_blink_slid, $	
 		lp_blink_but:lp_blink_but, lp_ref_but:lp_ref_but, lp_ref_slider:lp_ref_slid, $
 		x_slider:x_slid, y_slider:y_slid, xref_slider:xref_slid, $
     yref_slider:yref_slid, lock_button:lockbut, unlock_button:unlockbut, $
@@ -19192,6 +19466,19 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		lp_first:lp_first, lp_last:lp_last, lp_range:hdr.nlp, lp_low:lp_first, lp_upp:lp_last, $
 		lp_ref_first:lp_ref_first, lp_ref_last:lp_ref_last, lp_ref_low:lp_ref_first, $
     lp_ref_upp:(hdr.refnlp-1), lp_ref_range:hdr.refnlp, $
+    v_dop_upp:[v_dop_upp_max, v_dop_ref_upp_max], $
+    v_dop_low:[v_dop_low_min, v_dop_ref_low_min], $
+    v_dop_low_min:v_dop_low_min, v_dop_low_max:v_dop_low_max,  $
+    v_dop_upp_min:v_dop_upp_min, v_dop_upp_max:v_dop_upp_max,  $
+    v_dop_ref_low_min:v_dop_ref_low_min, v_dop_ref_low_max:v_dop_ref_low_max,  $
+    v_dop_ref_upp_min:v_dop_ref_upp_min, v_dop_ref_upp_max:v_dop_ref_upp_max,  $
+    lp_low_tmp:REPLICATE(0,hdr.ndiagnostics), lp_upp_tmp:hdr.diag_width-1, $
+    lp_low_bounds:hdr.diag_start, $
+    lp_upp_bounds:hdr.diag_start+(hdr.diag_width-1), $
+    lp_ref_low_tmp:REPLICATE(0,hdr.nrefdiagnostics), $
+    lp_ref_upp_tmp:hdr.refdiag_width-1, $
+    lp_ref_low_bounds:hdr.refdiag_start, $
+    lp_ref_upp_bounds:hdr.refdiag_start+(hdr.refdiag_width-1), $
 		nlpreb:nlpreb, ntreb:ntreb, refnlpreb:nlpreb, refntreb:refntreb, $
     refloopnlxreb:nlpreb, refloopntreb:loopntreb, $
 		loopnlxreb:nlpreb, loopntreb:loopntreb, restloopnlxreb:nlpreb, restloopntreb:loopntreb, $
@@ -19224,6 +19511,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	dispswitch = { $
 		restricted_t_range:PTR_NEW(0), restricted_lp_range:PTR_NEW(0), $
     restricted_lp_ref_range:PTR_NEW(0), exts:exts_set, refexts:refexts_set, $
+    lp_restrict:[1,0], $
     warpspslice:hdr.warpspslice, warprefspslice:hdr.warprefspslice, $
 		detspect_scale:detspect_scale, ref_detspect_scale:ref_detspect_scale, $
     drawdop:0, sjiscaled:hdr.sjiscaled, main2ref_no_map:hdr.main2ref_no_map, $
@@ -19254,7 +19542,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     wheredispdiag:PTR_NEW(LONARR(hdr.ndiagnostics)), $
     refdiagnostics:hdr.refdiagnostics, nrefdiagnostics:hdr.nrefdiagnostics, $
     refdiag_start:hdr.refdiag_start, refdiag_width:hdr.refdiag_width, $
-    refdiag_starts:PTR_NEW(hdr.refdiag_start), refdiag_widths:PTR_NEW(hdr.refdiag_width), $
+    refdiag_starts:PTR_NEW(hdr.refdiag_start), $
+    refdiag_widths:PTR_NEW(hdr.refdiag_width), $
+    refdiag_upp:hdr.refdiag_start+hdr.refdiag_width-1, $
     wheredisprefdiag:PTR_NEW(LONARR(hdr.nrefdiagnostics)), $
     lp_diag_all:0, lp_ref_diag_all:0 $
 	}
@@ -19718,8 +20008,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		WIDGET_CONTROL, ls_toggle_but, SET_BUTTON = 1
 		(*(*info).winswitch).showls = 1
 	ENDELSE
-  WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, SENSITIVE=((*(*info).intparams).ndiagnostics LE 1) 
-  WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, SENSITIVE=((*(*info).intparams).ndiagnostics LE 1) 
+;  WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, SENSITIVE=((*(*info).intparams).ndiagnostics LE 1) 
+;  WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, SENSITIVE=((*(*info).intparams).ndiagnostics LE 1) 
 
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(determining display of plots)', /WIDGET, /OVER, /DONE
