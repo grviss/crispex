@@ -17220,29 +17220,36 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   IF (lp_ref_lock) THEN lp_ref_start = lp_start
 
   ; Get minimum and maximum Doppler verlocities
-  FOR dd=0,hdr.ndiagnostics-1 DO BEGIN
-    abs_vdop = ABS(*hdr.v_dop[dd])
-    maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
-      MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
-    min_sub_low = wheremin>0
-    min_sub_upp = min_sub_low+2
-    IF (dd EQ 0) THEN BEGIN
-      v_dop_low_min = (*hdr.v_dop[dd])[0]
-      v_dop_low_max = (*hdr.v_dop[dd])[min_sub_low]
-      v_dop_upp_min = (*hdr.v_dop[dd])[min_sub_upp]
-      v_dop_upp_max = (*hdr.v_dop[dd])[N_ELEMENTS(*hdr.v_dop[dd])-1]
-    ENDIF ELSE BEGIN
-      v_dop_low_min = [v_dop_low_min, (*hdr.v_dop[dd])[0]]
-      v_dop_low_max = [v_dop_low_max, (*hdr.v_dop[dd])[min_sub_low]]
-      v_dop_upp_min = [v_dop_upp_min, (*hdr.v_dop[dd])[min_sub_upp]]
-      v_dop_upp_max = [v_dop_upp_max, $
-        (*hdr.v_dop[dd])[N_ELEMENTS(*hdr.v_dop[dd])-1]]
-    ENDELSE
-  ENDFOR
-  v_dop_low_min = FLOOR(MIN(v_dop_low_min,/NAN))
-  v_dop_low_max = FLOOR(MIN(v_dop_low_max,/NAN))
-  v_dop_upp_min = CEIL(MAX(v_dop_upp_min,/NAN))
-  v_dop_upp_max = CEIL(MAX(v_dop_upp_max,/NAN))
+  IF (hdr.nlp GT 1) THEN BEGIN
+    FOR dd=0,hdr.ndiagnostics-1 DO BEGIN
+      abs_vdop = ABS(*hdr.v_dop[dd])
+      maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
+        MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
+      min_sub_low = wheremin>0
+      min_sub_upp = min_sub_low+2
+      IF (dd EQ 0) THEN BEGIN
+        v_dop_low_min = (*hdr.v_dop[dd])[0]
+        v_dop_low_max = (*hdr.v_dop[dd])[min_sub_low]
+        v_dop_upp_min = (*hdr.v_dop[dd])[min_sub_upp]
+        v_dop_upp_max = (*hdr.v_dop[dd])[N_ELEMENTS(*hdr.v_dop[dd])-1]
+      ENDIF ELSE BEGIN
+        v_dop_low_min = [v_dop_low_min, (*hdr.v_dop[dd])[0]]
+        v_dop_low_max = [v_dop_low_max, (*hdr.v_dop[dd])[min_sub_low]]
+        v_dop_upp_min = [v_dop_upp_min, (*hdr.v_dop[dd])[min_sub_upp]]
+        v_dop_upp_max = [v_dop_upp_max, $
+          (*hdr.v_dop[dd])[N_ELEMENTS(*hdr.v_dop[dd])-1]]
+      ENDELSE
+    ENDFOR
+    v_dop_low_min = FLOOR(MIN(v_dop_low_min,/NAN))
+    v_dop_low_max = FLOOR(MIN(v_dop_low_max,/NAN))
+    v_dop_upp_min = CEIL(MAX(v_dop_upp_min,/NAN))
+    v_dop_upp_max = CEIL(MAX(v_dop_upp_max,/NAN))
+  ENDIF ELSE BEGIN
+    v_dop_low_min = 0
+    v_dop_low_max = 1
+    v_dop_upp_min = 0
+    v_dop_upp_max = 1
+  ENDELSE
   IF (hdr.showref AND (hdr.refnlp GT 1)) THEN BEGIN
     FOR dd=0,hdr.nrefdiagnostics-1 DO BEGIN
       abs_vdop = ABS(*hdr.v_dop_ref[dd])
@@ -17270,9 +17277,9 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     v_dop_ref_upp_max = CEIL(MAX(v_dop_ref_upp_max,/NAN))
   ENDIF ELSE BEGIN
     v_dop_ref_low_min = 0
-    v_dop_ref_low_max = 0
+    v_dop_ref_low_max = 1
     v_dop_ref_upp_min = 0
-    v_dop_ref_upp_max = 0
+    v_dop_ref_upp_max = 1
   ENDELSE
 
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
@@ -18247,12 +18254,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                           TITLE='Doppler minimum [km/s]', VALUE=v_dop_low_min, $
                           MIN=v_dop_low_min, MAX=v_dop_low_max, $
                           EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_LOW', /DRAG,$
-                          XSIZE=FLOOR((tab_width-2*pad)/2.))
+                          XSIZE=FLOOR((tab_width-2*pad)/2.), $
+                          SENSITIVE=(hdr.nlp GT 1))
   lp_restr_slid_upp   = WIDGET_SLIDER(restrict_sliders, $
                           TITLE='Doppler maximum [km/s]', VALUE=v_dop_upp_max, $
                           MIN=v_dop_upp_min, MAX=v_dop_upp_max, $
                           EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_UPP', /DRAG,$
-                          XSIZE=FLOOR((tab_width-2*pad)/2.))
+                          XSIZE=FLOOR((tab_width-2*pad)/2.), $
+                          SENSITIVE=(hdr.refnlp GT 1))
   spectral_divider1   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
   ; Spectral blink base
 	lp_blink_field		  = WIDGET_BASE(spectral_tab, /ROW,/NONEXCLUSIVE)
