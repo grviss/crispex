@@ -3160,13 +3160,14 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
              (*(*info).plotpos).phisx1,(*(*info).plotpos).phisy1], $
     BACKGROUND = (*(*info).plotparams).bgplotcol, $
     COLOR = (*(*info).plotparams).plotcol, $
-    NOERASE=((*(*info).intparams).ndiagnostics GT 1)
+    NOERASE=KEYWORD_SET(NO_AXES)
   IF ~KEYWORD_SET(NO_AXES) THEN BEGIN
     ; Plot xtitle(s)
     IF ((*(*info).intparams).ndiagnostics GT 1) THEN $
         XYOUTS,(*(*info).plotpos).phisxplspw/2.+(*(*info).plotpos).phisx0,$
           (*(*info).plotpos).phisy0/3.,(*(*info).plottitles).spxtitle,ALIGNMENT=0.5, $
           COLOR = (*(*info).plotparams).plotcol,/NORMAL
+    diag_range = *(*(*info).plotaxes).diag_ratio * (*(*info).plotpos).phisxplspw 
     ; Loop over all diagnostics for plotting of detailed spectrum
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
       ; No need to check for count: there is always at least one diagnostic displayed 
@@ -3181,10 +3182,10 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
         (*(*(*info).plotaxes).v_dop[disp_idx])[[$
         (*(*info).dispparams).lp_low_tmp[disp_idx], $
         (*(*info).dispparams).lp_upp_tmp[disp_idx]]]
-      IF (d EQ 0) THEN offset = 0 ELSE offset = TOTAL((*(*(*info).plotaxes).diag_range_phis)[0:(d-1)])
+      IF (d EQ 0) THEN offset = 0 ELSE offset = TOTAL(diag_range[0:(d-1)])
       ; Determine lower left corner position of plot
       phisx0 = (*(*info).plotpos).phisx0 + offset
-      phisx1 = (*(*(*info).plotaxes).diag_range_phis)[d] + phisx0
+      phisx1 = diag_range[d] + phisx0
       ; Plot axes sub-box
   	  PLOT, (*(*info).dataparams).lps, FINDGEN((*(*info).phiparams).nw_cur), /NODATA, $
         YRANGE=(*(*info).plotaxes).phis_yrange, /YS, XRANGE=phis_xrange, $
@@ -7185,32 +7186,8 @@ PRO CRISPEX_DRAW_PHIS, event
 	WSET, (*(*info).winids).phiswid
   ; If 2D, then display
   IF ((SIZE(*(*(*info).data).phislice))[0] EQ 2) THEN BEGIN
-    FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
-      disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
-      ; Get spectrum-slit diagram by diagnostics
-      IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-        lp_lower = (*(*info).dispparams).lp_low_tmp[disp_idx]+$
-          (*(*info).intparams).diag_start[disp_idx]
-        lp_upper = (*(*info).dispparams).lp_upp_tmp[disp_idx]+$
-          (*(*info).intparams).diag_start[disp_idx]
-      ENDIF ELSE BEGIN
-        lp_lower = 0
-        lp_upper = (*(*info).dispparams).lp_upp-(*(*info).dispparams).lp_low
-      ENDELSE
-      ; Construct spectrum-slit diagram by diagnostic
-      tmp_disp = BYTSCL( (*(*(*info).data).phislice)[lp_lower:lp_upper,*], $
-        MIN=(*(*info).scaling).phislice_min[$
-        (*(*(*info).intparams).wheredispdiag)[d]],$ 
-        MAX=(*(*info).scaling).phislice_max[$
-        (*(*(*info).intparams).wheredispdiag)[d]],$
-        /NAN)
-      IF (d EQ 0) THEN $
-        final_disp = tmp_disp $
-      ELSE $
-        final_disp = [final_disp, tmp_disp]
-    ENDFOR
     ; Display full spectrum-slit diagram at once
-    TV,(CONGRID( final_disp, (*(*info).dispparams).phisnlpreb, $
+    TV,(CONGRID( *(*(*info).data).phislice, (*(*info).dispparams).phisnlpreb, $
       (*(*info).dispparams).nphireb, $
       INTERP=(*(*info).dispparams).interpspslice, /CENTER) ), $
       (*(*info).plotpos).phisx0, (*(*info).plotpos).phisy0, /NORMAL
@@ -7238,32 +7215,23 @@ PRO CRISPEX_DRAW_PHIS, event
                   (*(*info).plotpos).phisyplspw + (*(*info).plotpos).phisy0), /NORMAL, COLOR = 100
     ; Overplot lp indicator
     lp_diag = TOTAL((*(*info).dataparams).lp GE *(*(*info).intparams).diag_starts)-1
-;    IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-      ; Determine in which diagnostic the current LP lies
-      IF (lp_diag EQ 0) THEN $
-        offset = 0 $
-      ELSE $
-        offset = TOTAL((*(*(*info).plotaxes).diag_range_phis)[0:(lp_diag-1)])
-      phisx0 = (*(*info).plotpos).phisx0 + offset
-      phisxplspw = (*(*(*info).plotaxes).diag_range_phis)[lp_diag]
-      ; Get the corresponding lp_disprange
-      lp_disprange = (*(*info).dataparams).lps[$
-                      (*(*info).dispparams).lp_upp_tmp[lp_diag]+$
-                      (*(*(*info).intparams).diag_starts)[lp_diag]] - $
-                     (*(*info).dataparams).lps[$
-                      (*(*info).dispparams).lp_low_tmp[lp_diag]+$
-                      (*(*(*info).intparams).diag_starts)[lp_diag]]
-      lp_lower = $
-        (*(*info).dataparams).lps[(*(*(*info).intparams).diag_starts)[lp_diag]+$
-          (*(*info).dispparams).lp_low_tmp[lp_diag]]
-;    ENDIF ELSE BEGIN
-;      lp_disprange = $
-;        ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp_tmp[0]] - $
-;        (*(*info).dataparams).lps[(*(*info).dispparams).lp_low_tmp[0]])
-;      phisx0 = (*(*info).plotpos).phisx0
-;      phisxplspw = (*(*info).plotpos).phisxplspw 
-;      lp_lower = (*(*info).dataparams).lps[(*(*info).dispparams).lp_low_tmp[0]]
-;    ENDELSE
+    ; Determine in which diagnostic the current LP lies
+    IF (lp_diag EQ 0) THEN $
+      offset = 0 $
+    ELSE $
+      offset = TOTAL((*(*(*info).plotaxes).diag_range_phis)[0:(lp_diag-1)])
+    phisx0 = (*(*info).plotpos).phisx0 + offset
+    phisxplspw = (*(*(*info).plotaxes).diag_range_phis)[lp_diag]
+    ; Get the corresponding lp_disprange
+    lp_disprange = (*(*info).dataparams).lps[$
+                    (*(*info).dispparams).lp_upp_tmp[lp_diag]+$
+                    (*(*(*info).intparams).diag_starts)[lp_diag]] - $
+                   (*(*info).dataparams).lps[$
+                    (*(*info).dispparams).lp_low_tmp[lp_diag]+$
+                    (*(*(*info).intparams).diag_starts)[lp_diag]]
+    lp_lower = $
+      (*(*info).dataparams).lps[(*(*(*info).intparams).diag_starts)[lp_diag]+$
+        (*(*info).dispparams).lp_low_tmp[lp_diag]]
   	PLOTS, [1,1] * ( ((*(*info).dataparams).lps[(*(*info).dataparams).lp] - $
                       lp_lower) / lp_disprange * phisxplspw + phisx0 ), $
   		[(*(*info).plotpos).phisy0, (*(*info).plotpos).phisy1], /NORMAL, COLOR = 100
@@ -15889,8 +15857,7 @@ PRO CRISPEX_UPDATE_PHISLICE, event, NO_DRAW=no_draw
     (*(*info).dataparams).nlp)
 	tmp = INTERPOLATE( *(*(*info).data).phiscan, *(*(*info).phiparams).x_pts, $
     *(*(*info).phiparams).y_pts, lp_pts) ;$
-	phislice = (TRANSPOSE(tmp, [1,0]))[(*(*info).dispparams).lp_low:$
-    (*(*info).dispparams).lp_upp,*]
+	phislice = (TRANSPOSE(tmp, [1,0]))
   ; If 2D, then display
   IF ((SIZE(phislice))[0] EQ 2) THEN BEGIN
     ; Warp slice if non-equidistant lp
@@ -15903,21 +15870,27 @@ PRO CRISPEX_UPDATE_PHISLICE, event, NO_DRAW=no_draw
     ENDIF ELSE $
       dispslice = phislice
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
+      disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
       tmp_disp = dispslice[((*(*info).dispparams).lp_low_tmp[disp_idx]+$
                            (*(*(*info).intparams).diag_starts)[d]):$
                            ((*(*info).dispparams).lp_upp_tmp[disp_idx]+$
                            (*(*(*info).intparams).diag_starts)[d]-1),*]
     	IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
         minmax = CRISPEX_SCALING_SLICES(tmp_disp, $
-          (*(*info).scaling).gamma[(*(*(*info).intparams).wheredispdiag)[d]], $
-          (*(*info).scaling).histo_opt_val[(*(*(*info).intparams).wheredispdiag)[d]],$
-          (*(*info).scaling).minimum[(*(*(*info).intparams).wheredispdiag)[d]],$
-          (*(*info).scaling).maximum[(*(*(*info).intparams).wheredispdiag)[d]])
-        (*(*info).scaling).phislice_min[$
-          (*(*(*info).intparams).wheredispdiag)[d]] = minmax[0]
-        (*(*info).scaling).phislice_max[$
-          (*(*(*info).intparams).wheredispdiag)[d]] = minmax[1]
-      ENDIF
+          (*(*info).scaling).gamma[disp_idx],$
+        (*(*info).scaling).histo_opt_val[disp_idx], $
+          (*(*info).scaling).minimum[disp_idx],$
+        (*(*info).scaling).maximum[disp_idx])
+        (*(*info).scaling).phislice_min[disp_idx] = minmax[0]
+        (*(*info).scaling).phislice_max[disp_idx] = minmax[1]
+      ENDIF ELSE BEGIN
+        IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN $
+          minmax = [(*(*info).scaling).imagemin, (*(*info).scaling).imagemax] $
+        ELSE $
+          minmax = [(*(*info).scaling).imagemin_curr, $
+                    (*(*info).scaling).imagemax_curr]
+      ENDELSE
+      tmp_disp = BYTSCL(tmp_disp, MIN=minmax[0], MAX=minmax[1], /NAN)
       IF (d EQ 0) THEN $
         final_disp = tmp_disp $
       ELSE $
