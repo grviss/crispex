@@ -18360,7 +18360,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                           MIN=v_dop_upp_min, MAX=v_dop_upp_max, $
                           EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_UPP', /DRAG,$
                           XSIZE=FLOOR((tab_width-2*pad)/2.), $
-                          SENSITIVE=(hdr.refnlp GT 1))
+                          SENSITIVE=(hdr.nlp GT 1))
   spectral_divider1   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
   ; Spectral blink base
 	lp_blink_field		  = WIDGET_BASE(spectral_tab, /ROW,/NONEXCLUSIVE)
