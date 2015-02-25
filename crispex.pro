@@ -755,6 +755,21 @@ FUNCTION CRISPEX_BGROUP_MASTER_TIME, event
     SET_SLIDER_MAX=((*(*info).dispparams).t_upp<(*(*info).dataparams).nt)
 END
 
+FUNCTION CRISPEX_BGROUP_SAVE_IMREFSJI_LOOP, event
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  (*(*info).savswitch).imrefsji[event.VALUE] = event.SELECT
+  sens = (TOTAL((*(*info).savswitch).imrefsji) NE 1)
+  wheresel = WHERE((*(*info).savswitch).imrefsji EQ 1)
+  FOR i=0,TOTAL((*(*info).savswitch).imrefsji)-1 DO $
+    WIDGET_CONTROL, (*(*info).ctrlsloop).save_imrefsji_ids[wheresel[i]], $
+      SENSITIVE=sens, /SET_BUTTON 
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [TOTAL((*(*info).savswitch).imrefsji)],$
+      labels=['Saving from cube setting']
+END
+
 FUNCTION CRISPEX_BGROUP_STOKES_SELECT_SP, event, NO_DRAW=no_draw
   WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
@@ -3685,10 +3700,15 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_SELECT, event
 			(*(*info).restoreparams).disp_loopfile = (*(*(*info).restoreparams).cfiles)[event.INDEX-1]
 			refbase = FILE_BASENAME(STRMID((*(*info).dataparams).refimfilename,0,$
                   STRPOS((*(*info).dataparams).refimfilename,'.',/REVERSE_SEARCH)))
+			sjibase = FILE_BASENAME(STRMID((*(*info).dataparams).sjifilename,0,$
+                  STRPOS((*(*info).dataparams).sjifilename,'.',/REVERSE_SEARCH)))
       ; Check whether it is a main or reference loop
 			IF (STRLEN(refbase) GT 0) THEN $
         disp_imref = STRCMP(refbase,FILE_BASENAME($
           (*(*info).restoreparams).disp_loopfile),STRLEN(refbase)) $
+      ELSE IF (STRLEN(sjibase) GT 0) THEN $
+        disp_imref = STRCMP(sjibase,FILE_BASENAME($
+          (*(*info).restoreparams).disp_loopfile),STRLEN(sjibase))*2 $
       ELSE $
         disp_imref = 0
       ; If there are already loops being displayed, append variables to current
@@ -3832,8 +3852,6 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB, event, NO_DRAW=no_draw, INDEX=index
 				restricted_lp_range = 1
 				(*(*info).dataparams).lp = spect_pos > (*(*info).dispparams).lp_low < (*(*info).dispparams).lp_upp
 				WIDGET_CONTROL,(*(*info).ctrlscp).lp_slider,SENSITIVE = 0, SET_VALUE = (*(*info).dataparams).lp
-				WIDGET_CONTROL,(*(*info).ctrlscp).lower_lp_text, SENSITIVE = 0
-				WIDGET_CONTROL,(*(*info).ctrlscp).upper_lp_text, SENSITIVE = 0
 			ENDELSE
 			CRISPEX_UPDATE_T, event
 		ENDIF ELSE BEGIN										; A full or partial slab
@@ -5462,10 +5480,25 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
       ENDIF
       ; Convert main coordinates to device as default
       sxyp = CRISPEX_TRANSFORM_DATA2DEVICE(info, X=xp_orig, Y=yp_orig, $
-        MAIN=((imref)[sel_loops[i]] NE 2), REF=((imref)[sel_loops[i]] EQ 2))
+        MAIN=((imref)[sel_loops[i]] EQ 1), REF=((imref)[sel_loops[i]] EQ 2), $
+        SJI=((imref)[sel_loops[i]] EQ 3))
       sxyr = CRISPEX_TRANSFORM_DATA2DEVICE(info, X=xr_orig, Y=yr_orig, $
-        MAIN=((imref)[sel_loops[i]] NE 2), REF=((imref)[sel_loops[i]] EQ 2))
-      IF ((imref)[sel_loops[i]] EQ 2) THEN BEGIN
+        MAIN=((imref)[sel_loops[i]] NE 2), REF=((imref)[sel_loops[i]] EQ 2), $
+        SJI=((imref)[sel_loops[i]] EQ 3))
+      IF ((imref)[sel_loops[i]] EQ 3) THEN BEGIN
+        ; imref=3: slit-jaw
+        wcs_from = (*(*info).dataparams).wcs_sji
+        pix_from2main = (*(*info).dataparams).pix_sji2main
+        pix_from2ref = (*(*info).dataparams).pix_sji2ref
+        dx_from = (*(*info).dataparams).sjidx
+        dy_from = (*(*info).dataparams).sjidy
+        xval_from = (*(*info).dataparams).xval_sji
+        yval_from = (*(*info).dataparams).yval_sji
+        xpix_from = (*(*info).dataparams).xpix_sji
+        ypix_from = (*(*info).dataparams).ypix_sji
+        nx = (*(*info).dataparams).sjinx
+        ny = (*(*info).dataparams).sjiny
+      ENDIF ELSE IF ((imref)[sel_loops[i]] EQ 2) THEN BEGIN
         ; imref=2: reference
         wcs_from = (*(*info).dataparams).wcs_ref
         pix_from2main = (*(*info).dataparams).pix_ref2main
@@ -5529,7 +5562,8 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
           Y=xyr_sji.y, /SJI)
       ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
         IF ((imref)[sel_loops[i]] NE 2) THEN BEGIN
-          IF ((*(*info).dataswitch).wcs_set AND $
+          IF (((*(*info).dataswitch).wcs_set OR $
+            (*(*info).dataswitch).sji_wcs_set) AND $
             (*(*info).dataswitch).ref_wcs_set) THEN BEGIN
             ; If WCS info available, use that for the transform
             IF (TOTAL(xp_orig LT 0) AND TOTAL(xp_orig GE nx) AND $
@@ -5571,9 +5605,10 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
         ENDIF 
       ENDIF ELSE BEGIN
         ; Else converting to main from ref, or directly from main
-        IF ((imref)[sel_loops[i]] EQ 2) THEN BEGIN
+        IF ((imref)[sel_loops[i]] GE 2) THEN BEGIN
           IF ((*(*info).dataswitch).wcs_set AND $
-            (*(*info).dataswitch).ref_wcs_set) THEN BEGIN
+            ((*(*info).dataswitch).ref_wcs_set OR $
+             (*(*info).dataswitch).sji_wcs_set)) THEN BEGIN
             ; If WCS info available, use that for the transform
             IF (TOTAL(xp_orig LT 0) AND TOTAL(xp_orig GE nx) AND $
               TOTAL(yp_orig LT 0) AND TOTAL(yp_orig GE ny)) THEN BEGIN
@@ -7649,6 +7684,9 @@ PRO CRISPEX_DRAW_REST_LOOP, event
     IF (*(*(*info).restoreparams).disp_imref)[k] THEN BEGIN
       tsel = *(*(*info).dispparams).tsel_ref 
       tarr = *(*(*info).dispparams).tarr_ref 
+    ENDIF ELSE IF ((*(*(*info).restoreparams).disp_imref)[k] EQ 2) THEN BEGIN
+      tsel = *(*(*info).dispparams).tsel_sji
+      tarr = *(*(*info).dispparams).tarr_sji
     ENDIF ELSE BEGIN
       tsel = *(*(*info).dispparams).tsel_main
       tarr = *(*(*info).dispparams).tarr_main
@@ -7664,17 +7702,33 @@ PRO CRISPEX_DRAW_REST_LOOP, event
     upper_t_val = tarr[(*(*info).dispparams).t_upp]
     ; Get dispslice
 		dispslice = (*(*(*(*info).loopsdata).rest_loopslice[k]))[*,lower_t:upper_t]
-		IF (*(*(*info).restoreparams).disp_imref)[k] THEN BEGIN
-			IF (*(*info).dispparams).slices_imscale THEN $
-        CRISPEX_DRAW_SCALING,event,refdisp,minimum,maximum, /REFERENCE $
-      ELSE $
-        minimum = MIN(dispslice,MAX=maximum, /NAN)
-		ENDIF ELSE BEGIN
-			IF (*(*info).dispparams).slices_imscale THEN $
-        CRISPEX_DRAW_SCALING,event,imdisp,minimum,maximum,/MAIN $
-      ELSE $
-        minimum = MIN(dispslice,MAX=maximum, /NAN)
-		ENDELSE
+		IF ((*(*(*info).restoreparams).disp_imref)[k] EQ 1) THEN $
+      ; Reference scaling
+      int_idx = (*(*info).intparams).lp_ref_diag_all+$
+        (*(*info).intparams).ndiagnostics $
+    ELSE IF ((*(*(*info).restoreparams).disp_imref)[k] EQ 2) THEN $
+      ; SJI scaling
+      int_idx = 2*(*(*info).intparams).ndiagnostics+$
+        (*(*info).intparams).nrefdiagnostics $
+		ELSE $
+      ; Main scaling
+      int_idx = (*(*info).intparams).lp_diag_all
+  	IF (*(*info).dispparams).slices_imscale THEN BEGIN
+      CRISPEX_DRAW_SCALING,event,seldisp,minimum,maximum,$
+        MAIN=((*(*(*info).restoreparams).disp_imref)[k] EQ 0), $
+        REFERENCE=((*(*(*info).restoreparams).disp_imref)[k] EQ 1), $
+        SJI=((*(*(*info).restoreparams).disp_imref)[k] EQ 2)
+      minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
+        (*(*info).scaling).minimum[int_idx], (*(*info).scaling).maximum[int_idx])
+    ENDIF ELSE BEGIN
+      minmax = CRISPEX_SCALING_SLICES(dispslice, $
+        (*(*info).scaling).gamma[int_idx],$
+        (*(*info).scaling).histo_opt_val[int_idx], $
+        (*(*info).scaling).minimum[int_idx],$
+        (*(*info).scaling).maximum[int_idx])
+    ENDELSE
+    minimum = minmax[0]
+    maximum = minmax[1]
     sel_idx = (*(*(*info).restoreparams).disp_loopnr)[k]
     IF ((*(*(*info).restoreparams).ngaps)[sel_idx] GE 1) THEN BEGIN
       sel_databounds = $
@@ -7697,8 +7751,6 @@ PRO CRISPEX_DRAW_REST_LOOP, event
 			(*(*info).plotpos).restloopx0, (*(*info).plotpos).restloopy0, /NORM
     ; Overplot time indicator
 		PLOTS, [(*(*info).plotpos).restloopx0, (*(*info).plotpos).restloopx1], $
-      ;[1,1] * ( ((*(*info).dispparams).t-(*(*info).dispparams).t_low) / $
-      ;FLOAT((*(*info).dispparams).t_range-1) * $
       [1,1]*( (tarr[(*(*info).dispparams).t]-lower_t_val) / $
       FLOAT(upper_t_val-lower_t_val) * (*(*info).plotpos).restloopyplspw + $
       (*(*info).plotpos).restloopy0), /NORMAL, COLOR = 100
@@ -7850,7 +7902,7 @@ PRO CRISPEX_EVENT, event
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 END
 
-;================================================================================= FIND CRISPEX OUTPUT FILE PROCEDURES
+;==================== FIND CRISPEX OUTPUT FILE PROCEDURES
 PRO CRISPEX_FIND_CLSAV, event
 ; Finds CLSAV output files (i.e. saved loop points files)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -7884,9 +7936,16 @@ PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir
 		refcfiles = FILE_SEARCH((*(*info).paths).ipath+reffirstsplit+"*csav", $
       COUNT = refcfilecount)
   ENDIF
+	IF (*(*info).dataswitch).sjifile THEN BEGIN
+    sjifilename = FILE_BASENAME((*(*info).dataparams).sjifilename)
+		sjifirstsplit = STRMID(sjifilename,0,STRPOS(sjifilename,'.',$
+      /REVERSE_SEARCH))
+		sjicfiles = FILE_SEARCH((*(*info).paths).ipath+sjifirstsplit+"*csav", $
+      COUNT = sjicfilecount)
+  ENDIF
   ; If no *csav files found, allow selection of new path and redo the search
   IF ((cfilecount EQ 0) AND (refcfilecount EQ 0) AND $
-    KEYWORD_SET(ALLOW_SELECT_DIR)) THEN BEGIN
+    (sjicfilecount EQ 0) AND KEYWORD_SET(ALLOW_SELECT_DIR)) THEN BEGIN
 		CRISPEX_WINDOW_OK, event,'ERROR!',$
       'No saved time slice (*csav) files found corresponding '+$
       'to the current data file. Please select an alternative input path.',$
@@ -7901,15 +7960,32 @@ PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir
   	IF (*(*info).dataswitch).reffile THEN $
   		refcfiles = FILE_SEARCH(newpath+reffirstsplit+"*csav", $
         COUNT = refcfilecount)
+  	IF (*(*info).dataswitch).sjifile THEN $
+  		sjicfiles = FILE_SEARCH(newpath+sjifirstsplit+"*csav", $
+        COUNT = sjicfilecount)
   ENDIF
   ; Save variables
-	IF (*(*info).dataswitch).reffile THEN BEGIN
-		*(*(*info).restoreparams).cfiles  = [cfiles,refcfiles]
-		(*(*info).restoreparams).cfilecount = cfilecount+refcfilecount
-	ENDIF ELSE BEGIN
-		*(*(*info).restoreparams).cfiles  = cfiles
-		(*(*info).restoreparams).cfilecount = cfilecount
-	ENDELSE
+  cfilecount_tmp = 0
+  IF (cfilecount NE 0) THEN BEGIN
+    cfiles_tmp = cfiles
+    cfilecount_tmp += cfilecount
+  ENDIF
+	IF ((*(*info).dataswitch).reffile AND (refcfilecount NE 0)) THEN BEGIN
+    IF (N_ELEMENTS(cfiles_tmp) EQ 0) THEN $
+      cfiles_tmp = refcfiles $
+    ELSE $
+      cfiles_tmp = [cfiles_tmp,refcfiles]
+    cfilecount_tmp += refcfilecount
+	ENDIF 
+	IF ((*(*info).dataswitch).sjifile AND (sjicfilecount NE 0)) THEN BEGIN
+    IF (N_ELEMENTS(cfiles_tmp) EQ 0) THEN $
+      cfiles_tmp = sjicfiles $
+    ELSE $
+      cfiles_tmp = [cfiles_tmp,sjicfiles]
+    cfilecount_tmp += sjicfilecount
+	ENDIF 
+  *(*(*info).restoreparams).cfiles = cfiles_tmp
+  (*(*info).restoreparams).cfilecount = cfilecount_tmp
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [imagefilename, filename, $
       STRTRIM((*(*info).restoreparams).cfilecount,2)], $
@@ -11721,6 +11797,10 @@ PRO CRISPEX_RESTORE_LOOPS_MENU, event, set_but_array
     STRMID(FILE_BASENAME((*(*info).dataparams).refimfilename),0,$
     STRPOS(FILE_BASENAME((*(*info).dataparams).refimfilename), '.', $
     /REVERSE_SEARCH))
+  sjifilename_noext = $
+    STRMID(FILE_BASENAME((*(*info).dataparams).sjifilename),0,$
+    STRPOS(FILE_BASENAME((*(*info).dataparams).sjifilename), '.', $
+    /REVERSE_SEARCH))
 	FOR i=0,filecount-1 DO BEGIN
 		IF (N_ELEMENTS(set_but_array) NE filecount) THEN $
       (*(*(*info).restoreparams).sel_loops)[i] = 0
@@ -11758,7 +11838,10 @@ PRO CRISPEX_RESTORE_LOOPS_MENU, event, set_but_array
 		*(*(*(*info).restoreparams).wdatabounds)[i] = wdatabounds
     (*(*(*info).restoreparams).imref)[i] = $
       STRMATCH(singlefilename, imfilename_noext+'*', /FOLD_CASE) + $
-      STRMATCH(singlefilename, refimfilename_noext+'*', /FOLD_CASE) * 2
+      STRMATCH(singlefilename, refimfilename_noext+'*', /FOLD_CASE) * 2 * $
+      (*(*info).dataswitch).reffile + $
+      STRMATCH(singlefilename, sjifilename_noext+'*', /FOLD_CASE) * 3 * $
+      (*(*info).dataswitch).sjifile
     ; Update user feedback
 		initial_feedback = 'Processed save file '+STRTRIM(i,2)+': '+singlefilename
 		CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring loops...', var=i, $
@@ -12808,18 +12891,20 @@ PRO CRISPEX_RETRIEVE_LOOP_MENU, event, set_but_array
       VALUE = 'Keep *clsav file(s) after saving')
 		save_cube = WIDGET_BASE(disp, /ROW, /FRAME)
 		save_cube_lab = WIDGET_LABEL(save_cube, VALUE = 'Save from: ')
-		save_cube_but = WIDGET_BASE(save_cube, /ROW, /EXCLUSIVE)
-		(*(*info).ctrlsloop).save_imonly = WIDGET_BUTTON(save_cube_but, $
-      VALUE = 'IMCUBE only', EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_IMCUBE_ONLY', $
-      /NO_RELEASE)
-		WIDGET_CONTROL, (*(*info).ctrlsloop).save_imonly, /SET_BUTTON
-		refsens = (*(*info).winswitch).showref AND ((*(*info).dataparams).refnt GT 1)
-		(*(*info).ctrlsloop).save_refonly = WIDGET_BUTTON(save_cube_but, $
-      VALUE = 'REFCUBE only', EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_REFCUBE_ONLY',$
-      SENSITIVE = refsens, /NO_RELEASE)
-		(*(*info).ctrlsloop).save_imref = WIDGET_BUTTON(save_cube_but, $
-      VALUE = 'both cubes', EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_IMREF', $
-      SENSITIVE = refsens, /NO_RELEASE)
+		save_cube_but = WIDGET_BASE(save_cube, /ROW)
+    save_imrefsji_labels = ['main','reference','slit-jaw image']
+    save_imrefsji = CW_BGROUP(save_cube_but, save_imrefsji_labels, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(save_imrefsji_labels)),$
+                          IDS=save_imrefsji_ids, /NONEXCLUSIVE, /ROW, $
+                          EVENT_FUNC='CRISPEX_BGROUP_SAVE_IMREFSJI_LOOP')
+    sensbutton = [0, $
+      (*(*info).winswitch).showref AND ((*(*info).dataparams).refnt GT 1), $
+      (*(*info).winswitch).showsji AND ((*(*info).dataparams).sjint GT 1)]
+    FOR i=0,N_ELEMENTS(save_imrefsji_labels)-1 DO $
+      WIDGET_CONTROL, save_imrefsji_ids[i], $
+        SET_BUTTON=(*(*info).savswitch).imrefsji[i], SENSITIVE=sensbutton[i]
+    (*(*info).ctrlsloop).save_imrefsji_ids = save_imrefsji_ids
+    ; Decision buttons
 		dec_buts = WIDGET_BASE(disp, COLUMN=3, /GRID_LAYOUT, /ALIGN_CENTER)
 		change_path_but = WIDGET_BUTTON(dec_buts, VALUE = 'Change path', $
       EVENT_PRO = 'CRISPEX_SAVE_SET_OPATH')
@@ -12897,7 +12982,9 @@ PRO CRISPEX_RETRIEVE_LOOP_MENU_CONTINUE, event
   			time = 0
   			FOR i=0,(*(*info).retrparams).retrieve_filecount-1 DO BEGIN
   				RESTORE,(*(*(*info).retrparams).retrieve_files)[i]
-  				sub_time = (*(*info).feedbparams).estimate_time * N_ELEMENTS(w_loop_pts)/FLOAT((*(*info).feedbparams).estimate_lx) * (*(*info).dispparams).t_range * CEIL((*(*info).savswitch).imref_only/2.)
+  				sub_time = (*(*info).feedbparams).estimate_time * $
+            N_ELEMENTS(w_loop_pts)/FLOAT((*(*info).feedbparams).estimate_lx) * $
+            (*(*info).dispparams).t_range * TOTAL((*(*info).savswitch).imrefsji)
   				time += sub_time
   			ENDFOR
   			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
@@ -12916,12 +13003,20 @@ PRO CRISPEX_RETRIEVE_LOOP_MENU_CONTINUE, event
   				CRISPEX_ESTIMATE_TIME_CALCULATION, event
   			ENDIF
   			time = 0
+        sub_base_time = (*(*info).feedbparams).estimate_time / $
+          FLOAT((*(*info).feedbparams).estimate_lx) * $
+          (*(*info).dispparams).t_range
   			FOR i=0,(*(*info).retrparams).retrieve_filecount-1 DO BEGIN
+          sub_time = 0.
   				RESTORE,(*(*(*info).retrparams).retrieve_files)[i]
-  				sub_im_time = (*(*info).feedbparams).estimate_time * N_ELEMENTS(w_loop_pts)/FLOAT((*(*info).feedbparams).estimate_lx) * (*(*info).dataparams).nlp * (*(*info).dispparams).t_range
-  				IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN sub_ref_time = (*(*info).feedbparams).estimate_time * N_ELEMENTS(w_loop_pts)/FLOAT((*(*info).feedbparams).estimate_lx) * $
-  					(*(*info).dispparams).t_range ELSE sub_ref_time = sub_im_time
-  				IF ((*(*info).savswitch).imref_only EQ 1) THEN sub_time = sub_im_time ELSE IF ((*(*info).savswitch).imref_only EQ 2) THEN sub_time = sub_ref_time ELSE sub_time = sub_im_time + sub_ref_time
+          IF ((*(*info).savswitch).imrefsji[0] EQ 1) THEN $
+    				sub_time += (*(*info).dataparams).nlp * sub_base_time * $
+              N_ELEMENTS(w_loop_pts)
+          IF ((*(*info).savswitch).imrefsji[1] EQ 1) THEN $
+    				sub_time += (*(*info).dataparams).refnlp * sub_base_time * $
+              N_ELEMENTS(w_loop_pts)
+          IF ((*(*info).savswitch).imrefsji[2] EQ 1) THEN $
+    				sub_time += sub_base_time * N_ELEMENTS(w_loop_pts)
   				time += sub_time
   			ENDFOR
   			CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
@@ -12991,30 +13086,6 @@ PRO CRISPEX_RETRIEVE_LOOP_ALL_POS, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	(*(*info).savswitch).all_pos_loops = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savswitch).all_pos_loops],labels=['Saving spectral position setting']
-END
-
-PRO CRISPEX_RETRIEVE_LOOP_IMCUBE_ONLY, event
-; Enables the retreival of loop paths from the image cube only
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).savswitch).imref_only = 1
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savswitch).imref_only],labels=['Saving from cube setting']
-END
-
-PRO CRISPEX_RETRIEVE_LOOP_REFCUBE_ONLY, event
-; Enables the retreival of loop paths from the reference cube only
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).savswitch).imref_only = 2
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savswitch).imref_only],labels=['Saving from cube setting']
-END
-
-PRO CRISPEX_RETRIEVE_LOOP_IMREF, event
-; Enables the retreival of loop paths from both the image and reference cube
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).savswitch).imref_only = 3
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).savswitch).imref_only],labels=['Saving from cube setting']
 END
 
 PRO CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLAB, event
@@ -13933,9 +14004,12 @@ PRO CRISPEX_SESSION_RESTORE, event
   				WIDGET_CONTROL, (*(*info).ctrlsloop).saved_pos, SET_BUTTON = ABS((*(*info).savswitch).all_pos_loops-1)
   				WIDGET_CONTROL, (*(*info).ctrlsloop).del_files, SET_BUTTON = (*(*info).savswitch).delete_clsav
   				WIDGET_CONTROL, (*(*info).ctrlsloop).keep_files, SET_BUTTON = ABS((*(*info).savswitch).delete_clsav-1)
-  				WIDGET_CONTROL, (*(*info).ctrlsloop).save_imonly, SET_BUTTON = ((*(*info).savswitch).imref_only EQ 1)
-  				WIDGET_CONTROL, (*(*info).ctrlsloop).save_refonly, SET_BUTTON = ((*(*info).savswitch).imref_only EQ 2)
-  				WIDGET_CONTROL, (*(*info).ctrlsloop).save_imref, SET_BUTTON = ((*(*info).savswitch).imref_only EQ 3)
+          sensbutton = [1, $
+            (*(*info).winswitch).showref AND ((*(*info).dataparams).refnt GT 1), $
+            (*(*info).winswitch).showsji AND ((*(*info).dataparams).sjint GT 1)]
+          FOR i=0,N_ELEMENTS(save_imrefsji_labels)-1 DO $
+            WIDGET_CONTROL, save_imrefsji_ids[i], $
+              SET_BUTTON=(*(*info).savswitch).imrefsji[i], SENSITIVE=sensbutton[i]
   			ENDIF ELSE (*(*info).loopswitch).retrieve_loops = 0	; Add error message
   			detfile = FILE_SEARCH((*(*info).detparams).detfilename, COUNT=detcount)
   			IF ((*(*info).loopswitch).retrieve_detfile AND (detcount EQ 1)) THEN BEGIN
@@ -14319,7 +14393,8 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
 	(*(*info).savparams).lp_orig = (*(*info).dataparams).lp
 	(*(*info).savparams).lp_ref_orig = (*(*info).dataparams).lp_ref
 	nfiles = (*(*info).retrparams).retrieve_filecount * $
-    CEIL((*(*info).savswitch).imref_only/2.)
+    TOTAL((*(*info).savswitch).imrefsji)
+  where_imrefsji = WHERE((*(*info).savswitch).imrefsji EQ 1)
 	pass = 0L
 	loopdet = ([2,1])[KEYWORD_SET(SAVE_SLICE)]
   ; Set variables depending on whether saving a slice or a slab
@@ -14332,12 +14407,13 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
 		save_message = 'slab'
 	ENDELSE
   ; Determine number of passes, depending on saving from main, ref or both
-	IF ((*(*info).savswitch).imref_only EQ 1) THEN $
-    maxpass = nlp_pos * nfiles $
-  ELSE IF ((*(*info).savswitch).imref_only EQ 2) THEN $
-    maxpass = refnlp_pos * nfiles $
-  ELSE $
-		maxpass = (nlp_pos + refnlp_pos) * (*(*info).retrparams).retrieve_filecount
+  maxpass = 0
+  IF ((*(*info).savswitch).imrefsji[0] EQ 1) THEN $
+    maxpass += nlp_pos * (*(*info).retrparams).retrieve_filecount 
+  IF ((*(*info).savswitch).imrefsji[1] EQ 1) THEN $
+    maxpass += refnlp_pos * (*(*info).retrparams).retrieve_filecount 
+  IF ((*(*info).savswitch).imrefsji[2] EQ 1) THEN $
+    maxpass += (*(*info).retrparams).retrieve_filecount 
 	t_0 = SYSTIME(/SECONDS)
 	WIDGET_CONTROL,/HOURGLASS
   ; Check output path for writeability
@@ -14347,20 +14423,16 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
     ; Get current filename
 		fstr = (*(*(*info).retrparams).retrieve_files)[$
             (i MOD (*(*info).retrparams).retrieve_filecount)]
+    imrefsji_sel = where_imrefsji[$
+      FLOOR(i / FLOAT((*(*info).retrparams).retrieve_filecount))]
     ; Determine save filename, based on input file names
-		IF ((*(*info).dataparams).refimfilename NE '') THEN $
-      CRISPEX_SAVE_RETRIEVE_DETERMINE_FILENAME, event, $
-        (*(*info).savswitch).imref_only, (*(*info).dataparams).imfilename, $
-			  refimfilename=(*(*info).dataparams).refimfilename, $
-        *(*(*info).data).imagedata, refdata=*(*(*info).data).refdata, $
-        (*(*info).paths).opath, i, (*(*info).retrparams).retrieve_filecount, $
-        filename, data, nonlp, imref, whichdata, fstr=fstr, loopdet=loopdet $
-    ELSE $
-			CRISPEX_SAVE_RETRIEVE_DETERMINE_FILENAME, event, $
-        (*(*info).savswitch).imref_only, (*(*info).dataparams).imfilename, $
-        *(*(*info).data).imagedata, (*(*info).paths).opath, i, $
-				(*(*info).retrparams).retrieve_filecount, filename, data, nonlp, $
-        imref, whichdata, fstr=fstr, loopdet=loopdet
+    CRISPEX_SAVE_RETRIEVE_DETERMINE_FILENAME, event, $
+      imrefsji_sel, (*(*info).dataparams).imfilename, $
+		  refimfilename=(*(*info).dataparams).refimfilename, $
+		  sjifilename=(*(*info).dataparams).sjifilename, $
+      *(*(*info).data).imagedata, refdata=*(*(*info).data).refdata, $
+      sjidata=*(*(*info).data).sjidata, $
+      filename, data, nonlp, fstr=fstr, loopdet=loopdet ;$
     ; Restore loop path file
 		RESTORE,(*(*(*info).retrparams).retrieve_files)[$
       (i MOD (*(*info).retrparams).retrieve_filecount)] 
@@ -14368,7 +14440,7 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
     saved_from = FILE_BASENAME(fstr,'.clsav')
     saved_to = FILE_BASENAME(filename,'.csav')
     IF (saved_to NE saved_from) THEN BEGIN
-      IF (imref EQ 1) THEN BEGIN
+      IF (imrefsji_sel EQ 0) THEN BEGIN
         ; Current data file is main, but path was saved from ref
         ; Convert path coordinates from ref to main
         IF ((*(*info).dataswitch).wcs_set AND $
@@ -14403,7 +14475,7 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
         y_loop_pts = xypath.yr
         nx = (*(*info).dataparams).nx
         ny = (*(*info).dataparams).ny
-      ENDIF ELSE BEGIN
+      ENDIF ELSE IF (imrefsji_sel EQ 1) THEN BEGIN
         ; Current data file is ref, but path was saved from main
         ; Convert path coordinates from main to ref
         IF ((*(*info).dataswitch).wcs_set AND $
@@ -14438,36 +14510,75 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
         y_loop_pts = xypath.yr
         nx = (*(*info).dataparams).refnx
         ny = (*(*info).dataparams).refny
+      ENDIF ELSE BEGIN
+        ; Current data file is sji, but path was saved from main
+        ; Convert path coordinates from main to sji
+        IF ((*(*info).dataswitch).wcs_set AND $
+          (*(*info).dataswitch).sji_wcs_set) THEN BEGIN
+          IF ((TOTAL(x_coords LT 0) EQ 0) AND $
+            (TOTAL(x_coords GE (*(*info).dataparams).nx) EQ 0) AND $
+            (TOTAL(y_coords LT 0) EQ 0) AND $
+            (TOTAL(y_coords GE (*(*info).dataparams).ny)) EQ 0) THEN BEGIN
+            xp_sji = $
+              REFORM(((*(*info).dataparams).pix_main2sji[*,x_coords,0])[0,*])
+            yp_sji = $
+              REFORM(((*(*info).dataparams).pix_main2sji[*,0,y_coords])[1,0,*])
+            xyp = {x:xp_sji, y:yp_sji}
+          ENDIF ELSE $
+            xyp = CRISPEX_TRANSFORM_GET_WCS(x_coords, y_coords, $
+              (*(*info).dataparams).wcs_main, (*(*info).dataparams).wcs_sji, $
+              /PIXEL, /COORD)
+        ENDIF ELSE BEGIN
+          xyp = CRISPEX_TRANSFORM_COORDS(x_coords, y_coords, $
+            (*(*info).dataparams).dx, (*(*info).dataparams).sjidx, $
+            (*(*info).dataparams).dy, (*(*info).dataparams).sjidy, $
+            (*(*info).dataparams).xval, (*(*info).dataparams).xval_sji, $
+            (*(*info).dataparams).yval, (*(*info).dataparams).yval_sji, $
+            (*(*info).dataparams).xpix, (*(*info).dataparams).xpix_sji, $
+            (*(*info).dataparams).ypix, (*(*info).dataparams).ypix_sji)
+        ENDELSE
+        xypath = CRISPEX_GET_PATH(xyp.x, xyp.y, N_ELEMENTS(xyp.x), $
+          (*(*info).dataparams).sjinx, (*(*info).dataparams).sjiny)
+        x_coords = xyp.x
+        y_coords = xyp.y
+        x_loop_pts = xypath.xr
+        y_loop_pts = xypath.yr
+        nx = (*(*info).dataparams).sjinx
+        ny = (*(*info).dataparams).sjiny
       ENDELSE
 	    w_loop_pts = $
         WHERE((x_loop_pts GE 0) AND (x_loop_pts LT (nx)) AND $
               (y_loop_pts GE 0) AND (y_loop_pts LT (ny)), nw_lpts)
     ENDIF
 		IF (N_ELEMENTS(T_SAVED) NE 1) THEN t_saved = (*(*info).dispparams).t
-		IF KEYWORD_SET(SAVE_SLICE) THEN BEGIN
-      IF (imref EQ 1) THEN BEGIN
+		IF (KEYWORD_SET(SAVE_SLICE) OR (imrefsji_sel EQ 2)) THEN BEGIN
+      IF (imrefsji_sel EQ 0) THEN BEGIN
         IF (saved_from EQ saved_to) THEN $
 			    lp_low = spect_pos<((*(*info).dataparams).nlp-1)	$
         ELSE $
           lp_low = (*(*info).savparams).lp_orig
-      ENDIF ELSE BEGIN
+      ENDIF ELSE IF (imrefsji_sel EQ 1) THEN BEGIN
         IF (saved_from EQ saved_to) THEN $
 			    lp_low = spect_pos<((*(*info).dataparams).refnlp-1) $
         ELSE $
           lp_low = (*(*info).savparams).lp_ref_orig
-      ENDELSE
+      ENDIF ELSE $
+        lp_low = 0
       lp_upp = lp_low
       spect_pos = lp_low
 		ENDIF ELSE BEGIN
 			lp_low = 0
-			IF (imref EQ 1) THEN BEGIN
+			IF (imrefsji_sel EQ 0) THEN BEGIN
 				lp_upp = (*(*info).dataparams).nlp-1 
         IF (saved_from NE saved_to) THEN $
           spect_pos = (*(*info).savparams).lp_orig
-			ENDIF ELSE BEGIN
+      ENDIF ELSE IF (imrefsji_sel EQ 1) THEN BEGIN
 				lp_upp = (*(*info).dataparams).refnlp-1	
         IF (saved_from NE saved_to) THEN $
           spect_pos = (*(*info).savparams).lp_ref_orig
+      ENDIF ELSE BEGIN
+        lp_upp = 0
+        spect_pos = 0
 			ENDELSE
 		ENDELSE
 		FOR k=lp_low,lp_upp DO BEGIN
@@ -14479,13 +14590,14 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
 			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Saving retrieved loop '+$
         save_message+'(s)', var=pass-1, maxvar=maxpass, feedback_text=part+$
         feedback_text, /destroy_top
-			IF (imref EQ 1) THEN $ 
+			IF (imrefsji_sel EQ 0) THEN $ 
         (*(*info).dataparams).lp = k $
-       ELSE $
+      ELSE IF (imrefsji_sel EQ 1) THEN $
         (*(*info).dataparams).lp_ref = k
 			CRISPEX_LOOP_GET_EXACT_SLICE, event, data, x_loop_pts, $
         y_loop_pts, x_coords, y_coords, w_loop_pts, loop_slice_out, $
-        crossloc_out, loopsize_out, im=whichdata
+        crossloc_out, loopsize_out, IM=(imrefsji_sel EQ 0), $
+        SJI=(imrefsji_sel EQ 2)
 			IF ~KEYWORD_SET(SAVE_SLICE) THEN BEGIN
 				IF (k EQ lp_low) THEN $
           loop_slab = loop_slice_out $
@@ -14507,12 +14619,15 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
     ELSE $ 
       result = CRISPEX_ARRAY_GET_GAP(w_loop_pts, N_ELEMENTS(x_loop_pts))
 		type = 0
-		IF (imref EQ 1) THEN BEGIN
+		IF (imrefsji_sel EQ 0) THEN BEGIN
 			average_spectrum= ((*(*info).dataparams).spec)[*,(*(*info).dataparams).s] 
 			scaling_factor  = (*(*info).dataparams).ms
-		ENDIF ELSE BEGIN
+    ENDIF ELSE IF (imrefsji_sel EQ 1) THEN BEGIN
 			average_spectrum= ((*(*info).dataparams).refspec)
 			scaling_factor  = (*(*info).dataparams).refms
+    ENDIF ELSE BEGIN
+      average_spectrum = 0
+      scaling_factor = 1
 		ENDELSE
     vertices        = crossloc_out
 		spect_pos_low   = lp_low						
@@ -14534,7 +14649,7 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
 		PRINT,'Saving retrieved exact loop '+save_message+' done. Saved data to: '+$
       STRTRIM(singlefilename,2)
 		IF (*(*info).savswitch).delete_clsav THEN BEGIN
-			IF ((*(*info).savswitch).imref_only LE 2) THEN $
+			IF (TOTAL((*(*info).savswitch).imrefsji) LE 2) THEN $
         FILE_DELETE, STRTRIM((*(*(*info).retrparams).retrieve_files)[i],2), /QUIET $
       ELSE BEGIN
 				IF (i GE (*(*info).retrparams).retrieve_filecount) THEN $
@@ -14548,8 +14663,11 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
 	(*(*info).dataparams).lp_ref = (*(*info).savparams).lp_ref_orig
 END
 
-PRO CRISPEX_SAVE_RETRIEVE_DETERMINE_FILENAME, event, imref_only, imfilename, refimfilename=refimfilename, imdata, refdata=refdata, opath, var, endoflist, outputfilename, outputdata, outputnonlp, outputimref, outputwhichdata, $
-	index=index, fstr=fstr, loopdet=loopdet
+PRO CRISPEX_SAVE_RETRIEVE_DETERMINE_FILENAME, event, imrefsji, imfilename, $
+  refimfilename=refimfilename, sjifilename=sjifilename, imdata, refdata=refdata,$
+  sjidata=sjidata, outputfilename, outputdata, $
+  outputnonlp, index=index, fstr=fstr, $
+  loopdet=loopdet
 ; Determines the filename of the retrieved loop path or detection timeslice to be saved
 	; loopdet = 1 > loop, slice
 	; loopdet = 2 > loop, slab
@@ -14557,45 +14675,30 @@ PRO CRISPEX_SAVE_RETRIEVE_DETERMINE_FILENAME, event, imref_only, imfilename, ref
 	; loopdet = 4 > det, slab
 	; outputimref = 1 > main
 	; outputimref = 2 > reference
-	IF (imref_only EQ 1) THEN BEGIN			; Only save from main cube
-		IF (loopdet LE 2) THEN CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=fstr, outfilename=outputfilename, ext='csav', /exch_ext ELSE $
-			CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=fstr, outfilename=outputfilename, ext='csav', import_id = 'D'+STRTRIM(index,2)
-		outputnonlp = (loopdet EQ 1)
-		outputimref = 1
+  ; outputimref = 3 > sji
+  outputnonlp = (loopdet EQ 1) OR (loopdet EQ 3) OR (imrefsji EQ 2)
+  IF (imrefsji EQ 0) THEN BEGIN
+    infilename = imfilename
 		outputdata = imdata
-		outputwhichdata = 1
-	ENDIF ELSE IF (imref_only EQ 2) THEN BEGIN	; Only save from reference cube
-		IF (loopdet LE 2) THEN BEGIN
-			clstr = STRSPLIT(fstr,'_',/EXTRACT)
-			datestamp = clstr[N_ELEMENTS(clstr)-2]
-			timestamp = (STRSPLIT(clstr[N_ELEMENTS(clstr)-1],'.',/EXTRACT))[0]
-			CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=refimfilename, outfilename=outputfilename, ext='csav', import_id = datestamp+'_'+timestamp
-		ENDIF ELSE CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=refimfilename, outfilename=outputfilename, ext='csav', import_id = 'D'+STRTRIM(index,2)
-		outputnonlp = (loopdet EQ 3)
-		outputimref = 2
+  ENDIF
+  IF (imrefsji EQ 1) THEN BEGIN
+    infilename = refimfilename
 		outputdata = refdata
-		outputwhichdata = 0
-	ENDIF ELSE BEGIN				; Save from both main and reference cube
-		IF (var LT endoflist) THEN BEGIN
-			IF (loopdet LE 2) THEN CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=fstr, outfilename=outputfilename, ext='csav', /exch_ext ELSE $
-				CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=fstr, outfilename=outputfilename, ext='csav', import_id = 'D'+STRTRIM(index,2)
-			outputnonlp = (loopdet EQ 1)
-			outputimref = 1
-			outputdata = imdata
-			outputwhichdata = 1
-		ENDIF ELSE BEGIN
-			IF (loopdet LE 2) THEN BEGIN
-				clstr = STRSPLIT(fstr,'_',/EXTRACT)
-				datestamp = clstr[N_ELEMENTS(clstr)-2]
-				timestamp = (STRSPLIT(clstr[N_ELEMENTS(clstr)-1],'.',/EXTRACT))[0]
-				CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=refimfilename, outfilename=outputfilename, ext='csav', import_id = datestamp+'_'+timestamp
-			ENDIF ELSE CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=refimfilename, outfilename=outputfilename, ext='csav', import_id = 'D'+STRTRIM(index,2)
-			outputnonlp = (loopdet EQ 3)
-			outputimref = 2
-			outputdata = refdata
-			outputwhichdata = 0
-		ENDELSE
-	ENDELSE
+  ENDIF
+  IF (imrefsji EQ 2) THEN BEGIN
+    infilename = sjifilename
+		outputdata = sjidata
+  ENDIF
+	IF (loopdet LE 2) THEN BEGIN
+	  clstr = STRSPLIT(fstr,'_',/EXTRACT)
+	  datestamp = clstr[N_ELEMENTS(clstr)-2]
+	  timestamp = (STRSPLIT(clstr[N_ELEMENTS(clstr)-1],'.',/EXTRACT))[0]
+		CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=infilename, $
+      outfilename=outputfilename, ext='csav', $
+      import_id=datestamp+'_'+timestamp 
+  ENDIF ELSE $
+    CRISPEX_SAVE_DETERMINE_FILENAME, event, infilename=infilename, $
+      outfilename=outputfilename, ext='csav', import_id = 'D'+STRTRIM(index,2)
 END
 
 PRO CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB, event, SAVE_SLICE=save_slice
@@ -19693,7 +19796,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 ;-------------------- RETRIEVE DETECTIONS CONTROLS 
 	ctrlsloop = { $
 		get_loops:0, sel_all:0, sel_none:0, all_pos:0, saved_pos:0, del_files:0, keep_files:0, $
-		save_imonly:0, save_refonly:0, save_imref:0 $
+		save_imrefsji_ids:INTARR(3) $
 	}
 ;-------------------- BMP BUTTON IMAGES
 	ctrlspbbut = { $
@@ -19785,6 +19888,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		imfilename:hdr.imfilename, spfilename:hdr.spfilename, $
     refimfilename:hdr.refimfilename, $
     refspfilename:hdr.refspfilename, maskfilename:hdr.maskfilename, $	
+    sjifilename:hdr.sjifilename, $
     ; Headers, OBSID and DATE_OBS
     hdrs:[PTR_NEW(hdr.hdrs_main),PTR_NEW(hdr.hdrs_ref),PTR_NEW(hdr.hdrs_sji)], $
     next:[N_ELEMENTS(hdr.hdrs_main),N_ELEMENTS(hdr.hdrs_ref),$
@@ -20176,8 +20280,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	}
 ;-------------------- SAVING SWITCHES
 	savswitch = { $
-		cont:0, delete_clsav:0, imref_only:1, det_imref_only:1, $				
-		all_pos_loops:1, pos_dets:1 $							
+		cont:0, delete_clsav:0, det_imref_only:1, $				
+		all_pos_loops:1, pos_dets:1, imrefsji:[1,0,0] $							
 	}
 ;-------------------- SESSION PARAMS
 	sesparams = { $
@@ -20410,8 +20514,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		WIDGET_CONTROL, ls_toggle_but, SET_BUTTON = 1
 		(*(*info).winswitch).showls = 1
 	ENDELSE
-;  WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, SENSITIVE=((*(*info).intparams).ndiagnostics LE 1) 
-;  WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, SENSITIVE=((*(*info).intparams).ndiagnostics LE 1) 
 
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(determining display of plots)', /WIDGET, /OVER, /DONE
