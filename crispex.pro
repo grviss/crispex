@@ -3484,7 +3484,8 @@ PRO CRISPEX_DISPLAYS_PHIS_TOGGLE, event, NO_DRAW=no_draw
 		(*(*info).winids).phistlb = 0
 		(*(*info).winswitch).showphis = 0
 	ENDELSE
-	WIDGET_CONTROL, (*(*info).ctrlscp).phi_slider, SENSITIVE = (*(*info).winswitch).showphis
+	WIDGET_CONTROL, (*(*info).ctrlscp).phi_slider, $
+    SENSITIVE=((*(*info).winswitch).showphis AND (*(*info).dataparams).nx GT 1)
 	WIDGET_CONTROL, (*(*info).ctrlscp).nphi_slider, SENSITIVE = (*(*info).winswitch).showphis
 	WIDGET_CONTROL, (*(*info).ctrlscp).bwd_move_slit, SENSITIVE = (*(*info).winswitch).showphis
 	WIDGET_CONTROL, (*(*info).ctrlscp).fwd_move_slit, SENSITIVE = (*(*info).winswitch).showphis
@@ -5234,7 +5235,8 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
       AND ARRAY_EQUAL(b_cur,BINDGEN(256)))
   IF (eqtc0 EQ 0) THEN LOADCT,0,/SILENT
   ; Overplot phi-slit...
-	IF (*(*info).winswitch).showphis THEN BEGIN
+	IF ((*(*info).winswitch).showphis AND $
+    ((*(*info).dispswitch).xy_out_of_range EQ 0)) THEN BEGIN
     ; ... in reference window
     IF KEYWORD_SET(REFERENCE) THEN BEGIN
       PLOTS, [(*(*(*info).overlayparams).sx_pts_ref)[0],$
@@ -7379,7 +7381,8 @@ PRO CRISPEX_DRAW_PHIS, event
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).phiswid
   ; If 2D, then display
-  IF ((SIZE(*(*(*info).data).phislice))[0] EQ 2) THEN BEGIN
+  IF (((SIZE(*(*(*info).data).phislice))[0] EQ 2) AND $
+    ((*(*info).dispswitch).xy_out_of_range EQ 0)) THEN BEGIN
     ; Display full spectrum-slit diagram at once
     TV,(CONGRID( *(*(*info).data).phislice, (*(*info).dispparams).phisnlpreb, $
       (*(*info).dispparams).nphireb, $
@@ -13757,7 +13760,9 @@ PRO CRISPEX_SESSION_RESTORE, event
                       ABS((*(*info).ctrlsswitch).lp_ref_lock-1))
         ; Spectrum along slit
   			WIDGET_CONTROL, (*(*info).ctrlscp).phi_slider, $
-          SET_VALUE = (*(*info).phiparams).angle, SENSITIVE = (*(*info).winswitch).showphis
+          SET_VALUE = (*(*info).phiparams).angle, $
+          SENSITIVE=((*(*info).winswitch).showphis AND $
+          (*(*info).dataparams).nx GT 1)
   			WIDGET_CONTROL, (*(*info).ctrlscp).nphi_slider, $
           SET_VALUE = (*(*info).phiparams).nphi_set, $
           SENSITIVE = (*(*info).winswitch).showphis
@@ -16279,39 +16284,42 @@ PRO CRISPEX_UPDATE_PHISLIT_COORDS, event, PHI_ANGLE=phi_angle
               (*(*info).phiparams).nphi_set/2) + LONG((*(*info).dataparams).y)
 	w = WHERE((x_pts GE 0) AND (x_pts LE (*(*info).dispparams).x_last) AND $
             (y_pts GE 0) AND (y_pts LE (*(*info).dispparams).y_last), nw)
-	(*(*info).phiparams).nw_cur = nw
-	*(*(*info).phiparams).x_pts = REBIN(x_pts[w], nw, (*(*info).dataparams).nlp)
-	*(*(*info).phiparams).y_pts = REBIN(y_pts[w], nw, (*(*info).dataparams).nlp)
-  x_pts_loc = REFORM((*(*(*info).phiparams).x_pts)[*,0])
-  y_pts_loc = REFORM((*(*(*info).phiparams).y_pts)[*,0])
-  ; Convert to REFERENCE if displaying
-  IF (*(*info).winswitch).showref THEN BEGIN
-    xyref = (*(*info).dataparams).pix_main2ref[*, x_pts_loc, y_pts_loc]
-    *(*(*info).phiparams).x_pts_ref = REFORM(xyref[0,*,0])
-    *(*(*info).phiparams).y_pts_ref = REFORM(xyref[1,0,*])
+  IF (nw GT 0) THEN BEGIN
+    ; Only change parameters if within xy-bounds
+  	(*(*info).phiparams).nw_cur = nw
+  	*(*(*info).phiparams).x_pts = REBIN(x_pts[w], nw, (*(*info).dataparams).nlp)
+  	*(*(*info).phiparams).y_pts = REBIN(y_pts[w], nw, (*(*info).dataparams).nlp)
+    x_pts_loc = REFORM((*(*(*info).phiparams).x_pts)[*,0])
+    y_pts_loc = REFORM((*(*(*info).phiparams).y_pts)[*,0])
+    ; Convert to REFERENCE if displaying
+    IF (*(*info).winswitch).showref THEN BEGIN
+      xyref = (*(*info).dataparams).pix_main2ref[*, x_pts_loc, y_pts_loc]
+      *(*(*info).phiparams).x_pts_ref = REFORM(xyref[0,*,0])
+      *(*(*info).phiparams).y_pts_ref = REFORM(xyref[1,0,*])
+    ENDIF
+    ; Convert to SJI if displaying
+    IF (*(*info).winswitch).showsji THEN BEGIN
+      xysji = (*(*info).dataparams).pix_main2sji[*, x_pts_loc, y_pts_loc]
+      *(*(*info).phiparams).x_pts_sji = REFORM(xysji[0,*,0])
+      *(*(*info).phiparams).y_pts_sji = REFORM(xysji[1,0,*])
+    ENDIF
+    midphi = WHERE($
+      ((*(*(*info).phiparams).x_pts)[*,0] EQ LONG((*(*info).dataparams).x)) AND $
+      ((*(*(*info).phiparams).y_pts)[*,0] EQ LONG((*(*info).dataparams).y)))
+  	(*(*info).phiparams).sphi = midphi +  ((*(*info).phiparams).nphi - nw)/2
+    CRISPEX_UPDATE_SX, event
+    CRISPEX_UPDATE_SY, event
+    ; Replot axes only under conditions specified below
+      ; change in nw_cur 
+    IF (((*(*info).phiparams).nw_cur NE nw_prev) OR $                      
+      ; while nw_cur lt nphi_set
+      ((*(*info).phiparams).nw_cur NE (*(*info).phiparams).nphi_set) OR $  
+      ; nw_cur becomes nphi_set
+      (nw_prev NE (*(*info).phiparams).nphi_set) OR $
+      ; phi angle is changed and pixels are non-square
+      KEYWORD_SET(PHI_ANGLE)) THEN $                   
+        CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event
   ENDIF
-  ; Convert to SJI if displaying
-  IF (*(*info).winswitch).showsji THEN BEGIN
-    xysji = (*(*info).dataparams).pix_main2sji[*, x_pts_loc, y_pts_loc]
-    *(*(*info).phiparams).x_pts_sji = REFORM(xysji[0,*,0])
-    *(*(*info).phiparams).y_pts_sji = REFORM(xysji[1,0,*])
-  ENDIF
-  midphi = WHERE($
-    ((*(*(*info).phiparams).x_pts)[*,0] EQ LONG((*(*info).dataparams).x)) AND $
-    ((*(*(*info).phiparams).y_pts)[*,0] EQ LONG((*(*info).dataparams).y)))
-  CRISPEX_UPDATE_SX, event
-  CRISPEX_UPDATE_SY, event
-	(*(*info).phiparams).sphi = midphi +  ((*(*info).phiparams).nphi - nw)/2
-  ; Replot axes only under conditions specified below
-    ; change in nw_cur 
-  IF (((*(*info).phiparams).nw_cur NE nw_prev) OR $                      
-    ; while nw_cur lt nphi_set
-    ((*(*info).phiparams).nw_cur NE (*(*info).phiparams).nphi_set) OR $  
-    ; nw_cur becomes nphi_set
-    (nw_prev NE (*(*info).phiparams).nphi_set) OR $
-    ; phi angle is changed and pixels are non-square
-    KEYWORD_SET(PHI_ANGLE)) THEN $                   
-      CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [nw,midphi], labels=['nw','midphi']
 END
