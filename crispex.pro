@@ -7968,6 +7968,7 @@ PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir
         COUNT = sjicfilecount)
   ENDIF
   ; Save variables
+  cfiles_tmp = ''
   cfilecount_tmp = 0
   IF (cfilecount NE 0) THEN BEGIN
     cfiles_tmp = cfiles
