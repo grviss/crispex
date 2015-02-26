@@ -1634,8 +1634,7 @@ PRO CRISPEX_CURSOR, event
 		0:	CASE event.PRESS OF
 			1:	BEGIN	; left mouse button press -> locks cursor to location
 					(*(*info).curs).lockset = 1
-					WIDGET_CONTROL, (*(*info).ctrlscp).unlock_button, SET_BUTTON=0
-					WIDGET_CONTROL, (*(*info).ctrlscp).lock_button, /SET_BUTTON
+          CRISPEX_CURSOR_LOCKBUTTON_SET, event
           ; Convert device to actual data coordinates
           CRISPEX_CURSOR_GET_XY, event, event.X, event.Y
           ; Set lock variables for main
@@ -1951,7 +1950,7 @@ PRO CRISPEX_CURSOR_LOCK, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).curs).lockset = event.SELECT
+	(*(*info).curs).lockset = ABS((*(*info).curs).lockset-1)
 	IF (*(*info).curs).lockset THEN BEGIN
 		(*(*info).curs).xlock = (*(*info).dataparams).x	
     (*(*info).curs).ylock = (*(*info).dataparams).y
@@ -1967,8 +1966,21 @@ PRO CRISPEX_CURSOR_LOCK, event
 			CRISPEX_VERBOSE_GET, event, [(*(*info).curs).xlock,(*(*info).curs).ylock,$
         (*(*info).curs).sxlock,(*(*info).curs).sylock], $
         labels=['xlock','ylock','sxlock','sylock']
-	ENDIF 
+	ENDIF
+  CRISPEX_CURSOR_LOCKBUTTON_SET, event
   CRISPEX_COORDSLIDERS_SET, 1, 1, event
+END
+
+PRO CRISPEX_CURSOR_LOCKBUTTON_SET, event
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+	IF (*(*info).curs).lockset THEN $
+    WIDGET_CONTROL, (*(*info).ctrlscp).cursor_button, $
+      SET_VALUE=(*(*info).ctrlspbbut).cursor_locked, /SET_BUTTON $
+  ELSE $
+    WIDGET_CONTROL, (*(*info).ctrlscp).cursor_button, $
+      SET_VALUE=(*(*info).ctrlspbbut).cursor_unlocked, /SET_BUTTON
 END
 
 PRO CRISPEX_COORDSLIDERS_SET, xsensitive, ysensitive, event
@@ -9424,8 +9436,7 @@ PRO CRISPEX_LOOP_DEFINE, event
 		WIDGET_CONTROL, (*(*info).ctrlscp).save_loop_pts, SENSITIVE = 0
 		WIDGET_CONTROL, (*(*info).ctrlscp).timeslicemenu, SENSITIVE = 0
 		WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, SET_VALUE = 'Draw path'
-		WIDGET_CONTROL, (*(*info).ctrlscp).lock_button, SET_BUTTON = 0
-		WIDGET_CONTROL, (*(*info).ctrlscp).unlock_button, /SET_BUTTON
+    CRISPEX_CURSOR_LOCKBUTTON_SET, event
 		(*(*info).curs).lockset = event.SELECT
 		CRISPEX_COORDSLIDERS_SET, 1, 1, event
 		CRISPEX_DRAW, event
@@ -10093,8 +10104,7 @@ PRO CRISPEX_MEASURE_ENABLE, event, DISABLE=disable
       CRISPEX_UPDATE_SY, event
     ENDIF
 		(*(*info).curs).lockset = (*(*info).meas).spatial_measurement
-		WIDGET_CONTROL, (*(*info).ctrlscp).unlock_button, SET_BUTTON = ABS((*(*info).curs).lockset-1)
-		WIDGET_CONTROL, (*(*info).ctrlscp).lock_button, SET_BUTTON = (*(*info).curs).lockset
+    CRISPEX_CURSOR_LOCKBUTTON_SET, event
 		CRISPEX_COORDSLIDERS_SET, 1, 1, event
 		IF ~KEYWORD_SET(DISABLE) THEN CRISPEX_DRAW, event
 	ENDIF
@@ -13693,9 +13703,7 @@ PRO CRISPEX_SESSION_RESTORE, event
           SET_SLIDER_MAX = (*(*info).dispparams).lp_upp, $
   				SENSITIVE = ((*(*info).dataparams).nlp GT 1)
         ; Cursor lock controls
-  			WIDGET_CONTROL, (*(*info).ctrlscp).lock_button, SET_BUTTON = (*(*info).curs).lockset
-  			WIDGET_CONTROL, (*(*info).ctrlscp).unlock_button, $
-          SET_BUTTON = ABS((*(*info).curs).lockset-1)
+        CRISPEX_CURSOR_LOCKBUTTON_SET, event
         ; ==================== Playback Tab ====================
   			WIDGET_CONTROL, (*(*info).ctrlscp).lower_t_text, $
           SET_VALUE = STRTRIM((*(*info).dispparams).t_low,2), $
@@ -18415,7 +18423,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	feedback_text = ['Setting up widget... ','> Loading BMP buttons... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	bmpbut_search = FILE_SEARCH(dir_buttons, '*.bmp', COUNT=bmpbut_count)
-	IF (bmpbut_count EQ 16) THEN BEGIN
+	IF (bmpbut_count EQ 18) THEN BEGIN
 		bmpbut_fbwd_idle     = CRISPEX_READ_BMP_BUTTONS('fbwd_idle.bmp',dir_buttons)
 		bmpbut_fbwd_pressed  = CRISPEX_READ_BMP_BUTTONS('fbwd_pressed.bmp',dir_buttons)
 		bmpbut_bwd_idle      = CRISPEX_READ_BMP_BUTTONS('bwd_idle.bmp',dir_buttons)
@@ -18432,6 +18440,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		bmpbut_cycle_pressed = CRISPEX_READ_BMP_BUTTONS('cycle_pressed.bmp',dir_buttons)
 		bmpbut_blink_idle    = CRISPEX_READ_BMP_BUTTONS('blink_idle.bmp',dir_buttons)
 		bmpbut_blink_pressed = CRISPEX_READ_BMP_BUTTONS('blink_pressed.bmp',dir_buttons)
+    bmpbut_cursor_unlock = CRISPEX_READ_BMP_BUTTONS('cursor_unlock.bmp',dir_buttons)
+    bmpbut_cursor_lock   = CRISPEX_READ_BMP_BUTTONS('cursor_lock.bmp',dir_buttons)
     failed = 0
 	ENDIF ELSE BEGIN
 		bmpbut_fbwd_idle  = '<<'    & bmpbut_fbwd_pressed  = bmpbut_fbwd_idle
@@ -18442,6 +18452,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		bmpbut_loop_idle  = 'Loop'  & bmpbut_loop_pressed  = bmpbut_loop_idle
 		bmpbut_cycle_idle = 'Cycle' & bmpbut_cycle_pressed = bmpbut_cycle_idle
 		bmpbut_blink_idle = 'Blink' & bmpbut_blink_pressed = bmpbut_blink_idle
+    bmpbut_cursor_lock = 'Lock' & bmpbut_cursor_unlock = 'Unlock'
     failed = 1
 	ENDELSE
   IF failed THEN donetext = 'failed.' ELSE donetext = 'done!'
@@ -18620,7 +18631,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	playback_contr		  = WIDGET_BASE(control_panel, /ROW)
 	playback_field_basic= WIDGET_BASE(playback_contr, /FRAME, /GRID_LAYOUT, COLUMN=5)
 	playback_field_add	= WIDGET_BASE(playback_contr, /FRAME, $
-                          GRID_LAYOUT=(bmpbut_count EQ 16), COLUMN=3, EXCLUSIVE=(bmpbut_count NE 16))
+                          GRID_LAYOUT=(bmpbut_count EQ 18), COLUMN=3, EXCLUSIVE=(bmpbut_count NE 18))
+	playback_field_curs = WIDGET_BASE(playback_contr, /FRAME, /GRID_LAYOUT, COLUMN=1)
 	fbwd_button		      = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fbwd_idle, $
                           EVENT_PRO='CRISPEX_PB_FASTBACKWARD', TOOLTIP = 'Move one frame backward')
 	backward_button		  = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_bwd_idle, $
@@ -18633,11 +18645,14 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                           EVENT_PRO='CRISPEX_PB_FASTFORWARD', TOOLTIP = 'Move one frame forward')
 	loop_button		      = WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_loop_pressed, $
                           EVENT_PRO='CRISPEX_PB_LOOP', TOOLTIP = 'Loop')
-	WIDGET_CONTROL, loop_button, SET_BUTTON = (bmpbut_count NE 16)
+	WIDGET_CONTROL, loop_button, SET_BUTTON = (bmpbut_count NE 18)
 	cycle_button		    = WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_cycle_idle, $
                           EVENT_PRO='CRISPEX_PB_CYCLE', TOOLTIP = 'Cycle')
 	blink_button		    = WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_blink_idle, $
                           EVENT_PRO='CRISPEX_PB_BLINK', TOOLTIP = 'Blink')
+  cursor_button       = WIDGET_BUTTON(playback_field_curs, $
+                          VALUE=bmpbut_cursor_unlock, TOOLTIP='(Un)lock cursor',$
+                          EVENT_PRO='CRISPEX_CURSOR_LOCK')
   tlp_slider_base     = WIDGET_BASE(control_panel, /GRID_LAYOUT, COLUMN=2)
 	t_slid			        = WIDGET_SLIDER(tlp_slider_base, TITLE = 'Frame number', MIN=t_first, $
                           MAX=(t_last>(t_first+1)), VALUE=t_start, EVENT_PRO='CRISPEX_SLIDER_T', /DRAG, $
@@ -18647,14 +18662,6 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
                           TITLE = 'Main '+STRLOWCASE(sp_h[heightset])+' position', MIN = lp_first, $
                           MAX = lp_last_slid, VALUE = lp_start, EVENT_PRO = 'CRISPEX_SLIDER_LP', $
 					                /DRAG, SENSITIVE = lp_slid_sens)
-  ; Cursor lock controls
-	lock_field		      = WIDGET_BASE(control_panel, /FRAME, /ROW, /EXCLUSIVE)
-	lockbut			        = WIDGET_BUTTON(lock_field, VALUE = 'Lock to position', $
-                          EVENT_PRO = 'CRISPEX_CURSOR_LOCK', TOOLTIP = 'Lock cursor to current position')
-	WIDGET_CONTROL, lockbut, SET_BUTTON = 0
-	unlockbut		        = WIDGET_BUTTON(lock_field, VALUE = 'Unlock from position', $
-                          TOOLTIP = 'Unlock cursor from current position')
-	WIDGET_CONTROL, unlockbut, SET_BUTTON = 1
 	
   ; ==================== Playback Tab ====================
   ; Temporal range base
@@ -19738,6 +19745,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		fbwd_button:fbwd_button, bwd_button:backward_button, pause_button:pause_button, $
 		fwd_button: forward_button, ffwd_button:ffwd_button, $
 		loop_button:loop_button, blink_button:blink_button, cycle_button:cycle_button, $
+    cursor_button:cursor_button, $
 		t_slider:t_slid, lower_t_text:lower_t_text, upper_t_text:upper_t_text, $		
 		reset_trange_but:reset_trange_but, slice_button:slice_update_but, $			
 		t_speed_slider:t_speed_slid, t_step_slider:t_step_slid, imref_blink_but:imref_blink_but, $					
@@ -19749,7 +19757,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
     lp_slider:lp_slid, lp_blink_slider:lp_blink_slid, $	
 		lp_blink_but:lp_blink_but, lp_ref_but:lp_ref_but, lp_ref_slider:lp_ref_slid, $
 		x_slider:x_slid, y_slider:y_slid, xref_slider:xref_slid, $
-    yref_slider:yref_slid, lock_button:lockbut, unlock_button:unlockbut, $
+    yref_slider:yref_slid, $
 		zoom_button_ids:zoom_button_ids, xpos_slider:xpos_slider, ypos_slider:ypos_slider, $			
     stokes_button_ids:stokes_button_ids, stokes_spbutton_ids:stokes_spbutton_ids, $
     specwin_buts:specwin_buts, refspecwin_buts:refspecwin_buts, $
@@ -19816,7 +19824,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 		ffwd_pressed:bmpbut_ffwd_pressed, ffwd_idle:bmpbut_ffwd_idle, $
 		loop_pressed:bmpbut_loop_pressed, loop_idle:bmpbut_loop_idle, $
 		cycle_pressed:bmpbut_cycle_pressed, cycle_idle:bmpbut_cycle_idle, $
-		blink_pressed:bmpbut_blink_pressed, blink_idle:bmpbut_blink_idle $
+		blink_pressed:bmpbut_blink_pressed, blink_idle:bmpbut_blink_idle, $
+    cursor_locked:bmpbut_cursor_lock, cursor_unlocked:bmpbut_cursor_unlock $
 	}
 ;-------------------- PARAMETER WINDOW REFERENCES
 	ctrlsparam = { $
