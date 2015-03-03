@@ -5102,6 +5102,7 @@ PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
 	IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
     CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /MAIN
 		CRISPEX_UPDATE_T, event
+    CRISPEX_UPDATE_LP, event
 		IF (*(*info).winswitch).showsp THEN BEGIN
       CRISPEX_UPDATE_SPSLICE, event
       CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
@@ -5194,6 +5195,7 @@ PRO CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw, $
 	IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
     CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /REFERENCE
 		CRISPEX_UPDATE_T, event
+		CRISPEX_UPDATE_LP, event
 		IF (*(*info).winswitch).showrefsp THEN BEGIN
       CRISPEX_UPDATE_REFSPSLICE, event
       CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
@@ -6775,9 +6777,11 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
         xtlen_basic_fac = 0.5
         xtlen_major_fac = 0.8
         xtickname = REPLICATE(' ',60)
+        xtitle = ''
       ENDIF ELSE BEGIN
         xtlen_basic_fac = 1.
         xtickname = ''
+        xtitle = (*(*info).plottitles).spxtitle
       ENDELSE
       xticklen = xtlen_basic_fac * (*(*info).plotaxes).lsxticklen
       IF (*(*info).plotswitch).v_dop_set THEN $
@@ -7121,9 +7125,11 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
       xtlen_basic_fac = 0.5
       xtlen_major_fac = 0.8
       xtickname = REPLICATE(' ',60)
+      xtitle = ''
     ENDIF ELSE BEGIN
       xtlen_basic_fac = 1.
       xtickname = ''
+      xtitle = (*(*info).plottitles).refspxtitle
     ENDELSE
     xticklen = xtlen_basic_fac * (*(*info).plotaxes).reflsxticklen
     IF (*(*info).plotswitch).v_dop_set_ref THEN $
@@ -9182,8 +9188,12 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
       ENDIF ELSE BEGIN
         nlp_select_loc = diag_width[dd]
         wavearr = FINDGEN(nlp_select_loc)					
-        IF (cube_compatibility[d] EQ 0) THEN $
+        IF (cube_compatibility[d] EQ 0) THEN BEGIN
           lc = twave[dd]
+          ; Failsafe against derived data cubes where 
+          IF ((lc LT 0) OR (lc GE nlp_select_loc)) THEN $
+            lc = 0
+        ENDIF
         v_dop_loc = wavearr - wavearr[LONG(lc)] 
       ENDELSE
       v_dop[dd] = PTR_NEW(v_dop_loc)
@@ -15587,8 +15597,21 @@ PRO CRISPEX_SLIDER_LP_RESTRICT_LOW, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  (*(*info).dispparams).v_dop_low[$
-    ((*(*info).dispswitch).lp_restrict[1] EQ 1)] = event.VALUE 
+  idx = ((*(*info).dispswitch).lp_restrict[1] EQ 1)
+  (*(*info).dispparams).v_dop_low[idx] = event.VALUE 
+  ; Check whether slider overshot the other one
+  IF ((*(*info).dispparams).v_dop_low[idx] GE $
+      (*(*info).dispparams).v_dop_upp[idx]) THEN $
+    (*(*info).dispparams).v_dop_upp[idx] += 1
+  IF (idx EQ 0) THEN $
+   maxval = (*(*info).dispparams).v_dop_upp_max $
+  ELSE $
+   maxval = (*(*info).dispparams).v_dop_ref_upp_max 
+  (*(*info).dispparams).v_dop_upp[idx] = $
+    (*(*info).dispparams).v_dop_upp[idx] < maxval
+  ; Set slider accordingly
+  WIDGET_CONTROL, (*(*info).ctrlscp).lp_restr_slider_upp, $
+    SET_VALUE=(*(*info).dispparams).v_dop_upp[idx]
   CRISPEX_SLIDER_LP_RESTRICT, event
 END
 
@@ -15597,8 +15620,21 @@ PRO CRISPEX_SLIDER_LP_RESTRICT_UPP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  (*(*info).dispparams).v_dop_upp[$
-    ((*(*info).dispswitch).lp_restrict[1] EQ 1)] = event.VALUE 
+  idx = ((*(*info).dispswitch).lp_restrict[1] EQ 1)
+  (*(*info).dispparams).v_dop_upp[idx] = event.VALUE 
+  ; Check whether slider overshot the other one
+  IF ((*(*info).dispparams).v_dop_upp[idx] LE $
+      (*(*info).dispparams).v_dop_low[idx]) THEN $
+    (*(*info).dispparams).v_dop_low[idx] -= 1
+  IF (idx EQ 0) THEN $
+   minval = (*(*info).dispparams).v_dop_low_min $
+  ELSE $
+   minval = (*(*info).dispparams).v_dop_ref_low_min 
+  (*(*info).dispparams).v_dop_low[idx] = $
+    (*(*info).dispparams).v_dop_low[idx] > minval
+  ; Set slider accordingly
+  WIDGET_CONTROL, (*(*info).ctrlscp).lp_restr_slider_low, $
+    SET_VALUE=(*(*info).dispparams).v_dop_low[idx]
   CRISPEX_SLIDER_LP_RESTRICT, event
 END
 
@@ -15608,19 +15644,26 @@ PRO CRISPEX_SLIDER_LP_RESTRICT, event, REFERENCE=reference, NO_DRAW=no_draw
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
   IF ((*(*info).dispswitch).lp_restrict[0] AND ~KEYWORD_SET(REFERENCE)) THEN BEGIN
+    ; Get the reset sensitivity
     reset_sens = ((*(*info).dispparams).v_dop_low[0] NE $
                  (*(*info).dispparams).v_dop_low_min) OR $
                  ((*(*info).dispparams).v_dop_upp[0] NE $
                  (*(*info).dispparams).v_dop_upp_max)
     FOR d=0,(*(*info).intparams).ndiagnostics-1 DO BEGIN
-      vdop_tmp = (*(*(*info).plotaxes).v_dop[d])[$
-        0:((*(*info).intparams).diag_width)[d]-1]
-      wheresel = WHERE((vdop_tmp GE (*(*info).dispparams).v_dop_low[0]) AND $
-                       (vdop_tmp LE (*(*info).dispparams).v_dop_upp[0]), $
-                       nwheresel)
-      (*(*info).dispparams).lp_low_tmp[d] = wheresel[0]
-      (*(*info).dispparams).lp_upp_tmp[d] = wheresel[nwheresel-1]
-    ENDFOR
+      IF ((*(*info).plotswitch).heightset EQ 0) THEN $
+        vdop_tmp = (*(*(*info).plotaxes).v_dop[d])[$
+          0:((*(*info).intparams).diag_width)[d]-1] $
+      ELSE $
+        vdop_tmp = (*(*info).dataparams).lps[$
+          ((*(*info).intparams).diag_start)[d]:$
+          ((*(*info).intparams).diag_start)[d]+$
+          ((*(*info).intparams).diag_width)[d]-1]
+        wheresel = WHERE((vdop_tmp GE (*(*info).dispparams).v_dop_low[0]) AND $
+                         (vdop_tmp LE (*(*info).dispparams).v_dop_upp[0]), $
+                         nwheresel)
+        (*(*info).dispparams).lp_low_tmp[d] = wheresel[0]
+        (*(*info).dispparams).lp_upp_tmp[d] = wheresel[nwheresel-1]
+   ENDFOR
     (*(*info).dispparams).lp_low_bounds = $
       (*(*info).intparams).diag_start + (*(*info).dispparams).lp_low_tmp
     (*(*info).dispparams).lp_upp_bounds = $
@@ -15628,13 +15671,20 @@ PRO CRISPEX_SLIDER_LP_RESTRICT, event, REFERENCE=reference, NO_DRAW=no_draw
     CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
   ENDIF 
   IF ((*(*info).dispswitch).lp_restrict[1] OR KEYWORD_SET(REFERENCE)) THEN BEGIN
+    ; Get the reset sensitivity
     reset_sens = ((*(*info).dispparams).v_dop_low[1] NE $
                  (*(*info).dispparams).v_dop_ref_low_min) OR $
                  ((*(*info).dispparams).v_dop_upp[1] NE $
                  (*(*info).dispparams).v_dop_ref_upp_max)
     FOR d=0,(*(*info).intparams).nrefdiagnostics-1 DO BEGIN
-      vdop_tmp = (*(*(*info).plotaxes).v_dop_ref[d])[$
-        0:((*(*info).intparams).refdiag_width)[d]-1]
+      IF ((*(*info).plotswitch).refheightset EQ 0) THEN $
+        vdop_tmp = (*(*(*info).plotaxes).v_dop_ref[d])[$
+          0:((*(*info).intparams).refdiag_width)[d]-1] $
+      ELSE $
+        vdop_tmp = (*(*info).dataparams).reflps[$
+          ((*(*info).intparams).refdiag_start)[d]:$
+          ((*(*info).intparams).refdiag_start)[d]+$
+          ((*(*info).intparams).refdiag_width)[d]-1]
       wheresel = WHERE((vdop_tmp GE (*(*info).dispparams).v_dop_low[1]) AND $
                        (vdop_tmp LE (*(*info).dispparams).v_dop_upp[1]), $
                        nwheresel)
@@ -17708,82 +17758,7 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   lp_ref_lock = eqnlps ;(eqnlps AND (lp_ref_start EQ lp_start))
   IF (lp_ref_lock) THEN lp_ref_start = lp_start
 
-  ; Get minimum and maximum Doppler verlocities
-  IF (hdr.nlp GT 1) THEN BEGIN
-    FOR dd=0,hdr.ndiagnostics-1 DO BEGIN
-      abs_vdop = ABS(*hdr.v_dop[dd])
-      maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
-        MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
-      min_sub_low = wheremin>0
-      min_sub_upp = min_sub_low+2
-      IF (dd EQ 0) THEN BEGIN
-        v_dop_low_min = (*hdr.v_dop[dd])[0]
-        v_dop_low_max = (*hdr.v_dop[dd])[min_sub_low]
-        v_dop_upp_min = (*hdr.v_dop[dd])[min_sub_upp]
-        v_dop_upp_max = (*hdr.v_dop[dd])[N_ELEMENTS(*hdr.v_dop[dd])-1]
-      ENDIF ELSE BEGIN
-        v_dop_low_min = [v_dop_low_min, (*hdr.v_dop[dd])[0]]
-        v_dop_low_max = [v_dop_low_max, (*hdr.v_dop[dd])[min_sub_low]]
-        v_dop_upp_min = [v_dop_upp_min, (*hdr.v_dop[dd])[min_sub_upp]]
-        v_dop_upp_max = [v_dop_upp_max, $
-          (*hdr.v_dop[dd])[N_ELEMENTS(*hdr.v_dop[dd])-1]]
-      ENDELSE
-    ENDFOR
-    v_dop_low_min = FLOOR(MIN(v_dop_low_min,/NAN))
-    v_dop_low_max = FLOOR(MIN(v_dop_low_max,/NAN))
-    v_dop_upp_min = CEIL(MAX(v_dop_upp_min,/NAN))
-    v_dop_upp_max = CEIL(MAX(v_dop_upp_max,/NAN))
-  ENDIF ELSE BEGIN
-    v_dop_low_min = 0
-    v_dop_low_max = 1
-    v_dop_upp_min = 0
-    v_dop_upp_max = 1
-  ENDELSE
-  IF (hdr.showref AND (hdr.refnlp GT 1)) THEN BEGIN
-    FOR dd=0,hdr.nrefdiagnostics-1 DO BEGIN
-      abs_vdop = ABS(*hdr.v_dop_ref[dd])
-      maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
-        MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
-      min_sub_low = wheremin>0
-      min_sub_upp = min_sub_low+2
-      IF (dd EQ 0) THEN BEGIN
-        v_dop_ref_low_min = (*hdr.v_dop_ref[dd])[0]
-        v_dop_ref_low_max = (*hdr.v_dop_ref[dd])[min_sub_low]
-        v_dop_ref_upp_min = (*hdr.v_dop_ref[dd])[min_sub_upp]
-        v_dop_ref_upp_max = (*hdr.v_dop_ref[dd])[$
-                              N_ELEMENTS(*hdr.v_dop_ref[dd])-1]
-      ENDIF ELSE BEGIN
-        v_dop_ref_low_min = [v_dop_ref_low_min, (*hdr.v_dop_ref[dd])[0]]
-        v_dop_ref_low_max = [v_dop_ref_low_max, (*hdr.v_dop_ref[dd])[min_sub_low]]
-        v_dop_ref_upp_min = [v_dop_ref_upp_min, (*hdr.v_dop_ref[dd])[min_sub_upp]]
-        v_dop_ref_upp_max = [v_dop_ref_upp_max, $
-          (*hdr.v_dop_ref[dd])[N_ELEMENTS(*hdr.v_dop_ref[dd])-1]]
-      ENDELSE
-    ENDFOR
-    v_dop_ref_low_min = FLOOR(MIN(v_dop_ref_low_min,/NAN))
-    v_dop_ref_low_max = FLOOR(MIN(v_dop_ref_low_max,/NAN))
-    v_dop_ref_upp_min = CEIL(MAX(v_dop_ref_upp_min,/NAN))
-    v_dop_ref_upp_max = CEIL(MAX(v_dop_ref_upp_max,/NAN))
-  ENDIF ELSE BEGIN
-    v_dop_ref_low_min = 0
-    v_dop_ref_low_max = 1
-    v_dop_ref_upp_min = 0
-    v_dop_ref_upp_max = 1
-  ENDELSE
-
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
-                                        '(initial spectral parameters)', /OPT, $
-                                        /OVER, /DONE
-	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial spectral parameters... done!']
-	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-
-;--------------------------------------------------------------------------------- WINDOW SIZES (CHANGE ONLY
-;--------------------------------------------------------------------------------- NUMERICAL VALUES!)
-	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
-                                        '(window sizes)', /OPT, /OVER
-	feedback_text = [feedback_text,'> Window sizes... ']
-	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	
+  ; Determine whether we're dealing with height instead of wavelength
 	heightset 	= 0
 	refheightset 	= 0
 	IF ((N_ELEMENTS(hdr.xtitle) GE 1) AND (N_ELEMENTS(hdr.xtitle) LE 2)) THEN BEGIN
@@ -17809,10 +17784,20 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	IF heightset THEN detspect_scale = 0
 	IF refheightset THEN ref_detspect_scale = 0
 
-	sp_h 	= ['Spectral','Height']
-	wav_h 	= ['Wavelength','Height']
+	sp_h 	        = ['Spectral','Height']
+	wav_h 	      = ['Wavelength','Height']
 	lp_h_capital	= ['S','H']
-	but_tooltip = ['Spectrum','Height distribution']
+	but_tooltip   = ['Spectrum','Height distribution']
+  IF hdr.v_dop_set[0] THEN BEGIN
+    lp_min_lab = 'Doppler minimum [km/s]'
+    lp_max_lab = 'Doppler maximum [km/s]'
+  ENDIF ELSE BEGIN
+    lp_min_lab = 'Lower spectral position'
+    lp_max_lab = 'Upper spectral position'
+  ENDELSE
+  lp_min_lab = [lp_min_lab, 'Minimum '+STRLOWCASE(sp_h[1])+' ['+hdr.xunit+']']
+  lp_max_lab = [lp_max_lab, 'Maximum '+STRLOWCASE(sp_h[1])+' ['+hdr.xunit+']']
+
 
   ; Load (ref)lsytitles from FITS cubes or SPECTFILE
 	lsytitle	= hdr.ytitle[0]
@@ -17824,7 +17809,136 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 			IF (STRCOMPRESS(ytitle[1]) NE '') THEN reflsytitle = ytitle[1]
 		ENDIF
 	ENDIF
+  
+  ; Get minimum and maximum Doppler verlocities
+  IF (hdr.nlp GT 1) THEN BEGIN
+    IF (heightset EQ 0) THEN BEGIN
+      FOR dd=0,hdr.ndiagnostics-1 DO BEGIN
+        abs_vdop = ABS(*hdr.v_dop[dd])
+        IF (abs_vdop[0] NE 0) THEN BEGIN
+          ; If not heightset, but vdop is defined and non-zero at index 0
+          maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
+            MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
+          min_sub_low = wheremin>0
+          min_sub_upp = min_sub_low+2
+        ENDIF ELSE BEGIN
+          min_sub_upp = 1
+          min_sub_low = N_ELEMENTS(*hdr.v_dop[dd])-2
+        ENDELSE
+        IF (dd EQ 0) THEN BEGIN 
+          v_dop_low_min = (*hdr.v_dop[dd])[0]
+          v_dop_low_max = (*hdr.v_dop[dd])[min_sub_low]
+          v_dop_upp_min = (*hdr.v_dop[dd])[min_sub_upp]
+          v_dop_upp_max = (*hdr.v_dop[dd])[N_ELEMENTS(*hdr.v_dop[dd])-1]
+        ENDIF ELSE BEGIN
+          v_dop_low_min = [v_dop_low_min, (*hdr.v_dop[dd])[0]]
+          v_dop_low_max = [v_dop_low_max, (*hdr.v_dop[dd])[min_sub_low]]
+          v_dop_upp_min = [v_dop_upp_min, (*hdr.v_dop[dd])[min_sub_upp]]
+          v_dop_upp_max = [v_dop_upp_max, $
+            (*hdr.v_dop[dd])[N_ELEMENTS(*hdr.v_dop[dd])-1]]
+        ENDELSE
+      ENDFOR
+    ENDIF ELSE BEGIN
+      ; If heightset (and thus v_dop_set = 0), use lps instead
+      FOR dd=0,hdr.ndiagnostics-1 DO BEGIN
+        v_dop_low_min_tmp = hdr.lps[hdr.diag_start[dd]]
+        v_dop_low_max_tmp = hdr.lps[hdr.diag_start[dd]+hdr.diag_width[dd]-2]
+        v_dop_upp_min_tmp = hdr.lps[hdr.diag_start[dd]+1] 
+        v_dop_upp_max_tmp = hdr.lps[hdr.diag_start[dd]+hdr.diag_width[dd]-1]
+        IF (dd EQ 0) THEN BEGIN
+          v_dop_low_min = v_dop_low_min_tmp
+          v_dop_low_max = v_dop_low_max_tmp
+          v_dop_upp_min = v_dop_upp_min_tmp
+          v_dop_upp_max = v_dop_upp_max_tmp
+        ENDIF ELSE BEGIN
+          v_dop_low_min = [v_dop_low_min, v_dop_low_min_tmp]
+          v_dop_low_max = [v_dop_low_max, v_dop_low_max_tmp]
+          v_dop_upp_min = [v_dop_upp_min, v_dop_upp_min_tmp]
+          v_dop_upp_max = [v_dop_upp_max, v_dop_upp_max_tmp]
+        ENDELSE
+      ENDFOR
+    ENDELSE
+    v_dop_low_min = FLOOR(MIN(v_dop_low_min,/NAN))
+    v_dop_low_max = FLOOR(MIN(v_dop_low_max,/NAN))
+    v_dop_upp_min = CEIL(MAX(v_dop_upp_min,/NAN))
+    v_dop_upp_max = CEIL(MAX(v_dop_upp_max,/NAN))
+  ENDIF ELSE BEGIN
+    v_dop_low_min = 0
+    v_dop_low_max = 1
+    v_dop_upp_min = 0
+    v_dop_upp_max = 1
+  ENDELSE
+  IF (hdr.showref AND (hdr.refnlp GT 1)) THEN BEGIN
+    IF (refheightset EQ 0) THEN BEGIN
+      FOR dd=0,hdr.nrefdiagnostics-1 DO BEGIN
+        abs_vdop = ABS(*hdr.v_dop_ref[dd])
+        IF (abs_vdop[0] NE 0) THEN BEGIN
+          maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
+            MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
+          min_sub_low = wheremin>0
+          min_sub_upp = min_sub_low+2
+        ENDIF ELSE BEGIN
+          min_sub_low = N_ELEMENTS(*hdr.v_dop_ref[dd])-2
+          min_sub_upp = 1
+        ENDELSE
+        IF (dd EQ 0) THEN BEGIN
+          v_dop_ref_low_min = (*hdr.v_dop_ref[dd])[0]
+          v_dop_ref_low_max = (*hdr.v_dop_ref[dd])[min_sub_low]
+          v_dop_ref_upp_min = (*hdr.v_dop_ref[dd])[min_sub_upp]
+          v_dop_ref_upp_max = (*hdr.v_dop_ref[dd])[$
+                                N_ELEMENTS(*hdr.v_dop_ref[dd])-1]
+        ENDIF ELSE BEGIN
+          v_dop_ref_low_min = [v_dop_ref_low_min, (*hdr.v_dop_ref[dd])[0]]
+          v_dop_ref_low_max = [v_dop_ref_low_max, (*hdr.v_dop_ref[dd])[min_sub_low]]
+          v_dop_ref_upp_min = [v_dop_ref_upp_min, (*hdr.v_dop_ref[dd])[min_sub_upp]]
+          v_dop_ref_upp_max = [v_dop_ref_upp_max, $
+            (*hdr.v_dop_ref[dd])[N_ELEMENTS(*hdr.v_dop_ref[dd])-1]]
+        ENDELSE
+      ENDFOR
+    ENDIF ELSE BEGIN
+      ; If heightset (and thus v_dop_set = 0), use lps instead
+      FOR dd=0,hdr.nrefdiagnostics-1 DO BEGIN
+        v_dop_low_min_tmp = hdr.lps[hdr.refdiag_start[dd]]
+        v_dop_low_max_tmp = hdr.lps[hdr.refdiag_start[dd]+hdr.refdiag_width[dd]-2]
+        v_dop_upp_min_tmp = hdr.lps[hdr.refdiag_start[dd]+1] 
+        v_dop_upp_max_tmp = hdr.lps[hdr.refdiag_start[dd]+hdr.refdiag_width[dd]-1]
+        IF (dd EQ 0) THEN BEGIN
+          v_dop_low_min = v_dop_low_min_tmp
+          v_dop_low_max = v_dop_low_max_tmp
+          v_dop_upp_min = v_dop_upp_min_tmp
+          v_dop_upp_max = v_dop_upp_max_tmp
+        ENDIF ELSE BEGIN
+          v_dop_low_min = [v_dop_low_min, v_dop_low_min_tmp]
+          v_dop_low_max = [v_dop_low_max, v_dop_low_max_tmp]
+          v_dop_upp_min = [v_dop_upp_min, v_dop_upp_min_tmp]
+          v_dop_upp_max = [v_dop_upp_max, v_dop_upp_max_tmp]
+        ENDELSE
+      ENDFOR
+    ENDELSE
+    v_dop_ref_low_min = FLOOR(MIN(v_dop_ref_low_min,/NAN))
+    v_dop_ref_low_max = FLOOR(MIN(v_dop_ref_low_max,/NAN))
+    v_dop_ref_upp_min = CEIL(MAX(v_dop_ref_upp_min,/NAN))
+    v_dop_ref_upp_max = CEIL(MAX(v_dop_ref_upp_max,/NAN))
+  ENDIF ELSE BEGIN
+    v_dop_ref_low_min = 0
+    v_dop_ref_low_max = 1
+    v_dop_ref_upp_min = 0
+    v_dop_ref_upp_max = 1
+  ENDELSE
 
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(initial spectral parameters)', /OPT, $
+                                        /OVER, /DONE
+	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Initial spectral parameters... done!']
+	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
+
+;--------------------------------------------------------------------------------- WINDOW SIZES (CHANGE ONLY
+;--------------------------------------------------------------------------------- NUMERICAL VALUES!)
+	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+                                        '(window sizes)', /OPT, /OVER
+	feedback_text = [feedback_text,'> Window sizes... ']
+	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
+	
 	xdelta		= 20					; Extra xoffset for positioning of windows
 	ydelta		= 40					; Extra yoffset for positioning of windows
   minsize   = 200.
@@ -18725,7 +18839,8 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
 	lp_range_field		  = WIDGET_BASE(lp_ranges, /COLUMN)
   lp_range_sel_field  = WIDGET_BASE(lp_range_field, /ROW)
   lp_restrict_label   = WIDGET_LABEL(lp_range_sel_field, $
-                          VALUE='Restrict spectral range of:', /ALIGN_LEFT)
+                          VALUE='Restrict '+STRLOWCASE(sp_h[heightset])+$
+                          ' range of:', /ALIGN_LEFT)
   lp_restrict_labels  = ['Main','Reference']
   lp_restrict_sel_buts= CW_BGROUP(lp_range_sel_field, lp_restrict_labels, $
                           BUTTON_UVALUE=INDGEN(N_ELEMENTS(lp_restrict_labels)),$
@@ -18739,13 +18854,13 @@ PRO CRISPEX, imcube, spcube, $                ; filename of main im & sp cube
   WIDGET_CONTROL, lp_restrict_button_ids[1], SENSITIVE=(hdr.refnlp GT 1)
   restrict_sliders    = WIDGET_BASE(spectral_tab, /GRID_LAYOUT, COLUMN=2)
   lp_restr_slid_low   = WIDGET_SLIDER(restrict_sliders, $
-                          TITLE='Doppler minimum [km/s]', VALUE=v_dop_low_min, $
+                          TITLE=lp_min_lab[heightset], VALUE=v_dop_low_min, $
                           MIN=v_dop_low_min, MAX=v_dop_low_max, $
                           EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_LOW', /DRAG,$
                           XSIZE=FLOOR((tab_width-2*pad)/2.), $
                           SENSITIVE=(hdr.nlp GT 1))
   lp_restr_slid_upp   = WIDGET_SLIDER(restrict_sliders, $
-                          TITLE='Doppler maximum [km/s]', VALUE=v_dop_upp_max, $
+                          TITLE=lp_max_lab[heightset], VALUE=v_dop_upp_max, $
                           MIN=v_dop_upp_min, MAX=v_dop_upp_max, $
                           EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_UPP', /DRAG,$
                           XSIZE=FLOOR((tab_width-2*pad)/2.), $
