@@ -18068,7 +18068,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
           maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
             MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
           min_sub_low = wheremin>0
-          min_sub_upp = min_sub_low+2
+          min_sub_upp = (min_sub_low+2)<(hdr.nlp-1)
         ENDIF ELSE BEGIN
           min_sub_upp = 1
           min_sub_low = N_ELEMENTS(*hdr.v_dop[dd])-2
@@ -18110,6 +18110,12 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     v_dop_low_max = FLOOR(MIN(v_dop_low_max,/NAN))
     v_dop_upp_min = CEIL(MAX(v_dop_upp_min,/NAN))
     v_dop_upp_max = CEIL(MAX(v_dop_upp_max,/NAN))
+    lp_restr_slid_low_sens = (v_dop_low_min NE v_dop_low_max)
+    lp_restr_slid_upp_sens = (v_dop_upp_min NE v_dop_upp_max)
+    IF (lp_restr_slid_low_sens EQ 0) THEN $
+      v_dop_low_min -= 1
+    IF (lp_restr_slid_upp_sens EQ 0) THEN $
+      v_dop_upp_max += 1
   ENDIF ELSE BEGIN
     v_dop_low_min = 0
     v_dop_low_max = 1
@@ -18124,7 +18130,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
           maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
             MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
           min_sub_low = wheremin>0
-          min_sub_upp = min_sub_low+2
+          min_sub_upp = (min_sub_low+2)<(hdr.refnlp-1)
         ENDIF ELSE BEGIN
           min_sub_low = N_ELEMENTS(*hdr.v_dop_ref[dd])-2
           min_sub_upp = 1
@@ -18167,6 +18173,10 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     v_dop_ref_low_max = FLOOR(MIN(v_dop_ref_low_max,/NAN))
     v_dop_ref_upp_min = CEIL(MAX(v_dop_ref_upp_min,/NAN))
     v_dop_ref_upp_max = CEIL(MAX(v_dop_ref_upp_max,/NAN))
+    IF (v_dop_ref_low_min EQ v_dop_ref_low_max) THEN $
+      v_dop_ref_low_min -= 1
+    IF (v_dop_ref_upp_min EQ v_dop_ref_upp_max) THEN $
+      v_dop_ref_upp_max += 1
   ENDIF ELSE BEGIN
     v_dop_ref_low_min = 0
     v_dop_ref_low_max = 1
@@ -19109,13 +19119,13 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
                           MIN=v_dop_low_min, MAX=v_dop_low_max, $
                           EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_LOW', /DRAG,$
                           XSIZE=FLOOR((tab_width-2*pad)/2.), $
-                          SENSITIVE=(hdr.nlp GT 1))
+                          SENSITIVE=lp_restr_slid_low_sens)
   lp_restr_slid_upp   = WIDGET_SLIDER(restrict_sliders, $
                           TITLE=lp_max_lab[heightset], VALUE=v_dop_upp_max, $
                           MIN=v_dop_upp_min, MAX=v_dop_upp_max, $
                           EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_UPP', /DRAG,$
                           XSIZE=FLOOR((tab_width-2*pad)/2.), $
-                          SENSITIVE=(hdr.nlp GT 1))
+                          SENSITIVE=lp_restr_slid_upp_sens)
   spectral_divider1   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
   ; Spectral blink base
 	lp_blink_field		  = WIDGET_BASE(spectral_tab, /ROW,/NONEXCLUSIVE)
