@@ -2923,6 +2923,7 @@ PRO CRISPEX_DISPLAYS_REFLOOPSLAB_REPLOT_AXES, event
 	WSET, (*(*info).winids).refloopwid
 	PLOT, FINDGEN((*(*info).loopsdata).refloopsize), $
     *(*(*info).dispparams).tarr_ref, /NODATA, /YS, $
+    YR=[(*(*info).dispparams).t_low_ref,(*(*info).dispparams).t_upp_ref], $
     POS=[(*(*info).plotpos).refloopx0,(*(*info).plotpos).refloopy0, $
     (*(*info).plotpos).refloopx1,(*(*info).plotpos).refloopy1], $
 		YTICKLEN=(*(*info).plotaxes).refloopyticklen, $
@@ -5029,6 +5030,7 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
     CRISPEX_UPDATE_SLICES, event, /NO_DRAW, $
       NO_PHIS=((*(*info).winswitch).showphis EQ 0)
 		IF (*(*info).winswitch).showloop THEN CRISPEX_DISPLAYS_LOOPSLAB_REPLOT_AXES, event
+		IF (*(*info).winswitch).showrefloop THEN CRISPEX_DISPLAYS_REFLOOPSLAB_REPLOT_AXES, event
 		IF (*(*info).winswitch).showrestloop THEN CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_REPLOT_AXES, event
 		IF (*(*info).winswitch).showretrdet THEN CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB_REPLOT_AXES, event
 		CRISPEX_DRAW, event
@@ -10042,14 +10044,14 @@ PRO CRISPEX_LOOP_GET_EXACT_SLICE, event, extractdata, xrs, yrs, xps, yps, $
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
   IF KEYWORD_SET(IM) THEN BEGIN
-    tlow = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).t_low]
-    tupp = (*(*(*info).dispparams).tsel_main)[(*(*info).dispparams).t_upp]
+    tlow = (*(*(*info).dispparams).tsel_main)[0]
+    tupp = (*(*(*info).dispparams).tsel_main)[(*(*info).dataparams).mainnt-1]
   ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
-    tlow = (*(*(*info).dispparams).tsel_sji)[(*(*info).dispparams).t_low]
-    tupp = (*(*(*info).dispparams).tsel_sji)[(*(*info).dispparams).t_upp]
+    tlow = (*(*(*info).dispparams).tsel_sji)[0]
+    tupp = (*(*(*info).dispparams).tsel_sji)[(*(*info).dataparams).sjint-1]
   ENDIF ELSE BEGIN
-    tlow = (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).t_low]
-    tupp = (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).t_upp]
+    tlow = (*(*(*info).dispparams).tsel_ref)[0]
+    tupp = (*(*(*info).dispparams).tsel_ref)[(*(*info).dataparams).refnt-1]
   ENDELSE
 	IF KEYWORD_SET(NO_NLP) THEN BEGIN
 		FOR tt=tlow,tupp DO BEGIN
