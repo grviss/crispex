@@ -690,14 +690,19 @@ FUNCTION CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT, event
   CRISPEX_DRAW, event, /NO_MAIN
 END
 
-FUNCTION CRISPEX_BGROUP_LP_RESTRICT, event
-  ; Handles selecing main/reference to restrict wavelength range for
+FUNCTION CRISPEX_BGROUP_LP_RESTRICT, event, SESSION_RESTORE=session_restore
+  ; Handles selecting main/reference to restrict wavelength range for
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  (*(*info).dispswitch).lp_restrict[event.VALUE] = event.SELECT
-  (*(*info).dispswitch).lp_restrict[ABS(event.VALUE-1)] = ABS(event.SELECT-1)
-  CASE event.VALUE OF
+  IF ~KEYWORD_SET(SESSION_RESTORE) THEN BEGIN
+    idx = event.VALUE
+    flag = event.SELECT
+    (*(*info).dispswitch).lp_restrict[idx] = flag
+    (*(*info).dispswitch).lp_restrict[ABS(idx-1)] = ABS(flag-1)
+  ENDIF ELSE $
+    idx = (WHERE((*(*info).dispswitch).lp_restrict EQ 1))[0]
+  CASE idx OF
     0:  BEGIN
           slider_low_min = (*(*info).dispparams).v_dop_low_min
           slider_low_max = (*(*info).dispparams).v_dop_low_max
@@ -713,13 +718,13 @@ FUNCTION CRISPEX_BGROUP_LP_RESTRICT, event
   ENDCASE
   WIDGET_CONTROL, (*(*info).ctrlscp).lp_restr_slider_low, $
     SET_SLIDER_MIN=slider_low_min, SET_SLIDER_MAX=slider_low_max, $
-    SET_VALUE=(*(*info).dispparams).v_dop_low[event.VALUE]
+    SET_VALUE=(*(*info).dispparams).v_dop_low[idx]
   WIDGET_CONTROL, (*(*info).ctrlscp).lp_restr_slider_upp, $
     SET_SLIDER_MIN=slider_upp_min, SET_SLIDER_MAX=slider_upp_max, $
-    SET_VALUE=(*(*info).dispparams).v_dop_upp[event.VALUE]
+    SET_VALUE=(*(*info).dispparams).v_dop_upp[idx]
 	WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, SENSITIVE=($
-    ((*(*info).dispparams).v_dop_low[event.VALUE] NE slider_low_min) OR $
-    ((*(*info).dispparams).v_dop_upp[event.VALUE] NE slider_upp_max))
+    ((*(*info).dispparams).v_dop_low[idx] NE slider_low_min) OR $
+    ((*(*info).dispparams).v_dop_upp[idx] NE slider_upp_max))
 END
 
 FUNCTION CRISPEX_BGROUP_MASTER_TIME, event, NO_DRAW=no_draw
@@ -7991,14 +7996,16 @@ PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir
       /REVERSE_SEARCH))
 		refcfiles = FILE_SEARCH((*(*info).paths).ipath+reffirstsplit+"*csav", $
       COUNT = refcfilecount)
-  ENDIF
+  ENDIF ELSE $
+    refcfilecount = 0
 	IF (*(*info).dataswitch).sjifile THEN BEGIN
     sjifilename = FILE_BASENAME((*(*info).dataparams).sjifilename)
 		sjifirstsplit = STRMID(sjifilename,0,STRPOS(sjifilename,'.',$
       /REVERSE_SEARCH))
 		sjicfiles = FILE_SEARCH((*(*info).paths).ipath+sjifirstsplit+"*csav", $
       COUNT = sjicfilecount)
-  ENDIF
+  ENDIF ELSE $
+    sjicfilecount = 0
   ; If no *csav files found, allow selection of new path and redo the search
   IF ((cfilecount EQ 0) AND (refcfilecount EQ 0) AND $
     (sjicfilecount EQ 0) AND KEYWORD_SET(ALLOW_SELECT_DIR)) THEN BEGIN
@@ -13992,14 +13999,7 @@ PRO CRISPEX_SESSION_RESTORE, event
             (*(*info).dispparams).toffset_ref, 0])[(*(*info).dispparams).master_time]
         ; ==================== Spectral Tab ====================
         ; Spectral range
-  			WIDGET_CONTROL, (*(*info).ctrlscp).lower_lp_text, $
-          SET_VALUE = STRTRIM((*(*info).dispparams).lp_low,2), $
-          SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-  			WIDGET_CONTROL, (*(*info).ctrlscp).upper_lp_text, $
-          SET_VALUE = STRTRIM((*(*info).dispparams).lp_upp,2), $
-          SENSITIVE = ((*(*info).dataparams).nlp GT 1)
-  			WIDGET_CONTROL, (*(*info).ctrlscp).reset_lprange_but, $
-          SENSITIVE = ((*(*info).dispparams).lp_range NE (*(*info).dataparams).nlp)
+        reset_lp_restrict = CRISPEX_BGROUP_LP_RESTRICT(event, /SESSION_RESTORE)
         ; Spectral blink
       	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, $
           SET_SLIDER_MIN=(*(*info).dispparams).lp_low, $
