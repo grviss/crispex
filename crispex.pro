@@ -18363,9 +18363,12 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       IF (sjipixelratio LT 1) THEN sjiwiny_default /= sjipixelratio
     ; Size sjiwiny according to the y-pixelsize
     sjiwiny = sjiwiny_default*hdr.sjidy / FLOAT(imwiny*hdr.dy) * imwiny
-    ; If sjiwiny becomes to big (i.e., because FOV is bigger than y-extent of
-    ; main data, resize to the final main y-window
-    IF (sjiwiny GT y_scr_size) THEN sjiwiny = imwiny
+    ; If sjiwiny becomes too big (i.e., because FOV is bigger than y-extent of
+    ; main data) OR if sjiwiny and imwiny should be the same because of
+    ; respective ny*dy, but aren't, then resize to the final main y-window
+    IF ((sjiwiny GT y_scr_size) OR $
+      ((hdr.ny*hdr.dy EQ hdr.sjiny*hdr.sjidy) AND (sjiwiny NE imwiny))) THEN $
+        sjiwiny = imwiny
     sjiwinx = sjiwinx_default/FLOAT(sjiwiny_default)*sjiwiny
   ENDIF ELSE BEGIN
     sjiwinx = 0
