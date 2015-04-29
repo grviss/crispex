@@ -18154,20 +18154,20 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     ENDIF ELSE BEGIN
       ; If heightset (and thus v_dop_set = 0), use lps instead
       FOR dd=0,hdr.nrefdiagnostics-1 DO BEGIN
-        v_dop_low_min_tmp = hdr.lps[hdr.refdiag_start[dd]]
-        v_dop_low_max_tmp = hdr.lps[hdr.refdiag_start[dd]+hdr.refdiag_width[dd]-2]
-        v_dop_upp_min_tmp = hdr.lps[hdr.refdiag_start[dd]+1] 
-        v_dop_upp_max_tmp = hdr.lps[hdr.refdiag_start[dd]+hdr.refdiag_width[dd]-1]
+        v_dop_ref_low_min_tmp = hdr.reflps[hdr.refdiag_start[dd]]
+        v_dop_ref_low_max_tmp = hdr.reflps[hdr.refdiag_start[dd]+hdr.refdiag_width[dd]-2]
+        v_dop_ref_upp_min_tmp = hdr.reflps[hdr.refdiag_start[dd]+1] 
+        v_dop_ref_upp_max_tmp = hdr.reflps[hdr.refdiag_start[dd]+hdr.refdiag_width[dd]-1]
         IF (dd EQ 0) THEN BEGIN
-          v_dop_low_min = v_dop_low_min_tmp
-          v_dop_low_max = v_dop_low_max_tmp
-          v_dop_upp_min = v_dop_upp_min_tmp
-          v_dop_upp_max = v_dop_upp_max_tmp
+          v_dop_ref_low_min = v_dop_ref_low_min_tmp
+          v_dop_ref_low_max = v_dop_ref_low_max_tmp
+          v_dop_ref_upp_min = v_dop_ref_upp_min_tmp
+          v_dop_ref_upp_max = v_dop_ref_upp_max_tmp
         ENDIF ELSE BEGIN
-          v_dop_low_min = [v_dop_low_min, v_dop_low_min_tmp]
-          v_dop_low_max = [v_dop_low_max, v_dop_low_max_tmp]
-          v_dop_upp_min = [v_dop_upp_min, v_dop_upp_min_tmp]
-          v_dop_upp_max = [v_dop_upp_max, v_dop_upp_max_tmp]
+          v_dop_ref_low_min = [v_dop_ref_low_min, v_dop_ref_low_min_tmp]
+          v_dop_ref_low_max = [v_dop_ref_low_max, v_dop_ref_low_max_tmp]
+          v_dop_ref_upp_min = [v_dop_ref_upp_min, v_dop_ref_upp_min_tmp]
+          v_dop_ref_upp_max = [v_dop_ref_upp_max, v_dop_ref_upp_max_tmp]
         ENDELSE
       ENDFOR
     ENDELSE
@@ -18313,21 +18313,15 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       ; Handle pixel aspect ratio
       IF (refpixelratio GT 1) THEN refwinx_default *= refpixelratio ELSE $
         IF (refpixelratio LT 1) THEN refwiny_default /= refpixelratio
-      ; Check for extreme aspect ratio and small dimensions
-      extreme_aspect_ref = $
-        (((refratio GT 5.) AND (refwiny_default LT minsize)) OR $
-        ((refratio LT 0.2) AND (refwinx_default LT minsize))) 
-      IF (ABS(hdr.refny*hdr.refdy/FLOAT(hdr.ny*hdr.dy)-1.) LT 1E-4) THEN $
-        refwiny = refwiny_default/FLOAT(imwiny_default)*imwiny $
-      ELSE $
-        refwiny = refwiny_default < 0.9 * y_scr_size 
-      IF (extreme_aspect_ref AND (hdr.refnx EQ 1)) THEN $
-        refwinx = 25*hdr.refnx $
-      ELSE $
-        refwinx = refwiny * refratio 
-      ; Handle pixel aspect ratio
-      IF (refpixelratio GT 1) THEN refwinx *= refpixelratio ELSE $
-        IF (refpixelratio LT 1) THEN refwiny /= refpixelratio
+      ; Size refwiny according to the y-pixelsize
+      refwiny = refwiny_default*hdr.refdy / FLOAT(imwiny*hdr.dy) * imwiny
+      ; If refwiny becomes too big (i.e., because FOV is bigger than y-extent of
+      ; main data) OR if refwiny and imwiny should be the same because of
+      ; respective ny*dy, but aren't, then resize to the final main y-window
+      IF ((refwiny GT y_scr_size) OR $
+        ((hdr.ny*hdr.dy EQ hdr.refny*hdr.refdy) AND (refwiny NE imwiny))) THEN $
+          refwiny = imwiny
+      refwinx = refwinx_default/FLOAT(refwiny_default)*refwiny
     ENDELSE
     result = CRISPEX_GET_IMREF_BLINK_BOUNDS(pix_main2ref, pix_ref2main, $
       0, (hdr.nx-1), 0, (hdr.ny-1), 0, (hdr.refnx-1), 0, (hdr.refny-1))
