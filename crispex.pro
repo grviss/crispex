@@ -9415,7 +9415,12 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
         IF cube_compatibility[d] THEN $
           v_dop_loc = c_speed*(lps_select_loc/lps_select_loc[LONG(lc)]-1) $
         ELSE BEGIN
-          lc = twave[dd]
+          ; Failsafe against not supplied TWAVE; get the middle wavelength
+          ; position (as determined by diag_width)
+          IF (twave[dd] EQ 0) THEN $
+            lc = lps_select_loc[FLOOR(diag_width/2.)] $
+          ELSE $
+            lc = twave[dd]
           v_dop_loc = c_speed*(lps_select_loc/FLOAT(lc)-1)
         ENDELSE
       ENDIF ELSE BEGIN
