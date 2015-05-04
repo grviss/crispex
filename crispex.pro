@@ -18303,7 +18303,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   ; Set zoomfactors
   zoomfactors = [1.,2.,3.,4.,6.,8.]
   factorswitch = [1B,BYTARR(N_ELEMENTS(zoomfactors)-1)]
-  
+ 
+
   ; If reference cube supplied, determine sizes
   IF hdr.showref THEN BEGIN
     ; Determine image and pixel aspect ratio
@@ -18319,7 +18320,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       IF (refpixelratio GT 1) THEN refwinx_default *= refpixelratio ELSE $
         IF (refpixelratio LT 1) THEN refwiny_default /= refpixelratio
       ; Size refwiny according to the y-pixelsize
-      refwiny = refwiny_default*hdr.refdy / FLOAT(imwiny*hdr.dy) * imwiny
+      refwiny = refwiny_default*hdr.refdy / FLOAT(imwiny_default*hdr.dy) * imwiny
       ; If refwiny becomes too big (i.e., because FOV is bigger than y-extent of
       ; main data) OR if refwiny and imwiny should be the same because of
       ; respective ny*dy, but aren't, then resize to the final main y-window
