@@ -19636,13 +19636,14 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       pixel_label = WIDGET_LABEL(verlabel_base, VALUE='Index [px]', /ALIGN_RIGHT)
 		  IF ((TOTAL(heightset) GE 1) OR (TOTAL(hdr.v_dop_set) GE 1)) THEN $
         real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value', /ALIGN_RIGHT)
-      IF ((heightset[0] EQ 0) AND (TOTAL(hdr.v_dop_set) GE 1)) THEN $
+		  IF (TOTAL(hdr.v_dop_set) GE 1) THEN $
         vdop_label  = WIDGET_LABEL(verlabel_base, VALUE='Doppler [km/s]', /ALIGN_RIGHT)
       main_label  = WIDGET_LABEL(params_main_base, VALUE=' ', /ALIGN_RIGHT)
       lp_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.nlp))+1,2)+')'
       IF hdr.v_dop_set[0] THEN BEGIN
         lp_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.lps[lp_last]))+3,2)+'.1)'
-        lp_vdop_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.lps[lp_last]))+4,2)+'.2)'
+        lp_vdop_format = '(F'+STRTRIM(FLOOR(ALOG10($
+          MAX(ABS((*hdr.v_dop[0])[[0,lp_last]]))))+5,2)+'.2)'
         lp_real_txt = STRING(hdr.lps[lp_start], FORMAT=lp_real_format)
         lp_vdop_txt = STRING((*hdr.v_dop[0])[lp_start-hdr.diag_start[0]],$
           FORMAT=lp_vdop_format)
@@ -19670,7 +19671,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       ENDELSE
       IF ((hdr.refnlp GT 1) AND hdr.v_dop_set[1]) THEN BEGIN
         lp_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.reflps[lp_ref_last]))+3,2)+'.1)'
-        lp_ref_vdop_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.reflps[lp_ref_last]))+4,2)+'.2)'
+        lp_ref_vdop_format = '(F'+STRTRIM(FLOOR(ALOG10($
+          MAX(ABS((*hdr.v_dop_ref[0])[[0,lp_ref_last]]))))+5,2)+'.2)'
         lp_ref_real_txt = STRING(hdr.reflps[lp_ref_start], FORMAT=lp_ref_real_format)
         lp_ref_vdop_txt = STRING((*hdr.v_dop_ref[0])[lp_ref_start-hdr.diag_start[0]],$
           FORMAT=lp_ref_vdop_format)
