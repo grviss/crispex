@@ -9374,9 +9374,14 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
       lc = line_center[0,d] $
     ELSE BEGIN              ; Or determine from mean spectrum if line centre position is not supplied
       wheretag2 = WHERE(TAG_NAMES(hdr_out) EQ STRUPCASE(tag2), count)
-      IF (count LE 0) THEN $    ; Check whether tag2 exists, if non-existent
-        lc = ( WHERE( spec_select EQ MIN(spec_select, /NAN) ) )[0] $
-      ELSE BEGIN
+      IF (count LE 0) THEN BEGIN    ; Check whether tag2 exists, if non-existent
+        wheremin = ( WHERE( spec_select EQ MIN(spec_select, /NAN) ) )[0] 
+        ; Failsafe against only NaN in spec_select
+        IF (wheremin NE -1) THEN $
+          lc = wheremin $
+        ELSE $
+          lc = 0
+      ENDIF ELSE BEGIN
         IF (d EQ 0) THEN lc = hdr_out.lc ELSE lc = hdr_out.reflc
       ENDELSE
     ENDELSE
