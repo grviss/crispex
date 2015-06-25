@@ -18641,6 +18641,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	ls_yrange = FLTARR(hdr.ns,/NOZERO)
 	int_low_y = FLTARR(hdr.ns,/NOZERO)
 	int_upp_y = FLTARR(hdr.ns,/NOZERO)
+  scfactor = 2. ; Plot-range accomodates mean ± scfactor * stdev
   IF scalestokes THEN $
     tmp_ms = REPLICATE(hdr.ms,hdr.ns) $
   ELSE $
@@ -18649,6 +18650,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		FOR lp=0,lp_last DO BEGIN
 			temp_image = (*hdr.imdata)[s*hdr.nlp + lp]
 			immean[lp,s] = MEAN(temp_image, /NAN)
+			temp_image = IRIS_HISTO_OPT(temp_image,histo_opt_val, $
+        MISSING=-32768, /SILENT)
 			imsdev[lp,s] = STDDEV(temp_image, /NAN)
   		immin[lp,s] = MIN(temp_image, MAX=max_val, /NAN)
   		immax[lp,s] = max_val
@@ -18666,35 +18669,29 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		ENDFOR
     dopplermin[hdr.lc,s] = 0.
     dopplermax[hdr.lc,s] = 0.
-	  ls_low_y[s] = MIN((immean[*,s]-3.*imsdev[*,s])/tmp_ms[s], /NAN)
-	  ls_upp_y[s] = MAX((immean[*,s]+3.*imsdev[*,s])/tmp_ms[s], /NAN)
-		ls_yrange[s] = ls_upp_y[s] - ls_low_y[s]
 		max_imsdev = MAX(imsdev[*,s], /NAN)
-		int_low_y[s] = (MEAN(immean[*,s], /NAN)-3.*max_imsdev)/ABS(MEAN(immean[*,s], /NAN))
-		int_upp_y[s] = (MEAN(immean[*,s], /NAN)+3.*max_imsdev)/ABS(MEAN(immean[*,s], /NAN))
+	  ls_low_y[s] = MIN((immean[*,s]-scfactor*imsdev[*,s])/tmp_ms[s], /NAN)
+	  ls_upp_y[s] = MAX((immean[*,s]+scfactor*imsdev[*,s])/tmp_ms[s], /NAN)
+		ls_yrange[s] = ls_upp_y[s] - ls_low_y[s]
+		int_low_y[s] = (MEAN(immean[*,s], /NAN)-$
+      scfactor*max_imsdev)/ABS(MEAN(immean[*,s], /NAN))
+		int_upp_y[s] = (MEAN(immean[*,s], /NAN)+$
+      scfactor*max_imsdev)/ABS(MEAN(immean[*,s], /NAN))
 	ENDFOR
 	ls_low_y_init = ls_low_y[0]
 	ls_upp_y_init = ls_upp_y[0]
   IF (hdr.ndiagnostics GT 1) THEN BEGIN
     ; Determine multiplicative factors
-    ls_range_tmp = FLTARR(hdr.ndiagnostics,hdr.ns)
+    main_mult_val = FLTARR(hdr.ndiagnostics,hdr.ns, /NOZERO)
+    ls_upp_tmp = FLTARR(hdr.ndiagnostics,hdr.ns, /NOZERO)
     FOR j=0,hdr.ns-1 DO BEGIN
-      FOR d=0,hdr.ndiagnostics-1 DO BEGIN
-        ls_low_tmp=MIN((immin[hdr.diag_start[d]:(hdr.diag_start[d]+(hdr.diag_width[d]-1)),$
-          j]-3.*imsdev[hdr.diag_start[d]:(hdr.diag_start[d]+(hdr.diag_width[d]-1)),j])/$
-          hdr.ms[j], /NAN)
-        ls_upp_tmp=MAX((immax[hdr.diag_start[d]:(hdr.diag_start[d]+(hdr.diag_width[d]-1)),$
-          j]+3.*imsdev[hdr.diag_start[d]:(hdr.diag_start[d]+(hdr.diag_width[d]-1)),j])/$
-          hdr.ms[j], /NAN)
-        ; Failsafe against equal ls_upp_tmp and ls_low_tmp
-        IF (ls_upp_tmp NE ls_low_tmp) THEN $
-          ls_range_tmp[d,j] = ls_upp_tmp - ls_low_tmp $
-        ELSE $
-          ls_range_tmp[d,j] = 1.
-      ENDFOR
+      FOR d=0,hdr.ndiagnostics-1 DO $
+        ls_upp_tmp[d,j]=MAX((immean[hdr.diag_start[d]:$
+          (hdr.diag_start[d]+(hdr.diag_width[d]-1)),j]+$
+          scfactor*imsdev[hdr.diag_start[d]:(hdr.diag_start[d]+$
+          (hdr.diag_width[d]-1)),j])/hdr.ms[j], /NAN)
+      main_mult_val[*,j] = ls_upp_y[j] / ls_upp_tmp
     ENDFOR
-    main_mult_val = REPLICATE(ls_range_tmp[WHERE(ls_range_tmp EQ MAX(ls_range_tmp, /NAN))],$
-      hdr.ndiagnostics)/ls_range_tmp
   ENDIF ELSE main_mult_val = REPLICATE(1.,hdr.ns)
 	ls_low_y = PTR_NEW(ls_low_y,/NO_COPY)
 	ls_upp_y = PTR_NEW(ls_upp_y,/NO_COPY)
@@ -18706,58 +18703,56 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	ls_upp_y_ref = 0
 	IF hdr.showref THEN BEGIN
 		IF (hdr.refnt EQ 0) THEN BEGIN
-			refmin = MIN(*hdr.refdata, MAX=refmax, /NAN)
-			refmean = MEAN(*hdr.refdata, /NAN)
-			refdev = STDDEV(*hdr.refdata, /NAN)
-		ENDIF ELSE IF (((hdr.refnt EQ 1) OR (hdr.refnt EQ hdr.mainnt)) AND (hdr.refnlp EQ 1)) THEN BEGIN
-			refmin = MIN((*hdr.refdata)[0], MAX=refmax, /NAN)
-			refmean = MEAN((*hdr.refdata)[0], /NAN)
-			refdev = STDDEV((*hdr.refdata)[0], /NAN)
+      temp_refimage = *hdr.refdata
+			refmean = MEAN(temp_refimage, /NAN)
+			temp_refimage = IRIS_HISTO_OPT(temp_refimage,histo_opt_val, $
+        MISSING=-32768, /SILENT)
+			refmin = MIN(temp_refimage, MAX=refmax, /NAN)
+			refsdev = STDDEV(temp_refimage, /NAN)
+		ENDIF ELSE IF (((hdr.refnt EQ 1) OR $
+      (hdr.refnt EQ hdr.mainnt)) AND (hdr.refnlp EQ 1)) THEN BEGIN
+      temp_refimage = (*hdr.refdata)[0]
+			refmean = MEAN(temp_refimage, /NAN)
+			temp_refimage = IRIS_HISTO_OPT(temp_refimage,histo_opt_val, $
+        MISSING=-32768, /SILENT)
+			refmin = MIN(temp_refimage, MAX=refmax, /NAN)
+			refsdev = STDDEV(temp_refimage, /NAN)
 		ENDIF ELSE BEGIN
 			refmin = FLTARR(hdr.refnlp)
 			refmax = FLTARR(hdr.refnlp)
 			refmean = FLTARR(hdr.refnlp)
-			refdev = FLTARR(hdr.refnlp)
+			refsdev = FLTARR(hdr.refnlp)
 			FOR lp=0,hdr.refnlp-1 DO BEGIN
-				temp_referencefile = (*hdr.refdata)[lp]
-				refmean[lp] = MEAN(temp_referencefile, /NAN)
-				refdev[lp] = STDDEV(temp_referencefile, /NAN)
-				refmin[lp] = MIN(temp_referencefile, MAX=max_val, /NAN)
+				temp_refimage = (*hdr.refdata)[lp]
+				refmean[lp] = MEAN(temp_refimage, /NAN)
+  			temp_refimage = IRIS_HISTO_OPT(temp_refimage,histo_opt_val, $
+          MISSING=-32768, /SILENT)
+				refsdev[lp] = STDDEV(temp_refimage, /NAN)
+				refmin[lp] = MIN(temp_refimage, MAX=max_val, /NAN)
 				refmax[lp] = max_val
 			ENDFOR
 		ENDELSE
 		IF showrefls THEN BEGIN
-			ls_low_y_ref = MIN((refmean-3.*refdev)/hdr.refms, /NAN)
-			ls_upp_y_ref = MAX((refmean+3.*refdev)/hdr.refms, /NAN)
+			ls_low_y_ref = MIN((refmean-scfactor*refsdev)/hdr.refms, /NAN)
+			ls_upp_y_ref = MAX((refmean+scfactor*refsdev)/hdr.refms, /NAN)
+	    ls_yrange_ref = ls_upp_y_ref - ls_low_y_ref 
 		ENDIF
     IF (hdr.nrefdiagnostics GT 1) THEN BEGIN
       ; Determine multiplicative factors
-      ls_range_tmp = FLTARR(hdr.nrefdiagnostics,hdr.ns)
-      FOR d=0,hdr.nrefdiagnostics-1 DO BEGIN
-        ls_low_tmp=MIN((refmin[hdr.refdiag_start[d]:$
-          (hdr.refdiag_start[d]+(hdr.refdiag_width[d]-1))]-$
-          3.*refdev[hdr.refdiag_start[d]:(hdr.refdiag_start[d]+$
-          (hdr.refdiag_width[d]-1))])/hdr.refms, /NAN)
-        ls_upp_tmp=MAX((refmax[hdr.refdiag_start[d]:$
+      ls_upp_tmp = FLTARR(hdr.nrefdiagnostics, /NOZERO)
+      FOR d=0,hdr.nrefdiagnostics-1 DO $
+        ls_upp_tmp[d]=MAX((refmean[hdr.refdiag_start[d]:$
           (hdr.refdiag_start[d]+(hdr.refdiag_width[d]-1))]+$
-          3.*refdev[hdr.refdiag_start[d]:(hdr.refdiag_start[d]+$
+          scfactor*refsdev[hdr.refdiag_start[d]:(hdr.refdiag_start[d]+$
           (hdr.refdiag_width[d]-1))])/hdr.refms, /NAN)
-        ; Failsafe against equal ls_upp_tmp and ls_low_tmp
-        IF (ls_upp_tmp NE ls_low_tmp) THEN $
-          ls_range_tmp[d] = ls_upp_tmp - ls_low_tmp $
-        ELSE $
-          ls_range_tmp[d] = 1.
-        ls_range_tmp[d] = ls_upp_tmp - ls_low_tmp
-      ENDFOR
-      ref_mult_val = REPLICATE(ls_range_tmp[WHERE(ls_range_tmp EQ $
-        MAX(ls_range_tmp, /NAN))],hdr.nrefdiagnostics)/ls_range_tmp
+      ref_mult_val = ls_upp_y_ref / ls_upp_tmp
     ENDIF ELSE ref_mult_val = 1.
 	ENDIF ELSE BEGIN
 		refmin = 0
 		refmax = 0
     ref_mult_val = 0
+	  ls_yrange_ref = 0
 	ENDELSE
-	ls_yrange_ref = ls_upp_y_ref - ls_low_y_ref 
 
   sjidata_tmp = (*hdr.sjidata)[0]
   ; If SJI data is scaled integer, descale and convert to float
