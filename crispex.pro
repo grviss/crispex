@@ -3544,7 +3544,9 @@ PRO CRISPEX_DISPLAYS_PHIS_TOGGLE, event, NO_DRAW=no_draw
     CRISPEX_UPDATE_PHISLIT_COORDS, event
     CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event
     CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw
-  ENDIF
+  ENDIF ELSE $
+    ; "Clear" phiscan from memory
+    (*(*info).data).phiscan = PTR_NEW(0)
 	WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 0
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).phistlb,(*(*info).winids).phiswid,$
@@ -8621,10 +8623,7 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
 	imagefile = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny, $
                 TYPE=hdr_out.imtype,/NOZERO),hdr_out.imoffset)
   ; Re-read in of the image cube for slices
-	scanfile  = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns, $
-                      TYPE=hdr_out.imtype,/NOZERO),hdr_out.imoffset)			
 	hdr_out.imdata	= PTR_NEW(imagefile, /NO_COPY)
-	hdr_out.scan	= PTR_NEW(scanfile, /NO_COPY)
   hdr_out.lunim = lunim
   hdr_out.dx_fixed = ABS(KEYWORD_SET(hdr_out.imcube_compatibility)-1)
   CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, IMCUBE=hdr_out.imfilename
@@ -8636,7 +8635,11 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
                 TYPE=hdr_out.sptype,/NOZERO),hdr_out.spoffset)
     hdr_out.lunsp = lunsp
 	  hdr_out.spdata = PTR_NEW(spectra, /NO_COPY) 
-  ENDIF
+  ENDIF ELSE BEGIN
+	  scanfile = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns, $
+                        TYPE=hdr_out.imtype,/NOZERO),hdr_out.imoffset)			
+	  hdr_out.scan = PTR_NEW(scanfile, /NO_COPY)
+  ENDELSE
   CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, SPCUBE=hdr_out.spfilename
 END
 
@@ -8743,11 +8746,11 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
     referencefile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny,$
                       TYPE=hdr_out.refimtype,/NOZERO),hdr_out.refimoffset)
 		hdr_out.showref = 1
-    IF ((hdr_out.refnlp GT 1) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN BEGIN
-      refscanfile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny,$
-                      hdr_out.refnlp*hdr_out.refns, TYPE=hdr_out.refimtype,$
-                      /NOZERO),hdr_out.refimoffset)
-    ENDIF 
+;    IF ((hdr_out.refnlp GT 1) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN BEGIN
+;      refscanfile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny,$
+;                      hdr_out.refnlp*hdr_out.refns, TYPE=hdr_out.refimtype,$
+;                      /NOZERO),hdr_out.refimoffset)
+;    ENDIF 
     hdr_out.lunrefim = lunrefim
     CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, REFIMCUBE=hdr_out.refimfilename
     ; Read in reference spectral cube if so provided
@@ -8789,9 +8792,10 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
 		hdr_out.refdata	= PTR_NEW(referencefile, /NO_COPY)
 		hdr_out.refslice= PTR_NEW(BYTARR(hdr_out.nx,hdr_out.ny))
 		IF ((hdr_out.refnlp GT 1) AND (hdr_out.refspfile EQ 0)) THEN BEGIN
+      refscanfile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny,$
+                      hdr_out.refnlp*hdr_out.refns, TYPE=hdr_out.refimtype,$
+                      /NOZERO),hdr_out.refimoffset)
 			hdr_out.refscan = PTR_NEW(refscanfile, /NO_COPY)
-      hdr_out.refsspscan = PTR_NEW(MAKE_ARRAY(hdr_out.nx,hdr_out.ny,hdr_out.refnlp*hdr_out.refns, $
-                            TYPE=hdr_out.refimtype))
 		ENDIF 
 	  IF (hdr_out.refspfile EQ 1) THEN hdr_out.refspdata = PTR_NEW(referencespectra, /NO_COPY) 
 	ENDIF 
@@ -10621,7 +10625,7 @@ PRO CRISPEX_PB_PAUSE, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
 	CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET, /NO_PB_TYPE
   CRISPEX_UPDATE_SLICES, event, SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
-    REFSSP_UPDATE=((*(*info).dataswitch).refspfile EQ 0), /REFLS_DRAW, $
+    REFSSP_UPDATE=((*(*info).dataswitch).refspfile EQ 0), /LS_DRAW, /REFLS_DRAW, $
     NO_PHIS=((*(*info).dispparams).phislice_update EQ 0)
 END
 
@@ -13512,8 +13516,19 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event
     idx = (*(*info).intparams).ndiagnostics + $
       (*(*info).intparams).nrefdiagnostics + (*(*info).intparams).lp_diag_all
     IF ((*(*(*info).scaling).imagescale)[2] EQ 0) THEN BEGIN
-      minmax_data = (*(*info).data).dopplerscan[*,*,$
-        (*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp]
+      ; Compute doppler slice at t=0
+			xyslice =  (*(*(*info).data).imagedata)[$
+        (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
+        (*(*info).dataparams).lp]
+			temp_xyslice =  (*(*(*info).data).imagedata)[$
+        (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
+        (*(*info).dataparams).lp_dop]
+  		IF ((*(*info).dataparams).lp_dop GT (*(*info).dataparams).lc) THEN $
+        minmax_data = temp_xyslice - xyslice $
+      ELSE $
+        minmax_data = xyslice - temp_xyslice 
+;      minmax_data = (*(*info).data).dopplerscan[*,*,$
+;        (*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp]
       minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
         (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
       (*(*info).scaling).dopmin = minmax[0]
@@ -16082,7 +16097,9 @@ PRO CRISPEX_SLIDER_T, event
 	CRISPEX_UPDATE_T, event
 	IF ((*(*info).dispparams).phislice_update OR (event.DRAG EQ 0)) THEN $
     CRISPEX_UPDATE_SLICES, event, /NO_DRAW, $
-      NO_PHIS=((*(*info).winswitch).showphis EQ 0) $
+      NO_PHIS=((*(*info).winswitch).showphis EQ 0), $
+		  SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
+      REFSSP_UPDATE=((*(*info).dataswitch).refspfile EQ 0) $
   ELSE BEGIN		
 		IF (*(*info).dataswitch).onecube THEN $
       WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 1, $
@@ -16352,7 +16369,7 @@ END
 ;========================= UPDATE SLICES AND PARAMETERS PROCEDURES
 PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw, NO_PHIS=no_phis, $
   SSP_UPDATE=ssp_update, REFSSP_UPDATE=refssp_update, $
-  REFLS_DRAW=refls_draw, NO_FEEDBACK=no_feedback
+  LS_DRAW=ls_draw, REFLS_DRAW=refls_draw, NO_FEEDBACK=no_feedback
 ; Gets the new spectral phi slit scan for update of the spectral phi slit
 ; slice after change in framenumber
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -16373,7 +16390,8 @@ PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw, NO_PHIS=no_phis, $
     ENDIF
     IF ((*(*info).winswitch).showrefls AND ((*(*info).dataswitch).refspfile EQ 0)) THEN BEGIN
     	IF ((*(*info).dataparams).refnt GT 1) THEN $
-        *(*(*info).data).refsspscan = (*(*(*info).data).refscan)[(*(*info).dispparams).t_ref] 
+        *(*(*info).data).refsspscan = $
+          (*(*(*info).data).refscan)[(*(*info).dispparams).t_ref] 
       IF KEYWORD_SET(REFSSP_UPDATE) THEN BEGIN
         CRISPEX_UPDATE_REFSSP, event
         IF KEYWORD_SET(REFLS_DRAW) THEN CRISPEX_DRAW_SPECTRAL_REF, event, /LS_ONLY
@@ -16385,10 +16403,12 @@ PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw, NO_PHIS=no_phis, $
   	IF ((*(*info).winswitch).showphis OR $
         ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls)) THEN BEGIN
   		IF ((*(*info).dataparams).mainnt GT 1) THEN $
-        *(*(*info).data).sspscan = (*(*(*info).data).scan)[(*(*info).dispparams).t_main] $
-      ELSE $
-        *(*(*info).data).sspscan = (*(*(*info).data).scan)
-      IF KEYWORD_SET(SSP_UPDATE) THEN CRISPEX_UPDATE_SSP, event
+        *(*(*info).data).sspscan = $
+          (*(*(*info).data).scan)[(*(*info).dispparams).t_main] 
+      IF KEYWORD_SET(SSP_UPDATE) THEN BEGIN
+        CRISPEX_UPDATE_SSP, event
+        IF KEYWORD_SET(LS_DRAW) THEN CRISPEX_DRAW_SPECTRAL_MAIN, event, /LS_ONLY
+      ENDIF
       IF ~KEYWORD_SET(NO_FEEDBACK) THEN $
         WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, SET_VALUE=base_txt+$
           STRTRIM(KEYWORD_SET(REFSSP_UPDATE)+1,2)+'/'+STRTRIM(totslices,2)+$
@@ -16543,18 +16563,11 @@ PRO CRISPEX_UPDATE_SSP, event
                       wheres[i]  
     			ssp = ( ( *(*(*info).data).spdata)[spidx] )
         ; If no spectral cube supplied, determine from image cube
-    		ENDIF ELSE BEGIN    
-    			IF (*(*info).dataswitch).onecube THEN $
-  				  ssp = (*(*(*info).data).sspscan)[$
-              LONG((*(*info).dataparams).x),LONG((*(*info).dataparams).y),$
-              (wheres[i] * (*(*info).dataparams).nlp):$
-              ((wheres[i]+1) * (*(*info).dataparams).nlp - 1)]  $
-          ELSE $
-  				  ssp = (*(*(*info).data).scan)[$
-              LONG((*(*info).dataparams).x),LONG((*(*info).dataparams).y),$
-              (wheres[i] * (*(*info).dataparams).nlp):$
-              ((wheres[i]+1) * (*(*info).dataparams).nlp -1)]
-    		ENDELSE
+    		ENDIF ELSE $
+    			ssp = (*(*(*info).data).sspscan)[$
+            LONG((*(*info).dataparams).x),LONG((*(*info).dataparams).y),$
+            (wheres[i] * (*(*info).dataparams).nlp):$
+            ((wheres[i]+1) * (*(*info).dataparams).nlp - 1)]  
       (*(*info).data).ssp_cur[i] = PTR_NEW(ssp)
     ENDFOR
   ENDIF
@@ -16570,6 +16583,7 @@ PRO CRISPEX_UPDATE_REFSSP, event
       sspidx = LONG((*(*info).dataparams).yref) * (*(*info).dataparams).refnx + $
                LONG((*(*info).dataparams).xref)
       refssp = ( ( *(*(*info).data).refspdata)[sspidx] ) 
+    ; If no spectral cube supplied, determine from image cube
     ENDIF ELSE $
       refssp = REFORM((*(*(*info).data).refsspscan)[$
                 LONG((*(*info).dataparams).xref),LONG((*(*info).dataparams).yref),*])
@@ -18635,7 +18649,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	imsdev = DBLARR(hdr.nlp,hdr.ns,/NOZERO)
 	dopplermin = DBLARR(hdr.nlp,hdr.ns,/NOZERO)
 	dopplermax = DBLARR(hdr.nlp,hdr.ns,/NOZERO)
-  dopplerscan = FLTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns,/NOZERO)
+;  dopplerscan = FLTARR(hdr.nx,hdr.ny,hdr.nlp*hdr.ns,/NOZERO)
 	ls_low_y = FLTARR(hdr.ns,/NOZERO)
 	ls_upp_y = FLTARR(hdr.ns,/NOZERO)
 	ls_yrange = FLTARR(hdr.ns,/NOZERO)
@@ -18662,7 +18676,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
           dopplerim = temp_image - mirror_temp_image $
   			ELSE $
           dopplerim = mirror_temp_image - temp_image
-        dopplerscan[*,*,s*hdr.nlp+lp] = dopplerim
+;        dopplerscan[*,*,s*hdr.nlp+lp] = dopplerim
   			dopplermin[lp,s] = MIN(dopplerim, MAX=max_val, /NAN)
   			dopplermax[lp,s] = max_val
       ENDIF
@@ -19975,19 +19989,16 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	FOR i=0,hdr.nx-1 DO index[i,*,1] = yarr
 	FOR j=0,hdr.ny-1 DO index[*,j,0] = xarr
 	indexmap= PTR_NEW(index, /NO_COPY)
-	indices = PTR_NEW(INTARR(hdr.nx,hdr.ny,2))
+	indices = PTR_NEW(0)
 
-	xyslice	= PTR_NEW(BYTARR(hdr.nx,hdr.ny,/NOZERO))
-;	sel_xyslice	= PTR_NEW(BYTARR(hdr.nx,hdr.ny,/NOZERO))
-	dopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny,/NOZERO))
-;	sel_dopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny,/NOZERO))
-	emptydopslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny))
-	maskslice= PTR_NEW(BYTARR(hdr.nx,hdr.ny,/NOZERO))
+	xyslice	= PTR_NEW(0)
+	dopslice= PTR_NEW(0)
+	emptydopslice= PTR_NEW([0,0])
+	maskslice= PTR_NEW(0)
 
-  phiscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp, TYPE=hdr.imtype,/NOZERO))
-  sspscan = PTR_NEW(MAKE_ARRAY(hdr.nx,hdr.ny,hdr.nlp*hdr.ns, $
-    TYPE=hdr.imtype,/NOZERO))
-	phislice= PTR_NEW(BYTARR(hdr.nlp,nphi,/NOZERO))
+  phiscan = PTR_NEW(0)
+  sspscan = PTR_NEW(0)
+	phislice= PTR_NEW(0)
 	IF ((hdr.spfile EQ 1) OR (hdr.single_cube[0] GE 1)) THEN BEGIN
 		loopslab= PTR_NEW(0)
 		loopslice = PTR_NEW(0)
@@ -20023,15 +20034,6 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	yp = PTR_NEW(FLTARR(1))
 	sxp = PTR_NEW(FLTARR(1))
 	syp = PTR_NEW(FLTARR(1))
-	
-;	IF hdr.showref THEN $
-;		sel_refslice= PTR_NEW(BYTARR(hdr.refnx,hdr.refny)) $
-;  ELSE $
-;    sel_refslice = 0
-;  IF hdr.sjifile THEN $
-;		sel_sjislice= PTR_NEW(BYTARR(hdr.sjinx,hdr.sjiny)) $
-;  ELSE $
-;    sel_sjislice = 0
 	
   imwintitle = 'CRISPEX'+instance_label+': Main image'
   ; Create location for main image including scroll bars
@@ -20274,7 +20276,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	data = { $
     imagedata:hdr.imdata, xyslice:xyslice, refdata:hdr.refdata, $
     refslice:hdr.refslice, maskdata:hdr.maskdata, maskslice:maskslice, $
-    dopslice:dopslice, dopplerscan:dopplerscan, spdata:hdr.spdata, $
+;    dopslice:dopslice, dopplerscan:dopplerscan, spdata:hdr.spdata, $
+    dopslice:dopslice, spdata:hdr.spdata, $
     sspscan:sspscan, ssp_cur:PTRARR(hdr.imns), refspdata:hdr.refspdata, $
     refscan:hdr.refscan, refsspscan:hdr.refsspscan, refssp_cur:PTR_NEW(0), $
     spslice:PTR_NEW(0), spslice_congrid:PTR_NEW(0), $
@@ -20711,8 +20714,6 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     idx:0, diagscale_label_vals:diagscale_label_vals, $
     histo_opt_val:REPLICATE(histo_opt_val,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
     mult_val:[main_mult_val,ref_mult_val] $
-;    sel_xyslice:sel_xyslice, sel_refslice:sel_refslice, sel_dopslice:sel_dopslice, $
-;    sel_sjislice:sel_sjislice $
 	}
 ;-------------------- STOKES PARAMS
 	stokesparams = { $
@@ -20904,7 +20905,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 			WIDGET_CONTROL, timeslicemenu, SENSITIVE = 0
       WIDGET_CONTROL, det_file_loop, SENSITIVE=0
 			*(*(*info).data).scan = (*(*(*info).data).scan)[0]
-			*(*(*info).data).phiscan = *(*(*info).data).scan
+			*(*(*info).data).sspscan = *(*(*info).data).scan
 		ENDIF 
 		WIDGET_CONTROL, loop_slit_but, SENSITIVE = exts_set
 		WIDGET_CONTROL, loop_feedb_but, SENSITIVE = exts_set
@@ -20934,6 +20935,9 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   IF ((*(*info).winswitch).showsp OR (*(*info).winswitch).showls OR $
     (*(*info).winswitch).showphis) THEN $
     CRISPEX_DRAW_GET_SPECTRAL_AXES, pseudoevent, /MAIN
+	IF ((((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube) $
+    AND ((*(*info).winswitch).showphis NE 1)) THEN $
+    CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW, /NO_FEEDBACK
 	IF (*(*info).winswitch).showsp THEN BEGIN
 		(*(*info).winswitch).showsp = 0
 		CRISPEX_DISPLAYS_SP_TOGGLE, pseudoevent
@@ -20959,7 +20963,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		IF startupwin THEN WSHOW, startupwid
 	ENDIF ELSE WIDGET_CONTROL, (*(*info).ctrlscp).refsp_toggle_but, SENSITIVE = 0
 	IF (*(*info).winswitch).showrefls THEN BEGIN
-		IF ((*(*info).dataswitch).refspfile EQ 0) THEN *(*(*info).data).refsspscan = (*(*(*info).data).refscan)[0]
+		IF ((*(*info).dataswitch).refspfile EQ 0) THEN $
+      *(*(*info).data).refsspscan = (*(*(*info).data).refscan)[0]
 		(*(*info).winswitch).showrefls = 0
 		(*(*info).ctrlsswitch).imrefdetspect = 1
 		CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, pseudoevent
@@ -20983,9 +20988,9 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	ENDIF
   
 	CRISPEX_UPDATE_T, pseudoevent
-	IF ((((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube) $
-    AND ((*(*info).winswitch).showphis NE 1)) THEN $
-    CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW, /NO_FEEDBACK
+;	IF ((((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube) $
+;    AND ((*(*info).winswitch).showphis NE 1)) THEN $
+;    CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW, /NO_FEEDBACK
 	IF showrefls THEN BEGIN
 		IF (ref_detspect_scale EQ 0) THEN BEGIN
 			CRISPEX_DISPRANGE_LS_SCALE_REF, pseudoevent
