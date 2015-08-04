@@ -5914,7 +5914,7 @@ PRO CRISPEX_DRAW_RASTER_TIMING_OVERLAYS, event, MAIN=main, REFERENCE=reference,$
   PLOTS,x0,[y0[0],y1[1]], COLOR=sel_color, LINE=1, /DEVICE
   FOR i=0,N_ELEMENTS(x0)-1 DO $
     ARROW, x0[i], y0[i], x1[i], y1[i], HSIZE=7, HTHICK=7, COLOR=sel_color, $
-    THICK=2, /SOLID, /DEVICE
+    THICK=2, /SOLID
 	LOADCT, 0, /SILENT
 END
 
@@ -20036,7 +20036,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 
 	xyslice	= PTR_NEW(0)
 	dopslice= PTR_NEW(0)
-	emptydopslice= PTR_NEW([0,0])
+	emptydopslice= PTR_NEW(BYTARR(2,2))
 	maskslice= PTR_NEW(0)
 
   phiscan = PTR_NEW(0)
