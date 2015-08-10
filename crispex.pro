@@ -16115,7 +16115,8 @@ PRO CRISPEX_SLIDER_T, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).t], labels=['t']
 	CRISPEX_UPDATE_T, event
-	IF ((*(*info).dispparams).phislice_update OR (event.DRAG EQ 0)) THEN $
+	IF ((*(*info).dispparams).phislice_update OR (event.DRAG EQ 0) AND $
+    ((*(*info).winswitch).showls OR (*(*info).winswitch).showrefls)) THEN $
     CRISPEX_UPDATE_SLICES, event, /NO_DRAW, $
       NO_PHIS=((*(*info).winswitch).showphis EQ 0), $
 		  SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
@@ -16125,7 +16126,8 @@ PRO CRISPEX_SLIDER_T, event
       WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 1, $
         SET_VALUE = 'Update spectral windows' 
 	ENDELSE
-  IF ((*(*info).dataswitch).spfile EQ 0) THEN CRISPEX_UPDATE_SSP, event
+  IF ((*(*info).winswitch).showls AND $
+      ((*(*info).dataswitch).spfile EQ 0)) THEN CRISPEX_UPDATE_SSP, event
   IF ((*(*info).winswitch).showrefls AND $
     ((*(*info).dataswitch).refspfile EQ 0)) THEN CRISPEX_UPDATE_REFSSP, event
   CRISPEX_DRAW, event, $
@@ -18748,6 +18750,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 
 	ls_low_y_ref = 0
 	ls_upp_y_ref = 0
+  ls_yrange_ref = 0
 	IF hdr.showref THEN BEGIN
 		IF (hdr.refnt EQ 0) THEN BEGIN
       temp_refimage = *hdr.refdata
@@ -18783,7 +18786,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 			ls_low_y_ref = MIN((refmean-scfactor*refsdev)/hdr.refms, /NAN)
 			ls_upp_y_ref = MAX((refmean+scfactor*refsdev)/hdr.refms, /NAN)
 	    ls_yrange_ref = ls_upp_y_ref - ls_low_y_ref 
-		ENDIF
+		ENDIF 
     IF (hdr.nrefdiagnostics GT 1) THEN BEGIN
       ; Determine multiplicative factors
       ls_upp_tmp = FLTARR(hdr.nrefdiagnostics, /NOZERO)
@@ -18798,7 +18801,6 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		refmin = 0
 		refmax = 0
     ref_mult_val = 0
-	  ls_yrange_ref = 0
 	ENDELSE
 
   sjidata_tmp = (*hdr.sjidata)[0]
