@@ -638,7 +638,7 @@ FUNCTION CRISPEX_BGROUP_DIAGNOSTICS_SELECT, event
     CRISPEX_UPDATE_PHISLICE, event, /NO_DRAW
     CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event
   ENDIF
-  CRISPEX_DRAW, event, /NO_REF
+  CRISPEX_DRAW, event, /NO_REF, /LS_NO_REF
 END
 
 FUNCTION CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT, event
@@ -687,7 +687,7 @@ FUNCTION CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT, event
     CRISPEX_UPDATE_REFSPSLICE, event
     CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
   ENDIF
-  CRISPEX_DRAW, event, /NO_MAIN
+  CRISPEX_DRAW, event, /NO_MAIN, /LS_NO_MAIN
 END
 
 FUNCTION CRISPEX_BGROUP_LP_RESTRICT, event, SESSION_RESTORE=session_restore
@@ -890,7 +890,8 @@ FUNCTION CRISPEX_BGROUP_RASTER_OVERLAY, event
     1:  (*(*info).overlayswitch).sjiraster = event.SELECT
 ;    2:  (*(*info).overlayswitch).rastertiming = event.SELECT
   ENDCASE
-	CRISPEX_DRAW, event, NO_REF=(event.VALUE NE 0), NO_SJI=(event.VALUE NE 1)
+	CRISPEX_DRAW, event, NO_REF=(event.VALUE NE 0), NO_SJI=(event.VALUE NE 1), $
+    LS_NO_REF=(event.VALUE NE 0)
 END
 
 FUNCTION CRISPEX_BGROUP_RASTER_TIMING_OVERLAY, event
@@ -900,7 +901,8 @@ FUNCTION CRISPEX_BGROUP_RASTER_TIMING_OVERLAY, event
     CRISPEX_VERBOSE_GET_ROUTINE, event
     (*(*info).overlayswitch).rastertiming[event.VALUE] = event.SELECT
   CRISPEX_DRAW, event, NO_MAIN=(event.VALUE NE 0), NO_REF=(event.VALUE NE 1), $
-    NO_SJI=(event.VALUE NE 2)
+    NO_SJI=(event.VALUE NE 2), LS_NO_MAIN=(event.VALUE NE 0), $
+    LS_NO_REF=(event.VALUE NE 1)
 END
 
 FUNCTION CRISPEX_BGROUP_INT_SEL_ALLNONE, event
@@ -6025,7 +6027,7 @@ PRO CRISPEX_DRAW_GET_SPECTRAL_AXES, event, MAIN=main, REFERENCE=reference
 END
 
 PRO CRISPEX_DRAW, event, NO_MAIN=no_main, NO_REF=no_ref, NO_SJI=no_sji, $
-  NO_PHIS=no_phis
+  NO_PHIS=no_phis, LS_NO_MAIN=ls_no_main, LS_NO_REF=ls_no_ref
 ; Handles the actual drawing of the data into the respective open display windows
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
@@ -6046,7 +6048,8 @@ PRO CRISPEX_DRAW, event, NO_MAIN=no_main, NO_REF=no_ref, NO_SJI=no_sji, $
 	CRISPEX_DRAW_IMREF, event, NO_MAIN=no_main, NO_REF=no_ref, NO_SJI=no_sji
 	IF ((*(*info).winswitch).showls OR (*(*info).winswitch).showsp OR $
     (*(*info).winswitch).showrefls OR (*(*info).winswitch).showrefsp) THEN $
-      CRISPEX_DRAW_SPECTRAL, event, NO_MAIN=no_main, NO_REF=no_ref, NO_PHIS=no_phis
+      CRISPEX_DRAW_SPECTRAL, event, NO_MAIN=ls_no_main, NO_REF=ls_no_ref, $
+        NO_PHIS=no_phis
 	IF ((*(*info).winswitch).showloop OR (*(*info).winswitch).showrefloop OR $
     (*(*info).winswitch).showrestloop OR (*(*info).winswitch).showretrdet) THEN $
       CRISPEX_DRAW_TIMESLICES, event
@@ -8634,12 +8637,13 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
     spectra = ASSOC(lunsp,MAKE_ARRAY(hdr_out.nlp,hdr_out.mainnt,$
                 TYPE=hdr_out.sptype,/NOZERO),hdr_out.spoffset)
     hdr_out.lunsp = lunsp
-	  hdr_out.spdata = PTR_NEW(spectra, /NO_COPY) 
-  ENDIF ELSE BEGIN
-	  scanfile = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns, $
-                        TYPE=hdr_out.imtype,/NOZERO),hdr_out.imoffset)			
-	  hdr_out.scan = PTR_NEW(scanfile, /NO_COPY)
-  ENDELSE
+    hdr_out.spdata = PTR_NEW(spectra, /NO_COPY) 
+  ENDIF
+  ; Define scan regardless of whether spfile is supplied; is needed for spectrum
+  ; along a slit
+  scanfile = ASSOC(lunim,MAKE_ARRAY(hdr_out.nx,hdr_out.ny,hdr_out.nlp*hdr_out.ns, $
+                      TYPE=hdr_out.imtype,/NOZERO),hdr_out.imoffset)			
+  hdr_out.scan = PTR_NEW(scanfile, /NO_COPY)
   CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, SPCUBE=hdr_out.spfilename
 END
 
@@ -8967,7 +8971,8 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
       CRISPEX_SCALING_APPLY_SELECTED, event
       ; Only redraw the SJI window
       CRISPEX_DRAW, event, NO_MAIN=(sjimaster_t EQ 0), $
-        NO_REF=(sjimaster_t EQ 0), NO_PHIS=(sjimaster_t EQ 0)
+        NO_REF=(sjimaster_t EQ 0), NO_PHIS=(sjimaster_t EQ 0), $
+        LS_NO_MAIN=(sjimaster_t EQ 0), LS_NO_REF=(sjimaster_t EQ 0)
     ENDIF ELSE $
       CRISPEX_IO_OPEN_SJICUBE_READ, HDR_IN=hdr_out, HDR_OUT=hdr_out
   ENDIF
@@ -10495,7 +10500,8 @@ PRO CRISPEX_PB_BG, event
                   ((*(*info).pbparams).spmode EQ 0)), $
       REFSSP_UPDATE=(((*(*info).dataswitch).refspfile EQ 0) AND $
                      ((*(*info).pbparams).spmode EQ 0))
-	CRISPEX_DRAW, event
+	CRISPEX_DRAW, event, LS_NO_MAIN=((*(*info).dataswitch).spfile EQ 0), $
+    LS_NO_REF=((*(*info).dataswitch).refspfile EQ 0)
 	IF (((*(*info).feedbparams).verbosity)[4] EQ 1) THEN BEGIN
 		(*(*info).feedbparams).count_pbstats += 1
 		newtime = SYSTIME(/SECONDS)
@@ -10646,7 +10652,7 @@ PRO CRISPEX_PB_PAUSE, event
 	CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET, /NO_PB_TYPE
   CRISPEX_UPDATE_SLICES, event, SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
     REFSSP_UPDATE=((*(*info).dataswitch).refspfile EQ 0), /LS_DRAW, /REFLS_DRAW, $
-    NO_PHIS=((*(*info).dispparams).phislice_update EQ 0)
+    NO_PHIS=((*(*info).winswitch).showphis EQ 0)
 END
 
 PRO CRISPEX_PB_BLINK, event
@@ -16110,7 +16116,6 @@ PRO CRISPEX_SLIDER_T, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  t_old = (*(*info).dispparams).t
 	(*(*info).dispparams).t = event.VALUE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).t], labels=['t']
@@ -16130,8 +16135,7 @@ PRO CRISPEX_SLIDER_T, event
       ((*(*info).dataswitch).spfile EQ 0)) THEN CRISPEX_UPDATE_SSP, event
   IF ((*(*info).winswitch).showrefls AND $
     ((*(*info).dataswitch).refspfile EQ 0)) THEN CRISPEX_UPDATE_REFSSP, event
-  CRISPEX_DRAW, event, $
-    NO_PHIS=(event.DRAG OR ((*(*info).dispparams).t EQ t_old))
+  CRISPEX_DRAW, event, NO_PHIS=event.DRAG
 END
 
 PRO CRISPEX_SLIDER_TIME_OFFSET, event
