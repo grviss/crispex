@@ -393,6 +393,26 @@ FUNCTION CRISPEX_ARRAY_GET_GAP, input_array, ntotal
   RETURN, result
 END
 
+FUNCTION CRISPEX_ARRAY_WHERE, input_array, check_array, VALUES=values
+  ; Checks Input_array for all values in Check_array and returns their indices
+  ; and if requested also their values. 
+  ; Note: Values can only be returned for switches!
+  IF ~KEYWORD_SET(VALUES) THEN result_vals = -1
+  tags = TAG_NAMES(input_array)
+  FOR i=0,N_ELEMENTS(check_array)-1 DO BEGIN
+    idx_tmp = (WHERE(tags EQ check_array[i]))[0]
+    IF (N_ELEMENTS(result_idx) GE 1) THEN BEGIN
+      result_idx = [result_idx, idx_tmp] 
+      IF KEYWORD_SET(VALUES) THEN $
+        result_vals = [result_vals, (input_array).(idx_tmp)]
+    ENDIF ELSE BEGIN
+      result_idx = idx_tmp
+      IF KEYWORD_SET(VALUES) THEN result_vals = (input_array).(idx_tmp)
+    ENDELSE
+  ENDFOR
+  result = {idx:result_idx, vals:result_vals}
+  RETURN, result
+END
 
 ;------------------------- APPLICATION USER DIRECTORY FUNCTION
 FUNCTION CRISPEX_CONFIG_DIR
@@ -690,6 +710,84 @@ FUNCTION CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT, event
   CRISPEX_DRAW, event, /NO_MAIN, /LS_NO_MAIN
 END
 
+FUNCTION CRISPEX_BGROUP_DETSPECT_IMREF, event, SESSION_RESTORE=session_restore
+  ; Handles the selection of detspect options 
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF ~KEYWORD_SET(SESSION_RESTORE) THEN BEGIN
+    (*(*info).ctrlsswitch).imrefdetspect = event.VALUE
+	  CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
+  ENDIF ELSE BEGIN
+ 		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_imref_button_ids[$
+       ABS((*(*info).ctrlsswitch).imrefdetspect-1)], $
+       SET_BUTTON=ABS((*(*info).ctrlsswitch).imrefdetspect-1)
+ 		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_imref_button_ids[$
+       (*(*info).ctrlsswitch).imrefdetspect], $
+       SET_BUTTON=(*(*info).ctrlsswitch).imrefdetspect,$
+       SENSITIVE=(*(*info).dataswitch).refspfile
+  ENDELSE
+END
+
+FUNCTION CRISPEX_BGROUP_DISPLAYS_SELECT, event, SESSION_RESTORE=session_restore
+  ; Handles the selection of main data displays
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  ; Idx: 0=Doppler, 1=Detailed spectrum, 2=Spectrum-time, 3=Spectrum along slit
+  IF ~KEYWORD_SET(SESSION_RESTORE) THEN BEGIN
+    CASE event.VALUE OF
+      0: CRISPEX_DISPLAYS_DOPPLER_TOGGLE, event 
+      1: CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event
+      2: CRISPEX_DISPLAYS_SP_TOGGLE, event
+      3: CRISPEX_DISPLAYS_PHIS_TOGGLE, event
+    ENDCASE
+  ENDIF ELSE BEGIN
+    ; set button determined by saved winswitches
+    setbarr = [(*(*info).winswitch).showdop, (*(*info).winswitch).showls, $
+      (*(*info).winswitch).showsp, (*(*info).winswitch).showphis]
+    ; sensitivity determined by file existence, nlp>1, and no single windows
+    sensarr = [REPLICATE(((*(*info).dataparams).nlp GT 1),2), $
+      (*(*info).dataswitch).spfile, $
+      ((*(*info).dataparams).nlp GT 1)]
+    sensarr = sensarr AND $
+      REPLICATE(((*(*info).intparams).singlewav_windows EQ 0), $
+      N_ELEMENTS(sensarr))
+    FOR i=0,N_ELEMENTS((*(*info).ctrlscp).displays_button_ids)-1 DO $
+      WIDGET_CONTROL, (*(*info).ctrlscp).displays_button_ids[i], $
+        SET_BUTTON=(setbarr[i] EQ 1), SENSITIVE=(sensarr[i] EQ 1)
+  ENDELSE
+END
+
+FUNCTION CRISPEX_BGROUP_REFDISPLAYS_SELECT, event, $
+  SESSION_RESTORE=session_restore
+  ; Handles the selection of reference data displays
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  ; Idx: 0=Image, 1=Detailed spectrum, 2=Spectrum-time
+  IF ~KEYWORD_SET(SESSION_RESTORE) THEN BEGIN
+    CASE event.VALUE OF
+      0: CRISPEX_DISPLAYS_REF_TOGGLE, event
+      1: CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, /REFERENCE
+      2: CRISPEX_DISPLAYS_REFSP_TOGGLE, event
+    ENDCASE
+  ENDIF ELSE BEGIN  
+    ; set button determined by saved winswitches
+    setbarr = [(*(*info).winswitch).showref, (*(*info).winswitch).showrefls, $
+      (*(*info).winswitch).showrefsp]
+    ; sensitivity determined by file existence, nlp>1, and no single windows
+    sensarr = [(*(*info).dataswitch).reffile, $
+      ((*(*info).dataparams).refnlp GT 1), (*(*info).dataswitch).refspfile]
+    sensarr = sensarr AND $
+      REPLICATE(((*(*info).intparams).refsinglewav_windows EQ 0),$
+        N_ELEMENTS(sensarr))
+    FOR i=0,N_ELEMENTS((*(*info).ctrlscp).refdisplays_button_ids)-1 DO $
+      WIDGET_CONTROL, (*(*info).ctrlscp).refdisplays_button_ids[i], $
+        SET_BUTTON=(setbarr[i] EQ 1), SENSITIVE=(sensarr[i] EQ 1)
+  ENDELSE
+END
+
 FUNCTION CRISPEX_BGROUP_LP_RESTRICT, event, SESSION_RESTORE=session_restore
   ; Handles selecting main/reference to restrict wavelength range for
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -868,6 +966,53 @@ FUNCTION CRISPEX_BGROUP_ZOOMFAC_SET, event, NO_DRAW=no_draw, $
     WIDGET_CONTROL, ((*(*info).ctrlscp).zoom_button_ids)[i], $
                     SET_BUTTON = ((*(*info).zooming).factorswitch)[i]
 	CRISPEX_ZOOM, event, NO_DRAW=no_draw
+END
+
+FUNCTION CRISPEX_BGROUP_LOOP_LINESTYLE, event, SESSION_RESTORE=session_restore
+; Sets the display of restored loops to always (i.e. at all spectral positions)
+; or selected (i.e. at saved positions)
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF ~KEYWORD_SET(SESSION_RESTORE) THEN BEGIN
+    ; Handle user input
+    (*(*info).overlayparams).loop_linestyle = event.VALUE
+	  CRISPEX_DRAW_IMREF, event
+  ENDIF ELSE BEGIN
+    ; Handle session restore; no draw
+    FOR i=0,N_ELEMENTS((*(*info).ctrlscp).loop_linestyle_button_ids)-1 DO $
+      WIDGET_CONTROL, (*(*info).ctrlscp).loop_linestyle_button_ids[i], /SENSITIVE, $
+      SET_BUTTON=(i EQ (*(*info).overlayparams).loop_linestyle)
+  ENDELSE
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).overlayparams).loop_linestyle], $
+      labels=['Loop linestyle']
+END
+
+FUNCTION CRISPEX_BGROUP_LOOP_OVERLAY, event, SESSION_RESTORE=session_restore
+; Handles setting of loop path linestyle 
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF ~KEYWORD_SET(SESSION_RESTORE) THEN BEGIN
+    ; Handle user input
+  	(*(*info).overlayswitch).overlalways = ABS(event.VALUE-1)
+  	IF ((*(*info).loopswitch).restore_loops EQ 0) THEN $
+      CRISPEX_RESTORE_LOOPS_MAIN, event $
+    ELSE $
+      CRISPEX_DRAW, event
+  ENDIF ELSE BEGIN
+    ; Handle session restore; no draw
+    WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_button_ids[$
+      ABS((*(*info).overlayswitch).overlalways-1)], /SET_BUTTON, $
+      SENSITIVE=(*(*info).loopswitch).restore_loops
+    WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_button_ids[$
+      (*(*info).overlayswitch).overlalways], $
+      SENSITIVE=(*(*info).loopswitch).restore_loops
+  ENDELSE
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).overlayswitch).overlalways], $
+      labels=['Overlay loops always']
 END
 
 FUNCTION CRISPEX_BGROUP_MASK_OVERLAY, event
@@ -2348,39 +2493,19 @@ PRO CRISPEX_DISPWIDS, event
 	ENDELSE
 END
 
-PRO CRISPEX_DISPLAYS_DETSPECT_IM_SELECT, event
-; Handles the selection of detspect options for the main image
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).ctrlsswitch).imrefdetspect = 0
-	CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
-END
-
-PRO CRISPEX_DISPLAYS_DETSPECT_REF_SELECT, event
-; Handles the selection of detspect options for the reference image
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).ctrlsswitch).imrefdetspect = 1
-	CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
-END
-
 PRO CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
 ; Handles the setting of scaling buttons
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN		; If selected options for reference
-		WIDGET_CONTROL, (*(*info).ctrlscp).ls_toggle_but, SET_BUTTON = (*(*info).winswitch).showrefls, SET_VALUE = 'Display '+STRLOWCASE(((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).refheightset])
 		WIDGET_CONTROL, (*(*info).ctrlscp).subtract_but, SET_BUTTON = (*(*info).plotswitch).ref_subtract
-		WIDGET_CONTROL, (*(*info).ctrlscp).scale_detspect_but, SET_BUTTON = (*(*info).dispswitch).ref_detspect_scale, $
-			SET_VALUE = 'Scale '+STRLOWCASE(((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).refheightset])+' to maximum of average'
+		WIDGET_CONTROL, (*(*info).ctrlscp).scale_detspect_but, SET_BUTTON = (*(*info).dispswitch).ref_detspect_scale
 		WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, SET_VALUE = STRTRIM((*(*info).plotaxes).ls_low_y_ref,2)
 		WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, SET_VALUE = STRTRIM((*(*info).plotaxes).ls_upp_y_ref,2)
 		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_label, SET_VALUE = ((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).refheightset]+':'
 	ENDIF ELSE BEGIN				; If selected options for main
-		WIDGET_CONTROL, (*(*info).ctrlscp).ls_toggle_but, SET_BUTTON = (*(*info).winswitch).showls, SET_VALUE = 'Display '+STRLOWCASE(((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).heightset])
 		WIDGET_CONTROL, (*(*info).ctrlscp).subtract_but, SET_BUTTON = (*(*info).plotswitch).subtract
-		WIDGET_CONTROL, (*(*info).ctrlscp).scale_detspect_but, SET_BUTTON = (*(*info).dispswitch).detspect_scale, $
-			SET_VALUE = 'Scale '+STRLOWCASE(((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).heightset])+' to maximum of average'
+		WIDGET_CONTROL, (*(*info).ctrlscp).scale_detspect_but, SET_BUTTON = (*(*info).dispswitch).detspect_scale
 		WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],2)
 		WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],2)
 		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_label, SET_VALUE = ((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).heightset]+':'
@@ -3242,12 +3367,14 @@ PRO CRISPEX_DISPLAYS_IMREFBLINK_TOGGLE, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).imreftlb,(*(*info).winids).imrefwid,(*(*info).winids).imrefdrawid], labels=['imreftlb','imrefwid','imrefdrawid']
 END
 
-PRO CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, NO_DRAW=no_draw
+PRO CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, NO_DRAW=no_draw, $
+  REFERENCE=reference
 ; Detailed spectrum window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
-	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN	; For reference detailed spectrum window
+  IF KEYWORD_SET(REFERENCE) THEN BEGIN
+;	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN	; For reference detailed spectrum window
 		IF ((*(*info).winswitch).showrefls EQ 0) THEN BEGIN
 			title = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+((*(*info).plottitles).reflswintitle)[(*(*info).plotswitch).refheightset]
 			CRISPEX_WINDOW, (*(*info).winsizes).reflsxres, $
@@ -5424,33 +5551,6 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
   TVLCT, r_cur, g_cur, b_cur
 END
 
-PRO CRISPEX_DRAW_LOOP_LINESTYLE_0, event
-; Handles setting of loop path linestyle to solid
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).overlayparams).loop_linestyle = 0
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).overlayparams).loop_linestyle], labels=['Loop linestyle']
-	CRISPEX_DRAW, event
-END
-
-PRO CRISPEX_DRAW_LOOP_LINESTYLE_1, event
-; Handles setting of loop path linestyle to dotted (i.e. actual loop points, not dots between the vertices)
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).overlayparams).loop_linestyle = 1
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).overlayparams).loop_linestyle], labels=['Loop linestyle']
-	CRISPEX_DRAW, event
-END
-
-PRO CRISPEX_DRAW_LOOP_LINESTYLE_2, event
-; Handles setting of loop path linestyle to dashed
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).overlayparams).loop_linestyle = 2
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).overlayparams).loop_linestyle], labels=['Loop linestyle']
-	CRISPEX_DRAW, event
-END
-
 PRO CRISPEX_DRAW_LOOP_OVERLAYS, event, NO_NUMBER=no_number, THICK=thick, $
   NO_ENDPOINTS=no_endpoints, SYMSIZE=symsize, SJI=sji, REFERENCE=reference
 ; Handles overplotting of loop paths from the restored and retrieved loops as well as from the retrieved detections
@@ -6790,255 +6890,258 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
   ; Determine current diagnostic window LP is in
   lp_diag = $
     TOTAL((*(*info).dataparams).lp GE *(*(*info).intparams).diag_starts)-1
- ; Loop over all selected Stokes parameters (will always be at least 1) for
- ; detailed spectrum plots
-	FOR i=0,TOTAL((*(*info).stokesparams).select_sp)-1 DO BEGIN
-    IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showls) THEN BEGIN
-   		s = (WHERE((*(*info).stokesparams).select_sp EQ 1))[i]
-   		spec = ((*(*info).dataparams).spec)[*,s]
-   		IF (*(*info).plotswitch).scalestokes THEN $
-         ms = (*(*info).dataparams).ms $
-       ELSE $
-         ms = ((*(*info).dataparams).ms)[s]
-   		ls_low_y = (*(*(*info).plotaxes).ls_low_y)[s] 
-   		ls_upp_y = (*(*(*info).plotaxes).ls_upp_y)[s]
-   		order_corr=0.
-   		IF (*(*info).dispswitch).detspect_scale THEN $
-         lsytitle = 'Scaled '+STRLOWCASE((*(*info).plottitles).lsytitle) $
-      ELSE BEGIN
-   			IF ((FLOOR(ALOG10(ABS(ls_low_y))) LE -2) OR $
-          (FLOOR(ALOG10(ABS(ls_upp_y))) GE 3)) THEN BEGIN
-   				order_corr = FLOOR(ALOG10(ABS(ls_upp_y)))
-   				lsytitle = $
-            (*(*info).plottitles).lsytitle+' (x10!U'+STRTRIM(order_corr,2)+'!N)'
-   			ENDIF ELSE lsytitle = (*(*info).plottitles).lsytitle
-   			ls_low_y /= (10.^(order_corr))
-   			ls_upp_y /= (10.^(order_corr))
-   		ENDELSE
-   		IF ((*(*info).dispswitch).detspect_scale EQ 0) THEN BEGIN
-   			spec *= ms * ((*(*info).paramparams).scale_cubes)[0] / (10.^(order_corr))
-   			ms = 1
-   		ENDIF
-      ; Set x-axes parameters depending on # of diagnostics
-      IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
-        xtlen_basic_fac = 0.5
-        xtlen_major_fac = 0.8
-        xtickname = REPLICATE(' ',60)
-        xtitle = ''
-      ENDIF ELSE BEGIN
-        xtlen_basic_fac = 1.
-        xtickname = ''
-        xtitle = (*(*info).plottitles).spxtitle
-      ENDELSE
-      xticklen = xtlen_basic_fac * (*(*info).plotaxes).lsxticklen
-      IF (*(*info).plotswitch).v_dop_set THEN $
-        topxtitle = 'Doppler velocity [km/s]'
-      ; Get data for display
-  		IF ((*(*info).dataswitch).spfile EQ 1) THEN $
-        ssp = (*(*(*info).data).ssp_cur[i])[*,(*(*info).dispparams).t_main]/ms $
-      ELSE $
-        ssp = (*(*(*info).data).ssp_cur[i])/ms
-      IF ((*(*info).dispswitch).detspect_scale EQ 0) THEN $
-        ssp *= ((*(*info).paramparams).scale_cubes)[0] / (10.^(order_corr))
-    ENDIF
-    ; Determine proportional spectral window size for LS
-    diag_range_ls = *(*(*info).plotaxes).diag_ratio * $
-      (((*(*info).plotpos).lsx1)[i] - ((*(*info).plotpos).lsx0)[i])
-    FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
+  IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showls) THEN BEGIN
+    ; Pre-draw procedures: detailed spectrum (LS)
+   ; Loop over all selected Stokes parameters (will always be at least 1) for
+   ; detailed spectrum plots
+    FOR i=0,TOTAL((*(*info).stokesparams).select_sp)-1 DO BEGIN
       IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showls) THEN BEGIN
-        WSET, (*(*info).winids).lswid
-        disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
-        lp_lower = (*(*info).dispparams).lp_low_tmp[disp_idx]+$
-          (*(*info).intparams).diag_start[disp_idx]
-        lp_upper = (*(*info).dispparams).lp_upp_tmp[disp_idx]+$
-          (*(*info).intparams).diag_start[disp_idx]
-        ; Determine xrange to display and xticklen
-        xrange = (*(*info).dataparams).lps[[lp_lower,lp_upper]] 
-        ; Set y-axes parameters based on diagnostic plot
-        IF (d EQ 0) THEN BEGIN
-          offset = 0 
-          ytickname = '' 
-          ytitle = lsytitle
+     		s = (WHERE((*(*info).stokesparams).select_sp EQ 1))[i]
+     		spec = ((*(*info).dataparams).spec)[*,s]
+     		IF (*(*info).plotswitch).scalestokes THEN $
+           ms = (*(*info).dataparams).ms $
+         ELSE $
+           ms = ((*(*info).dataparams).ms)[s]
+     		ls_low_y = (*(*(*info).plotaxes).ls_low_y)[s] 
+     		ls_upp_y = (*(*(*info).plotaxes).ls_upp_y)[s]
+     		order_corr=0.
+     		IF (*(*info).dispswitch).detspect_scale THEN $
+           lsytitle = 'Scaled '+STRLOWCASE((*(*info).plottitles).lsytitle) $
+        ELSE BEGIN
+     			IF ((FLOOR(ALOG10(ABS(ls_low_y))) LE -2) OR $
+            (FLOOR(ALOG10(ABS(ls_upp_y))) GE 3)) THEN BEGIN
+     				order_corr = FLOOR(ALOG10(ABS(ls_upp_y)))
+     				lsytitle = $
+              (*(*info).plottitles).lsytitle+' (x10!U'+STRTRIM(order_corr,2)+'!N)'
+     			ENDIF ELSE lsytitle = (*(*info).plottitles).lsytitle
+     			ls_low_y /= (10.^(order_corr))
+     			ls_upp_y /= (10.^(order_corr))
+     		ENDELSE
+     		IF ((*(*info).dispswitch).detspect_scale EQ 0) THEN BEGIN
+     			spec *= ms * ((*(*info).paramparams).scale_cubes)[0] / (10.^(order_corr))
+     			ms = 1
+     		ENDIF
+        ; Set x-axes parameters depending on # of diagnostics
+        IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+          xtlen_basic_fac = 0.5
+          xtlen_major_fac = 0.8
+          xtickname = REPLICATE(' ',60)
+          xtitle = ''
         ENDIF ELSE BEGIN
-          offset = TOTAL(diag_range_ls[0:(d-1)])
-          ytickname = REPLICATE(' ',60)
-          ytitle = ''
+          xtlen_basic_fac = 1.
+          xtickname = ''
+          xtitle = (*(*info).plottitles).spxtitle
         ENDELSE
-        ; Scaling of xticklen
-        ; Determine lower left corner position of plot
-        lsx0 = ((*(*info).plotpos).lsx0)[i] + offset
-        lsx1 = diag_range_ls[d] + lsx0
-        ; Plot basic window with average spectrum
-     		PLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
-          spec[lp_lower:lp_upper]*(*(*info).scaling).mult_val[disp_idx], $
-          /NORM, CHARSIZE=1, YS=1, YR=[ls_low_y,ls_upp_y], $
-          XR=xrange, YTICKNAME=ytickname, $
-          XMINOR=(0-((*(*info).intparams).ndisp_diagnostics GT 1)), $
-          XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0], $
-          XTICKNAME=xtickname, XTICK_GET=xtickvals, $
-          XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
-          BACKGROUND = (*(*info).plotparams).bgplotcol, $
-          XTITLE = xtitle, YTITLE=ytitle, $
-          POSITION = [lsx0,((*(*info).plotpos).lsy0)[i],lsx1,$
-          ((*(*info).plotpos).lsy1)[i]], XTICKLEN = xticklen, $
-          YTICKLEN = (*(*info).plotaxes).lsyticklen, $
-          COLOR = (*(*info).plotparams).plotcol, LINE=3, $
-          NOERASE=((((*(*info).intparams).ndiagnostics GT 1) AND (d GT 0)) OR $
-          (i GT 0))
-        IF ((*(*info).scaling).mult_val[disp_idx] NE 1) THEN BEGIN
-          XYOUTS,0.1*(xrange[1]-xrange[0])+xrange[0], $
-            0.9*(ls_upp_y-ls_low_y)+ls_low_y, $
-            STRING((*(*info).scaling).mult_val[disp_idx], FORMAT='(F'+$
-            STRTRIM(FLOOR(ALOG10(ABS((*(*info).scaling).mult_val[disp_idx])))+$
-            3+((*(*info).scaling).mult_val[disp_idx] LT 0),2)+'.1)')+'x',$
-            COLOR=(*(*info).plotparams).plotcol, /DATA
-        ENDIF
-        ; In case of multiple diagnostics
-        IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-          ; Draw x-title centered on plot box on first pass
-          IF (d EQ 0) THEN $
-            XYOUTS,((*(*info).plotpos).lsx1-(*(*info).plotpos).lsx0)/2.+$
-              (*(*info).plotpos).lsx0, (*(*info).plotpos).lsy0/3., $
-              (*(*info).plottitles).spxtitle,ALIGNMENT=0.5, $
-              COLOR = (*(*info).plotparams).plotcol,/NORMAL
-          ; Set range for Doppler axis
-          vdop_xrange = (*(*(*info).plotaxes).v_dop[disp_idx])[$
-            [(*(*info).dispparams).lp_low_tmp[disp_idx], $
-             (*(*info).dispparams).lp_upp_tmp[disp_idx]]]
-          IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
-            ; Redraw x-axis with custom labelling
-            IF (*(*info).plotswitch).xtick_reset THEN BEGIN
-              (*(*info).plotaxes).xtickvals[d] = $
-                PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xtickvals, $
-                TICKSEP=(*(*(*info).plotaxes).xtickinterval)[1]))
-              IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
-                (*(*info).plotswitch).xtick_reset = 0
-            ENDIF
-            wherenonempty = $
-              WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ', count)
-            IF (count GT 0) THEN BEGIN
-              FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-                PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[$
-                  wherenonempty[k]]), [ls_low_y,xtlen_major_fac*$
-                  (ls_upp_y-ls_low_y)*(*(*info).plotaxes).lsxticklen+ls_low_y],$
-                  COLOR=(*(*info).plotparams).plotcol
-              ENDFOR
-            ENDIF
-            AXIS, XAXIS=0, XTICKLEN=1E-9, XRANGE=xrange, /XS, $
-              XTICKNAME=*(*(*info).plotaxes).xtickvals[d], $
-              COLOR=(*(*info).plotparams).plotcol, $
-              XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0]
-          ENDIF
-        ENDIF ELSE $
-          vdop_xrange = (*(*(*info).plotaxes).v_dop[0])[$
-            [(*(*info).dispparams).lp_low_tmp,(*(*info).dispparams).lp_upp_tmp]]
-        ; Display Stokes label if Stokes data
-        IF (*(*info).plotswitch).multichannel THEN $
-    		  XYOUTS, ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]-$
-                   (*(*info).dataparams).lps[(*(*info).dispparams).lp_low])*0.1+$
-                   (*(*info).dataparams).lps[(*(*info).dispparams).lp_low], $
-    			        (ls_upp_y-ls_low_y)*0.9+ls_low_y, 'Stokes '+$
-                  ((*(*info).stokesparams).labels)[s], $
-                  COLOR = (*(*info).plotparams).plotcol
-        ; Display Doppler velocities on top axis if info available
-    	  IF ((*(*info).plotswitch).v_dop_set EQ 1) THEN BEGIN
-          IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-            XYOUTS,((*(*info).plotpos).lsx1-(*(*info).plotpos).lsx0)/2.+$
-              (*(*info).plotpos).lsx0,(*(*info).plotpos).lsy0/5.*3+$
-              (*(*info).plotpos).lsy1, topxtitle, ALIGNMENT=0.5, $
-              COLOR = (*(*info).plotparams).plotcol,/NORMAL
-            topxtitle = ''
-          ENDIF 
-          ; Draw top axis
-          IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
-            ; Plot the initial tick marks and get the tick vals
-      	  	AXIS, XAXIS=1, XRANGE=vdop_xrange, $
-              XSTYLE=1, XTITLE=topxtitle, COLOR=(*(*info).plotparams).plotcol,$
-              XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], $
-              XTICKNAME=REPLICATE(' ',60), XTICK_GET=xdoptickvals, $
-              XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).lsxticklen, $
-              XMINOR=-1
-            ; Redraw x-axis with custom labelling
-            IF (*(*info).plotswitch).xdoptick_reset THEN BEGIN
-              (*(*info).plotaxes).xdoptickvals[d] = $
-                PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xdoptickvals, $
-                TICKSEP=(*(*(*info).plotaxes).xdoptickinterval)[1],$
-                /DOPPLER))
-              wherenonempty = WHERE(*(*(*info).plotaxes).xdoptickvals[d] NE ' ')
-              ; Determine Doppler tick mark locations
-              (*(*info).plotaxes).xdoptickloc[d] = $
-                PTR_NEW(CRISPEX_PLOTAXES_XDOPTICKLOC(xdoptickvals, $
-                wherenonempty, vdop_xrange, $
-                [(*(*info).dataparams).lps[lp_lower], $
-                (*(*info).dataparams).lps[lp_upper]]))
-              IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
-                (*(*info).plotswitch).xdoptick_reset = 0
-            ENDIF
-            wherenonempty = $
-              WHERE(*(*(*info).plotaxes).xdoptickvals[d] NE ' ', count)
-            IF (count GT 0) THEN BEGIN
-              FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-                PLOTS,[1.,1.]*(*(*(*info).plotaxes).xdoptickloc[d])[k], $
-                  [ls_upp_y,-xtlen_major_fac*(ls_upp_y-ls_low_y)*$
-                  (*(*info).plotaxes).lsxticklen+ls_upp_y], $
-                  COLOR=(*(*info).plotparams).plotcol
-              ENDFOR
-            ENDIF
-            ; Add the labels
-            AXIS, XAXIS=1, XTICKLEN=1E-9, XRANGE=vdop_xrange, /XS, $
-              XTICKNAME=*(*(*info).plotaxes).xdoptickvals[d], $
-              COLOR=(*(*info).plotparams).plotcol, $
-              XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], XMINOR=-1
-          ENDIF ELSE $
-      	  	AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).lsxticklen, $
-              XRANGE=vdop_xrange, XSTYLE=1, XTITLE=topxtitle, $
-              COLOR=(*(*info).plotparams).plotcol;,$
-        ENDIF 
-        ; Draw line through y=0
-    		IF ((ls_low_y LT 0.) AND (ls_upp_y GT 0.)) THEN $
-          PLOTS, xrange, [0.,0.], COLOR = (*(*info).plotparams).plotcol
-        ; Only overplot detailed spectrum if x/y is not out of range
-        IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN BEGIN
-          ; Overplot detailed spectrum
-      		OPLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
-            ssp[lp_lower:lp_upper]*(*(*info).scaling).mult_val[disp_idx], $
-            LINE=0, COLOR = (*(*info).plotparams).plotcol
-          ; Overplot average minus detailed spectrum
-      		IF (*(*info).plotswitch).subtract THEN $
-      			OPLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
-              (spec[lp_lower:lp_upper]-ssp[lp_lower:lp_upper])*$
-              (*(*info).scaling).mult_val[disp_idx], $
-              COLOR = (*(*info).plotparams).plotcol, LINE=2
-          IF (d EQ lp_diag) THEN BEGIN
-            ; Overplot spectral indicator
-      		  PLOTS, [1,1] * (*(*info).dataparams).lps[(*(*info).dataparams).lp],$
-              [ls_low_y,ls_upp_y], COLOR = (*(*info).plotparams).plotcol
-            ; Overplot 2nd spectral indicator in case of Doppler image display
-        		IF (*(*info).dispswitch).drawdop THEN $
-              PLOTS, [1,1] * (*(*info).dataparams).lps[$
-                (*(*info).dataparams).lp_dop],[ls_low_y,ls_upp_y], $
-                COLOR=(*(*info).plotparams).plotcol
-          ENDIF
-          ; Overplot reference spectral indicator if same number of spectral 
-          ; positions
-      		IF ((*(*info).winswitch).showref AND $
-             ((*(*info).ctrlsswitch).lp_ref_lock EQ 0) AND $
-             ((*(*info).dataswitch).refspfile EQ 0) AND $
-             ((*(*info).dataparams).refnlp GT 1)) THEN BEGIN
-      			PLOTS, [1,1] * (*(*info).dataparams).reflps[$
-              (*(*info).dataparams).lp_ref],[ls_low_y,ls_upp_y], $
-              COLOR=(*(*info).plotparams).plotcol
-      		ENDIF
-        ENDIF 
+        xticklen = xtlen_basic_fac * (*(*info).plotaxes).lsxticklen
+        IF (*(*info).plotswitch).v_dop_set THEN $
+          topxtitle = 'Doppler velocity [km/s]'
+        ; Get data for display
+    		IF ((*(*info).dataswitch).spfile EQ 1) THEN $
+          ssp = (*(*(*info).data).ssp_cur[i])[*,(*(*info).dispparams).t_main]/ms $
+        ELSE $
+          ssp = (*(*(*info).data).ssp_cur[i])/ms
+        IF ((*(*info).dispswitch).detspect_scale EQ 0) THEN $
+          ssp *= ((*(*info).paramparams).scale_cubes)[0] / (10.^(order_corr))
       ENDIF
+      ; Determine proportional spectral window size for LS
+      diag_range_ls = *(*(*info).plotaxes).diag_ratio * $
+        (((*(*info).plotpos).lsx1)[i] - ((*(*info).plotpos).lsx0)[i])
+      FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
+        IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showls) THEN BEGIN
+          WSET, (*(*info).winids).lswid
+          disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
+          lp_lower = (*(*info).dispparams).lp_low_tmp[disp_idx]+$
+            (*(*info).intparams).diag_start[disp_idx]
+          lp_upper = (*(*info).dispparams).lp_upp_tmp[disp_idx]+$
+            (*(*info).intparams).diag_start[disp_idx]
+          ; Determine xrange to display and xticklen
+          xrange = (*(*info).dataparams).lps[[lp_lower,lp_upper]] 
+          ; Set y-axes parameters based on diagnostic plot
+          IF (d EQ 0) THEN BEGIN
+            offset = 0 
+            ytickname = '' 
+            ytitle = lsytitle
+          ENDIF ELSE BEGIN
+            offset = TOTAL(diag_range_ls[0:(d-1)])
+            ytickname = REPLICATE(' ',60)
+            ytitle = ''
+          ENDELSE
+          ; Scaling of xticklen
+          ; Determine lower left corner position of plot
+          lsx0 = ((*(*info).plotpos).lsx0)[i] + offset
+          lsx1 = diag_range_ls[d] + lsx0
+          ; Plot basic window with average spectrum
+       		PLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
+            spec[lp_lower:lp_upper]*(*(*info).scaling).mult_val[disp_idx], $
+            /NORM, CHARSIZE=1, YS=1, YR=[ls_low_y,ls_upp_y], $
+            XR=xrange, YTICKNAME=ytickname, $
+            XMINOR=(0-((*(*info).intparams).ndisp_diagnostics GT 1)), $
+            XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0], $
+            XTICKNAME=xtickname, XTICK_GET=xtickvals, $
+            XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
+            BACKGROUND = (*(*info).plotparams).bgplotcol, $
+            XTITLE = xtitle, YTITLE=ytitle, $
+            POSITION = [lsx0,((*(*info).plotpos).lsy0)[i],lsx1,$
+            ((*(*info).plotpos).lsy1)[i]], XTICKLEN = xticklen, $
+            YTICKLEN = (*(*info).plotaxes).lsyticklen, $
+            COLOR = (*(*info).plotparams).plotcol, LINE=3, $
+            NOERASE=((((*(*info).intparams).ndiagnostics GT 1) AND (d GT 0)) OR $
+            (i GT 0))
+          IF ((*(*info).scaling).mult_val[disp_idx] NE 1) THEN BEGIN
+            XYOUTS,0.1*(xrange[1]-xrange[0])+xrange[0], $
+              0.9*(ls_upp_y-ls_low_y)+ls_low_y, $
+              STRING((*(*info).scaling).mult_val[disp_idx], FORMAT='(F'+$
+              STRTRIM(FLOOR(ALOG10(ABS((*(*info).scaling).mult_val[disp_idx])))+$
+              3+((*(*info).scaling).mult_val[disp_idx] LT 0),2)+'.1)')+'x',$
+              COLOR=(*(*info).plotparams).plotcol, /DATA
+          ENDIF
+          ; In case of multiple diagnostics
+          IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
+            ; Draw x-title centered on plot box on first pass
+            IF (d EQ 0) THEN $
+              XYOUTS,((*(*info).plotpos).lsx1-(*(*info).plotpos).lsx0)/2.+$
+                (*(*info).plotpos).lsx0, (*(*info).plotpos).lsy0/3., $
+                (*(*info).plottitles).spxtitle,ALIGNMENT=0.5, $
+                COLOR = (*(*info).plotparams).plotcol,/NORMAL
+            ; Set range for Doppler axis
+            vdop_xrange = (*(*(*info).plotaxes).v_dop[disp_idx])[$
+              [(*(*info).dispparams).lp_low_tmp[disp_idx], $
+               (*(*info).dispparams).lp_upp_tmp[disp_idx]]]
+            IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+              ; Redraw x-axis with custom labelling
+              IF (*(*info).plotswitch).xtick_reset THEN BEGIN
+                (*(*info).plotaxes).xtickvals[d] = $
+                  PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xtickvals, $
+                  TICKSEP=(*(*(*info).plotaxes).xtickinterval)[1]))
+                IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
+                  (*(*info).plotswitch).xtick_reset = 0
+              ENDIF
+              wherenonempty = $
+                WHERE(*(*(*info).plotaxes).xtickvals[d] NE ' ', count)
+              IF (count GT 0) THEN BEGIN
+                FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+                  PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xtickvals[d])[$
+                    wherenonempty[k]]), [ls_low_y,xtlen_major_fac*$
+                    (ls_upp_y-ls_low_y)*(*(*info).plotaxes).lsxticklen+ls_low_y],$
+                    COLOR=(*(*info).plotparams).plotcol
+                ENDFOR
+              ENDIF
+              AXIS, XAXIS=0, XTICKLEN=1E-9, XRANGE=xrange, /XS, $
+                XTICKNAME=*(*(*info).plotaxes).xtickvals[d], $
+                COLOR=(*(*info).plotparams).plotcol, $
+                XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0]
+            ENDIF
+          ENDIF ELSE $
+            vdop_xrange = (*(*(*info).plotaxes).v_dop[0])[$
+              [(*(*info).dispparams).lp_low_tmp,(*(*info).dispparams).lp_upp_tmp]]
+          ; Display Stokes label if Stokes data
+          IF (*(*info).plotswitch).multichannel THEN $
+      		  XYOUTS, ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]-$
+                     (*(*info).dataparams).lps[(*(*info).dispparams).lp_low])*0.1+$
+                     (*(*info).dataparams).lps[(*(*info).dispparams).lp_low], $
+      			        (ls_upp_y-ls_low_y)*0.9+ls_low_y, 'Stokes '+$
+                    ((*(*info).stokesparams).labels)[s], $
+                    COLOR = (*(*info).plotparams).plotcol
+          ; Display Doppler velocities on top axis if info available
+      	  IF ((*(*info).plotswitch).v_dop_set EQ 1) THEN BEGIN
+            IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
+              XYOUTS,((*(*info).plotpos).lsx1-(*(*info).plotpos).lsx0)/2.+$
+                (*(*info).plotpos).lsx0,(*(*info).plotpos).lsy0/5.*3+$
+                (*(*info).plotpos).lsy1, topxtitle, ALIGNMENT=0.5, $
+                COLOR = (*(*info).plotparams).plotcol,/NORMAL
+              topxtitle = ''
+            ENDIF 
+            ; Draw top axis
+            IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+              ; Plot the initial tick marks and get the tick vals
+        	  	AXIS, XAXIS=1, XRANGE=vdop_xrange, $
+                XSTYLE=1, XTITLE=topxtitle, COLOR=(*(*info).plotparams).plotcol,$
+                XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], $
+                XTICKNAME=REPLICATE(' ',60), XTICK_GET=xdoptickvals, $
+                XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).lsxticklen, $
+                XMINOR=-1
+              ; Redraw x-axis with custom labelling
+              IF (*(*info).plotswitch).xdoptick_reset THEN BEGIN
+                (*(*info).plotaxes).xdoptickvals[d] = $
+                  PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xdoptickvals, $
+                  TICKSEP=(*(*(*info).plotaxes).xdoptickinterval)[1],$
+                  /DOPPLER))
+                wherenonempty = WHERE(*(*(*info).plotaxes).xdoptickvals[d] NE ' ')
+                ; Determine Doppler tick mark locations
+                (*(*info).plotaxes).xdoptickloc[d] = $
+                  PTR_NEW(CRISPEX_PLOTAXES_XDOPTICKLOC(xdoptickvals, $
+                  wherenonempty, vdop_xrange, $
+                  [(*(*info).dataparams).lps[lp_lower], $
+                  (*(*info).dataparams).lps[lp_upper]]))
+                IF (d EQ ((*(*info).intparams).ndisp_diagnostics-1)) THEN $
+                  (*(*info).plotswitch).xdoptick_reset = 0
+              ENDIF
+              wherenonempty = $
+                WHERE(*(*(*info).plotaxes).xdoptickvals[d] NE ' ', count)
+              IF (count GT 0) THEN BEGIN
+                FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+                  PLOTS,[1.,1.]*(*(*(*info).plotaxes).xdoptickloc[d])[k], $
+                    [ls_upp_y,-xtlen_major_fac*(ls_upp_y-ls_low_y)*$
+                    (*(*info).plotaxes).lsxticklen+ls_upp_y], $
+                    COLOR=(*(*info).plotparams).plotcol
+                ENDFOR
+              ENDIF
+              ; Add the labels
+              AXIS, XAXIS=1, XTICKLEN=1E-9, XRANGE=vdop_xrange, /XS, $
+                XTICKNAME=*(*(*info).plotaxes).xdoptickvals[d], $
+                COLOR=(*(*info).plotparams).plotcol, $
+                XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], XMINOR=-1
+            ENDIF ELSE $
+        	  	AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).lsxticklen, $
+                XRANGE=vdop_xrange, XSTYLE=1, XTITLE=topxtitle, $
+                COLOR=(*(*info).plotparams).plotcol;,$
+          ENDIF 
+          ; Draw line through y=0
+      		IF ((ls_low_y LT 0.) AND (ls_upp_y GT 0.)) THEN $
+            PLOTS, xrange, [0.,0.], COLOR = (*(*info).plotparams).plotcol
+          ; Only overplot detailed spectrum if x/y is not out of range
+          IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN BEGIN
+            ; Overplot detailed spectrum
+        		OPLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
+              ssp[lp_lower:lp_upper]*(*(*info).scaling).mult_val[disp_idx], $
+              LINE=0, COLOR = (*(*info).plotparams).plotcol
+            ; Overplot average minus detailed spectrum
+        		IF (*(*info).plotswitch).subtract THEN $
+        			OPLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
+                (spec[lp_lower:lp_upper]-ssp[lp_lower:lp_upper])*$
+                (*(*info).scaling).mult_val[disp_idx], $
+                COLOR = (*(*info).plotparams).plotcol, LINE=2
+            IF (d EQ lp_diag) THEN BEGIN
+              ; Overplot spectral indicator
+        		  PLOTS, [1,1] * (*(*info).dataparams).lps[(*(*info).dataparams).lp],$
+                [ls_low_y,ls_upp_y], COLOR = (*(*info).plotparams).plotcol
+              ; Overplot 2nd spectral indicator in case of Doppler image display
+          		IF (*(*info).dispswitch).drawdop THEN $
+                PLOTS, [1,1] * (*(*info).dataparams).lps[$
+                  (*(*info).dataparams).lp_dop],[ls_low_y,ls_upp_y], $
+                  COLOR=(*(*info).plotparams).plotcol
+            ENDIF
+            ; Overplot reference spectral indicator if same number of spectral 
+            ; positions
+        		IF ((*(*info).winswitch).showref AND $
+               ((*(*info).ctrlsswitch).lp_ref_lock EQ 0) AND $
+               ((*(*info).dataswitch).refspfile EQ 0) AND $
+               ((*(*info).dataparams).refnlp GT 1)) THEN BEGIN
+        			PLOTS, [1,1] * (*(*info).dataparams).reflps[$
+                (*(*info).dataparams).lp_ref],[ls_low_y,ls_upp_y], $
+                COLOR=(*(*info).plotparams).plotcol
+        		ENDIF
+          ENDIF 
+        ENDIF
+      ENDFOR
+      IF (*(*info).dispswitch).xy_out_of_range THEN $
+        XYOUTS, ((*(*info).plotpos).lsx1[i]-(*(*info).plotpos).lsx0[i])/2.+$
+          (*(*info).plotpos).lsx0[i], ((*(*info).plotpos).lsy1[i]-$
+          (*(*info).plotpos).lsy0[i])/2.+(*(*info).plotpos).lsy0[i], $
+          'No data availabe for!Cselected pixel position', $
+          COLOR=(*(*info).plotparams).plotcol, ALIGN=0.5, CHARSIZE=1.2, /NORMAL
     ENDFOR
-    IF (*(*info).dispswitch).xy_out_of_range THEN $
-      XYOUTS, ((*(*info).plotpos).lsx1[i]-(*(*info).plotpos).lsx0[i])/2.+$
-        (*(*info).plotpos).lsx0[i], ((*(*info).plotpos).lsy1[i]-$
-        (*(*info).plotpos).lsy0[i])/2.+(*(*info).plotpos).lsy0[i], $
-        'No data availabe for!Cselected pixel position', $
-        COLOR=(*(*info).plotparams).plotcol, ALIGN=0.5, CHARSIZE=1.2, /NORMAL
-  ENDFOR
+  ENDIF
   ; Pre-draw procedures: spectrum-time diagram (SP)
   IF (~KEYWORD_SET(LS_ONLY) AND (*(*info).winswitch).showsp) THEN BEGIN
   	IF (*(*info).dispparams).slices_imscale THEN BEGIN
@@ -10832,17 +10935,20 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
   tab_tlb = WIDGET_TAB(main, LOCATION=0, MULTILINE=3, XSIZE=tab_width+2*pad)
  
   ; Start-up preferences
-  startup_base   = WIDGET_BASE(tab_tlb, TITLE='Start-up', /COLUMN, XSIZE=tab_width);, /FRAME)
+  startup_base   = WIDGET_BASE(tab_tlb, TITLE='Start-up & Playback', /COLUMN, XSIZE=tab_width);, /FRAME)
 	startup_buts 	= WIDGET_BASE(startup_base, /COLUMN, /NONEXCLUSIVE)
 	(*(*info).ctrlspref).startup_win = $
                   WIDGET_BUTTON(startup_buts, VALUE = 'Show start-up window', $
                     EVENT_PRO='CRISPEX_PREFERENCES_SET_STARTUPWIN')
 	(*(*info).ctrlspref).startup_autopl	= $
-                  WIDGET_BUTTON(startup_buts, VALUE='Start playing automatically', $
+                  WIDGET_BUTTON(startup_buts, $
+                  VALUE='Start playing automatically upon start-up', $
                   EVENT_PRO='CRISPEX_PREFERENCES_SET_AUTOPLAY')
+  startup_divider= CRISPEX_WIDGET_DIVIDER(startup_base)
+	playback_buts 	= WIDGET_BASE(startup_base, /COLUMN, /NONEXCLUSIVE)
 	(*(*info).ctrlspref).displays_phislice = $
-                    WIDGET_BUTTON(startup_buts, $
-                      VALUE='Automatically update spectral Phi-slice '+$
+                    WIDGET_BUTTON(playback_buts, $
+                      VALUE='Automatically update spectrum along slit '+$
                       '(may impact performance)', $
                       EVENT_PRO='CRISPEX_PREFERENCES_SET_PHISLICE_UPDATE')
   ; Set buttons according to preferences	
@@ -12035,8 +12141,8 @@ PRO CRISPEX_RESTORE_LOOPS_MAIN, event
   	IF ((*(*info).restoreparams).cfilecount GT 0) THEN BEGIN
   		IF (*(*info).loopswitch).restore_loops THEN BEGIN
   			CRISPEX_RESTORE_LOOPS_MENU, event
-  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_all, SENSITIVE = 1
-  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, SENSITIVE = 1
+  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_button_ids[0], /SENSITIVE
+  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_button_ids[1], /SENSITIVE
   		ENDIF ELSE CRISPEX_RESTORE_LOOPS_MENU_CLOSE, event
   	ENDIF ELSE BEGIN
   		CRISPEX_WINDOW_OK, event,'ERROR!',$
@@ -12210,8 +12316,8 @@ PRO CRISPEX_RESTORE_LOOPS_MENU_CLOSE, event
     CRISPEX_DISPRANGE_LP_RESET, event, /NO_DRAW
 	IF ((*(*info).dispparams).lp_ref_range NE (*(*info).dataparams).refnlp) THEN $
     CRISPEX_DISPRANGE_LP_RESET, event, /REFERENCE, /NO_DRAW
-	WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_all, SENSITIVE = 0
-	WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, SENSITIVE = 0
+	WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_button_ids[0], /SENSITIVE
+	WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_button_ids[1], /SENSITIVE
 	(*(*info).loopswitch).restore_loops = 0
 	(*(*info).restoreparams).disp_loopfile = '0'
 	*(*(*info).restoreparams).disp_loopnr = -1
@@ -12286,15 +12392,6 @@ PRO CRISPEX_RESTORE_LOOPS_UPDATE_FILELIST, event
 	event.TOP = (*(*info).winids).root
 	CRISPEX_RESTORE_LOOPS_MAIN, event
 	CRISPEX_DRAW_IMREF, event
-END
-
-PRO CRISPEX_RESTORE_LOOPS_ALWAYS, event
-; Sets the display of restored loops to always (i.e. at all spectral positions) or selected (i.e. at saved positions)
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).overlayswitch).overlalways = event.SELECT
-	IF ((*(*info).loopswitch).restore_loops EQ 0) THEN CRISPEX_RESTORE_LOOPS_MAIN, event ELSE CRISPEX_DRAW, event
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).overlayswitch).overlalways], labels=['Overlay loops always']
 END
 
 PRO CRISPEX_RESTORE_LOOPS_OPEN_TANAT, event			
@@ -14152,27 +14249,19 @@ PRO CRISPEX_SESSION_RESTORE, event
               SENSITIVE=refsens[i], SET_BUTTON=refset[i]
         ENDIF
   			; ==================== Displays Tab ====================
-  			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_im_but, $
-          SET_BUTTON = ABS((*(*info).ctrlsswitch).imrefdetspect-1)
-  			WIDGET_CONTROL, (*(*info).ctrlscp).detspect_ref_but, $
-          SET_BUTTON = (*(*info).ctrlsswitch).imrefdetspect, $
-          SENSITIVE = (*(*info).dataswitch).refspfile
+        reset_detspect_imref = $
+          CRISPEX_BGROUP_DETSPECT_IMREF(event, /SESSION_RESTORE)
   			CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
-  			WIDGET_CONTROL, (*(*info).ctrlscp).sp_toggle_but, $
-          SET_BUTTON = (*(*info).winswitch).showsp
-  			WIDGET_CONTROL, (*(*info).ctrlscp).phis_toggle_but, $
-          SET_BUTTON = (*(*info).winswitch).showphis
-  			WIDGET_CONTROL, (*(*info).ctrlscp).refsp_toggle_but, $
-          SET_BUTTON = (*(*info).winswitch).showrefsp, $
-          SENSITIVE = (*(*info).dataswitch).refspfile
+        reset_displays_select = $
+          CRISPEX_BGROUP_DISPLAYS_SELECT(event, /SESSION_RESTORE)
+        reset_refdisplays_select = $
+          CRISPEX_BGROUP_REFDISPLAYS_SELECT(event, /SESSION_RESTORE)
+        WIDGET_CONTROL, (*(*info).ctrlscp).sjidisplays_but, $
+          SET_BUTTON=(*(*info).winswitch).showsji, $
+          SENSITIVE=(*(*info).dataswitch).sjifile
   			WIDGET_CONTROL, (*(*info).ctrlscp).int_toggle_but, $
           SET_BUTTON = (*(*info).winswitch).showint, $
           SENSITIVE = (*(*info).dataswitch).spfile
-  			WIDGET_CONTROL, (*(*info).ctrlscp).reference_but, $
-          SET_BUTTON = (*(*info).winswitch).showref, SENSITIVE = (*(*info).dataswitch).reffile
-  			WIDGET_CONTROL, (*(*info).ctrlscp).doppler_but, $
-          SET_BUTTON = (*(*info).winswitch).showdop, $
-          SENSITIVE = ((*(*info).dataparams).nlp GT 1)
   			; ==================== Scaling Tab ====================
         WIDGET_CONTROL, (*(*info).ctrlscp).scaling_cbox, $
           SET_COMBOBOX_SELECT=(*(*info).scaling).imrefscaling
@@ -14225,18 +14314,9 @@ PRO CRISPEX_SESSION_RESTORE, event
         ; Loop overlays
   			WIDGET_CONTROL, (*(*info).ctrlscp).overlay_but, $
           SET_BUTTON = (*(*info).loopswitch).restore_loops
-  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_all, $
-          SET_BUTTON = (*(*info).overlayswitch).overlalways, $
-          SENSITIVE = (*(*info).loopswitch).restore_loops
-  			WIDGET_CONTROL, (*(*info).ctrlscp).loop_overlay_sav, $
-          SET_BUTTON = ABS((*(*info).overlayswitch).overlalways-1), $
-          SENSITIVE = (*(*info).loopswitch).restore_loops
-  			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_0, $
-          SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 0)
-  			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_1, $
-          SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 1)
-  			WIDGET_CONTROL, (*(*info).ctrlscp).linestyle_2, $
-          SET_BUTTON = ((*(*info).overlayparams).loop_linestyle EQ 2)
+        reset_loop_overlay = CRISPEX_BGROUP_LOOP_OVERLAY(event, /SESSION_RESTORE)
+        reset_loop_linestyle = CRISPEX_BGROUP_LOOP_LINESTYLE(event, $
+          /SESSION_RESTORE) 
         ; Raster overlays
         WIDGET_CONTROL, (*(*info).ctrlscp).raster_button_ids[0], $
           SENSITIVE=((*(*info).dataswitch).reffile AND $
@@ -19108,7 +19188,6 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	lower_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_first,2), /EDITABLE, $
                           XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_LOW', SENSITIVE = t_slid_sens)
 	upper_t_label		    = WIDGET_LABEL(t_range_field, VALUE = 'Upper index:', /ALIGN_LEFT)
-;	upper_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last_tmp,2),  /EDITABLE, $
 	upper_t_text		    = WIDGET_TEXT(t_range_field, VALUE = STRTRIM(t_last,2),  /EDITABLE, $
                           XSIZE = 5, EVENT_PRO = 'CRISPEX_DISPRANGE_T_UPP', SENSITIVE = t_slid_sens)
 	reset_trange_but	  = WIDGET_BUTTON(t_range_field, VALUE = '  Reset  ', $
@@ -19339,24 +19418,14 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	detspect_label_imref= WIDGET_BASE(display_tab, /ROW)
 	detspect_label		  = WIDGET_LABEL(detspect_label_imref, VALUE = lswintitle[heightset]+':',$
                           /ALIGN_LEFT, /DYNAMIC_RESIZE)
-	detspect_imref		  = WIDGET_BASE(detspect_label_imref, /ROW, /EXCLUSIVE)
-	detspect_im_but		  = WIDGET_BUTTON(detspect_imref, VALUE = 'Main', $
-                          EVENT_PRO = 'CRISPEX_DISPLAYS_DETSPECT_IM_SELECT', /NO_RELEASE, $
-                          SENSITIVE = showls, $
-					                TOOLTIP = 'Main '+STRLOWCASE(lswintitle[heightset])+' display options')
-	WIDGET_CONTROL, detspect_im_but, SET_BUTTON = (hdr.nlp GT 1)
-	detspect_ref_but	  = WIDGET_BUTTON(detspect_imref, VALUE = 'Reference', $
-                          EVENT_PRO = 'CRISPEX_DISPLAYS_DETSPECT_REF_SELECT', /NO_RELEASE, $
-                          SENSITIVE = showrefls, $
-                          TOOLTIP = 'Reference '+STRLOWCASE(lswintitle[refheightset])+' display options')
-	detspect_buts		    = WIDGET_BASE(display_tab, /ROW, /NONEXCLUSIVE)
-	ls_toggle_but		    = WIDGET_BUTTON(detspect_buts, $
-                          VALUE = 'Display '+STRLOWCASE(lswintitle[heightset]), $
-                          EVENT_PRO = 'CRISPEX_DISPLAYS_IMREF_LS_TOGGLE', /DYNAMIC_RESIZE)
-	subtract_but		    = WIDGET_BUTTON(detspect_buts, VALUE = 'Subtract average', $
-                          EVENT_PRO='CRISPEX_DISPRANGE_LS_SUBTRACT', $
-                          SENSITIVE=showls, $
-                          TOOLTIP='Subtract detailed spectrum from average spectrum')
+	detspect_imref		  = WIDGET_BASE(detspect_label_imref, /ROW)
+  detspect_imref_buts = CW_BGROUP(detspect_imref, lp_restrict_labels, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(lp_restrict_labels)),$
+                          IDS=detspect_imref_button_ids, /EXCLUSIVE, /ROW, $
+                          EVENT_FUNC='CRISPEX_BGROUP_DETSPECT_IMREF', /NO_RELEASE)
+  WIDGET_CONTROL, detspect_imref_button_ids[0], SENSITIVE=showls, $
+    SET_BUTTON=(hdr.nlp GT 1)
+  WIDGET_CONTROL, detspect_imref_button_ids[1], SENSITIVE=showrefls
 	detspect_range		  = WIDGET_BASE(display_tab, /ROW)
 	lower_y_label		    = WIDGET_LABEL(detspect_range, VALUE = 'Lower y-value:', /ALIGN_LEFT)
 	lower_y_text		    = WIDGET_TEXT(detspect_range, $
@@ -19370,43 +19439,63 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
                           EVENT_PRO = 'CRISPEX_DISPRANGE_LS_UPP')
 	scale_detspect_buts = WIDGET_BASE(display_tab, /ROW, /NONEXCLUSIVE)
 	scale_detspect_but  = WIDGET_BUTTON(scale_detspect_buts, $
-                          VALUE='Scale '+STRLOWCASE(lswintitle[heightset])+' to maximum of average',$
+                          VALUE='Scale to maximum of average',$
                           EVENT_PRO = 'CRISPEX_DISPRANGE_LS_SCALE_SELECT', $
 					                SENSITIVE = (detspect_scale_enable AND showls), $
                           /DYNAMIC_RESIZE)
+	subtract_but		    = WIDGET_BUTTON(scale_detspect_buts, $
+                          VALUE='Subtract average', $
+                          EVENT_PRO='CRISPEX_DISPRANGE_LS_SUBTRACT', $
+                          SENSITIVE=showls, $
+                          TOOLTIP='Subtract detailed spectrum from average spectrum')
 	WIDGET_CONTROL, scale_detspect_but, SET_BUTTON = detspect_scale
   displays_divider1   = CRISPEX_WIDGET_DIVIDER(display_tab)
   ; Other displays base
-	other_label		      = WIDGET_LABEL(display_tab, VALUE = 'Other displays:', /ALIGN_LEFT)
-	images_disp		      = WIDGET_BASE(display_tab, /ROW)
-	images_label		    = WIDGET_LABEL(images_disp, VALUE = 'Images:')
-	images_buts		      = WIDGET_BASE(images_disp, /ROW, /NONEXCLUSIVE)
-	reference_but		    = WIDGET_BUTTON(images_buts, VALUE = 'Reference', $
-                          EVENT_PRO = 'CRISPEX_DISPLAYS_REF_TOGGLE', SENSITIVE = hdr.showref, $
-                          TOOLTIP = 'Toggle display reference image')
-	WIDGET_CONTROL, reference_but, SET_BUTTON = hdr.showref
-	doppler_but		      = WIDGET_BUTTON(images_buts, VALUE = 'Doppler', $
-                          EVENT_PRO='CRISPEX_DISPLAYS_DOPPLER_TOGGLE', $
-                          SENSITIVE=((hdr.nlp GT 1) AND (singlewav_windows EQ 0)), $
-                          TOOLTIP = 'Toggle display Doppler image')
-  sji_but             = WIDGET_BUTTON(images_buts, VALUE = 'Slit-jaw', $
-                          EVENT_PRO='CRISPEX_DISPLAYS_SJI_TOGGLE', SENSITIVE = hdr.sjifile, $
+	other_label		      = WIDGET_LABEL(display_tab, $
+                          VALUE='Toggle on/off displays:', /ALIGN_LEFT)
+  displays_sub_frame  = WIDGET_BASE(display_tab, /ROW);/GRID_LAYOUT, COLUMN=3)
+  ; Main displays
+  main_select_base    = WIDGET_BASE(displays_sub_frame,/COLUMN)
+	main_displays_label = WIDGET_LABEL(main_select_base, VALUE = 'Main:', /ALIGN_LEFT)
+  vals = ['Doppler',lswintitle[heightset],but_tooltip[heightset]+'-time',$
+          but_tooltip[heightset]+' along slit']
+  displays_buts       = CW_BGROUP(main_select_base, vals, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(vals)), $
+                          IDS=displays_button_ids, /NONEXCLUSIVE, /COLUMN, $
+                          EVENT_FUNC='CRISPEX_BGROUP_DISPLAYS_SELECT')
+  setbarr = [0, showls, (hdr.spfile AND (singlewav_windows EQ 0)), 0]
+  sensarr = [(hdr.nlp GT 1), showls, hdr.spfile, (hdr.nlp GT 1)]
+  sensarr = sensarr AND REPLICATE((singlewav_windows EQ 0), N_ELEMENTS(sensarr))
+  FOR i=0,N_ELEMENTS(displays_button_ids)-1 DO $
+    WIDGET_CONTROL, displays_button_ids[i], SET_BUTTON=(setbarr[i] EQ 1), $
+      SENSITIVE=(sensarr[i] EQ 1)
+  ; Reference displays 
+  ref_select_base     = WIDGET_BASE(displays_sub_frame,/COLUMN)
+	ref_displays_label  = WIDGET_LABEL(ref_select_base, VALUE = 'Reference:', $
+                          /ALIGN_LEFT)
+  refvals = ['Image',lswintitle[refheightset],$
+              but_tooltip[refheightset]+'-time']
+  refdisplays_buts    = CW_BGROUP(ref_select_base, refvals, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(refvals)), $
+                          IDS=refdisplays_button_ids, /NONEXCLUSIVE, /COLUMN, $
+                          EVENT_FUNC='CRISPEX_BGROUP_REFDISPLAYS_SELECT')
+  ; For reference, set button and sensitivity are determined by the same
+  ; parameters
+  setbarr = [hdr.showref, showrefls, $
+              (hdr.refspfile AND (refsinglewav_windows EQ 0))]
+  FOR i=0,N_ELEMENTS(refdisplays_button_ids)-1 DO $
+    WIDGET_CONTROL, refdisplays_button_ids[i], SET_BUTTON=(setbarr[i] EQ 1), $
+      SENSITIVE=(setbarr[i] EQ 1)
+  ; SJI displays
+  sji_select_base     = WIDGET_BASE(displays_sub_frame,/COLUMN)
+	sji_displays_label  = WIDGET_LABEL(sji_select_base, VALUE = 'Slit-jaw:', $
+                          /ALIGN_LEFT)
+  sji_button_base     = WIDGET_BASE(sji_select_base, /COLUMN, /NONEXCLUSIVE)
+  sjidisplays_but     = WIDGET_BUTTON(sji_button_base, VALUE='Image', $
+                          EVENT_PRO='CRISPEX_DISPLAYS_SJI_TOGGLE', $
+                          SENSITIVE=hdr.sjifile, $
                           TOOLTIP='Toggle display slit-jaw image')
-  WIDGET_CONTROL, sji_but, SET_BUTTON = hdr.sjifile
-	other_disp		      = WIDGET_BASE(display_tab, /COLUMN, /NONEXCLUSIVE)
-	sp_toggle_but		    = WIDGET_BUTTON(other_disp, VALUE = but_tooltip[heightset]+'-time diagram', $
-                          EVENT_PRO = 'CRISPEX_DISPLAYS_SP_TOGGLE', $
-                          TOOLTIP = 'Toggle display temporal '+STRLOWCASE(but_tooltip[heightset]))
-	phis_toggle_but		  = WIDGET_BUTTON(other_disp, $
-                          VALUE = but_tooltip[heightset]+' along a slit', $
-                          SENSITIVE=(singlewav_windows EQ 0), $
-                          EVENT_PRO = 'CRISPEX_DISPLAYS_PHIS_TOGGLE', $
-                          TOOLTIP = 'Toggle display '+STRLOWCASE(but_tooltip[heightset])+' along a slit')
-	refsp_toggle_but	  = WIDGET_BUTTON(other_disp, VALUE='Reference '+$$
-                          STRLOWCASE(but_tooltip[refheightset])+'-time diagram',$
-                          EVENT_PRO = 'CRISPEX_DISPLAYS_REFSP_TOGGLE', $        
-                          TOOLTIP = 'Toggle display reference temporal '+$
-                          STRLOWCASE(but_tooltip[refheightset]))
+  WIDGET_CONTROL, sjidisplays_but, SET_BUTTON=hdr.sjifile
   displays_divider2   = CRISPEX_WIDGET_DIVIDER(display_tab)
 
   ; ==================== Scaling Tab ====================
@@ -19537,22 +19626,26 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	overlay_onebut		  = WIDGET_BASE(overlay_buts, /NONEXCLUSIVE)
 	overlay_but 		    = WIDGET_BUTTON(overlay_onebut, VALUE = 'Saved paths:', $
                           EVENT_PRO = 'CRISPEX_RESTORE_LOOPS_MAIN')
-	overlay_actbuts	    = WIDGET_BASE(overlay_buts, /ROW, /EXCLUSIVE)
-	loop_overlay_al		  = WIDGET_BUTTON(overlay_actbuts, VALUE = 'Always', $
-                          EVENT_PRO = 'CRISPEX_RESTORE_LOOPS_ALWAYS', SENSITIVE = 0)
-	WIDGET_CONTROL, loop_overlay_al, SET_BUTTON = 1
-	loop_overlay_sav	  = WIDGET_BUTTON(overlay_actbuts, $
-                          VALUE = 'At saved '+STRLOWCASE(wav_h[heightset]), SENSITIVE = 0)
+	overlay_actbuts	    = WIDGET_BASE(overlay_buts, /ROW)
+	loop_overlay_buts	  = CW_BGROUP(overlay_actbuts, ['Always','At saved '+$
+                          STRLOWCASE(wav_h[heightset])], $
+                          BUTTON_UVALUE=INDGEN(2),IDS=loop_overlay_button_ids,$
+                          /EXCLUSIVE, /ROW, /NO_RELEASE, $
+                          EVENT_FUNC='CRISPEX_BGROUP_LOOP_OVERLAY')
+  WIDGET_CONTROL, loop_overlay_button_ids[0], /SET_BUTTON, SENSITIVE=0
+  WIDGET_CONTROL, loop_overlay_button_ids[1], SENSITIVE=0
 	linestyle_base		  = WIDGET_BASE(overlays_tab, /ROW)
 	linestyle_label		  = WIDGET_LABEL(linestyle_base, VALUE = 'Paths linestyle:', /ALIGN_LEFT)
-	linestyle_buts		  = WIDGET_BASE(linestyle_base, /ROW, /EXCLUSIVE)
-	linestyle_0		      = WIDGET_BUTTON(linestyle_buts, VALUE = 'solid', $
-                          EVENT_PRO = 'CRISPEX_DRAW_LOOP_LINESTYLE_0')
-	linestyle_1		      = WIDGET_BUTTON(linestyle_buts, VALUE = 'dotted', $
-                          EVENT_PRO = 'CRISPEX_DRAW_LOOP_LINESTYLE_1')
-	linestyle_2		      = WIDGET_BUTTON(linestyle_buts, VALUE = 'dashed', $
-                          EVENT_PRO = 'CRISPEX_DRAW_LOOP_LINESTYLE_2')
-	WIDGET_CONTROL, linestyle_0, SET_BUTTON = 1
+
+  linestyles          = ['solid','dotted','dashed']
+	loop_linestyle_buts	= CW_BGROUP(linestyle_base, linestyles, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(linestyles)),$
+                          IDS=loop_linestyle_button_ids, /EXCLUSIVE, /ROW,$
+                          EVENT_FUNC='CRISPEX_BGROUP_LOOP_LINESTYLE', $
+                          /NO_RELEASE)
+  FOR i=0,N_ELEMENTS(linestyles)-1 DO $
+    WIDGET_CONTROL, loop_linestyle_button_ids[i], SET_BUTTON=(i EQ 0), $
+      /SENSITIVE
   overlays_divider2   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
   ; Raster overlays base
   raster_overlay_label= WIDGET_LABEL(overlays_tab, VALUE='Raster:',/ALIGN_LEFT)
@@ -20199,11 +20292,12 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     specwin_buts:specwin_buts, refspecwin_buts:refspecwin_buts, $
     specwin_button_ids:specwin_button_ids, refspecwin_button_ids:refspecwin_button_ids, $
 		detspect_label:detspect_label, scale_detspect_but:scale_detspect_but, $
-		detspect_im_but:detspect_im_but, detspect_ref_but:detspect_ref_but, $
-		ls_toggle_but:ls_toggle_but, subtract_but:subtract_but, $		
+    detspect_imref_button_ids:detspect_imref_button_ids, $
+    subtract_but:subtract_but, $		
 		lower_y_text:lower_y_text, upper_y_text:upper_y_text, $	
-		sp_toggle_but:sp_toggle_but, refsp_toggle_but:refsp_toggle_but, int_toggle_but:int_toggle_but, $
-		phis_toggle_but:phis_toggle_but, reference_but:reference_but, doppler_but:doppler_but, $						
+    int_toggle_but:int_toggle_but, $
+    displays_button_ids:displays_button_ids, sjidisplays_but:sjidisplays_but, $
+    refdisplays_button_ids:refdisplays_button_ids, $
     scaling_cbox:scaling_cbox, imagescale_cbox:imagescale_cbox, $
     histo_opt_txt:histo_opt_txt, $
     gamma_label:gamma_label, gamma_slider:gamma_slider, scalemin_slider:scalemin_slider, $
@@ -20213,8 +20307,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		phi_slider:phi_slid, nphi_slider:nphi_slid, loop_feedb_but:loop_feedb_but, $	
 		bwd_move_slit:bwd_move_slit, fwd_move_slit:fwd_move_slit, $
 		loop_slit_but:loop_slit_but, rem_loop_pt_but:rem_loop_pt_but, loop_slice_but:loop_slice_but, $	
-		overlay_but:overlay_but, loop_overlay_all:loop_overlay_al, loop_overlay_sav:loop_overlay_sav, $		
-		linestyle_0:linestyle_0, linestyle_1:linestyle_1, linestyle_2:linestyle_2, $			
+		overlay_but:overlay_but, loop_overlay_button_ids:loop_overlay_button_ids, $
+    loop_linestyle_button_ids:loop_linestyle_button_ids, $
 		measure_but:measure_but, apix_label:apix_label, apix_unit:apix_unit,$
     dx_text:dx_text, dy_text:dy_text, x_label:x_label, $
 		measure_asec_lab:measure_asec_lab, measure_asec_text:measure_asec_text, $
@@ -20489,7 +20583,9 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     refdiag_widths:PTR_NEW(hdr.refdiag_width), $
     refdiag_upp:hdr.refdiag_start+hdr.refdiag_width-1, $
     wheredisprefdiag:PTR_NEW(LONARR(hdr.nrefdiagnostics)), $
-    lp_diag_all:0, lp_ref_diag_all:0 $
+    lp_diag_all:0, lp_ref_diag_all:0, $
+    singlewav_windows:singlewav_windows,$
+    refsinglewav_windows:refsinglewav_windows $
 	}
 ;-------------------- I/O PARAMS
 	ioparams = { $
@@ -20910,27 +21006,26 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	feedback_text = [feedback_text,'> Determining display of plots... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	IF (((*(*info).dataswitch).spfile EQ 1) AND ((*(*info).dataparams).mainnt GT 1)) THEN BEGIN
-		WIDGET_CONTROL, sp_toggle_but, SET_BUTTON = 1
+    WIDGET_CONTROL, displays_button_ids[2], /SET_BUTTON
 		(*(*info).winswitch).showsp = 1
 	ENDIF ELSE BEGIN
     ; If no spectral file is provided
 		IF (hdr.single_cube[0] EQ 1) THEN BEGIN
 			(*(*info).dispparams).lp_upp = (*(*info).dispparams).lp_low
 			(*(*info).winswitch).showphis = 0
-			(*(*info).winswitch).showls = 0
+;			(*(*info).winswitch).showls = 0
 			WIDGET_CONTROL, approxmenu, SENSITIVE = 0
 			WIDGET_CONTROL, save_ex_slab_but, SENSITIVE = 0
-			WIDGET_CONTROL, ls_toggle_but, SENSITIVE = 0
 			WIDGET_CONTROL, subtract_but, SENSITIVE = 0
 			WIDGET_CONTROl, lower_y_text, SENSITIVE = 0
 			WIDGET_CONTROL, upper_y_text, SENSITIVE = 0
-			WIDGET_CONTROL, phis_toggle_but, SENSITIVE = 0
+      WIDGET_CONTROL, displays_button_ids[3], SENSITIVE=0
 		ENDIF ELSE BEGIN
 			IF (hdr.single_cube[0] GE 1) THEN WIDGET_CONTROL, approxmenu, SENSITIVE = 0
 			WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 0
 			(*(*info).winswitch).showphis = 0
 		ENDELSE
-		WIDGET_CONTROL, sp_toggle_but, SENSITIVE=0
+    WIDGET_CONTROL, displays_button_ids[2], SENSITIVE=0
 		IF (hdr.mainnt EQ 1) THEN BEGIN
 			WIDGET_CONTROL, fbwd_button, SENSITIVE = 0, SET_VALUE = bmpbut_fbwd_idle
 			WIDGET_CONTROL, backward_button, SENSITIVE = 0, SET_VALUE = bmpbut_bwd_idle
@@ -20961,12 +21056,6 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		WIDGET_CONTROL, loop_feedb_but, SENSITIVE = exts_set
 		WIDGET_CONTROL, timeslicemenu, SENSITIVE = 0 
 	ENDELSE
-	IF (N_ELEMENTS(hdr.single_cube[0]) EQ 1) THEN $
-    toggle_ls = ((hdr.single_cube[0] NE 1) AND (singlewav_windows EQ 0)) $
-	ELSE $
-    toggle_ls = (singlewav_windows EQ 0)
-  WIDGET_CONTROL, ls_toggle_but, SET_BUTTON=toggle_ls, SENSITIVE=toggle_ls
-	(*(*info).winswitch).showls = toggle_ls
 
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
                                         '(determining display of plots)', /WIDGET, /OVER, /DONE
@@ -20994,7 +21083,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	ENDIF
 	IF (*(*info).winswitch).showls THEN BEGIN
 		(*(*info).winswitch).showls = 0
-		(*(*info).ctrlsswitch).imrefdetspect = 0
+;		(*(*info).ctrlsswitch).imrefdetspect = 0
 		CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, pseudoevent, NO_DRAW=(*(*info).winswitch).showrefls
 		IF startupwin THEN WSHOW, startupwid
 	ENDIF
@@ -21006,17 +21095,17 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   IF ((*(*info).winswitch).showrefsp OR (*(*info).winswitch).showrefls) THEN $
     CRISPEX_DRAW_GET_SPECTRAL_AXES, pseudoevent, /REFERENCE
 	IF (*(*info).winswitch).showrefsp THEN BEGIN
-		WIDGET_CONTROL, (*(*info).ctrlscp).refsp_toggle_but, SET_BUTTON = 1
+    WIDGET_CONTROL, (*(*info).ctrlscp).refdisplays_button_ids[2], /SET_BUTTON
 		(*(*info).winswitch).showrefsp = 0
 		CRISPEX_DISPLAYS_REFSP_TOGGLE, pseudoevent
 		IF startupwin THEN WSHOW, startupwid
-	ENDIF ELSE WIDGET_CONTROL, (*(*info).ctrlscp).refsp_toggle_but, SENSITIVE = 0
+	ENDIF ELSE  $
+    WIDGET_CONTROL, (*(*info).ctrlscp).refdisplays_button_ids[2], SENSITIVE=0
 	IF (*(*info).winswitch).showrefls THEN BEGIN
 		IF ((*(*info).dataswitch).refspfile EQ 0) THEN $
       *(*(*info).data).refsspscan = (*(*(*info).data).refscan)[0]
 		(*(*info).winswitch).showrefls = 0
-		(*(*info).ctrlsswitch).imrefdetspect = 1
-		CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, pseudoevent
+		CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, pseudoevent, /REFERENCE
 		IF startupwin THEN WSHOW, startupwid
 	ENDIF
 	IF (*(*info).winswitch).showphis THEN BEGIN
@@ -21045,7 +21134,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 			CRISPEX_DISPRANGE_LS_SCALE_REF, pseudoevent
 			CRISPEX_DISPRANGE_LS_RANGE, pseudoevent, /NO_DRAW
 		ENDIF
-		CRISPEX_DISPLAYS_DETSPECT_IM_SELECT, pseudoevent
+    (*(*info).ctrlsswitch).imrefdetspect = 0
+		CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, pseudoevent
 	ENDIF
 	IF (detspect_scale EQ 0) THEN BEGIN
 		CRISPEX_DISPRANGE_LS_SCALE_MAIN, pseudoevent
