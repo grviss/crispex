@@ -16763,52 +16763,54 @@ PRO CRISPEX_UPDATE_PHISLICE, event, NO_DRAW=no_draw
   WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	lp_pts = REBIN(FINDGEN(1,(*(*info).dataparams).nlp), $
-    (*(*info).phiparams).nw_cur, (*(*info).dataparams).nlp)
-	tmp = INTERPOLATE( *(*(*info).data).phiscan, *(*(*info).phiparams).x_pts, $
-    *(*(*info).phiparams).y_pts, lp_pts) ;$
-	phislice = (TRANSPOSE(tmp, [1,0]))
-  ; If 2D, then display
-  IF ((SIZE(phislice))[0] EQ 2) THEN BEGIN
-    ; Warp slice if non-equidistant lp
-  	IF (*(*info).dispswitch).warpspslice THEN BEGIN
-      dispslice = INTERPOLATE(phislice,$
-        (*(*(*info).dispparams).phisxtri)[0:((SIZE(phislice))[1]-1),$
-                                          0:((SIZE(phislice))[2]-1)],$
-        (*(*(*info).dispparams).phisytri)[0:((SIZE(phislice))[1]-1),$
-                                          0:((SIZE(phislice))[2]-1)])
-    ENDIF ELSE $
-      dispslice = phislice
-    FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
-      disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
-      tmp_disp = dispslice[((*(*info).dispparams).lp_low_tmp[disp_idx]+$
-                           (*(*(*info).intparams).diag_starts)[d]):$
-                           ((*(*info).dispparams).lp_upp_tmp[disp_idx]+$
-                           (*(*(*info).intparams).diag_starts)[d]-1),*]
-    	IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
-        minmax = CRISPEX_SCALING_SLICES(tmp_disp, $
-          (*(*info).scaling).gamma[disp_idx],$
-        (*(*info).scaling).histo_opt_val[disp_idx], $
-          (*(*info).scaling).minimum[disp_idx],$
-        (*(*info).scaling).maximum[disp_idx])
-        (*(*info).scaling).phislice_min[disp_idx] = minmax[0]
-        (*(*info).scaling).phislice_max[disp_idx] = minmax[1]
-      ENDIF ELSE BEGIN
-        IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN $
-          minmax = [(*(*info).scaling).imagemin, (*(*info).scaling).imagemax] $
+  IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN BEGIN
+  	lp_pts = REBIN(FINDGEN(1,(*(*info).dataparams).nlp), $
+      (*(*info).phiparams).nw_cur, (*(*info).dataparams).nlp)
+  	tmp = INTERPOLATE( *(*(*info).data).phiscan, *(*(*info).phiparams).x_pts, $
+      *(*(*info).phiparams).y_pts, lp_pts) ;$
+  	phislice = (TRANSPOSE(tmp, [1,0]))
+    ; If 2D, then display
+    IF ((SIZE(phislice))[0] EQ 2) THEN BEGIN
+      ; Warp slice if non-equidistant lp
+    	IF (*(*info).dispswitch).warpspslice THEN BEGIN
+        dispslice = INTERPOLATE(phislice,$
+          (*(*(*info).dispparams).phisxtri)[0:((SIZE(phislice))[1]-1),$
+                                            0:((SIZE(phislice))[2]-1)],$
+          (*(*(*info).dispparams).phisytri)[0:((SIZE(phislice))[1]-1),$
+                                            0:((SIZE(phislice))[2]-1)])
+      ENDIF ELSE $
+        dispslice = phislice
+      FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
+        disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
+        tmp_disp = dispslice[((*(*info).dispparams).lp_low_tmp[disp_idx]+$
+                             (*(*(*info).intparams).diag_starts)[d]):$
+                             ((*(*info).dispparams).lp_upp_tmp[disp_idx]+$
+                             (*(*(*info).intparams).diag_starts)[d]-1),*]
+      	IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
+          minmax = CRISPEX_SCALING_SLICES(tmp_disp, $
+            (*(*info).scaling).gamma[disp_idx],$
+          (*(*info).scaling).histo_opt_val[disp_idx], $
+            (*(*info).scaling).minimum[disp_idx],$
+          (*(*info).scaling).maximum[disp_idx])
+          (*(*info).scaling).phislice_min[disp_idx] = minmax[0]
+          (*(*info).scaling).phislice_max[disp_idx] = minmax[1]
+        ENDIF ELSE BEGIN
+          IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN $
+            minmax = [(*(*info).scaling).imagemin, (*(*info).scaling).imagemax] $
+          ELSE $
+            minmax = [(*(*info).scaling).imagemin_curr, $
+                      (*(*info).scaling).imagemax_curr]
+        ENDELSE
+        tmp_disp = BYTSCL(tmp_disp, MIN=minmax[0], MAX=minmax[1], /NAN)
+        IF (d EQ 0) THEN $
+          final_disp = tmp_disp $
         ELSE $
-          minmax = [(*(*info).scaling).imagemin_curr, $
-                    (*(*info).scaling).imagemax_curr]
-      ENDELSE
-      tmp_disp = BYTSCL(tmp_disp, MIN=minmax[0], MAX=minmax[1], /NAN)
-      IF (d EQ 0) THEN $
-        final_disp = tmp_disp $
-      ELSE $
-        final_disp = [final_disp,tmp_disp]
-    ENDFOR
-    *(*(*info).data).phislice = final_disp
-  ENDIF ELSE *(*(*info).data).phislice = phislice
-	IF ~KEYWORD_SET(NO_DRAW) THEN CRISPEX_DRAW, event
+          final_disp = [final_disp,tmp_disp]
+      ENDFOR
+      *(*(*info).data).phislice = final_disp
+    ENDIF ELSE *(*(*info).data).phislice = phislice
+  ENDIF
+  IF ~KEYWORD_SET(NO_DRAW) THEN CRISPEX_DRAW, event
 END
 
 PRO CRISPEX_UPDATE_LP, event, NO_LOOP_GET=no_loop_get
