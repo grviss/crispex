@@ -719,11 +719,9 @@ FUNCTION CRISPEX_BGROUP_DETSPECT_IMREF, event, SESSION_RESTORE=session_restore
     (*(*info).ctrlsswitch).imrefdetspect = event.VALUE
 	  CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
   ENDIF ELSE BEGIN
- 		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_imref_button_ids[$
-       ABS((*(*info).ctrlsswitch).imrefdetspect-1)], $
+ 		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_imref_button_ids[0], $
        SET_BUTTON=ABS((*(*info).ctrlsswitch).imrefdetspect-1)
- 		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_imref_button_ids[$
-       (*(*info).ctrlsswitch).imrefdetspect], $
+ 		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_imref_button_ids[1], $
        SET_BUTTON=(*(*info).ctrlsswitch).imrefdetspect,$
        SENSITIVE=(*(*info).dataswitch).refspfile
   ENDELSE
@@ -780,8 +778,8 @@ FUNCTION CRISPEX_BGROUP_REFDISPLAYS_SELECT, event, $
     sensarr = [(*(*info).dataswitch).reffile, $
       ((*(*info).dataparams).refnlp GT 1), (*(*info).dataswitch).refspfile]
     sensarr = sensarr AND $
-      REPLICATE(((*(*info).intparams).refsinglewav_windows EQ 0),$
-        N_ELEMENTS(sensarr))
+      [1,REPLICATE(((*(*info).intparams).refsinglewav_windows EQ 0),$
+        N_ELEMENTS(sensarr)-1)]
     FOR i=0,N_ELEMENTS((*(*info).ctrlscp).refdisplays_button_ids)-1 DO $
       WIDGET_CONTROL, (*(*info).ctrlscp).refdisplays_button_ids[i], $
         SET_BUTTON=(setbarr[i] EQ 1), SENSITIVE=(sensarr[i] EQ 1)
@@ -3391,6 +3389,9 @@ PRO CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, NO_DRAW=no_draw, $
 			(*(*info).winids).reflstlb = 0
 			(*(*info).winswitch).showrefls = 0
 		ENDELSE
+    CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=($
+      ((*(*info).winswitch).showref EQ 0) AND $
+      ((*(*info).winswitch).showrefsp EQ 0))
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [(*(*info).winids).reflstlb,(*(*info).winids).reflswid,(*(*info).winids).reflsdrawid], labels=['reflstlb','reflswid','reflsdrawid']
 	ENDIF ELSE BEGIN
 		IF ((*(*info).winswitch).showls EQ 0) THEN BEGIN
@@ -3718,6 +3719,9 @@ PRO CRISPEX_DISPLAYS_REF_TOGGLE, event, NO_DRAW=no_draw
 		WIDGET_CONTROL, (*(*info).winids).reftlb, /DESTROY
 		(*(*info).winids).reftlb = 0
 	ENDELSE
+  CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=($
+    ((*(*info).winswitch).showrefls EQ 0) AND $
+    ((*(*info).winswitch).showrefsp EQ 0))
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE = $
     (((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND $
      ((*(*info).dataparams).refnlp GT 1))
@@ -4537,6 +4541,9 @@ PRO CRISPEX_DISPLAYS_REFSP_TOGGLE, event, NO_DRAW=no_draw
 		(*(*info).winids).refsptlb = 0
 		(*(*info).winswitch).showrefsp = 0
 	ENDELSE
+  CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=($
+    ((*(*info).winswitch).showrefls EQ 0) AND $
+    ((*(*info).winswitch).showref EQ 0))
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).refsptlb,(*(*info).winids).refspwid,$
       (*(*info).winids).refspdrawid], labels=['refsptlb','refspwid','refspdrawid']
@@ -4578,6 +4585,7 @@ PRO CRISPEX_DISPLAYS_SJI_TOGGLE, event, DISP=disp, KILL=kill, NO_DRAW=no_draw
 		WIDGET_CONTROL, (*(*info).winids).sjitlb, /DESTROY
 		(*(*info).winids).sjitlb = 0
 	ENDELSE
+  CRISPEX_DRAW_FEEDBPARAMS, event, /UPDATE_SJI
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).sjitlb,(*(*info).winids).sjiwid,$
       (*(*info).winids).sjidrawid], labels=['sjitlb','sjiwid','sjidrawid']
@@ -6157,285 +6165,368 @@ PRO CRISPEX_DRAW, event, NO_MAIN=no_main, NO_REF=no_ref, NO_SJI=no_sji, $
   CRISPEX_DRAW_FEEDBPARAMS, event
 END
 
-PRO CRISPEX_DRAW_FEEDBPARAMS, event
+PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
+  UPDATE_SJI=update_sji
 ; Prints all feedback parameters to appropriate fields
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  ; Position parameters
-  ; Main
-  IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN BEGIN
-    xval = STRING(LONG((*(*info).dataparams).x), $
-      FORMAT=(*(*info).paramparams).xcoord_format)
-    yval = STRING(LONG((*(*info).dataparams).y), $
-      FORMAT=(*(*info).paramparams).ycoord_format)
-    IF (*(*info).dataswitch).wcs_set THEN BEGIN
-      xy_real = CRISPEX_TRANSFORM_GET_WCS((*(*info).dataparams).x, $
-        (*(*info).dataparams).y, (*(*info).dataparams).wcs_main, $
-        /COORD, /NO_ROUND)
-      xreal_val = xy_real.x
-      yreal_val = xy_real.y
-    ENDIF ELSE BEGIN
-      xreal_val = FLOAT(xval*(*(*info).dataparams).dx)
-      yreal_val = FLOAT(yval*(*(*info).dataparams).dy)
-    ENDELSE
-    xval_real = STRING(xreal_val, $
-      FORMAT=(*(*info).paramparams).xcoord_real_format)
-    yval_real = STRING(yreal_val, $
-      FORMAT=(*(*info).paramparams).ycoord_real_format)
-  ENDIF ELSE BEGIN
-    xval = 'N/A'
-    yval = xval
-    xval_real = xval 
-    yval_real = xval
-  ENDELSE
-  WIDGET_CONTROL, (*(*info).ctrlsparam).xycoord_val, $
-    SET_VALUE='('+xval+','+yval+')'
-  WIDGET_CONTROL, (*(*info).ctrlsparam).xycoord_real_val, $
-    SET_VALUE='('+xval_real+','+yval_real+')'
-  ; Reference
-  IF (*(*info).winswitch).showref THEN BEGIN
-    IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
-      xrefval = STRING(LONG((*(*info).dataparams).xref), $
-        FORMAT=(*(*info).paramparams).refxcoord_format)
-      yrefval = STRING(LONG((*(*info).dataparams).yref), $
-        FORMAT=(*(*info).paramparams).refycoord_format)
-      IF (*(*info).dataswitch).ref_wcs_set THEN BEGIN
-        xyref_real = CRISPEX_TRANSFORM_GET_WCS((*(*info).dataparams).xref, $
-          (*(*info).dataparams).yref, (*(*info).dataparams).wcs_ref, $
-          /COORD, /NO_ROUND)
-        xreal_val = xyref_real.x
-        yreal_val = xyref_real.y
+  ; Determine which reference windows are showing; if any
+  showref_any = $
+    ((*(*info).winswitch).showref OR (*(*info).winswitch).showrefls OR $
+    (*(*info).winswitch).showrefsp)
+  ; Determine which fields to update
+  update_xycoords_main = ($
+    ((*(*info).dataparams).x NE (*(*info).dispparams).x_old) OR $
+    ((*(*info).dataparams).y NE (*(*info).dispparams).y_old))
+  update_xycoords_ref = ($
+    ((*(*info).dataparams).xref NE (*(*info).dispparams).xref_old) OR $
+    ((*(*info).dataparams).yref NE (*(*info).dispparams).yref_old)) AND $
+    showref_any
+  update_xycoords_sji = ($
+    ((*(*info).dataparams).xsji NE (*(*info).dispparams).xsji_old) OR $
+    ((*(*info).dataparams).ysji NE (*(*info).dispparams).ysji_old)) AND $
+    (*(*info).winswitch).showsji
+  update_lpcoords_main = $
+    ((*(*info).dataparams).lp NE (*(*info).dispparams).lp_old)
+  update_lpcoords_ref = $
+    ((*(*info).dataparams).lp_ref NE (*(*info).dispparams).lp_ref_old) AND $
+    showref_any
+  update_tcoords_main = $
+    ((*(*info).dispparams).t_main NE (*(*info).dispparams).t_main_old)
+  update_tcoords_ref = $
+    ((*(*info).dispparams).t_ref NE (*(*info).dispparams).t_ref_old) AND $
+    showref_any
+  update_tcoords_sji = $
+    ((*(*info).dispparams).t_sji NE (*(*info).dispparams).t_sji_old) AND $
+    (*(*info).winswitch).showsji
+  update_zoomfactor = $
+    ((*(*info).zooming).factor NE (*(*info).dispparams).zoomfactor_old)
+  update_date = $
+    ((*(*(*info).dispparams).date_arr)[(*(*info).dispparams).t] NE $
+      (*(*info).dispparams).date_old)
+  ; Switch to check whether anything has to be updated at all
+  update_fields = ( ($
+    update_xycoords_main+update_xycoords_ref+update_xycoords_sji+$
+    update_lpcoords_main+update_lpcoords_ref+update_zoomfactor+$
+    update_tcoords_main+update_tcoords_ref+update_tcoords_sji+$
+    update_date + KEYWORD_SET(UPDATE_REF) + KEYWORD_SET(UPDATE_SJI)) GT 0)
+  ; Proceed updating (or not)
+  IF update_fields THEN BEGIN
+    ; Position parameters
+    ; Main
+    IF update_xycoords_main THEN BEGIN
+      IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN BEGIN
+        xval = STRING(LONG((*(*info).dataparams).x), $
+          FORMAT=(*(*info).paramparams).xcoord_format)
+        yval = STRING(LONG((*(*info).dataparams).y), $
+          FORMAT=(*(*info).paramparams).ycoord_format)
+        IF (*(*info).dataswitch).wcs_set THEN BEGIN
+          xy_real = CRISPEX_TRANSFORM_GET_WCS((*(*info).dataparams).x, $
+            (*(*info).dataparams).y, (*(*info).dataparams).wcs_main, $
+            /COORD, /NO_ROUND)
+          xreal_val = xy_real.x
+          yreal_val = xy_real.y
+        ENDIF ELSE BEGIN
+          xreal_val = FLOAT(xval*(*(*info).dataparams).dx)
+          yreal_val = FLOAT(yval*(*(*info).dataparams).dy)
+        ENDELSE
+        xval_real = STRING(xreal_val, $
+          FORMAT=(*(*info).paramparams).xcoord_real_format)
+        yval_real = STRING(yreal_val, $
+          FORMAT=(*(*info).paramparams).ycoord_real_format)
       ENDIF ELSE BEGIN
-        xreal_val = FLOAT(xrefval*(*(*info).dataparams).refdx)
-        yreal_val = FLOAT(yrefval*(*(*info).dataparams).refdy)
+        xval = 'N/A'
+        yval = xval
+        xval_real = xval 
+        yval_real = xval
       ENDELSE
-      xrefval_real = STRING(xreal_val, $
-        FORMAT=(*(*info).paramparams).refxcoord_real_format)
-      yrefval_real = STRING(yreal_val, $
-        FORMAT=(*(*info).paramparams).refycoord_real_format)
-    ENDIF ELSE BEGIN
+      WIDGET_CONTROL, (*(*info).ctrlsparam).xycoord_val, $
+        SET_VALUE='('+xval+','+yval+')'
+      WIDGET_CONTROL, (*(*info).ctrlsparam).xycoord_real_val, $
+        SET_VALUE='('+xval_real+','+yval_real+')'
+    ENDIF
+    ; Reference
+    IF (update_xycoords_ref OR KEYWORD_SET(UPDATE_REF)) THEN BEGIN
       xrefval = 'N/A'
       yrefval = xrefval
       xrefval_real = xrefval 
       yrefval_real = xrefval
-    ENDELSE
-    WIDGET_CONTROL, (*(*info).ctrlsparam).refxycoord_val, $
-      SET_VALUE='('+xrefval+','+yrefval+')'
-    WIDGET_CONTROL, (*(*info).ctrlsparam).refxycoord_real_val, $
-      SET_VALUE='('+xrefval_real+','+yrefval_real+')'
-  ENDIF
-  ; SJI
-  IF (*(*info).winswitch).showsji THEN BEGIN
-    IF ((*(*info).dispswitch).xysji_out_of_range EQ 0) THEN BEGIN
-      xsjival = STRING(LONG((*(*info).dataparams).xsji), $
-        FORMAT=(*(*info).paramparams).sjixcoord_format)
-      ysjival = STRING(LONG((*(*info).dataparams).ysji), $
-        FORMAT=(*(*info).paramparams).sjiycoord_format)
-      IF (*(*info).dataswitch).sji_wcs_set THEN BEGIN
-        xysji_real = CRISPEX_TRANSFORM_GET_WCS((*(*info).dataparams).xsji, $
-          (*(*info).dataparams).ysji, (*(*info).dataparams).wcs_sji, $
-          /COORD, /NO_ROUND)
-        xreal_val = xysji_real.x
-        yreal_val = xysji_real.y
-      ENDIF ELSE BEGIN
-        xreal_val = FLOAT(xsjival*(*(*info).dataparams).sjidx)
-        yreal_val = FLOAT(ysjival*(*(*info).dataparams).sjidy)
-      ENDELSE
-      xsjival_real = STRING(xreal_val, $
-        FORMAT=(*(*info).paramparams).sjixcoord_real_format)
-      ysjival_real = STRING(yreal_val, $
-        FORMAT=(*(*info).paramparams).sjiycoord_real_format)
-    ENDIF ELSE BEGIN
+      IF (showref_any AND $
+        ((*(*info).dispswitch).xyref_out_of_range EQ 0)) THEN BEGIN
+        xrefval = STRING(LONG((*(*info).dataparams).xref), $
+          FORMAT=(*(*info).paramparams).refxcoord_format)
+        yrefval = STRING(LONG((*(*info).dataparams).yref), $
+          FORMAT=(*(*info).paramparams).refycoord_format)
+        IF (*(*info).dataswitch).ref_wcs_set THEN BEGIN
+          xyref_real = CRISPEX_TRANSFORM_GET_WCS((*(*info).dataparams).xref, $
+            (*(*info).dataparams).yref, (*(*info).dataparams).wcs_ref, $
+            /COORD, /NO_ROUND)
+          xreal_val = xyref_real.x
+          yreal_val = xyref_real.y
+        ENDIF ELSE BEGIN
+          xreal_val = FLOAT(xrefval*(*(*info).dataparams).refdx)
+          yreal_val = FLOAT(yrefval*(*(*info).dataparams).refdy)
+        ENDELSE
+        xrefval_real = STRING(xreal_val, $
+          FORMAT=(*(*info).paramparams).refxcoord_real_format)
+        yrefval_real = STRING(yreal_val, $
+          FORMAT=(*(*info).paramparams).refycoord_real_format)
+      ENDIF 
+      WIDGET_CONTROL, (*(*info).ctrlsparam).refxycoord_val, $
+        SET_VALUE='('+xrefval+','+yrefval+')'
+      WIDGET_CONTROL, (*(*info).ctrlsparam).refxycoord_real_val, $
+        SET_VALUE='('+xrefval_real+','+yrefval_real+')'
+    ENDIF
+    ; SJI
+    IF (update_xycoords_sji OR KEYWORD_SET(UPDATE_SJI)) THEN BEGIN
       xsjival = 'N/A'
       ysjival = xsjival
       xsjival_real = xsjival 
       ysjival_real = xsjival
-    ENDELSE
-    WIDGET_CONTROL, (*(*info).ctrlsparam).sjixycoord_val, $
-      SET_VALUE='('+xsjival+','+ysjival+')'
-    WIDGET_CONTROL, (*(*info).ctrlsparam).sjixycoord_real_val, $
-      SET_VALUE='('+xsjival_real+','+ysjival_real+')'
-  ENDIF
-
-  ; Spectral parameters
-  ; Main
-  lp_idx_txt = STRING((*(*info).dataparams).lp, $
-    FORMAT=(*(*info).paramparams).lp_idx_format)
-  WIDGET_CONTROL, (*(*info).ctrlsparam).lp_idx_val, SET_VALUE=lp_idx_txt
-  IF (*(*info).plotswitch).v_dop_set THEN BEGIN
-    lp_real_txt = STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp], $
-      FORMAT=(*(*info).paramparams).lp_real_format)
-    lp_vdop_txt = STRING((*(*(*info).plotaxes).v_dop[$
-      (*(*info).intparams).lp_diag_all])[$
-      (*(*info).dataparams).lp-(*(*info).intparams).diag_start[$
-      (*(*info).intparams).lp_diag_all]], $
-      FORMAT=(*(*info).paramparams).lp_vdop_format)
-    WIDGET_CONTROL, (*(*info).ctrlsparam).lp_real_val, SET_VALUE=lp_real_txt
-    WIDGET_CONTROL, (*(*info).ctrlsparam).lp_vdop_val, SET_VALUE=lp_vdop_txt
-  ENDIF
-  ; Reference
-  IF ((*(*info).dataparams).refnlp GT 1) THEN BEGIN
-    lp_ref_idx_txt = STRING((*(*info).dataparams).lp_ref, $
-      FORMAT=(*(*info).paramparams).lp_ref_idx_format)
-    WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_idx_val, $
-      SET_VALUE=lp_ref_idx_txt
-    IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
-      lp_ref_real_txt = STRING((*(*info).dataparams).reflps[$
-        (*(*info).dataparams).lp_ref], $
-        FORMAT=(*(*info).paramparams).lp_ref_real_format)
-      lp_ref_vdop_txt = STRING((*(*(*info).plotaxes).v_dop_ref[$
-        (*(*info).intparams).lp_ref_diag_all])[(*(*info).dataparams).lp_ref-$
-        (*(*info).intparams).refdiag_start[$
-        (*(*info).intparams).lp_ref_diag_all]], $
-        FORMAT=(*(*info).paramparams).lp_ref_vdop_format)
+      IF ((*(*info).winswitch).showsji AND $
+        ((*(*info).dispswitch).xysji_out_of_range EQ 0)) THEN BEGIN
+        xsjival = STRING(LONG((*(*info).dataparams).xsji), $
+          FORMAT=(*(*info).paramparams).sjixcoord_format)
+        ysjival = STRING(LONG((*(*info).dataparams).ysji), $
+          FORMAT=(*(*info).paramparams).sjiycoord_format)
+        IF (*(*info).dataswitch).sji_wcs_set THEN BEGIN
+          xysji_real = CRISPEX_TRANSFORM_GET_WCS((*(*info).dataparams).xsji, $
+            (*(*info).dataparams).ysji, (*(*info).dataparams).wcs_sji, $
+            /COORD, /NO_ROUND)
+          xreal_val = xysji_real.x
+          yreal_val = xysji_real.y
+        ENDIF ELSE BEGIN
+          xreal_val = FLOAT(xsjival*(*(*info).dataparams).sjidx)
+          yreal_val = FLOAT(ysjival*(*(*info).dataparams).sjidy)
+        ENDELSE
+        xsjival_real = STRING(xreal_val, $
+          FORMAT=(*(*info).paramparams).sjixcoord_real_format)
+        ysjival_real = STRING(yreal_val, $
+          FORMAT=(*(*info).paramparams).sjiycoord_real_format)
+      ENDIF 
+      WIDGET_CONTROL, (*(*info).ctrlsparam).sjixycoord_val, $
+        SET_VALUE='('+xsjival+','+ysjival+')'
+      WIDGET_CONTROL, (*(*info).ctrlsparam).sjixycoord_real_val, $
+        SET_VALUE='('+xsjival_real+','+ysjival_real+')'
+    ENDIF
+  
+    ; Spectral parameters
+    ; Main
+    IF update_lpcoords_main THEN BEGIN
+      lp_idx_txt = STRING((*(*info).dataparams).lp, $
+        FORMAT=(*(*info).paramparams).lp_idx_format)
+      WIDGET_CONTROL, (*(*info).ctrlsparam).lp_idx_val, SET_VALUE=lp_idx_txt
+      IF (*(*info).plotswitch).v_dop_set THEN BEGIN
+        lp_real_txt = STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp], $
+          FORMAT=(*(*info).paramparams).lp_real_format)
+        lp_vdop_txt = STRING((*(*(*info).plotaxes).v_dop[$
+          (*(*info).intparams).lp_diag_all])[$
+          (*(*info).dataparams).lp-(*(*info).intparams).diag_start[$
+          (*(*info).intparams).lp_diag_all]], $
+          FORMAT=(*(*info).paramparams).lp_vdop_format)
+        WIDGET_CONTROL, (*(*info).ctrlsparam).lp_real_val, SET_VALUE=lp_real_txt
+        WIDGET_CONTROL, (*(*info).ctrlsparam).lp_vdop_val, SET_VALUE=lp_vdop_txt
+      ENDIF
+    ENDIF
+    ; Reference
+    IF (update_lpcoords_ref OR KEYWORD_SET(UPDATE_REF)) THEN BEGIN
+      lp_ref_idx_txt = 'N/A'
+      lp_ref_real_txt = lp_ref_idx_txt
+      lp_ref_vdop_txt = lp_ref_idx_txt
+      IF (showref_any AND ((*(*info).dataparams).refnlp GT 1)) THEN BEGIN
+        lp_ref_idx_txt = STRING((*(*info).dataparams).lp_ref, $
+          FORMAT=(*(*info).paramparams).lp_ref_idx_format)
+        IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
+          lp_ref_real_txt = STRING((*(*info).dataparams).reflps[$
+            (*(*info).dataparams).lp_ref], $
+            FORMAT=(*(*info).paramparams).lp_ref_real_format)
+          lp_ref_vdop_txt = STRING((*(*(*info).plotaxes).v_dop_ref[$
+            (*(*info).intparams).lp_ref_diag_all])[(*(*info).dataparams).lp_ref-$
+            (*(*info).intparams).refdiag_start[$
+            (*(*info).intparams).lp_ref_diag_all]], $
+            FORMAT=(*(*info).paramparams).lp_ref_vdop_format)
+        ENDIF
+      ENDIF
+      WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_idx_val, $
+        SET_VALUE=lp_ref_idx_txt
       WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_real_val, $
         SET_VALUE=lp_ref_real_txt
       WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_vdop_val, $
         SET_VALUE=lp_ref_vdop_txt
     ENDIF
-  ENDIF
-
-  ; Time parameters
-  ; Main
-  t_idx_txt = STRING(LONG((*(*info).dispparams).t_main),$
-    FORMAT=(*(*info).paramparams).t_idx_format)
-  WIDGET_CONTROL, (*(*info).ctrlsparam).t_idx_val, SET_VALUE=t_idx_txt
-  IF ((*(*info).paramswitch).dt_set AND $
-     ((*(*info).dataparams).mainnt GT 1)) THEN BEGIN
-    t_real_txt = STRING((*(*(*info).dispparams).utc_main)[$
-      (*(*info).dispparams).t],FORMAT=(*(*info).paramparams).t_real_format)
-    WIDGET_CONTROL, (*(*info).ctrlsparam).t_real_val, SET_VALUE=t_real_txt
-  ENDIF
-  IF (*(*info).paramswitch).t_raster THEN BEGIN
-    IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN $
-      t_raster_real_txt = STRING((*(*info).dataparams).utc_raster_main[$
-        (*(*info).dataparams).x, (*(*info).dispparams).t_main], $
-        FORMAT=(*(*info).paramparams).t_raster_real_format) $
-    ELSE $
-      t_raster_real_txt = 'N/A'
-    WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_real_val, $
-      SET_VALUE=t_raster_real_txt
-  ENDIF
-  ; Reference
-  IF (*(*info).winswitch).showref THEN BEGIN
-    t_ref_idx_txt = STRING(LONG((*(*info).dispparams).t_ref),$
-      FORMAT=(*(*info).paramparams).t_ref_idx_format)
-    WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_idx_val, $
-      SET_VALUE=t_ref_idx_txt
-    IF (*(*info).paramswitch).dt_set THEN BEGIN
-      t_ref_real_txt = $
-        STRING((*(*(*info).dispparams).utc_ref)[(*(*info).dispparams).t],$
-        FORMAT=(*(*info).paramparams).t_ref_real_format)
+  
+    ; Time parameters
+    ; Main
+    IF update_tcoords_main THEN BEGIN
+      t_idx_txt = STRING(LONG((*(*info).dispparams).t_main),$
+        FORMAT=(*(*info).paramparams).t_idx_format)
+      WIDGET_CONTROL, (*(*info).ctrlsparam).t_idx_val, SET_VALUE=t_idx_txt
+      IF ((*(*info).paramswitch).dt_set AND $
+         ((*(*info).dataparams).mainnt GT 1)) THEN BEGIN
+        t_real_txt = STRING((*(*(*info).dispparams).utc_main)[$
+          (*(*info).dispparams).t],FORMAT=(*(*info).paramparams).t_real_format)
+        WIDGET_CONTROL, (*(*info).ctrlsparam).t_real_val, SET_VALUE=t_real_txt
+      ENDIF
+      IF (*(*info).paramswitch).t_raster THEN BEGIN
+        IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN $
+          t_raster_real_txt = STRING((*(*info).dataparams).utc_raster_main[$
+            (*(*info).dataparams).x, (*(*info).dispparams).t_main], $
+            FORMAT=(*(*info).paramparams).t_raster_real_format) $
+        ELSE $
+          t_raster_real_txt = 'N/A'
+        WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_real_val, $
+          SET_VALUE=t_raster_real_txt
+      ENDIF
+    ENDIF
+    ; Reference
+    IF (update_tcoords_ref OR KEYWORD_SET(UPDATE_REF)) THEN BEGIN
+      t_ref_idx_txt = 'N/A'
+      t_ref_real_txt = t_ref_idx_txt
+      t_raster_ref_real_txt = t_ref_idx_txt
+      IF showref_any THEN BEGIN
+        ; Closest to master time
+        t_ref_idx_txt = STRING(LONG((*(*info).dispparams).t_ref),$
+          FORMAT=(*(*info).paramparams).t_ref_idx_format)
+        IF (*(*info).paramswitch).dt_set THEN $
+          t_ref_real_txt = $
+            STRING((*(*(*info).dispparams).utc_ref)[(*(*info).dispparams).t],$
+            FORMAT=(*(*info).paramparams).t_ref_real_format)
+        ; Raster time
+        IF ((*(*info).paramswitch).t_raster_ref AND $
+            ((*(*info).dispswitch).xyref_out_of_range EQ 0)) THEN BEGIN
+          IF ((*(*info).dataparams).refnt GT 1) THEN $
+            t_raster_ref_real_txt = STRING((*(*info).dataparams).utc_raster_ref[$
+              (*(*info).dataparams).xref,(*(*info).dispparams).t_ref], $
+              FORMAT=(*(*info).paramparams).t_raster_ref_real_format) $
+          ELSE $
+            t_raster_ref_real_txt = STRING((*(*info).dataparams).utc_raster_ref[$
+              (*(*info).dataparams).xref], $
+              FORMAT=(*(*info).paramparams).t_raster_ref_real_format)
+        ENDIF
+      ENDIF
+      WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_idx_val, $
+        SET_VALUE=t_ref_idx_txt
       WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_real_val, $
         SET_VALUE=t_ref_real_txt
-    ENDIF
-    IF (*(*info).paramswitch).t_raster_ref THEN BEGIN
-      IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
-        IF ((*(*info).dataparams).refnt GT 1) THEN $
-          t_raster_ref_real_txt = STRING((*(*info).dataparams).utc_raster_ref[$
-            (*(*info).dataparams).xref,(*(*info).dispparams).t_ref], $
-            FORMAT=(*(*info).paramparams).t_raster_ref_real_format) $
-        ELSE $
-          t_raster_ref_real_txt = STRING((*(*info).dataparams).utc_raster_ref[$
-            (*(*info).dataparams).xref], $
-            FORMAT=(*(*info).paramparams).t_raster_ref_real_format)
-      ENDIF ELSE $
-        t_raster_ref_real_txt = 'N/A'
       WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_ref_real_val, $
         SET_VALUE=t_raster_ref_real_txt
     ENDIF
-  ENDIF
-  ; SJI
-  IF (*(*info).winswitch).showsji THEN BEGIN
-    IF ((*(*info).dataparams).sjint GT 1) THEN BEGIN
-      t_sji_idx_txt = STRING(LONG((*(*info).dispparams).t_sji), $
-        FORMAT=(*(*info).paramparams).t_sji_idx_format)
+    ; SJI
+    IF (update_tcoords_sji OR KEYWORD_SET(UPDATE_SJI)) THEN BEGIN
+      t_sji_idx_txt = 'N/A'
+      t_sji_real_txt = t_sji_idx_txt
+      IF ((*(*info).winswitch).showsji AND $
+          ((*(*info).dataparams).sjint GT 1)) THEN BEGIN
+        t_sji_idx_txt = STRING(LONG((*(*info).dispparams).t_sji), $
+          FORMAT=(*(*info).paramparams).t_sji_idx_format)
+        IF (*(*info).paramswitch).dt_set THEN $
+          t_sji_real_txt = $
+            STRING((*(*(*info).dispparams).utc_sji)[(*(*info).dispparams).t],$
+            FORMAT=(*(*info).paramparams).t_sji_real_format)
+      ENDIF
       WIDGET_CONTROL, (*(*info).ctrlsparam).t_sji_idx_val, $
         SET_VALUE=t_sji_idx_txt
-      IF (*(*info).paramswitch).dt_set THEN BEGIN
-        t_sji_real_txt = $
-          STRING((*(*(*info).dispparams).utc_sji)[(*(*info).dispparams).t],$
-          FORMAT=(*(*info).paramparams).t_sji_real_format)
-        WIDGET_CONTROL, (*(*info).ctrlsparam).t_sji_real_val, $
-          SET_VALUE=t_sji_real_txt
-      ENDIF
+      WIDGET_CONTROL, (*(*info).ctrlsparam).t_sji_real_val, $
+        SET_VALUE=t_sji_real_txt
     ENDIF
-  ENDIF
-  
-  ; Data values parameters
-  ; Main
-  IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN BEGIN 
-    datadims = SIZE(*(*(*info).data).xyslice,/N_DIMENSIONS)
-    IF (datadims EQ 2) THEN $
-      act_dataval = (*(*(*info).data).xyslice)[LONG((*(*info).dataparams).x), $
-        LONG((*(*info).dataparams).y)] $
-    ELSE $  ; Failsafe for IRIS sit-and-stare
-      act_dataval = (*(*(*info).data).xyslice)[LONG((*(*info).dataparams).y)]
-    IF ((FINITE(act_dataval) EQ 1) AND (act_dataval NE 0)) THEN $
-      order = FLOOR(ALOG10(ABS(act_dataval))) $
-    ELSE $
-      order = 0
-    IF ((order LE -2) OR (order GE 3)) THEN $
-      format = '(E10.4)' $
-    ELSE $
-      format = '(F9.2)'
-    dataval_real_txt = STRING(act_dataval, FORMAT=format) 
-  ENDIF ELSE $
-    dataval_real_txt = 'N/A'
-  WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_real_val, $
-    SET_VALUE=dataval_real_txt
-  ; Reference
-  IF (*(*info).winswitch).showref THEN BEGIN
-    IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
-      datadims = SIZE(*(*(*info).data).refslice,/N_DIMENSIONS)
-      IF (datadims EQ 2) THEN $
-        act_ref_dataval = (*(*(*info).data).refslice)[$
-          LONG((*(*info).dataparams).xref), LONG((*(*info).dataparams).yref)] $
-      ELSE $  ; Failsafe for IRIS sit-and-stare
-        act_ref_dataval = (*(*(*info).data).refslice)[$
-          LONG((*(*info).dataparams).yref)]
-      IF ((FINITE(act_ref_dataval) EQ 1) AND (act_ref_dataval NE 0)) THEN $
-        order = FLOOR(ALOG10(ABS(act_ref_dataval))) $
-      ELSE $
-        order = 0
-      IF ((order LE -2) OR (order GE 3)) THEN $
-        format = '(E10.4)' $
-      ELSE $
-        format = '(F9.2)'
-      dataval_ref_real_txt = STRING(act_ref_dataval, FORMAT=format)
-    ENDIF ELSE $
+    
+    ; Data values parameters
+    ; Main
+    IF (update_xycoords_main OR update_lpcoords_main OR $
+      update_tcoords_main) THEN BEGIN
+      IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN BEGIN 
+        datadims = SIZE(*(*(*info).data).xyslice,/N_DIMENSIONS)
+        IF (datadims EQ 2) THEN $
+          act_dataval = (*(*(*info).data).xyslice)[LONG((*(*info).dataparams).x), $
+            LONG((*(*info).dataparams).y)] $
+        ELSE $  ; Failsafe for IRIS sit-and-stare
+          act_dataval = (*(*(*info).data).xyslice)[LONG((*(*info).dataparams).y)]
+        IF ((FINITE(act_dataval) EQ 1) AND (act_dataval NE 0)) THEN $
+          order = FLOOR(ALOG10(ABS(act_dataval))) $
+        ELSE $
+          order = 0
+        IF ((order LE -2) OR (order GE 3)) THEN $
+          format = '(E10.4)' $
+        ELSE $
+          format = '(F9.2)'
+        dataval_real_txt = STRING(act_dataval, FORMAT=format) 
+      ENDIF ELSE $
+        dataval_real_txt = 'N/A'
+      WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_real_val, $
+        SET_VALUE=dataval_real_txt
+    ENDIF
+    ; Reference
+    IF ((update_xycoords_ref OR update_lpcoords_ref OR update_tcoords_ref) OR $
+      KEYWORD_SET(UPDATE_REF)) THEN BEGIN
       dataval_ref_real_txt = 'N/A'
-    WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_ref_real_val, $
-      SET_VALUE=dataval_ref_real_txt
-  ENDIF
-  ; SJI
-  IF (*(*info).winswitch).showsji THEN BEGIN
-    IF ((*(*info).dispswitch).xysji_out_of_range EQ 0) THEN BEGIN
-      act_sji_dataval = (*(*(*info).data).sjislice)[$
-        LONG((*(*info).dataparams).xsji), LONG((*(*info).dataparams).ysji)]
-      IF ((FINITE(act_sji_dataval) EQ 1) AND (act_sji_dataval NE 0)) THEN $
-        order = FLOOR(ALOG10(ABS(act_sji_dataval))) $
-      ELSE $
-        order = 0
-      IF ((order LE -2) OR (order GE 3)) THEN $
-        format = '(E10.4)' $
-      ELSE $
-        format = '(F9.2)'
-      dataval_sji_real_txt = STRING(act_sji_dataval, FORMAT=format)
-    ENDIF ELSE $
+      IF (showref_any AND ((*(*info).dispswitch).xyref_out_of_range EQ 0)) THEN BEGIN
+        datadims = SIZE(*(*(*info).data).refslice,/N_DIMENSIONS)
+        IF (datadims EQ 2) THEN $
+          act_ref_dataval = (*(*(*info).data).refslice)[$
+            LONG((*(*info).dataparams).xref), LONG((*(*info).dataparams).yref)] $
+        ELSE $  ; Failsafe for IRIS sit-and-stare
+          act_ref_dataval = (*(*(*info).data).refslice)[$
+            LONG((*(*info).dataparams).yref)]
+        IF ((FINITE(act_ref_dataval) EQ 1) AND (act_ref_dataval NE 0)) THEN $
+          order = FLOOR(ALOG10(ABS(act_ref_dataval))) $
+        ELSE $
+          order = 0
+        IF ((order LE -2) OR (order GE 3)) THEN $
+          format = '(E10.4)' $
+        ELSE $
+          format = '(F9.2)'
+        dataval_ref_real_txt = STRING(act_ref_dataval, FORMAT=format)
+      ENDIF
+      WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_ref_real_val, $
+        SET_VALUE=dataval_ref_real_txt
+    ENDIF
+    ; SJI
+    IF ((update_xycoords_sji OR update_tcoords_sji) OR $
+      KEYWORD_SET(UPDATE_SJI)) THEN BEGIN
       dataval_sji_real_txt = 'N/A'
-    WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_sji_real_val, $
-      SET_VALUE=dataval_sji_real_txt
+      IF ((*(*info).winswitch).showsji AND $
+        ((*(*info).dispswitch).xysji_out_of_range EQ 0)) THEN BEGIN
+        act_sji_dataval = (*(*(*info).data).sjislice)[$
+          LONG((*(*info).dataparams).xsji), LONG((*(*info).dataparams).ysji)]
+        IF ((FINITE(act_sji_dataval) EQ 1) AND (act_sji_dataval NE 0)) THEN $
+          order = FLOOR(ALOG10(ABS(act_sji_dataval))) $
+        ELSE $
+          order = 0
+        IF ((order LE -2) OR (order GE 3)) THEN $
+          format = '(E10.4)' $
+        ELSE $
+          format = '(F9.2)'
+        dataval_sji_real_txt = STRING(act_sji_dataval, FORMAT=format)
+      ENDIF 
+      WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_sji_real_val, $
+        SET_VALUE=dataval_sji_real_txt
+    ENDIF
+  
+    ; Date value
+    IF update_date THEN $
+      WIDGET_CONTROL, (*(*info).ctrlsparam).date_val, $
+        SET_VALUE=(*(*(*info).dispparams).date_arr)[(*(*info).dispparams).t]
+  
+    ; Zoom value
+    IF update_zoomfactor THEN $
+    	WIDGET_CONTROL, (*(*info).ctrlsparam).zoom_val, $
+        SET_VALUE = STRING((*(*info).zooming).factor*100.,FORMAT='(I4)')+'%'
   ENDIF
-
-  ; Date value
-  WIDGET_CONTROL, (*(*info).ctrlsparam).date_val, $
-    SET_VALUE=(*(*(*info).dispparams).date_arr)[(*(*info).dispparams).t]
-
-  ; Zoom value
-	WIDGET_CONTROL, (*(*info).ctrlsparam).zoom_val, $
-    SET_VALUE = STRING((*(*info).zooming).factor*100.,FORMAT='(I4)')+'%'
+  ; Set new "old" dispparams
+  (*(*info).dispparams).x_old = (*(*info).dataparams).x 
+  (*(*info).dispparams).y_old = (*(*info).dataparams).y 
+  (*(*info).dispparams).xref_old = (*(*info).dataparams).xref 
+  (*(*info).dispparams).yref_old = (*(*info).dataparams).yref 
+  (*(*info).dispparams).xsji_old = (*(*info).dataparams).xsji 
+  (*(*info).dispparams).ysji_old = (*(*info).dataparams).ysji 
+  (*(*info).dispparams).lp_old = (*(*info).dataparams).lp 
+  (*(*info).dispparams).lp_ref_old = (*(*info).dataparams).lp_ref 
+  (*(*info).dispparams).t_main_old = (*(*info).dispparams).t_main 
+  (*(*info).dispparams).t_ref_old = (*(*info).dispparams).t_ref 
+  (*(*info).dispparams).t_sji_old = (*(*info).dispparams).t_sji
+  (*(*info).dispparams).date_old = $
+    (*(*(*info).dispparams).date_arr)[(*(*info).dispparams).t]
 END
 
 PRO CRISPEX_DRAW_IMREF, event, NO_MAIN=no_main, NO_REF=no_ref, NO_SJI=no_sji
@@ -8074,37 +8165,54 @@ PRO CRISPEX_EVENT, event
 END
 
 ;==================== FIND CRISPEX OUTPUT FILE PROCEDURES
-PRO CRISPEX_FIND_CLSAV, event
+PRO CRISPEX_FIND_CLSAV, event, FORCE_PATH=force_path
 ; Finds CLSAV output files (i.e. saved loop points files)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	imagefilename = STRMID((*(*info).dataparams).imfilename,STRPOS((*(*info).dataparams).imfilename,PATH_SEP(),/REVERSE_SEARCH)+1,STRLEN((*(*info).dataparams).imfilename))
+  IF (N_ELEMENTS(FORCE_PATH) NE 1) THEN $
+    path = (*(*info).paths).ipath $
+  ELSE $
+    path = force_path
+	imagefilename = STRMID((*(*info).dataparams).imfilename, $
+    STRPOS((*(*info).dataparams).imfilename,PATH_SEP(),/REVERSE_SEARCH)+1,$
+    STRLEN((*(*info).dataparams).imfilename))
 	firstsplit = STRMID(imagefilename,0,STRPOS(imagefilename,'.',/REVERSE_SEARCH))
 	fstr = STRSPLIT(firstsplit[0],'_',/EXTRACT)
-	IF (N_ELEMENTS(fstr) GE 2) THEN filename = fstr[0]+'_'+fstr[1] ELSE filename = fstr[0]
-	clfiles = FILE_SEARCH((*(*info).paths).ipath+filename+"*clsav", COUNT = clfilecount)
+	IF (N_ELEMENTS(fstr) GE 2) THEN $
+    filename = fstr[0]+'_'+fstr[1] $
+  ELSE $
+    filename = fstr[0]
+	clfiles = FILE_SEARCH(path+filename+"*clsav", COUNT=clfilecount)
 	*(*(*info).retrparams).clfiles  = clfiles
 	(*(*info).retrparams).clfilecount = clfilecount
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN CRISPEX_VERBOSE_GET, event, [imagefilename, filename, STRTRIM((*(*info).retrparams).clfilecount,2)], labels=['filename','basename','clfilecount']
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, $
+      [imagefilename, filename, STRTRIM((*(*info).retrparams).clfilecount,2)], $
+      labels=['filename','basename','clfilecount']
 END
 
-PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir
+PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir, $
+  FORCE_PATH=force_path
 ; Finds CSAV output files (i.e. saved loopslice/slab files)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF (N_ELEMENTS(FORCE_PATH) NE 1) THEN $
+    path = (*(*info).paths).ipath $
+  ELSE $
+    path = force_path
   refcfilecount = 0
 	imagefilename = FILE_BASENAME((*(*info).dataparams).imfilename)
 	firstsplit = STRMID(imagefilename,0,STRPOS(imagefilename,'.',/REVERSE_SEARCH))
   ; Do initial search
-	cfiles = FILE_SEARCH((*(*info).paths).ipath+firstsplit+"*csav", $
+	cfiles = FILE_SEARCH(path+firstsplit+"*csav", $
     COUNT = cfilecount)
 	IF (*(*info).dataswitch).reffile THEN BEGIN
     refimfilename = FILE_BASENAME((*(*info).dataparams).refimfilename)
 		reffirstsplit = STRMID(refimfilename,0,STRPOS(refimfilename,'.',$
       /REVERSE_SEARCH))
-		refcfiles = FILE_SEARCH((*(*info).paths).ipath+reffirstsplit+"*csav", $
+		refcfiles = FILE_SEARCH(path+reffirstsplit+"*csav", $
       COUNT = refcfilecount)
   ENDIF ELSE $
     refcfilecount = 0
@@ -8112,7 +8220,7 @@ PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir
     sjifilename = FILE_BASENAME((*(*info).dataparams).sjifilename)
 		sjifirstsplit = STRMID(sjifilename,0,STRPOS(sjifilename,'.',$
       /REVERSE_SEARCH))
-		sjicfiles = FILE_SEARCH((*(*info).paths).ipath+sjifirstsplit+"*csav", $
+		sjicfiles = FILE_SEARCH(path+sjifirstsplit+"*csav", $
       COUNT = sjicfilecount)
   ENDIF ELSE $
     sjicfilecount = 0
@@ -10390,10 +10498,17 @@ END
 PRO CRISPEX_MASK_BUTTONS_SET, event
 ; Handles the setting of mask buttons
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[0],SET_BUTTON = ((*(*info).overlayswitch).maskim)[0], SENSITIVE = (*(*info).overlayswitch).mask
-	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[1],SET_BUTTON = ((*(*info).overlayswitch).maskim)[1], SENSITIVE = ((*(*info).overlayswitch).mask AND (*(*info).dataswitch).reffile)
-	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[2],SET_BUTTON = ((*(*info).overlayswitch).maskim)[2], SENSITIVE = ((*(*info).overlayswitch).mask AND (*(*info).winswitch).showdop)
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[0], $
+    SET_BUTTON=((*(*info).overlayswitch).maskim)[0], $
+    SENSITIVE=(*(*info).overlayswitch).mask
+	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[1],$
+    SET_BUTTON=((*(*info).overlayswitch).maskim)[1], $
+    SENSITIVE=((*(*info).overlayswitch).mask AND (*(*info).dataswitch).reffile)
+	WIDGET_CONTROL,((*(*info).ctrlscp).mask_button_ids)[2],$
+    SET_BUTTON=((*(*info).overlayswitch).maskim)[2], $
+    SENSITIVE=((*(*info).overlayswitch).mask AND (*(*info).winswitch).showdop)
 END
 
 ;==================== MEASUREMENT PROCEDURES
@@ -13803,6 +13918,11 @@ PRO CRISPEX_SCALING_SET_BOXBUTTONS, event, SENSITIVITY_OVERRIDE=sensitivity_over
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
   showarr = [1,(*(*info).winswitch).showref,(*(*info).dispswitch).drawdop,$
     (*(*info).winswitch).showsji]
+  CASE (*(*info).scaling).imrefscaling OF
+    0:  ndiagnostics = (*(*info).intparams).ndiagnostics
+    1:  ndiagnostics = (*(*info).intparams).nrefdiagnostics
+    ELSE:  ndiagnostics = 1
+  ENDCASE
   WIDGET_CONTROL, (*(*info).ctrlscp).imagescale_cbox, $
     SET_COMBOBOX_SELECT=(*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling], $
     SENSITIVE=showarr[(*(*info).scaling).imrefscaling]
@@ -13819,14 +13939,16 @@ PRO CRISPEX_SCALING_SET_BOXBUTTONS, event, SENSITIVITY_OVERRIDE=sensitivity_over
     ((*(*info).scaling).idx LT N_ELEMENTS((*(*info).scaling).mult_val)))
 	WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_cbox, $
     SET_COMBOBOX_SELECT=(*(*info).scaling).idx, $
-    SENSITIVE=(showarr[(*(*info).scaling).imrefscaling] AND update_constraint)
+    SENSITIVE=(showarr[(*(*info).scaling).imrefscaling] AND $
+      update_constraint AND (ndiagnostics GT 1))
   IF update_constraint THEN $
   	WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_txt, $
       SET_VALUE=STRTRIM((*(*info).scaling).mult_val[(*(*info).scaling).idx],2), $
-      SENSITIVE=showarr[(*(*info).scaling).imrefscaling] $
+      SENSITIVE=(showarr[(*(*info).scaling).imrefscaling] AND (ndiagnostics GT 1)) $
   ELSE $
   	WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_txt, $
-      SENSITIVE=(showarr[(*(*info).scaling).imrefscaling] AND update_constraint)
+      SENSITIVE=(showarr[(*(*info).scaling).imrefscaling] AND $
+        update_constraint AND (ndiagnostics GT 1))
 END
 
 PRO CRISPEX_SCALING_SET_SLIDERS, event, GAMMA_ONLY=gamma_only, SET_GAMMA=set_gamma, $
@@ -13944,7 +14066,7 @@ PRO CRISPEX_SESSION_SAVE, event, sesfilename
 END
 
 PRO CRISPEX_SESSION_RESTORE_READ_POINTER, event, currpointer, restpointer, $
-  NO_RESTORE=no_restore
+  NO_RESTORE=no_restore, HALT=halt
 ; Handles the actual restoration of the session
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
@@ -13952,6 +14074,7 @@ PRO CRISPEX_SESSION_RESTORE_READ_POINTER, event, currpointer, restpointer, $
 	currtags = TAG_NAMES(currpointer)	&	resttags = TAG_NAMES(restpointer)
 	ncurr = N_ELEMENTS(currtags)		  &	nrest = N_ELEMENTS(resttags)
 	no_rest = N_ELEMENTS(NO_RESTORE)
+  IF KEYWORD_SET(HALT) THEN STOP
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [ncurr,nrest,no_rest-1],$
       labels=['Current tags','Restored tags','Prevent replace tag']
@@ -14082,7 +14205,8 @@ PRO CRISPEX_SESSION_RESTORE, event
   			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plotpos, plotpos
   			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plotswitch, plotswitch
   			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).plottitles, plottitles
-  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).restoreparams, restoreparams
+  			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).restoreparams, $
+          restoreparams
   			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).retrparams, retrparams
   			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).scaling, scaling
   			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).savswitch, savswitch
@@ -14153,7 +14277,8 @@ PRO CRISPEX_SESSION_RESTORE, event
         ; Spectral blink
       	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, $
           SET_SLIDER_MIN=(*(*info).dispparams).lp_low, $
-          SET_SLIDER_MAX=(*(*info).dispparams).lp_upp, SET_VALUE=(*(*info).dataparams).lp, $
+          SET_SLIDER_MAX=(*(*info).dispparams).lp_upp, $
+          SET_VALUE=(*(*info).pbparams).lp_blink, $
           SENSITIVE=(((*(*info).dispparams).lp_range-1) NE 1)
   			WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_but, $
           SET_BUTTON=(*(*info).pbparams).spmode, $
@@ -14306,10 +14431,10 @@ PRO CRISPEX_SESSION_RESTORE, event
   			; Mask
   			WIDGET_CONTROL, (*(*info).ctrlscp).masks_overlay_ct_cbox, $
           SET_COMBOBOX_SELECT = (*(*info).overlayparams).maskct, $
-          SENSITIVE = (*(*info).overlayswitch).mask
+          /SENSITIVE 
   			WIDGET_CONTROL, (*(*info).ctrlscp).masks_overlay_col_slid, $
           SET_VALUE = (*(*info).overlayparams).maskcolor, $
-          SENSITIVE = (*(*info).overlayswitch).mask
+          /SENSITIVE 
   			CRISPEX_MASK_BUTTONS_SET, event
         ; Loop overlays
   			WIDGET_CONTROL, (*(*info).ctrlscp).overlay_but, $
@@ -14373,7 +14498,8 @@ PRO CRISPEX_SESSION_RESTORE, event
   				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
   			ENDIF
   			old_cfilecount = (*(*info).restoreparams).cfilecount
-  			CRISPEX_FIND_CSAV, event
+  			CRISPEX_FIND_CSAV, event, $
+          FORCE_PATH=FILE_DIRNAME((*(*(*info).restoreparams).cfiles)[0])+PATH_SEP()
   			IF ((*(*info).loopswitch).restore_loops AND ((*(*info).restoreparams).cfilecount EQ old_cfilecount)) THEN BEGIN
   				CRISPEX_RESTORE_LOOPS_MENU, event, *(*(*info).restoreparams).sel_loops
   				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
@@ -14393,7 +14519,8 @@ PRO CRISPEX_SESSION_RESTORE, event
   				(*(*info).winswitch).showrestloop = 0
   			ENDELSE
   			old_clfilecount = (*(*info).retrparams).clfilecount
-  			CRISPEX_FIND_CLSAV, event
+  			CRISPEX_FIND_CLSAV, event, $
+          FORCE_PATH=FILE_DIRNAME((*(*(*info).restoreparams).clfiles)[0])+PATH_SEP()
   			IF ((*(*info).loopswitch).retrieve_loops AND ((*(*info).retrparams).clfilecount EQ old_clfilecount)) THEN BEGIN
   				CRISPEX_RETRIEVE_LOOP_MENU, event, *(*(*info).retrparams).sel_loops
   				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
@@ -19842,7 +19969,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
         lp_ref_real_txt = 'N/A'
         lp_ref_vdop_txt = 'N/A'
       ENDELSE
-		  lp_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_idx_txt, /ALIGN_RIGHT)
+		  lp_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_idx_txt,$
+        /ALIGN_RIGHT, /DYNAMIC_RESIZE)
 		  IF ((TOTAL(heightset) GE 1) OR (TOTAL(hdr.v_dop_set) GE 1)) THEN $
         lp_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_real_txt, $
           /ALIGN_RIGHT)
@@ -20062,35 +20190,26 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
         FORMAT='(E10.4)')
 		  dataval_real_val = WIDGET_LABEL(params_main_base, VALUE=dataval_real_txt, $
         /ALIGN_RIGHT)
-      ; dataval_unit_txt = WIDGET_LABEL(params_main_base, VALUE='['+hdr.bunit+']', /ALIGN_RIGHT)
       ref_label   = WIDGET_LABEL(params_ref_base, VALUE=' ', /ALIGN_RIGHT)
-      IF hdr.showref THEN BEGIN
+      IF hdr.showref THEN $
         dataval_ref_real_txt = STRING(((*hdr.refdata)[lp_ref_start])[$
-          xref_start,yref_start], FORMAT='(E10.4)')
-        ; dataval_ref_unit_txt = '['+hdr.refbunit+']'
-      ENDIF ELSE BEGIN
+          xref_start,yref_start], FORMAT='(E10.4)') $
+      ELSE BEGIN
         dataval_ref_real_format = ''
         dataval_ref_real_txt = 'N/A'
-        ; dataval_ref_unit_txt = ' '
       ENDELSE
 		  dataval_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=dataval_ref_real_txt, $
         /ALIGN_RIGHT)
-      ;dataval_ref_unit_txt = WIDGET_LABEL(params_ref_base, VALUE=dataval_ref_unit_txt, $
-      ;  /ALIGN_CENTER)
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
-      ;dataval_sji_unit_txt = ' '
-      IF hdr.sjifile THEN BEGIN
+      IF hdr.sjifile THEN $ 
         dataval_sji_real_txt = STRING(sjidata_tmp[xsji_start,ysji_start], $
-          FORMAT='(E10.4)')
-        ;IF (STRTRIM(hdr.sjibunit,2) NE '0') THEN dataval_sji_unit_txt = '['+hdr.sjibunit+']'
-      ENDIF ELSE BEGIN
+          FORMAT='(E10.4)') $
+      ELSE BEGIN
         dataval_sji_real_format = ''
         dataval_sji_real_txt = 'N/A'
       ENDELSE
       dataval_sji_real_val = WIDGET_LABEL(params_sji_base, VALUE=dataval_sji_real_txt, $
         /ALIGN_RIGHT)
-      ;dataval_sji_unit_txt = WIDGET_LABEL(params_sji_base, VALUE=dataval_sji_unit_txt, $
-      ;  /ALIGN_CENTER)
 
    param_base = WIDGET_BASE(control_panel, /ROW)
     ; Column 1 of parameters overview containing cursor x,y and zoomfactor
@@ -20544,7 +20663,15 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     t_low_sji:hdr.tarr_sji[0], t_upp_sji:hdr.tarr_sji[(hdr.sjint-1)>0], $
     toffset_main:hdr.toffset_main, toffset_ref:hdr.toffset_ref, $
     sjibscale:hdr.sjibscale, sjibzero:hdr.sjibzero, $
-    x_main:x_main, y_main:y_main, x_ref:x_ref, y_ref:y_ref $
+    x_main:x_main, y_main:y_main, x_ref:x_ref, y_ref:y_ref, $
+    ; Previous change dispparams
+    x_old:DOUBLE(x_start), y_old:DOUBLE(y_start), $
+    xref_old:DOUBLE(xref_start), yref_old:DOUBLE(yref_start), $
+    xsji_old:DOUBLE(xsji_start), ysji_old:DOUBLE(ysji_start), $
+    lp_old:lp_start, lp_ref_old:lp_ref_start, $
+    t_main_old:hdr.tsel_main[0], t_ref_old:hdr.tsel_ref[0], $
+    t_sji_old:hdr.tsel_sji[0], date_old:hdr.date_main[hdr.tsel_main[0]], $
+  zoomfactor_old:zoomfactors[0] $
 	}
 ;-------------------- DATA DISPLAY SWITCHES
 	dispswitch = { $
@@ -20655,7 +20782,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 ;-------------------- OVERLAY SWITCHES
 	overlayswitch = { $
 		det_overlay_all:0, loopslit:0, overlalways:1, looppath_feedback:1, $
-    mask:hdr.maskfile, maskim:[hdr.maskfile,hdr.showref,0], $
+    mask:hdr.maskfile, maskim:[hdr.maskfile,(hdr.maskfile AND hdr.showref),0], $
     sjiraster:(hdr.sjifile AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1))), $
     refraster:(hdr.showref AND ((nrasterdims[0] GT 1) OR (hdr.nx EQ 1))), $		
     rastertiming:REPLICATE((nrasterdims[0] GT 1),3) $
