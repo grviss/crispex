@@ -7187,6 +7187,7 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
                 XRANGE=vdop_xrange, XSTYLE=1, XTITLE=topxtitle, $
                 COLOR=(*(*info).plotparams).plotcol;,$
           ENDIF 
+          TVLCT, r_cur, g_cur, b_cur, /GET
           ; Draw line through y=0
       		IF ((ls_low_y LT 0.) AND (ls_upp_y GT 0.)) THEN $
             PLOTS, xrange, [0.,0.], COLOR = (*(*info).plotparams).plotcol
@@ -7203,14 +7204,15 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
                 (*(*info).scaling).mult_val[disp_idx], $
                 COLOR = (*(*info).plotparams).plotcol, LINE=2
             IF (d EQ lp_diag) THEN BEGIN
+	            LOADCT, (*(*info).overlayparams).maskct, /SILENT
               ; Overplot spectral indicator
         		  PLOTS, [1,1] * (*(*info).dataparams).lps[(*(*info).dataparams).lp],$
-                [ls_low_y,ls_upp_y], COLOR = (*(*info).plotparams).plotcol
+                [ls_low_y,ls_upp_y], COLOR=(*(*info).overlayparams).maskcolor
               ; Overplot 2nd spectral indicator in case of Doppler image display
           		IF (*(*info).dispswitch).drawdop THEN $
                 PLOTS, [1,1] * (*(*info).dataparams).lps[$
                   (*(*info).dataparams).lp_dop],[ls_low_y,ls_upp_y], $
-                  COLOR=(*(*info).plotparams).plotcol
+                  COLOR=(*(*info).overlayparams).maskcolor
             ENDIF
             ; Overplot reference spectral indicator if same number of spectral 
             ; positions
@@ -7218,11 +7220,13 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
                ((*(*info).ctrlsswitch).lp_ref_lock EQ 0) AND $
                ((*(*info).dataswitch).refspfile EQ 0) AND $
                ((*(*info).dataparams).refnlp GT 1)) THEN BEGIN
+	            LOADCT, (*(*info).overlayparams).maskct, /SILENT
         			PLOTS, [1,1] * (*(*info).dataparams).reflps[$
                 (*(*info).dataparams).lp_ref],[ls_low_y,ls_upp_y], $
-                COLOR=(*(*info).plotparams).plotcol
+                COLOR=(*(*info).overlayparams).maskcolor
         		ENDIF
           ENDIF 
+          TVLCT, r_cur, g_cur, b_cur
         ENDIF
       ENDFOR
       IF (*(*info).dispswitch).xy_out_of_range THEN $
@@ -7264,13 +7268,16 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
       ENDFOR
     ENDIF
     IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN BEGIN
+      TVLCT, r_cur, g_cur, b_cur, /GET
+      LOADCT, (*(*info).overlayparams).maskct, /SILENT
       ; Overplot time indicator
       PLOTS, [(*(*info).plotpos).spx0,(*(*info).plotpos).spx1], $
               [1,1]*( ((*(*(*info).dispparams).tarr_main)[$
               (*(*info).dispparams).t]-(*(*info).dispparams).t_low_main) / $
               FLOAT((*(*info).dispparams).t_upp_main-$
               (*(*info).dispparams).t_low_main) * (*(*info).plotpos).yplspw + $
-              (*(*info).plotpos).spy0), /NORMAL, COLOR = 100
+              (*(*info).plotpos).spy0), /NORMAL, $  
+              COLOR=(*(*info).overlayparams).maskcolor
       ; Overplot lp indicator
       IF (lp_diag EQ 0) THEN $
         offset = 0 $
@@ -7291,13 +7298,15 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
         (*(*info).dispparams).lp_low_bounds[(*(*info).intparams).lp_diag_all]]
       PLOTS, [1,1] * ( ((*(*info).dataparams).lps[(*(*info).dataparams).lp] - $
                         lp_lower) / lp_disprange * xplspw + spx0 ), $
-      	[(*(*info).plotpos).spy0, (*(*info).plotpos).spy1], /NORMAL, COLOR=100
+      	[(*(*info).plotpos).spy0, (*(*info).plotpos).spy1], /NORMAL, $ 
+        COLOR=(*(*info).overlayparams).maskcolor
       ; If drawing Doppler, overplot lp_dop indicator
       IF (*(*info).dispswitch).drawdop THEN $         
         PLOTS, [1,1] * (((*(*info).dataparams).lps[$
                           (*(*info).dataparams).lp_dop]-lp_lower) / $
                         lp_disprange * xplspw + spx0 ), $
-      	  [(*(*info).plotpos).spy0, (*(*info).plotpos).spy1], /NORMAL, COLOR=100
+      	  [(*(*info).plotpos).spy0, (*(*info).plotpos).spy1], /NORMAL, $ 
+          COLOR=(*(*info).overlayparams).maskcolor
       ; If drawing reference, and refnlp=nlp but lp_ref != lp, then overplot 
       ; lp_ref indicator
       IF ((*(*info).winswitch).showref AND $
@@ -7319,8 +7328,10 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
             (*(*info).intparams).lp_ref_diag_all]+$
             (*(*(*info).intparams).refdiag_starts)[lp_ref_diag]]) * $
           (*(*info).plotpos).xplspw + (*(*info).plotpos).spx0 ), $
-      		[(*(*info).plotpos).spy0, (*(*info).plotpos).spy1], /NORMAL, COLOR=100
+      		[(*(*info).plotpos).spy0, (*(*info).plotpos).spy1], /NORMAL, $ 
+          COLOR=(*(*info).overlayparams).maskcolor
       ENDIF
+      TVLCT, r_cur, g_cur, b_cur
     ENDIF ELSE $
   		XYOUTS, (*(*info).plotpos).xplspw/2.+(*(*info).plotpos).spx0,$
               (*(*info).plotpos).yplspw/2.+(*(*info).plotpos).spy0,$
@@ -7546,11 +7557,15 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
             (refspec[lp_ref_lower:lp_ref_upper]-refssp[$
             lp_ref_lower:lp_ref_upper])*(*(*info).scaling).mult_val[mult_idx], $
             COLOR=(*(*info).plotparams).plotcol, LINE=2
-        IF (d EQ lp_ref_diag) THEN $
+        IF (d EQ lp_ref_diag) THEN BEGIN
+          TVLCT, r_cur, g_cur, b_cur, /GET
+	        LOADCT, (*(*info).overlayparams).maskct, /SILENT
           ; Overplot spectral indicator
         	PLOTS, [1,1] * (*(*info).dataparams).reflps[$
             (*(*info).dataparams).lp_ref],[ls_low_y,ls_upp_y],$
-            COLOR = (*(*info).plotparams).plotcol
+            COLOR=(*(*info).overlayparams).maskcolor
+          TVLCT, r_cur, g_cur, b_cur
+        ENDIF
       ENDIF 
     ENDFOR
     IF (*(*info).dispswitch).xyref_out_of_range THEN $
@@ -7593,13 +7608,16 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
       ENDFOR
     ENDIF
     IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
+      TVLCT, r_cur, g_cur, b_cur, /GET
+      LOADCT, (*(*info).overlayparams).maskct, /SILENT
       ; Overplot time indicator
     	PLOTS, [(*(*info).plotpos).refspx0,(*(*info).plotpos).refspx1], $
               [1,1]*( ((*(*(*info).dispparams).tarr_ref)[$
               (*(*info).dispparams).t]-(*(*info).dispparams).t_low_ref) / $
               FLOAT((*(*info).dispparams).t_upp_ref-$
               (*(*info).dispparams).t_low_ref) * (*(*info).plotpos).refyplspw +$
-              (*(*info).plotpos).refspy0), /NORMAL, COLOR = 100
+              (*(*info).plotpos).refspy0), /NORMAL, $ 
+              COLOR=(*(*info).overlayparams).maskcolor
       ; Overplot lp indicator
       ; Determine in which diagnostic the current LP lies
       IF (lp_ref_diag EQ 0) THEN $
@@ -7624,7 +7642,8 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
       PLOTS, [1,1] * (((*(*info).dataparams).reflps[(*(*info).dataparams).lp_ref]-$
                         lp_ref_lower) / lp_ref_disprange * refxplspw + refspx0 ), $
     		[(*(*info).plotpos).refspy0, (*(*info).plotpos).refspy1], /NORMAL, $
-        COLOR = 100
+        COLOR=(*(*info).overlayparams).maskcolor
+        TVLCT, r_cur, g_cur, b_cur
     ENDIF ELSE $
   		XYOUTS, (*(*info).plotpos).refxplspw/2.+(*(*info).plotpos).refspx0,$
               (*(*info).plotpos).refyplspw/2.+(*(*info).plotpos).refspy0,$
@@ -7664,11 +7683,14 @@ PRO CRISPEX_DRAW_PHIS, event
           YRANGE=(*(*info).plotaxes).phis_yrange, /YSTYLE, /NOERASE
       ENDFOR
     ENDIF
+    TVLCT, r_cur, g_cur, b_cur, /GET
+    LOADCT, (*(*info).overlayparams).maskct, /SILENT
     ; Overplot slit center indicator
   	PLOTS, [(*(*info).plotpos).phisx0, (*(*info).plotpos).phisx1], $
       [1,1] * ( (((*(*info).phiparams).nw_cur - (*(*info).phiparams).nphi)/2. + $
                   (*(*info).phiparams).sphi+0.5)/FLOAT((*(*info).phiparams).nw_cur)*$
-                  (*(*info).plotpos).phisyplspw + (*(*info).plotpos).phisy0), /NORMAL, COLOR = 100
+                  (*(*info).plotpos).phisyplspw + (*(*info).plotpos).phisy0), $
+                  /NORMAL, COLOR=(*(*info).overlayparams).maskcolor
     ; Overplot lp indicator
     lp_diag = TOTAL((*(*info).dataparams).lp GE *(*(*info).intparams).diag_starts)-1
     ; Determine in which diagnostic the current LP lies
@@ -7691,7 +7713,9 @@ PRO CRISPEX_DRAW_PHIS, event
       (*(*info).dispparams).lp_low_bounds[(*(*info).intparams).lp_diag_all]]
   	PLOTS, [1,1] * ( ((*(*info).dataparams).lps[(*(*info).dataparams).lp] - $
                       lp_lower) / lp_disprange * phisxplspw + phisx0 ), $
-  		[(*(*info).plotpos).phisy0, (*(*info).plotpos).phisy1], /NORMAL, COLOR = 100
+  		[(*(*info).plotpos).phisy0, (*(*info).plotpos).phisy1], /NORMAL, $
+      COLOR=(*(*info).overlayparams).maskcolor
+      TVLCT, r_cur, g_cur, b_cur
   ; If not 2D, then show black screen and "error" message
   ENDIF ELSE BEGIN
     TV, CONGRID(*(*(*info).data).emptydopslice,(*(*info).dispparams).phisnlpreb, $
@@ -18471,9 +18495,12 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	feedback_text = [feedback_text,'> Window sizes... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	
-	xdelta		= 20					; Extra xoffset for positioning of windows
-	ydelta		= 40					; Extra yoffset for positioning of windows
-  minsize   = 200.
+	xdelta		    = 20					; Extra xoffset for positioning of windows
+	ydelta		    = 40					; Extra yoffset for positioning of windows
+  minsize       = 200.
+  ; Factors of x/y_scr_size to use for automatic screen sizing
+  xsize_factor  = 0.48
+  ysize_factor  = 0.875
  
   ; Determine image and pixel aspect ratio
   ratio      = FLOAT(ABS(hdr.nx)) / FLOAT(ABS(hdr.ny))                  
@@ -18502,18 +18529,18 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   	IF ((x_scr_size GT (imwinx_default+2*xdelta+0.2*x_scr_size)) AND $
         (y_scr_size GT imwiny_default)) THEN BEGIN		
       ; If xsize is small, then still go to old settings procedures
-  		IF ((imwinx_default LT 0.48 * x_scr_size) AND $
-          (imwiny_default LT (0.48 * x_scr_size / ratio)) AND $
+  		IF ((imwinx_default LT xsize_factor * x_scr_size) AND $
+          (imwiny_default LT (xsize_factor * x_scr_size / ratio)) AND $
           (extreme_aspect OR (window_large EQ 1))) THEN BEGIN				
         ; Set maximum x- and y-extent of image window
         IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
           imwinx = 25*hdr.nx $
         ELSE $
-  			  imwinx 	= 0.48 * x_scr_size											
+  			  imwinx 	= xsize_factor * x_scr_size											
   			imwiny 	= imwinx / ratio
         ; Failsafe to avoid a window larger than the screensize
   		  IF (imwiny GT y_scr_size) THEN BEGIN										
-  			  imwiny = 0.9 * y_scr_size											
+  			  imwiny = ysize_factor * y_scr_size											
           IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
             imwinx = 25*hdr.nx $
           ELSE $
@@ -18534,11 +18561,11 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     ; Else use the old procedures to determine imwinx and imwiny
   	ENDIF ELSE BEGIN													
       ; Set maximum x- and y-extent of image window
-  		imwinx 	= 0.48 * x_scr_size
+  		imwinx 	= xsize_factor * x_scr_size
   		imwiny 	= imwinx / ratio	 
       ; Failsafe to avoid a window larger than the screensize
   		IF (imwiny GT y_scr_size) THEN BEGIN										
-  			imwiny = 0.9 * y_scr_size
+  			imwiny = ysize_factor * y_scr_size
         IF (extreme_aspect AND (hdr.nx EQ 1)) THEN $
           imwinx = 25*hdr.nx $
         ELSE $
@@ -19258,27 +19285,40 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	dispwid			        = WIDGET_BUTTON(developermenu, VALUE='Display window IDs', $
                           EVENT_PRO='CRISPEX_DISPWIDS', ACCELERATOR='Ctrl+I', /CHECKED_MENU)
 
-  tab_width = 384
-  pad = 3
+  tab_width   = 384
+  pad         = 3
+  extra_pad   = 7*pad
 	tab_tlb			= WIDGET_TAB(control_panel, LOCATION=0, MULTILINE=4, XSIZE=tab_width+2*pad)
  
   ; ==================== Define and order tabs ====================
-	playback_tab        = WIDGET_BASE(tab_tlb, TITLE='Temporal', /COLUMN, XSIZE=tab_width)
-	spectral_tab		    = WIDGET_BASE(tab_tlb, TITLE=sp_h[heightset], /COLUMN, XSIZE=tab_width)
-	spatial_tab		      = WIDGET_BASE(tab_tlb, TITLE='Spatial', /COLUMN, XSIZE=tab_width)
-	scaling_tab 		    = WIDGET_BASE(tab_tlb, TITLE='Scaling', /COLUMN, XSIZE=tab_width)
-  diagnostics_tab     = WIDGET_BASE(tab_tlb, TITLE='Diagnostics', /COLUMN, XSIZE=tab_width)
-	analysis_tab		    = WIDGET_BASE(tab_tlb, TITLE='Analysis',/COLUMN, XSIZE=tab_width)
-	overlays_tab        = WIDGET_BASE(tab_tlb, TITLE='Overlays', /COLUMN, XSIZE=tab_width)
-	display_tab		      = WIDGET_BASE(tab_tlb, TITLE='Displays', /COLUMN, XSIZE=tab_width)
+	playback_tab        = WIDGET_BASE(tab_tlb, TITLE='Temporal', /COLUMN, $
+                          XSIZE=tab_width+extra_pad)
+	spectral_tab		    = WIDGET_BASE(tab_tlb, TITLE=sp_h[heightset], /COLUMN, $
+                          XSIZE=tab_width+extra_pad)
+	spatial_tab		      = WIDGET_BASE(tab_tlb, TITLE='Spatial', /COLUMN, $
+                          XSIZE=tab_width+extra_pad)
+	scaling_tab 		    = WIDGET_BASE(tab_tlb, TITLE='Scaling', /COLUMN, $
+                          XSIZE=tab_width+extra_pad)
+  diagnostics_tab     = WIDGET_BASE(tab_tlb, TITLE='Diagnostics', /COLUMN, $
+                          XSIZE=tab_width+extra_pad)
+	analysis_tab		    = WIDGET_BASE(tab_tlb, TITLE='Analysis',/COLUMN, $
+                          XSIZE=tab_width+extra_pad)
+	overlays_tab        = WIDGET_BASE(tab_tlb, TITLE='Overlays', /COLUMN, $
+                          XSIZE=tab_width+extra_pad)
+	display_tab		      = WIDGET_BASE(tab_tlb, TITLE='Displays', /COLUMN, $
+                          XSIZE=tab_width+extra_pad)
   
   ; ==================== Always visible controls ====================
   ; Playback controls
+  extra_xpad          = 10
 	playback_contr		  = WIDGET_BASE(control_panel, /ROW)
-	playback_field_basic= WIDGET_BASE(playback_contr, /FRAME, /GRID_LAYOUT, COLUMN=5)
+	playback_field_basic= WIDGET_BASE(playback_contr, /FRAME, /GRID_LAYOUT, $
+                          COLUMN=5, XPAD=extra_xpad)
 	playback_field_add	= WIDGET_BASE(playback_contr, /FRAME, $
-                          GRID_LAYOUT=(bmpbut_count EQ 18), COLUMN=3, EXCLUSIVE=(bmpbut_count NE 18))
-	playback_field_curs = WIDGET_BASE(playback_contr, /FRAME, /GRID_LAYOUT, COLUMN=1)
+                          GRID_LAYOUT=(bmpbut_count EQ 18), COLUMN=3,  $
+                          EXCLUSIVE=(bmpbut_count NE 18), XPAD=extra_xpad)
+	playback_field_curs = WIDGET_BASE(playback_contr, /FRAME, /GRID_LAYOUT, $
+                          COLUMN=1, XPAD=extra_xpad)
 	fbwd_button		      = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fbwd_idle, $
                           EVENT_PRO='CRISPEX_PB_FASTBACKWARD', TOOLTIP = 'Move one frame backward')
 	backward_button		  = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_bwd_idle, $
@@ -19302,7 +19342,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   tlp_slider_base     = WIDGET_BASE(control_panel, /GRID_LAYOUT, COLUMN=2)
 	t_slid			        = WIDGET_SLIDER(tlp_slider_base, TITLE = 'Frame number', MIN=t_first, $
                           MAX=(t_last>(t_first+1)), VALUE=t_start, EVENT_PRO='CRISPEX_SLIDER_T', /DRAG, $
-                          SENSITIVE=t_slid_sens, XSIZE=FLOOR((tab_width+2*pad)/2.))
+                          SENSITIVE=t_slid_sens, $
+                          XSIZE=FLOOR((tab_width+extra_pad+pad)/2.))
   ; Spectral control
 	lp_slid			        = WIDGET_SLIDER(tlp_slider_base, $
                           TITLE = 'Main '+STRLOWCASE(sp_h[heightset])+' position', MIN = lp_first, $
@@ -19389,13 +19430,13 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
                           TITLE=lp_min_lab[heightset], VALUE=v_dop_low_min, $
                           MIN=v_dop_low_min, MAX=v_dop_low_max, $
                           EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_LOW', /DRAG,$
-                          XSIZE=FLOOR((tab_width-2*pad)/2.), $
+                          XSIZE=FLOOR((tab_width+extra_pad-2*pad)/2.), $
                           SENSITIVE=lp_restr_slid_low_sens)
   lp_restr_slid_upp   = WIDGET_SLIDER(restrict_sliders, $
                           TITLE=lp_max_lab[heightset], VALUE=v_dop_upp_max, $
                           MIN=v_dop_upp_min, MAX=v_dop_upp_max, $
                           EVENT_PRO='CRISPEX_SLIDER_LP_RESTRICT_UPP', /DRAG,$
-                          XSIZE=FLOOR((tab_width-2*pad)/2.), $
+                          XSIZE=FLOOR((tab_width+extra_pad-2*pad)/2.), $
                           SENSITIVE=lp_restr_slid_upp_sens)
   spectral_divider1   = CRISPEX_WIDGET_DIVIDER(spectral_tab)
   ; Spectral blink base
@@ -19429,7 +19470,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	phi_slid		        = WIDGET_SLIDER(phi_slid_base, $
                           TITLE='Slit angle [degrees]', MIN = 0, MAX = 179, $
                           VALUE=angle, EVENT_PRO='CRISPEX_SLIDER_PHI_ANGLE', $
-                          SENSITIVE=0, /DRAG, XSIZE=FLOOR((tab_width-2*pad)/2.))
+                          SENSITIVE=0, /DRAG, XSIZE=FLOOR((tab_width+extra_pad-2*pad)/2.))
 	nphi_slid		        = WIDGET_SLIDER(phi_slid_base, TITLE = 'Slit length [pixel]', MIN = 2, MAX = nphi, $
                           VALUE=LONG(hdr.ny/3.), EVENT_PRO = 'CRISPEX_SLIDER_NPHI', SENSITIVE = 0, /DRAG)
 	slit_move_field		  = WIDGET_BASE(spectral_tab,/GRID_LAYOUT, COLUMN=2,/ALIGN_CENTER)
@@ -19448,13 +19489,13 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
                           MAX=(x_last > 1), VALUE=x_start, $
                           EVENT_PRO='CRISPEX_SLIDER_X', /DRAG, $
                           SENSITIVE=(x_last GT x_first),$
-                          XSIZE=FLOOR((tab_width-2*pad)/2.))
+                          XSIZE=FLOOR((tab_width+extra_pad-2*pad)/2.))
 	y_slid			        = WIDGET_SLIDER(main_slid_base, $
                           TITLE='Main Y-position [pixel]', MIN=y_first, $
                           MAX=(y_last > 1), VALUE=y_start, $
                           EVENT_PRO='CRISPEX_SLIDER_Y', /DRAG, $
                           SENSITIVE=(y_last GT y_first),$
-                          XSIZE=FLOOR((tab_width-2*pad)/2.))
+                          XSIZE=FLOOR((tab_width+extra_pad-2*pad)/2.))
   ref_slid_base       = WIDGET_BASE(spatial_tab, /GRID_LAYOUT, COLUMN=2)
 	xref_slid			      = WIDGET_SLIDER(ref_slid_base, $
                           TITLE='Reference X-position [pixel]', MIN=xref_first, $
@@ -19462,14 +19503,14 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
                           EVENT_PRO='CRISPEX_SLIDER_XREF', /DRAG, $
                           SENSITIVE=((xref_last GT xref_first) AND $
                           (hdr.main2ref_no_map EQ 0)),$
-                          XSIZE=FLOOR((tab_width-2*pad)/2.))
+                          XSIZE=FLOOR((tab_width+extra_pad-2*pad)/2.))
 	yref_slid			      = WIDGET_SLIDER(ref_slid_base, $
                           TITLE='Reference Y-position [pixel]', MIN=yref_first, $
                           MAX=(yref_last > 1), VALUE=yref_start, $
                           EVENT_PRO='CRISPEX_SLIDER_YREF', /DRAG, $
                           SENSITIVE=((yref_last GT yref_first) AND $
                           (hdr.main2ref_no_map EQ 0)),$
-                          XSIZE=FLOOR((tab_width-2*pad)/2.))
+                          XSIZE=FLOOR((tab_width+extra_pad-2*pad)/2.))
   spatial_divider1    = CRISPEX_WIDGET_DIVIDER(spatial_tab)
   ; Zoom base
 	zoom_frame		      = WIDGET_BASE(spatial_tab, /ROW)
@@ -19514,7 +19555,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   specwin_sub_frame   = WIDGET_BASE(diagnostics_tab, /GRID_LAYOUT, COLUMN=2)
   main_select_base    = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME, $
                           Y_SCROLL_SIZE=(hdr.ndiagnostics GT 1)*200, $
-                          X_SCROLL_SIZE=FLOOR(tab_width/2.5))
+                          X_SCROLL_SIZE=FLOOR((tab_width+extra_pad+3*pad)/2.5))
 	main_specwin_label  = WIDGET_LABEL(main_select_base, VALUE = 'Main:', /ALIGN_LEFT)
   IF (hdr.ndiagnostics GT 1) THEN $
     vals = ['Display all',hdr.diagnostics] $
@@ -19581,7 +19622,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   displays_divider1   = CRISPEX_WIDGET_DIVIDER(display_tab)
   ; Other displays base
 	other_label		      = WIDGET_LABEL(display_tab, $
-                          VALUE='Toggle on/off displays:', /ALIGN_LEFT)
+                          VALUE='Toggle displays:', /ALIGN_LEFT)
   displays_sub_frame  = WIDGET_BASE(display_tab, /ROW);/GRID_LAYOUT, COLUMN=3)
   ; Main displays
   main_select_base    = WIDGET_BASE(displays_sub_frame,/COLUMN)
@@ -19645,7 +19686,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   minmax_sliders      = WIDGET_BASE(scaling_tab, /GRID_LAYOUT, COLUMN=2)
   scalemin_slider     = WIDGET_SLIDER(minmax_sliders, TITLE='Image minimum [%]', MIN=0, MAX=99, $
                           VALUE=0, EVENT_PRO='CRISPEX_SCALING_SLIDER_MIN', /DRAG, $
-                          XSIZE=FLOOR((tab_width-2*pad)/2.))
+                          XSIZE=FLOOR((tab_width+extra_pad-2*pad)/2.))
   scalemax_slider     = WIDGET_SLIDER(minmax_sliders, TITLE='Image maximum [%]', MIN=1, MAX=100, $
                           VALUE=100, EVENT_PRO='CRISPEX_SCALING_SLIDER_MAX', /DRAG)
   gamma_label         = WIDGET_LABEL(scaling_tab, VALUE=STRING(gamma_val, FORMAT='(F6.3)'), $
