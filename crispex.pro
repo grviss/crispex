@@ -3500,7 +3500,7 @@ PRO CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event, NO_AXES=no_axes
     ; Plot xtitle(s)
     IF ((*(*info).intparams).ndiagnostics GT 1) THEN $
         XYOUTS,(*(*info).plotpos).phisxplspw/2.+(*(*info).plotpos).phisx0,$
-          (*(*info).plotpos).phisy0/3.,(*(*info).plottitles).spxtitle,ALIGNMENT=0.5, $
+          (*(*info).plotpos).phisy0/5.,(*(*info).plottitles).spxtitle,ALIGNMENT=0.5, $
           COLOR = (*(*info).plotparams).plotcol,/NORMAL
     diag_range = *(*(*info).plotaxes).diag_ratio * (*(*info).plotpos).phisxplspw 
     ; Loop over all diagnostics for plotting of detailed spectrum
@@ -4374,7 +4374,7 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
     ; Plot xtitle(s)
     IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN $
       XYOUTS,(*(*info).plotpos).refxplspw/2.+(*(*info).plotpos).refspx0,$
-        (*(*info).plotpos).refspy0/3.,(*(*info).plottitles).refspxtitle,ALIGNMENT=0.5,$
+        (*(*info).plotpos).refspy0/5.,(*(*info).plottitles).refspxtitle,ALIGNMENT=0.5,$
         COLOR = (*(*info).plotparams).plotcol,/NORMAL
     ; Loop over all diagnostics for plotting of axes boxes
     FOR d=0,(*(*info).intparams).ndisp_refdiagnostics-1 DO BEGIN
@@ -4667,7 +4667,7 @@ PRO CRISPEX_DISPLAYS_SP_REPLOT_AXES, event, NO_AXES=no_axes
     ; Plot xtitle(s)
     IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN $
       XYOUTS,(*(*info).plotpos).xplspw/2.+(*(*info).plotpos).spx0,$
-        (*(*info).plotpos).spy0/3.,(*(*info).plottitles).spxtitle,ALIGNMENT=0.5, $
+        (*(*info).plotpos).spy0/5.,(*(*info).plottitles).spxtitle,ALIGNMENT=0.5, $
         COLOR = (*(*info).plotparams).plotcol,/NORMAL
     ; Loop over all diagnostics for plotting of axes boxes
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
@@ -6193,10 +6193,20 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
     ((*(*info).dataparams).lp_ref NE (*(*info).dispparams).lp_ref_old) AND $
     showref_any
   update_tcoords_main = $
-    ((*(*info).dispparams).t_main NE (*(*info).dispparams).t_main_old)
+    ((*(*info).dispparams).t_main NE (*(*info).dispparams).t_main_old) 
+  update_traster_main = (*(*info).paramswitch).t_raster AND $
+    (((*(*info).dataparams).x NE (*(*info).dispparams).x_old) OR $
+     ((*(*info).dispparams).t_main NE (*(*info).dispparams).t_main_old) OR $
+      ((*(*info).dispswitch).xy_out_of_range NE $
+       (*(*info).dispparams).xy_out_of_range_old))
   update_tcoords_ref = $
-    ((*(*info).dispparams).t_ref NE (*(*info).dispparams).t_ref_old) AND $
-    showref_any
+    showref_any AND $
+    ((*(*info).dispparams).t_ref NE (*(*info).dispparams).t_ref_old) 
+  update_traster_ref = (showref_any AND (*(*info).paramswitch).t_raster_ref) AND $
+    (((*(*info).dataparams).xref NE (*(*info).dispparams).xref_old) OR $
+     ((*(*info).dispparams).t_ref NE (*(*info).dispparams).t_ref_old) OR $
+      ((*(*info).dispswitch).xyref_out_of_range NE $
+       (*(*info).dispparams).xyref_out_of_range_old))
   update_tcoords_sji = $
     ((*(*info).dispparams).t_sji NE (*(*info).dispparams).t_sji_old) AND $
     (*(*info).winswitch).showsji
@@ -6368,33 +6378,40 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
           (*(*info).dispparams).t],FORMAT=(*(*info).paramparams).t_real_format)
         WIDGET_CONTROL, (*(*info).ctrlsparam).t_real_val, SET_VALUE=t_real_txt
       ENDIF
-      IF (*(*info).paramswitch).t_raster THEN BEGIN
-        IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN $
-          t_raster_real_txt = STRING((*(*info).dataparams).utc_raster_main[$
-            (*(*info).dataparams).x, (*(*info).dispparams).t_main], $
-            FORMAT=(*(*info).paramparams).t_raster_real_format) $
-        ELSE $
-          t_raster_real_txt = 'N/A'
-        WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_real_val, $
-          SET_VALUE=t_raster_real_txt
-      ENDIF
+    ENDIF
+    IF update_traster_main THEN BEGIN
+      ; Raster time
+      IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN $
+        t_raster_real_txt = STRING((*(*info).dataparams).utc_raster_main[$
+          (*(*info).dataparams).x, (*(*info).dispparams).t_main], $
+          FORMAT=(*(*info).paramparams).t_raster_real_format) $
+      ELSE $
+        t_raster_real_txt = 'N/A'
+      WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_real_val, $
+        SET_VALUE=t_raster_real_txt
     ENDIF
     ; Reference
-    IF (update_tcoords_ref OR KEYWORD_SET(UPDATE_REF)) THEN BEGIN
+    IF showref_any THEN BEGIN
       t_ref_idx_txt = 'N/A'
       t_ref_real_txt = t_ref_idx_txt
       t_raster_ref_real_txt = t_ref_idx_txt
-      IF showref_any THEN BEGIN
+      IF (update_tcoords_ref OR KEYWORD_SET(UPDATE_REF)) THEN BEGIN
         ; Closest to master time
         t_ref_idx_txt = STRING(LONG((*(*info).dispparams).t_ref),$
           FORMAT=(*(*info).paramparams).t_ref_idx_format)
-        IF (*(*info).paramswitch).dt_set THEN $
+        IF (*(*info).paramswitch).dt_set THEN BEGIN
           t_ref_real_txt = $
             STRING((*(*(*info).dispparams).utc_ref)[(*(*info).dispparams).t],$
             FORMAT=(*(*info).paramparams).t_ref_real_format)
+          WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_real_val, $
+            SET_VALUE=t_ref_real_txt
+        ENDIF
+        WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_idx_val, $
+          SET_VALUE=t_ref_idx_txt
+      ENDIF
+      IF (update_traster_ref OR KEYWORD_SET(UPDATE_REF)) THEN BEGIN
         ; Raster time
-        IF ((*(*info).paramswitch).t_raster_ref AND $
-            ((*(*info).dispswitch).xyref_out_of_range EQ 0)) THEN BEGIN
+        IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
           IF ((*(*info).dataparams).refnt GT 1) THEN $
             t_raster_ref_real_txt = STRING((*(*info).dataparams).utc_raster_ref[$
               (*(*info).dataparams).xref,(*(*info).dispparams).t_ref], $
@@ -6404,13 +6421,9 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
               (*(*info).dataparams).xref], $
               FORMAT=(*(*info).paramparams).t_raster_ref_real_format)
         ENDIF
+        WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_ref_real_val, $
+          SET_VALUE=t_raster_ref_real_txt
       ENDIF
-      WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_idx_val, $
-        SET_VALUE=t_ref_idx_txt
-      WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_real_val, $
-        SET_VALUE=t_ref_real_txt
-      WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_ref_real_val, $
-        SET_VALUE=t_raster_ref_real_txt
     ENDIF
     ; SJI
     IF (update_tcoords_sji OR KEYWORD_SET(UPDATE_SJI)) THEN BEGIN
@@ -6527,6 +6540,10 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
   (*(*info).dispparams).t_sji_old = (*(*info).dispparams).t_sji
   (*(*info).dispparams).date_old = $
     (*(*(*info).dispparams).date_arr)[(*(*info).dispparams).t]
+  (*(*info).dispparams).xy_out_of_range_old = $
+    (*(*info).dispswitch).xy_out_of_range
+  (*(*info).dispparams).xyref_out_of_range_old = $
+    (*(*info).dispswitch).xyref_out_of_range
 END
 
 PRO CRISPEX_DRAW_IMREF, event, NO_MAIN=no_main, NO_REF=no_ref, NO_SJI=no_sji
@@ -7091,7 +7108,7 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
             ; Draw x-title centered on plot box on first pass
             IF (d EQ 0) THEN $
               XYOUTS,((*(*info).plotpos).lsx1-(*(*info).plotpos).lsx0)/2.+$
-                (*(*info).plotpos).lsx0, (*(*info).plotpos).lsy0/3., $
+                (*(*info).plotpos).lsx0, (*(*info).plotpos).lsy0/5., $
                 (*(*info).plottitles).spxtitle,ALIGNMENT=0.5, $
                 COLOR = (*(*info).plotparams).plotcol,/NORMAL
             ; Set range for Doppler axis
@@ -7454,7 +7471,7 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
         ; Draw x-title centered on plot box on first pass
         IF (d EQ 0) THEN $
           XYOUTS,((*(*info).plotpos).reflsx1-(*(*info).plotpos).reflsx0)/2.+$
-            (*(*info).plotpos).reflsx0, (*(*info).plotpos).reflsy0/3.,$
+            (*(*info).plotpos).reflsx0, (*(*info).plotpos).reflsy0/5.,$
             (*(*info).plottitles).refspxtitle,ALIGNMENT=0.5, $
             COLOR=(*(*info).plotparams).plotcol, /NORMAL
         ; Set range for Doppler axis
@@ -18499,8 +18516,9 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	ydelta		    = 40					; Extra yoffset for positioning of windows
   minsize       = 200.
   ; Factors of x/y_scr_size to use for automatic screen sizing
-  xsize_factor  = 0.48
+  xsize_factor  = 0.7         ; Of remainder of window area, not of total
   ysize_factor  = 0.875
+  lspx_factor   = 0.2         ; For lswin, spwin, phiswin, etc.
  
   ; Determine image and pixel aspect ratio
   ratio      = FLOAT(ABS(hdr.nx)) / FLOAT(ABS(hdr.ny))                  
@@ -18520,13 +18538,14 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 
   ; Get main screen sizes
   x_scr_size = screensizes[2,monitor_order[0]]
+  x_scr_size -= 400     ; Subtract the part taken up by the GUI controls
 	y_scr_size = screensizes[3,monitor_order[0]]
 
   IF (N_ELEMENTS(WINDOW_LARGE) NE 1) THEN window_large = 0
   IF (window_large LE 1) THEN BEGIN
     ; Check whether window would in principle fit (only if xsize > nx+space for
     ; spectral windows AND ysize > ny), but override by WINDOW_LARGE if set:
-  	IF ((x_scr_size GT (imwinx_default+2*xdelta+0.2*x_scr_size)) AND $
+  	IF ((x_scr_size GT (imwinx_default+2*xdelta+lspx_factor*x_scr_size)) AND $
         (y_scr_size GT imwiny_default)) THEN BEGIN		
       ; If xsize is small, then still go to old settings procedures
   		IF ((imwinx_default LT xsize_factor * x_scr_size) AND $
@@ -18674,8 +18693,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 
   ; ==================== Main detailed spectrum window ====================
   ; Set detailed spectrum window parameters
-	lswinx 		= 0.2 * x_scr_size											; Set maximum x-extent of loc spec win
-	lsmargin 	= 0.1
+	lswinx 		= lspx_factor * x_scr_size											; Set maximum x-extent of loc spec win
+	lsmargin 	= 0.12
 	lswall 		= 0.03
 	lswintitle	= ['Detailed spectrum','Height distribution']
 	xsize 		= 1.*lswinx
@@ -18747,7 +18766,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	spwintitle	= ['Spectral T-slice','Height T-slice']
   phiswintitle	= ['Spectral Phi-slice','Height Phi-slice']
   ; Window sizes	
-  spwinx		= 0.2 * x_scr_size											; Set maximum x-extent of spectral win
+  spwinx		= lspx_factor * x_scr_size											; Set maximum x-extent of spectral win
   spwiny    = (imwiny - lswiny) > (y_scr_size/2.)
 	phiswinx	= spwinx
   phiswiny  = spwiny
@@ -20712,6 +20731,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     lp_old:lp_start, lp_ref_old:lp_ref_start, $
     t_main_old:hdr.tsel_main[0], t_ref_old:hdr.tsel_ref[0], $
     t_sji_old:hdr.tsel_sji[0], date_old:hdr.date_main[hdr.tsel_main[0]], $
+    xy_out_of_range_old:0, xyref_out_of_range_old:xyref_out_of_range, $
   zoomfactor_old:zoomfactors[0] $
 	}
 ;-------------------- DATA DISPLAY SWITCHES
