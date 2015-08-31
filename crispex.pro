@@ -6572,8 +6572,10 @@ PRO CRISPEX_DRAW_SPECTRAL, event, NO_MAIN=no_main, NO_REF=no_ref, NO_PHIS=no_phi
     ((*(*info).winswitch).showrefls OR (*(*info).winswitch).showrefsp)) THEN $
       CRISPEX_DRAW_SPECTRAL_REF, event
 	IF (~KEYWORD_SET(NO_PHIS) AND $
+      (((*(*info).dispswitch).xy_out_of_range NE $
+        (*(*info).dispparams).xy_out_of_range_old) AND $
       ((*(*info).winswitch).showphis AND (((*(*info).pbparams).mode EQ 'PAUSE') OR $
-      (*(*info).dispparams).phislice_update))) THEN CRISPEX_DRAW_PHIS, event		
+      (*(*info).dispparams).phislice_update))) ) THEN CRISPEX_DRAW_PHIS, event		
 END
 
 PRO CRISPEX_DRAW_TIMESLICES, event
@@ -8294,14 +8296,14 @@ PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir, $
     cfilecount_tmp += cfilecount
   ENDIF
 	IF ((*(*info).dataswitch).reffile AND (refcfilecount NE 0)) THEN BEGIN
-    IF (N_ELEMENTS(cfiles_tmp) EQ 0) THEN $
+    IF (cfilecount_tmp EQ 0) THEN $
       cfiles_tmp = refcfiles $
     ELSE $
       cfiles_tmp = [cfiles_tmp,refcfiles]
     cfilecount_tmp += refcfilecount
 	ENDIF 
 	IF ((*(*info).dataswitch).sjifile AND (sjicfilecount NE 0)) THEN BEGIN
-    IF (N_ELEMENTS(cfiles_tmp) EQ 0) THEN $
+    IF (cfilecount_tmp EQ 0) THEN $
       cfiles_tmp = sjicfiles $
     ELSE $
       cfiles_tmp = [cfiles_tmp,sjicfiles]
