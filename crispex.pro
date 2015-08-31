@@ -6340,13 +6340,15 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
       ENDIF
     ENDIF
     ; Reference
-    IF (update_lpcoords_ref OR KEYWORD_SET(UPDATE_REF)) THEN BEGIN
+    IF showref_any THEN BEGIN
       lp_ref_idx_txt = 'N/A'
       lp_ref_real_txt = lp_ref_idx_txt
       lp_ref_vdop_txt = lp_ref_idx_txt
-      IF (showref_any AND ((*(*info).dataparams).refnlp GT 1)) THEN BEGIN
+      IF (update_lpcoords_ref OR KEYWORD_SET(UPDATE_REF)) THEN BEGIN
         lp_ref_idx_txt = STRING((*(*info).dataparams).lp_ref, $
           FORMAT=(*(*info).paramparams).lp_ref_idx_format)
+        WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_idx_val, $
+          SET_VALUE=lp_ref_idx_txt
         IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
           lp_ref_real_txt = STRING((*(*info).dataparams).reflps[$
             (*(*info).dataparams).lp_ref], $
@@ -6356,14 +6358,12 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
             (*(*info).intparams).refdiag_start[$
             (*(*info).intparams).lp_ref_diag_all]], $
             FORMAT=(*(*info).paramparams).lp_ref_vdop_format)
+          WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_real_val, $
+            SET_VALUE=lp_ref_real_txt
+          WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_vdop_val, $
+            SET_VALUE=lp_ref_vdop_txt
         ENDIF
       ENDIF
-      WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_idx_val, $
-        SET_VALUE=lp_ref_idx_txt
-      WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_real_val, $
-        SET_VALUE=lp_ref_real_txt
-      WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_vdop_val, $
-        SET_VALUE=lp_ref_vdop_txt
     ENDIF
   
     ; Time parameters
@@ -6421,8 +6421,10 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
               (*(*info).dataparams).xref], $
               FORMAT=(*(*info).paramparams).t_raster_ref_real_format)
         ENDIF
-        WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_ref_real_val, $
-          SET_VALUE=t_raster_ref_real_txt
+        IF ((*(*info).paramswitch).t_raster OR $
+            (*(*info).paramswitch).t_raster_ref) THEN $
+          WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_ref_real_val, $
+            SET_VALUE=t_raster_ref_real_txt
       ENDIF
     ENDIF
     ; SJI
