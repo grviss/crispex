@@ -6574,10 +6574,8 @@ PRO CRISPEX_DRAW_SPECTRAL, event, NO_MAIN=no_main, NO_REF=no_ref, NO_PHIS=no_phi
     ((*(*info).winswitch).showrefls OR (*(*info).winswitch).showrefsp)) THEN $
       CRISPEX_DRAW_SPECTRAL_REF, event
 	IF (~KEYWORD_SET(NO_PHIS) AND $
-      (((*(*info).dispswitch).xy_out_of_range NE $
-        (*(*info).dispparams).xy_out_of_range_old) AND $
       ((*(*info).winswitch).showphis AND (((*(*info).pbparams).mode EQ 'PAUSE') OR $
-      (*(*info).dispparams).phislice_update))) ) THEN CRISPEX_DRAW_PHIS, event		
+      (*(*info).dispparams).phislice_update))) THEN CRISPEX_DRAW_PHIS, event		
 END
 
 PRO CRISPEX_DRAW_TIMESLICES, event
