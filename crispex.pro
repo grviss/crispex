@@ -4112,6 +4112,10 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB, event, NO_DRAW=no_draw, INDEX=index
 			ENDIF
 			CRISPEX_UPDATE_LP, event
 		ENDELSE
+    (*(*info).intparams).lp_diag_all = $
+      TOTAL((*(*info).dataparams).lp GE (*(*info).intparams).diag_start)-1
+    (*(*info).intparams).lp_ref_diag_all = $
+      TOTAL((*(*info).dataparams).lp_ref GE (*(*info).intparams).refdiag_start)-1
 		IF (loop_size GT 0) THEN (*(*(*info).loopsdata).rest_loopsize)[idx] = loop_size ELSE (*(*(*info).loopsdata).rest_loopsize)[idx] = (SIZE(loopslab))[1]
 		wintitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': T-slice along loop '
 		CRISPEX_WINDOW, (*(*info).winsizes).restloopxres, (*(*info).winsizes).restloopyres, (*(*info).winids).root, wintitle+STRTRIM((*(*(*info).restoreparams).disp_loopnr)[idx],2), tlb, wid, $
@@ -5128,7 +5132,8 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
 	ENDELSE
   ; Set real lower/upper time values for main
   IF ((*(*info).dataparams).mainnt GT 1) THEN BEGIN
-    (*(*info).dispparams).t_low_main = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_low]
+    (*(*info).dispparams).t_low_main = $
+      (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t_low]
     tarr_main_sel = (*(*(*info).dispparams).tarr_main)[$
       (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
     wherene0 = WHERE(tarr_main_sel NE 0, count)
@@ -5140,7 +5145,8 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
   ENDIF
   IF ((*(*info).dataparams).refnt GT 1) THEN BEGIN
     ; Set real lower/upper time values for reference
-    (*(*info).dispparams).t_low_ref = (*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t_low]
+    (*(*info).dispparams).t_low_ref = $
+      (*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t_low]
     tarr_ref = (*(*(*info).dispparams).tarr_ref)[$
       (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
     wherene0 = WHERE(tarr_ref NE 0, count)
@@ -5149,6 +5155,19 @@ PRO CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, RESET=reset
     ELSE $
       t_sel = 0
     (*(*info).dispparams).t_upp_ref = tarr_ref[t_sel] ;Fix tarr[-1]=0
+  ENDIF
+  IF ((*(*info).dataparams).sjint GT 1) THEN BEGIN
+    ; Set real lower/upper time values for SJI
+    (*(*info).dispparams).t_low_sji = $
+      (*(*(*info).dispparams).tarr_sji)[(*(*info).dispparams).t_low]
+    tarr_sji = (*(*(*info).dispparams).tarr_sji)[$
+      (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
+    wherene0 = WHERE(tarr_sji NE 0, count)
+    IF (count NE 0) THEN $
+      t_sel = wherene0[count-1] $
+    ELSE $
+      t_sel = 0
+    (*(*info).dispparams).t_upp_sji = tarr_sji[t_sel] ;Fix tarr[-1]=0
   ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).t_low,(*(*info).dispparams).t_upp], $
@@ -6202,11 +6221,11 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
   update_tcoords_ref = $
     showref_any AND $
     ((*(*info).dispparams).t_ref NE (*(*info).dispparams).t_ref_old) 
-  update_traster_ref = (showref_any AND (*(*info).paramswitch).t_raster_ref) AND $
+  update_traster_ref = (showref_any AND $
     (((*(*info).dataparams).xref NE (*(*info).dispparams).xref_old) OR $
      ((*(*info).dispparams).t_ref NE (*(*info).dispparams).t_ref_old) OR $
       ((*(*info).dispswitch).xyref_out_of_range NE $
-       (*(*info).dispparams).xyref_out_of_range_old))
+       (*(*info).dispparams).xyref_out_of_range_old)))
   update_tcoords_sji = $
     ((*(*info).dispparams).t_sji NE (*(*info).dispparams).t_sji_old) AND $
     (*(*info).winswitch).showsji
@@ -6409,7 +6428,8 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
         WIDGET_CONTROL, (*(*info).ctrlsparam).t_ref_idx_val, $
           SET_VALUE=t_ref_idx_txt
       ENDIF
-      IF (update_traster_ref OR KEYWORD_SET(UPDATE_REF)) THEN BEGIN
+      IF ((update_traster_ref OR KEYWORD_SET(UPDATE_REF)) AND $
+          (*(*info).paramswitch).t_raster_ref) THEN BEGIN
         ; Raster time
         IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
           IF ((*(*info).dataparams).refnt GT 1) THEN $
@@ -7797,13 +7817,16 @@ PRO CRISPEX_DRAW_LOOPSLAB, event
     (*(*info).dispparams).loopnlxreb, (*(*info).dispparams).loopntreb, $
     /INTERP), (*(*info).plotpos).loopx0, (*(*info).plotpos).loopy0, /NORM
   IF ((*(*info).loopparams).nw_lpts NE 0) THEN BEGIN
+    TVLCT, r_cur, g_cur, b_cur, /GET
+    LOADCT, (*(*info).overlayparams).maskct, /SILENT
     ; Overplot time indicator
   	PLOTS, [(*(*info).plotpos).loopx0,(*(*info).plotpos).loopx1], $
             [1,1]*( ((*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t]-$
             (*(*info).dispparams).t_low_main) / $
             FLOAT((*(*info).dispparams).t_upp_main-(*(*info).dispparams).t_low_main) * $
   	        (*(*info).plotpos).loopyplspw + (*(*info).plotpos).loopy0), /NORMAL, $
-            COLOR = 100
+            COLOR = (*(*info).overlayparams).maskcolor
+    TVLCT, r_cur, g_cur, b_cur
     ; Overplot crossloc indicators
   	FOR i=0,(*(*info).loopparams).np-1 DO BEGIN
   		PLOTS, [1,1] * ( FLOAT((*(*(*info).loopsdata).crossloc)[i]) / $
@@ -7871,13 +7894,16 @@ PRO CRISPEX_DRAW_REFLOOPSLAB, event
     (*(*info).dispparams).refloopntreb, /INTERP), $
 		(*(*info).plotpos).refloopx0, (*(*info).plotpos).refloopy0,/NORM
   IF ((*(*info).loopparams).nw_lpts_ref NE 0) THEN BEGIN
+    TVLCT, r_cur, g_cur, b_cur, /GET
+    LOADCT, (*(*info).overlayparams).maskct, /SILENT
     ; Overplot time indicator
   	PLOTS, [(*(*info).plotpos).refloopx0,(*(*info).plotpos).refloopx1], $
             [1,1]*( ((*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t]-$
             (*(*info).dispparams).t_low_ref) / $
             FLOAT((*(*info).dispparams).t_upp_ref-(*(*info).dispparams).t_low_ref) * $
   	        (*(*info).plotpos).refloopyplspw + (*(*info).plotpos).refloopy0), $
-            /NORMAL, COLOR = 100
+            /NORMAL, COLOR=(*(*info).overlayparams).maskcolor
+    TVLCT, r_cur, g_cur, b_cur
     ; Overplot crossloc indicators
   	FOR i=0,(*(*info).loopparams).np_ref-1 DO BEGIN
   		PLOTS, [1,1] * ( FLOAT((*(*(*info).loopsdata).refcrossloc)[i]) / $
@@ -7951,13 +7977,16 @@ PRO CRISPEX_DRAW_SJILOOPSLAB, event
     (*(*info).dispparams).sjiloopntreb, /INTERP), $
 		(*(*info).plotpos).sjiloopx0, (*(*info).plotpos).sjiloopy0,/NORM
   IF ((*(*info).loopparams).nw_lpts_sji NE 0) THEN BEGIN
+    TVLCT, r_cur, g_cur, b_cur, /GET
+    LOADCT, (*(*info).overlayparams).maskct, /SILENT
     ; Overplot time indicator
   	PLOTS, [(*(*info).plotpos).sjiloopx0,(*(*info).plotpos).sjiloopx1], $
             [1,1]*( ((*(*(*info).dispparams).tarr_sji)[(*(*info).dispparams).t]-$
             (*(*info).dispparams).t_low_sji) / $
             FLOAT((*(*info).dispparams).t_upp_sji-(*(*info).dispparams).t_low_sji) * $
   	        (*(*info).plotpos).sjiloopyplspw + (*(*info).plotpos).sjiloopy0), $
-            /NORMAL, COLOR = 100
+            /NORMAL, COLOR=(*(*info).overlayparams).maskcolor
+    TVLCT, r_cur, g_cur, b_cur
     ; Overplot crossloc indicators
   	FOR i=0,(*(*info).loopparams).np_sji-1 DO BEGIN
   		PLOTS, [1,1] * ( FLOAT((*(*(*info).loopsdata).sjicrossloc)[i]) / $
@@ -8160,43 +8189,19 @@ PRO CRISPEX_ESTIMATE_TIME_CALCULATION, event
 END
 
 PRO CRISPEX_ESTIMATE_FULL_TIME, time, denom, units
-; Gets the units and denominator for the saving time estimate calculation
-	IF (time LT 60) THEN BEGIN
-		units = ' seconds'
-		denom = 1. 
-	ENDIF ELSE IF (time LT 3600) THEN BEGIN
-		units = ' minutes' 
-		denom = 60. 
-	ENDIF ELSE IF (time LT 86400) THEN BEGIN
-		units = ' hours' 
-		denom = 3600.
-	ENDIF ELSE BEGIN
-		units = ' days'
-		denom = 86400.
-	ENDELSE
+  unitarr = [' seconds.',' minutes.',' hours.',' days.']
+  denomarr = [1.,60.,3600.,86400.]
+  caseid = FIX(TOTAL(time GT denomarr[1:3]))
+  units = unitarr[caseid]
+  denom = denomarr[caseid]
 END
 
-PRO CRISPEX_ESTIMATE_FULL_TIME_RUNNING, pass, totalpasses, t0, t1, denom, units, accumsectime, totalsectime
+PRO CRISPEX_ESTIMATE_FULL_TIME_RUNNING, pass, totalpasses, t0, t1, denom, $
+  units, accumsectime, totalsectime
 ; Gets the units and denominator for the saving time running estimate
 	accumsectime = t1-t0
 	totalsectime = accumsectime/pass*totalpasses
-	IF (totalsectime GT 60) THEN BEGIN
-		IF (totalsectime GT 3600) THEN BEGIN
-			IF (totalsectime GT 86400) THEN BEGIN
-				units = ' days.'
-				denom = 86400.
-			ENDIF ELSE BEGIN
-				units = ' hours.'
-				denom = 3600.
-			ENDELSE
-		ENDIF ELSE BEGIN
-			units = ' minutes.'
-			denom = 60.
-		ENDELSE
-	ENDIF ELSE BEGIN
-		units = ' seconds.'
-		denom = 1.
-	ENDELSE
+  CRISPEX_ESTIMATE_FULL_TIME, totalsectime, denom, units
 END
 
 ;================================================================================= TAB EVENT PROCEDURE
@@ -8208,7 +8213,8 @@ PRO CRISPEX_EVENT, event
 END
 
 ;==================== FIND CRISPEX OUTPUT FILE PROCEDURES
-PRO CRISPEX_FIND_CLSAV, event, FORCE_PATH=force_path
+PRO CRISPEX_FIND_CLSAV, event, FORCE_PATH=force_path, $
+  ALLOW_SELECT_DIR=allow_select_dir, ALL_FILES=all_files
 ; Finds CLSAV output files (i.e. saved loop points files)
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
@@ -8227,8 +8233,70 @@ PRO CRISPEX_FIND_CLSAV, event, FORCE_PATH=force_path
   ELSE $
     filename = fstr[0]
 	clfiles = FILE_SEARCH(path+filename+"*clsav", COUNT=clfilecount)
-	*(*(*info).retrparams).clfiles  = clfiles
-	(*(*info).retrparams).clfilecount = clfilecount
+  refclfilecount = 0
+  sjiclfilecount = 0
+  IF KEYWORD_SET(ALL_FILES) THEN BEGIN
+  	IF (*(*info).dataswitch).reffile THEN BEGIN
+      refimfilename = FILE_BASENAME((*(*info).dataparams).refimfilename)
+  		reffirstsplit = STRMID(refimfilename,0,STRPOS(refimfilename,'.',$
+        /REVERSE_SEARCH))
+  		refclfiles = FILE_SEARCH(path+reffirstsplit+"*clsav", $
+        COUNT = refclfilecount)
+    ENDIF 
+  	IF (*(*info).dataswitch).sjifile THEN BEGIN
+      sjifilename = FILE_BASENAME((*(*info).dataparams).sjifilename)
+  		sjifirstsplit = STRMID(sjifilename,0,STRPOS(sjifilename,'.',$
+        /REVERSE_SEARCH))
+  		sjiclfiles = FILE_SEARCH(path+sjifirstsplit+"*clsav", $
+        COUNT = sjiclfilecount)
+    ENDIF
+  ENDIF
+  ; If no *clsav files found, allow selection of new path and redo the search
+  IF ((clfilecount EQ 0) AND (refclfilecount EQ 0) AND $
+    (sjiclfilecount EQ 0) AND KEYWORD_SET(ALLOW_SELECT_DIR)) THEN BEGIN
+		CRISPEX_WINDOW_OK, event,'ERROR!',$
+      'No saved loop points (*.clsav) files found corresponding '+$
+      'to the current data file. Please select an alternative input path.',$
+			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb, /BLOCK
+		(*(*info).winids).errtlb = tlb
+    newpath = DIALOG_PICKFILE(TITLE='CRISPEX'+(*(*info).sesparams).instance_label+$
+      ': Select input path', /DIRECTORY, $
+      PATH=(*(*info).paths).ipath,/MUST_EXIST)
+    ; Failsafe against searching in workdir when cancelling
+    IF (newpath EQ '') THEN newpath = ' ' 
+    ; Redo the search at the new path
+  	clfiles = FILE_SEARCH(newpath+firstsplit+"*clsav", $
+      COUNT = clfilecount)
+  	IF (*(*info).dataswitch).reffile THEN $
+  		refclfiles = FILE_SEARCH(newpath+reffirstsplit+"*clsav", $
+        COUNT = refclfilecount)
+  	IF (*(*info).dataswitch).sjifile THEN $
+  		sjiclfiles = FILE_SEARCH(newpath+sjifirstsplit+"*clsav", $
+        COUNT = sjiclfilecount)
+  ENDIF
+  ; Save variables
+  clfiles_tmp = ''
+  clfilecount_tmp = 0
+  IF (clfilecount NE 0) THEN BEGIN
+    clfiles_tmp = clfiles
+    clfilecount_tmp += clfilecount
+  ENDIF
+	IF ((*(*info).dataswitch).reffile AND (refclfilecount NE 0)) THEN BEGIN
+    IF (clfilecount_tmp EQ 0) THEN $
+      clfiles_tmp = refclfiles $
+    ELSE $
+      clfiles_tmp = [clfiles_tmp,refclfiles]
+    clfilecount_tmp += refclfilecount
+	ENDIF 
+	IF ((*(*info).dataswitch).sjifile AND (sjiclfilecount NE 0)) THEN BEGIN
+    IF (clfilecount_tmp EQ 0) THEN $
+      clfiles_tmp = sjiclfiles $
+    ELSE $
+      clfiles_tmp = [clfiles_tmp,sjiclfiles]
+    clfilecount_tmp += sjiclfilecount
+	ENDIF 
+	*(*(*info).retrparams).clfiles  = clfiles_tmp
+	(*(*info).retrparams).clfilecount = clfilecount_tmp
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, $
       [imagefilename, filename, STRTRIM((*(*info).retrparams).clfilecount,2)], $
@@ -8271,13 +8339,15 @@ PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir, $
   IF ((cfilecount EQ 0) AND (refcfilecount EQ 0) AND $
     (sjicfilecount EQ 0) AND KEYWORD_SET(ALLOW_SELECT_DIR)) THEN BEGIN
 		CRISPEX_WINDOW_OK, event,'ERROR!',$
-      'No saved time slice (*csav) files found corresponding '+$
+      'No saved time slice (*.csav) files found corresponding '+$
       'to the current data file. Please select an alternative input path.',$
 			OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb, /BLOCK
 		(*(*info).winids).errtlb = tlb
     newpath = DIALOG_PICKFILE(TITLE='CRISPEX'+(*(*info).sesparams).instance_label+$
       ': Select input path', /DIRECTORY, $
       PATH=(*(*info).paths).ipath,/MUST_EXIST)
+    ; Failsafe against searching in workdir when cancelling
+    IF (newpath EQ '') THEN newpath = ' ' 
     ; Redo the search at the new path
   	cfiles = FILE_SEARCH(newpath+firstsplit+"*csav", $
       COUNT = cfilecount)
@@ -10336,16 +10406,13 @@ PRO CRISPEX_LOOP_GET_EXACT_SLICE, event, extractdata, xrs, yrs, xps, yps, $
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info			
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  IF KEYWORD_SET(IM) THEN BEGIN
-    tlow = (*(*(*info).dispparams).tsel_main)[0]
-    tupp = (*(*(*info).dispparams).tsel_main)[(*(*info).dataparams).mainnt-1]
-  ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
-    tlow = (*(*(*info).dispparams).tsel_sji)[0]
-    tupp = (*(*(*info).dispparams).tsel_sji)[(*(*info).dataparams).sjint-1]
-  ENDIF ELSE BEGIN
-    tlow = (*(*(*info).dispparams).tsel_ref)[0]
-    tupp = (*(*(*info).dispparams).tsel_ref)[(*(*info).dataparams).refnt-1]
-  ENDELSE
+  tlow = 0
+  IF KEYWORD_SET(IM) THEN $
+    tupp = (*(*info).dataparams).mainnt-1 $
+  ELSE IF KEYWORD_SET(SJI) THEN $
+    tupp = (*(*info).dataparams).sjint-1 $
+  ELSE $
+    tupp = (*(*info).dataparams).refnt-1
 	IF KEYWORD_SET(NO_NLP) THEN BEGIN
 		FOR tt=tlow,tupp DO BEGIN
 			IF (tt EQ tlow) THEN $
@@ -13386,7 +13453,7 @@ PRO CRISPEX_RETRIEVE_LOOP_MENU, event, set_but_array
 ; Sets up the retrieved loop points menu and reads in the data from the respective files
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN CRISPEX_VERBOSE_GET_ROUTINE, event
-	CRISPEX_FIND_CLSAV, event
+	CRISPEX_FIND_CLSAV, event, /ALLOW_SELECT_DIR, /ALL_FILES
 	IF ((*(*info).retrparams).clfilecount GT 0) THEN BEGIN
 		WIDGET_CONTROL,/HOURGLASS
 		WIDGET_CONTROL, (*(*info).ctrlscp).sel_saved_loop, SENSITIVE = 0
@@ -13487,7 +13554,8 @@ PRO CRISPEX_RETRIEVE_LOOP_MENU, event, set_but_array
       (*(*info).loopswitch).restore_loops],$
       labels=['savetlb','Retrieved loops','Was restoring loops']
 	ENDIF ELSE BEGIN
-		CRISPEX_WINDOW_OK, event,'ERROR!','No saved loop points (*.clsav) files found.', $
+		CRISPEX_WINDOW_OK, event,'ERROR!',$
+      'No saved loop points (*.clsav) files found.',$
       OK_EVENT='CRISPEX_CLOSE_EVENT_WINDOW', BASE=tlb
 		(*(*info).winids).errtlb = tlb
 	ENDELSE
@@ -19259,7 +19327,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	save_loop_pts		    = WIDGET_BUTTON(spacetimemenu, VALUE='Save current path for later retrieval', $
                           EVENT_PRO='CRISPEX_SAVE_LOOP_PTS', SENSITIVE=0)
 	sel_saved_loop		  = WIDGET_BUTTON(spacetimemenu, VALUE='Save from selected path(s)', /SEPARATOR, $
-                          EVENT_PRO='CRISPEX_RETRIEVE_LOOP_MENU', SENSITIVE=0)
+                          EVENT_PRO='CRISPEX_RETRIEVE_LOOP_MENU', SENSITIVE=1)
 	all_saved_loop		  = WIDGET_BUTTON(spacetimemenu, VALUE='Save from all paths', /MENU, SENSITIVE=0)
 	all_saved_all_pos	  = WIDGET_BUTTON(all_saved_loop, VALUE='At all '+STRLOWCASE(sp_h[heightset])+$
                           ' positions', EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_ALL_LOOPSLAB')
