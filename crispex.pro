@@ -2669,7 +2669,7 @@ PRO CRISPEX_DISPLAYS_CT_SELECT, event
   n_iris_names = N_ELEMENTS((*(*info).plotparams).ct_iris_names)
   n_sdo_names = N_ELEMENTS((*(*info).plotparams).ct_sdo_names)
   IF (event.INDEX LT n_idl_names+1) THEN $
-    LOADCT, (*(*info).plotparams).imct[(*(*info).plotparams).imct_select], $
+    LOADCT, (*(*info).plotparams).imct[((*(*info).plotparams).imct_select-1)>1], $
       RGB_TABLE=rgb_table, /SILENT $
   ELSE $
     rgb_table = $
@@ -14988,12 +14988,18 @@ PRO CRISPEX_SESSION_RESTORE, event
       feedback_text='Restoring session file and checking version...', /SESSION
   	RESTORE, csesfile
   	; Check revision number
-  	IF (N_ELEMENTS(versioninfo) GT 0) THEN cont = (versioninfo.revision_number GE '546') ELSE cont = 0
+  	IF (N_ELEMENTS(versioninfo) GT 0) THEN $
+      cont = (versioninfo.revision_number GE '546') $
+    ELSE $
+      cont = 0
   	IF cont THEN BEGIN
-  		IF (((*(*info).dataparams).imfilename EQ dataparams.imfilename) AND ((*(*info).dataparams).spfilename EQ dataparams.spfilename) AND $
-  			((*(*info).dataparams).refimfilename EQ dataparams.refimfilename) AND ((*(*info).dataparams).refspfilename EQ dataparams.refspfilename)) THEN BEGIN
+  		IF (((*(*info).dataparams).imfilename EQ dataparams.imfilename) AND $
+          ((*(*info).dataparams).spfilename EQ dataparams.spfilename) AND $
+  			((*(*info).dataparams).refimfilename EQ dataparams.refimfilename) AND $
+        ((*(*info).dataparams).refspfilename EQ dataparams.refspfilename)) THEN BEGIN
   			; Kill all open windows (except control panel and main image window)
-  			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Closing open windows...'
+  			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', $
+          var=1, feedback_text='Closing open windows...'
   			IF ((*(*info).winids).sptlb NE 0) THEN BEGIN 
   				WIDGET_CONTROL, (*(*info).winids).sptlb, /DESTROY 
   				(*(*info).winids).sptlb = 0 
@@ -15019,7 +15025,8 @@ PRO CRISPEX_SESSION_RESTORE, event
   				(*(*info).winids).imreftlb = 0 
   			ENDIF
   			IF (TOTAL(*(*(*info).winids).restlooptlb) NE 0) THEN BEGIN 
-  				FOR i=0,N_ELEMENTS(*(*(*info).winids).restlooptlb)-1 DO WIDGET_CONTROL, (*(*(*info).winids).restlooptlb)[i], /DESTROY
+  				FOR i=0,N_ELEMENTS(*(*(*info).winids).restlooptlb)-1 DO $
+            WIDGET_CONTROL, (*(*(*info).winids).restlooptlb)[i], /DESTROY
   				(*(*info).winids).restlooptlb = PTR_NEW(0) 
   			ENDIF
   			IF ((*(*info).winids).retrdettlb NE 0) THEN BEGIN 
@@ -15050,8 +15057,11 @@ PRO CRISPEX_SESSION_RESTORE, event
   				WIDGET_CONTROL, (*(*info).winids).paramtlb, /DESTROY 
   				(*(*info).winids).paramtlb = 0 
   			ENDIF
-  			; Restore all parameters, for each parameter checking whether the number of subparameters has changed (if revision_number on session file differs from current CRISPEX)
-  			CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', var=1, feedback_text='Restoring session variables...'
+        ; Restore all parameters, for each parameter checking whether the number
+        ; of subparameters has changed (if revision_number on session file differs
+        ; from current CRISPEX)
+        CRISPEX_UPDATE_USER_FEEDBACK, event, title='Restoring session...', $
+          var=1, feedback_text='Restoring session variables...'
   			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).ctrlsswitch, ctrlsswitch
   			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).curs, curs
   			CRISPEX_SESSION_RESTORE_READ_POINTER, event, *(*info).dataparams, dataparams
@@ -15254,8 +15264,13 @@ PRO CRISPEX_SESSION_RESTORE, event
           SET_BUTTON=(*(*info).winswitch).showsji, $
           SENSITIVE=(*(*info).dataswitch).sjifile
   			WIDGET_CONTROL, (*(*info).ctrlscp).int_toggle_but, $
-          SET_BUTTON = (*(*info).winswitch).showint, $
-          SENSITIVE = (*(*info).dataswitch).spfile
+          SET_BUTTON=(*(*info).winswitch).showint, $
+          SENSITIVE=(*(*info).dataswitch).spfile
+        WIDGET_CONTROL, (*(*info).ctrlscp).displays_ct_disp, $
+          SET_COMBOBOX_SELECT=(*(*info).plotparams).imct_select
+        WIDGET_CONTROL, (*(*info).ctrlscp).displays_ct_cbox, $
+          SET_COMBOBOX_SELECT=(*(*info).plotparams).imct[$
+          ((*(*info).plotparams).imct_select-1)>0]+1
   			; ==================== Scaling Tab ====================
         WIDGET_CONTROL, (*(*info).ctrlscp).scaling_cbox, $
           SET_COMBOBOX_SELECT=(*(*info).scaling).imrefscaling
@@ -15389,7 +15404,7 @@ PRO CRISPEX_SESSION_RESTORE, event
   			ENDELSE
   			old_clfilecount = (*(*info).retrparams).clfilecount
   			CRISPEX_FIND_CLSAV, event, $
-          FORCE_PATH=FILE_DIRNAME((*(*(*info).restoreparams).clfiles)[0])+PATH_SEP()
+          FORCE_PATH=FILE_DIRNAME((*(*(*info).retrparams).clfiles)[0])+PATH_SEP()
   			IF ((*(*info).loopswitch).retrieve_loops AND ((*(*info).retrparams).clfilecount EQ old_clfilecount)) THEN BEGIN
   				CRISPEX_RETRIEVE_LOOP_MENU, event, *(*(*info).retrparams).sel_loops
   				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
@@ -15451,6 +15466,11 @@ PRO CRISPEX_SESSION_RESTORE, event
   				CRISPEX_DRAW, event
   				WIDGET_CONTROL, (*(*info).winids).restsesfeedbtlb, /SHOW
   			ENDELSE
+        ; Redraw color bars
+        CRISPEX_DRAW_CTBAR, event, /MAIN, $
+          REFERENCE=(*(*info).winswitch).showref, $
+          DOPPLER=(*(*info).dispswitch).drawdop, $
+          SJI=(*(*info).winswitch).showsji
   			; Menu
   			IF (*(*info).winswitch).dispwids THEN BEGIN
   				(*(*info).winswitch).dispwids = 0
@@ -15468,7 +15488,11 @@ PRO CRISPEX_SESSION_RESTORE, event
   		ENDELSE
   	ENDIF ELSE BEGIN
   		CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event, /SESSION
-  		IF (N_ELEMENTS(versioninfo) GT 0) THEN message4 = 'Session was saved with CRISPEX v'+versioninfo.version_number+' (rev '+versioninfo.revision_number+').' ELSE message4 = ''
+  		IF (N_ELEMENTS(versioninfo) GT 0) THEN $
+        message4 = 'Session was saved with CRISPEX v'+$
+          versioninfo.version_number+' (rev '+versioninfo.revision_number+').' $
+      ELSE $
+        message4 = ''
   		CRISPEX_WINDOW_OK, event,'ERROR!',$
         'Unable to restore earlier session due to incompatibility between '+$
         'saved and expected session save file format. Running version of '+$
@@ -21583,7 +21607,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     int_toggle_but:int_toggle_but, $
     displays_button_ids:displays_button_ids, sjidisplays_but:sjidisplays_but, $
     refdisplays_button_ids:refdisplays_button_ids, $
-    displays_ct_cbox:displays_ct_cbox, $
+    displays_ct_disp:displays_ct_disp, displays_ct_cbox:displays_ct_cbox, $
     scaling_cbox:scaling_cbox, imagescale_cbox:imagescale_cbox, $
     histo_opt_txt:histo_opt_txt, $
     gamma_label:gamma_label, gamma_slider:gamma_slider, scalemin_slider:scalemin_slider, $
@@ -22043,7 +22067,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     ct_idl_names:ct_idl_names, ct_iris_names:ct_iris_names, $
     ct_sdo_names:ct_sdo_names, ct_names:ct_names, $
     rgb_main:rgb_main, rgb_ref:rgb_ref, rgb_dop:rgb_dop, $
-    rgb_sji:rgb_sji, imct:imct, imct_select:0 $
+    rgb_sji:rgb_sji, imct:imct, imct_select:1 $
 	}
 ;------------------------- PLOT POSITION
 	plotpos = { $
