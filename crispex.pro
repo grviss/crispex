@@ -9929,8 +9929,8 @@ PRO CRISPEX_IO_HANDLE_HDR, event, SJI=sji
     (*(*info).data).lunsji = hdr.lunsji
     ; dataparams pointer
     (*(*info).dataparams).sjifilename = hdr.sjifilename
-    (*(*info).dataparams).hdrs[2] = PTR_NEW(*hdr.hdrs_sji)
-    (*(*info).dataparams).next[2] = N_ELEMENTS(*hdr.hdrs_sji)
+    (*(*info).dataparams).hdrs[2] = PTR_NEW(hdr.hdrs_sji)
+    (*(*info).dataparams).next[2] = N_ELEMENTS(hdr.hdrs_sji)
     (*(*info).dataparams).date_obs_sji = hdr.date_obs_sji
     (*(*info).dataparams).sjinx = hdr.sjinx
     (*(*info).dataparams).sjiny = hdr.sjiny
@@ -12654,20 +12654,15 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.sjiscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
       hdr_out.date_obs_sji = STRTRIM(key.date_obs,2)
       wheretag = WHERE(TAG_NAMES(hdr_out) EQ 'TARR_SJI', count)
-      IF (count EQ 0) THEN $
-        hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
-          'hdrs_sji', headers, 'wcs_sji', key.wcs_str, 'utc_sji', key.utc_sel, $
-          'date_sji', key.date_sel) $
-      ELSE BEGIN
-        *hdr_out.hdrs_sji = headers
+      IF (count NE 0) THEN $
         ; Delete potentially conflicting tags from structure...
         hdr_out = CRISPEX_TAG_DELETE(hdr_out,$
-          ['TARR_SJI','WCS_SJI','UTC_SJI','DATE_SJI','TSEL_SJI'])
+          ['TARR_SJI','WCS_SJI','UTC_SJI','DATE_SJI','TSEL_SJI','HDRS_SJI'])
         ; ... and add them again
-        hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
-          'wcs_sji', key.wcs_str,'utc_sji', key.utc_sel, 'date_sji', key.date_sel) 
         ; TSEL_SJI is assigned in CRISPEX_IO_OPEN_SJICUBE
-      ENDELSE
+      hdr_out = CREATE_STRUCT(hdr_out, 'tarr_sji', key.tarr_sel, $
+        'hdrs_sji', headers, 'wcs_sji', key.wcs_str, 'utc_sji', key.utc_sel, $
+        'date_sji', key.date_sel) 
   ENDIF ELSE IF KEYWORD_SET(MASKCUBE) THEN BEGIN                
     ; Fill hdr parameters for MASKCUBE
     hdr_out.maskoffset = offset
