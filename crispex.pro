@@ -6760,15 +6760,18 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
       lp_idx_txt = STRING((*(*info).dataparams).lp, $
         FORMAT=(*(*info).paramparams).lp_idx_format)
       WIDGET_CONTROL, (*(*info).ctrlsparam).lp_idx_val, SET_VALUE=lp_idx_txt
-      IF (*(*info).plotswitch).v_dop_set THEN BEGIN
+      IF ((*(*info).plotswitch).heightset OR $
+          (*(*info).plotswitch).v_dop_set) THEN BEGIN
         lp_real_txt = STRING((*(*info).dataparams).lps[(*(*info).dataparams).lp], $
           FORMAT=(*(*info).paramparams).lp_real_format)
+        WIDGET_CONTROL, (*(*info).ctrlsparam).lp_real_val, SET_VALUE=lp_real_txt
+      ENDIF
+      IF (*(*info).plotswitch).v_dop_set THEN BEGIN
         lp_vdop_txt = STRING((*(*(*info).plotaxes).v_dop[$
           (*(*info).intparams).lp_diag_all])[$
           (*(*info).dataparams).lp-(*(*info).intparams).diag_start[$
           (*(*info).intparams).lp_diag_all]], $
           FORMAT=(*(*info).paramparams).lp_vdop_format)
-        WIDGET_CONTROL, (*(*info).ctrlsparam).lp_real_val, SET_VALUE=lp_real_txt
         WIDGET_CONTROL, (*(*info).ctrlsparam).lp_vdop_val, SET_VALUE=lp_vdop_txt
       ENDIF
     ENDIF
@@ -6780,19 +6783,22 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
       IF (update_lpcoords_ref OR KEYWORD_SET(UPDATE_REF)) THEN BEGIN
         lp_ref_idx_txt = STRING((*(*info).dataparams).lp_ref, $
           FORMAT=(*(*info).paramparams).lp_ref_idx_format)
+      IF ((*(*info).plotswitch).refheightset OR $
+          (*(*info).plotswitch).v_dop_set_ref) THEN BEGIN
         WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_idx_val, $
           SET_VALUE=lp_ref_idx_txt
-        IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
           lp_ref_real_txt = STRING((*(*info).dataparams).reflps[$
             (*(*info).dataparams).lp_ref], $
             FORMAT=(*(*info).paramparams).lp_ref_real_format)
+          WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_real_val, $
+            SET_VALUE=lp_ref_real_txt
+        ENDIF
+        IF (*(*info).plotswitch).v_dop_set_ref THEN BEGIN
           lp_ref_vdop_txt = STRING((*(*(*info).plotaxes).v_dop_ref[$
             (*(*info).intparams).lp_ref_diag_all])[(*(*info).dataparams).lp_ref-$
             (*(*info).intparams).refdiag_start[$
             (*(*info).intparams).lp_ref_diag_all]], $
             FORMAT=(*(*info).paramparams).lp_ref_vdop_format)
-          WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_real_val, $
-            SET_VALUE=lp_ref_real_txt
           WIDGET_CONTROL, (*(*info).ctrlsparam).lp_ref_vdop_val, $
             SET_VALUE=lp_ref_vdop_txt
         ENDIF
@@ -17048,12 +17054,17 @@ PRO CRISPEX_SLIDER_LP_REF_LOCK, event, UNLOCK=unlock, NO_DRAW=no_draw
     WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SET_BUTTON=0
   ENDIF ELSE $
 	  (*(*info).ctrlsswitch).lp_ref_lock = event.SELECT
-  IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
+  IF (*(*info).ctrlsswitch).lp_ref_lock THEN BEGIN
 	  (*(*info).dataparams).lp_ref = (*(*info).dataparams).lp
+    (*(*info).intparams).lp_ref_diag_all = $
+      TOTAL((*(*info).dataparams).lp_ref GE (*(*info).intparams).refdiag_start)-1
+  ENDIF
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, $
-    SENSITIVE = ABS((*(*info).ctrlsswitch).lp_ref_lock-1), SET_VALUE = (*(*info).dataparams).lp_ref
+    SENSITIVE=ABS((*(*info).ctrlsswitch).lp_ref_lock-1), $
+    SET_VALUE=(*(*info).dataparams).lp_ref
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).lp, (*(*info).dataparams).lp_ref], labels=['lp','lp_ref']
+    CRISPEX_VERBOSE_GET, event, [(*(*info).dataparams).lp, $
+      (*(*info).dataparams).lp_ref], labels=['lp','lp_ref']
   IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
   	CRISPEX_UPDATE_T, event
   	CRISPEX_UPDATE_LP, event
@@ -17197,9 +17208,12 @@ PRO CRISPEX_SLIDER_LP_UPDATE, event, OVERRIDE_DIAGNOSTIC=override_diagnostic, $
     ENDIF 
     (*(*info).intparams).lp_diag_all = lp_diag_all
 	  WIDGET_CONTROL, (*(*info).ctrlscp).lp_slider, SET_VALUE=(*(*info).dataparams).lp
-  ENDIF ELSE BEGIN
-  	IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
-      (*(*info).dataparams).lp_ref = (*(*info).dataparams).lp
+  ENDIF 
+  IF (*(*info).ctrlsswitch).lp_ref_lock THEN BEGIN
+    (*(*info).dataparams).lp_ref = (*(*info).dataparams).lp
+    reference = 1B
+  ENDIF
+  IF KEYWORD_SET(REFERENCE) THEN BEGIN
     ; Determine whether lp_ref falls in not displayed diagnostic window, 
     ; act accordingly
     lp_ref_diag_all = $
@@ -17223,7 +17237,7 @@ PRO CRISPEX_SLIDER_LP_UPDATE, event, OVERRIDE_DIAGNOSTIC=override_diagnostic, $
     (*(*info).intparams).lp_ref_diag_all = lp_ref_diag_all
     WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, $
       SET_VALUE=(*(*info).dataparams).lp_ref
-  ENDELSE
+  ENDIF
   (*(*info).scaling).idx = $
     (((*(*info).scaling).imrefscaling EQ 0) OR $
      ((*(*info).scaling).imrefscaling EQ 2)) * $
@@ -21096,62 +21110,85 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 ;      divider_label = WIDGET_LABEL(verlabel_base, VALUE=' ')
       no_label    = WIDGET_LABEL(verlabel_base, VALUE=wav_h[heightset[0]], /ALIGN_LEFT)
       pixel_label = WIDGET_LABEL(verlabel_base, VALUE='Index [px]', /ALIGN_RIGHT)
-		  IF ((TOTAL(heightset) GE 1) OR (TOTAL(hdr.v_dop_set) GE 1)) THEN $
-        real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value', /ALIGN_RIGHT)
-		  IF (TOTAL(hdr.v_dop_set) GE 1) THEN $
-        vdop_label  = WIDGET_LABEL(verlabel_base, VALUE='Doppler [km/s]', /ALIGN_RIGHT)
+      show_lp_vdop_label = (TOTAL(hdr.v_dop_set) GE 1) 
+      show_lp_val_label = ((TOTAL([heightset,refheightset]) GE 1) OR $
+        show_lp_vdop_label)
+      display_vdop = (hdr.v_dop_set[0] EQ 1)
+      display_vals = ((heightset EQ 1) OR (hdr.v_dop_set[0] EQ 1))
+		  IF display_vals THEN BEGIN
+        real_label_value = 'Value ['
+        IF (STRLOWCASE(STRCOMPRESS(hdr.lpunit)) EQ 'angstrom') THEN $
+          real_label_value += STRMID(cgSymbol("angstrom"),2,1)+']' $
+        ELSE $
+          real_label_value += STRCOMPRESS(hdr.lpunit)+']'
+        real_label  = WIDGET_LABEL(verlabel_base, VALUE=real_label_value, $
+          /ALIGN_RIGHT)
+      ENDIF
+		  IF show_lp_vdop_label THEN $
+        vdop_label  = WIDGET_LABEL(verlabel_base, VALUE='Doppler [km/s]', $
+          /ALIGN_RIGHT)
       main_label  = WIDGET_LABEL(params_main_base, VALUE=' ', /ALIGN_RIGHT)
       lp_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.nlp))+1,2)+')'
-      IF hdr.v_dop_set[0] THEN BEGIN
+      IF display_vals THEN BEGIN
         lp_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.lps[lp_last]))+3,2)+'.1)'
+        lp_real_txt = STRING(hdr.lps[lp_start], FORMAT=lp_real_format)
+      ENDIF ELSE BEGIN
+        lp_real_format = ''
+        lp_real_val = 0
+        lp_real_txt = 'N/A'
+      ENDELSE
+      IF display_vdop THEN BEGIN
         lp_vdop_format = '(F'+STRTRIM(FLOOR(ALOG10($
           MAX(ABS((*hdr.v_dop[0])[[0,lp_last]]))))+5,2)+'.2)'
-        lp_real_txt = STRING(hdr.lps[lp_start], FORMAT=lp_real_format)
         lp_vdop_txt = STRING((*hdr.v_dop[0])[lp_start-hdr.diag_start[0]],$
           FORMAT=lp_vdop_format)
       ENDIF ELSE BEGIN
-        lp_real_format = ''
         lp_vdop_format = ''
-        lp_real_val = 0
         lp_vdop_val = 0
-        lp_real_txt = 'N/A'
         lp_vdop_txt = 'N/A'
       ENDELSE
 		  lp_idx_val = WIDGET_LABEL(params_main_base, VALUE=STRING(LONG(lp_start),$
         FORMAT=lp_idx_format), /ALIGN_RIGHT)
-		  IF ((TOTAL(heightset) GE 1) OR (TOTAL(hdr.v_dop_set) GE 1)) THEN $
-		    lp_real_val = WIDGET_LABEL(params_main_base, VALUE=lp_real_txt, /ALIGN_RIGHT)
-		  IF (TOTAL(hdr.v_dop_set) GE 1) THEN $
+      IF show_lp_val_label THEN $
+		    lp_real_val = WIDGET_LABEL(params_main_base, VALUE=lp_real_txt, $
+          /ALIGN_RIGHT)
+      IF show_lp_vdop_label THEN $
         lp_vdop_val = WIDGET_LABEL(params_main_base, VALUE=lp_vdop_txt, /ALIGN_RIGHT)
+      ; Reference
+      display_vdop = (hdr.v_dop_set[1] EQ 1) 
+      display_vals = ((refheightset EQ 1) OR display_vdop)
       ref_label   = WIDGET_LABEL(params_ref_base, VALUE=' ', /ALIGN_RIGHT)
+      lp_ref_real_format = ''
+      lp_ref_vdop_format = ''
+      lp_ref_real_val = 0
+      lp_ref_vdop_val = 0
+      lp_ref_real_txt = 'N/A'
+      lp_ref_vdop_txt = 'N/A'
       IF (hdr.refnlp GT 1) THEN BEGIN
         lp_ref_idx_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.refnlp))+1,2)+')'
         lp_ref_idx_txt = STRING(LONG(lp_ref_start), FORMAT=lp_ref_idx_format)
+        IF display_vals THEN BEGIN
+          lp_ref_real_format = $
+            '(F'+STRTRIM(FLOOR(ALOG10(hdr.reflps[lp_ref_last]))+3,2)+'.1)'
+          lp_ref_real_txt = STRING(hdr.reflps[lp_ref_start], $
+            FORMAT=lp_ref_real_format)
+        ENDIF
+        IF display_vdop THEN BEGIN
+          lp_ref_vdop_format = '(F'+STRTRIM(FLOOR(ALOG10($
+            MAX(ABS((*hdr.v_dop_ref[0])[[0,lp_ref_last]]))))+5,2)+'.2)'
+          lp_ref_vdop_txt = STRING((*hdr.v_dop_ref[0])[lp_ref_start-$
+            hdr.diag_start[0]], FORMAT=lp_ref_vdop_format)
+        ENDIF
       ENDIF ELSE BEGIN
         lp_ref_idx_format = ''
         lp_ref_idx_txt = 'N/A'
       ENDELSE
-      IF ((hdr.refnlp GT 1) AND hdr.v_dop_set[1]) THEN BEGIN
-        lp_ref_real_format = '(F'+STRTRIM(FLOOR(ALOG10(hdr.reflps[lp_ref_last]))+3,2)+'.1)'
-        lp_ref_vdop_format = '(F'+STRTRIM(FLOOR(ALOG10($
-          MAX(ABS((*hdr.v_dop_ref[0])[[0,lp_ref_last]]))))+5,2)+'.2)'
-        lp_ref_real_txt = STRING(hdr.reflps[lp_ref_start], FORMAT=lp_ref_real_format)
-        lp_ref_vdop_txt = STRING((*hdr.v_dop_ref[0])[lp_ref_start-hdr.diag_start[0]],$
-          FORMAT=lp_ref_vdop_format)
-      ENDIF ELSE BEGIN
-        lp_ref_real_format = ''
-        lp_ref_vdop_format = ''
-        lp_ref_real_val = 0
-        lp_ref_vdop_val = 0
-        lp_ref_real_txt = 'N/A'
-        lp_ref_vdop_txt = 'N/A'
-      ENDELSE
 		  lp_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_idx_txt,$
         /ALIGN_RIGHT, /DYNAMIC_RESIZE)
-		  IF ((TOTAL(heightset) GE 1) OR (TOTAL(hdr.v_dop_set) GE 1)) THEN $
+		  IF show_lp_val_label THEN $
         lp_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_real_txt, $
           /ALIGN_RIGHT)
-		  IF (TOTAL(hdr.v_dop_set) GE 1) THEN $
+		  IF show_lp_vdop_label THEN $
         lp_ref_vdop_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_vdop_txt, $
           /ALIGN_RIGHT)
       ; SJI placeholders
