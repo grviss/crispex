@@ -6902,9 +6902,10 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
         ELSE $
           order = 0
         IF ((order LE -2) OR (order GE 3)) THEN $
-          format = '(E10.4)' $
+          ; Will use E-notation, so need more digits
+          format = '(E11.4)' $
         ELSE $
-          format = '(F9.2)'
+          format = '(F10.2)'
         dataval_real_txt = STRING(act_dataval, FORMAT=format) 
       ENDIF ELSE $
         dataval_real_txt = 'N/A'
@@ -6928,9 +6929,10 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
         ELSE $
           order = 0
         IF ((order LE -2) OR (order GE 3)) THEN $
-          format = '(E10.4)' $
+          ; Will use E-notation, so need more digits
+          format = '(E11.4)' $
         ELSE $
-          format = '(F9.2)'
+          format = '(F10.2)'
         dataval_ref_real_txt = STRING(act_ref_dataval, FORMAT=format)
       ENDIF
       WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_ref_real_val, $
@@ -6949,9 +6951,10 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
         ELSE $
           order = 0
         IF ((order LE -2) OR (order GE 3)) THEN $
-          format = '(E10.4)' $
+          ; Will use E-notation, so need more digits
+          format = '(E11.4)' $
         ELSE $
-          format = '(F9.2)'
+          format = '(F10.2)'
         dataval_sji_real_txt = STRING(act_sji_dataval, FORMAT=format)
       ENDIF 
       WIDGET_CONTROL, (*(*info).ctrlsparam).dataval_sji_real_val, $
@@ -21398,13 +21401,13 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value', /ALIGN_RIGHT)
       main_label  = WIDGET_LABEL(params_main_base, VALUE=' ', /ALIGN_RIGHT)
       dataval_real_txt = STRING(((*hdr.imdata)[lp_start])[x_start,y_start], $
-        FORMAT='(E10.4)')
+        FORMAT='(E11.4)')
 		  dataval_real_val = WIDGET_LABEL(params_main_base, VALUE=dataval_real_txt, $
         /ALIGN_RIGHT)
       ref_label   = WIDGET_LABEL(params_ref_base, VALUE=' ', /ALIGN_RIGHT)
       IF hdr.showref THEN $
         dataval_ref_real_txt = STRING(((*hdr.refdata)[lp_ref_start])[$
-          xref_start,yref_start], FORMAT='(E10.4)') $
+          xref_start,yref_start], FORMAT='(E11.4)') $
       ELSE BEGIN
         dataval_ref_real_format = ''
         dataval_ref_real_txt = 'N/A'
@@ -21414,7 +21417,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
       IF hdr.sjifile THEN $ 
         dataval_sji_real_txt = STRING(sjidata_tmp[xsji_start,ysji_start], $
-          FORMAT='(E10.4)') $
+          FORMAT='(E11.4)') $
       ELSE BEGIN
         dataval_sji_real_format = ''
         dataval_sji_real_txt = 'N/A'
