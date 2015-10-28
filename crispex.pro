@@ -20992,11 +20992,13 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       no_label    = WIDGET_LABEL(verlabel_base, VALUE='Position', /ALIGN_LEFT)
       pixel_label = WIDGET_LABEL(verlabel_base, VALUE='Index [px]', /ALIGN_RIGHT)
       IF (hdr.wcs_set OR hdr.ref_wcs_set OR hdr.sji_wcs_set) THEN $
-        real_label  = WIDGET_LABEL(verlabel_base, VALUE='Solar XY ["]', $
-          /ALIGN_RIGHT) $
+        real_label_value = 'Solar XY ["]' $
+      ELSE IF (STRCOMPRESS(hdr.xunit) EQ 'arcsec') THEN $
+        real_label_value = 'Value ["]' $
       ELSE $
-        real_label  = WIDGET_LABEL(verlabel_base, VALUE='Value ["]', $
-          /ALIGN_RIGHT) 
+        real_label_value = 'Value ['+STRCOMPRESS(hdr.xunit)+']'
+      real_label  = WIDGET_LABEL(verlabel_base, VALUE=real_label_value, $
+        /ALIGN_RIGHT) 
     params_main_base = WIDGET_BASE(params_position_base, /COLUMN)
       main_label  = WIDGET_LABEL(params_main_base, VALUE='Main', /ALIGN_RIGHT)
         xcoord_format = '(I'+STRTRIM(FLOOR(ALOG10(hdr.nx))+1,2)+')'
