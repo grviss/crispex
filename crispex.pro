@@ -9663,7 +9663,7 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
     IF ((*(*info).dataparams).sjifilename NE '') THEN $
       ipath = FILE_DIRNAME((*(*info).dataparams).sjifilename)+PATH_SEP() $
     ELSE $
-      ipath = (*(*info).paths).ipath
+      ipath = FILE_DIRNAME((*(*info).dataparams).imfilename)+PATH_SEP() 
     instance_label = (*(*info).sesparams).instance_label
     hdr_out = *(*(*info).ioparams).hdr
 	  sjicube = DIALOG_PICKFILE(/READ, /MUST_EXIST, PATH=ipath, $
