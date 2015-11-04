@@ -5897,7 +5897,7 @@ PRO CRISPEX_DRAW_CTBAR, event, MAIN=main, REFERENCE=reference, DOPPLER=doppler,$
   ; (Re)draw all requested color table bars
   FOR i=0,N_ELEMENTS(selarr)-1 DO BEGIN
     sel = selarr[i]
-    units = ''
+    units = 'counts]'
     CASE sel OF 
       0:  BEGIN
             drawid = (*(*info).winids).imdrawid_ctbar
