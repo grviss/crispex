@@ -2669,7 +2669,7 @@ PRO CRISPEX_DISPLAYS_CT_SELECT, event
   n_iris_names = N_ELEMENTS((*(*info).plotparams).ct_iris_names)
   n_sdo_names = N_ELEMENTS((*(*info).plotparams).ct_sdo_names)
   IF (event.INDEX LT n_idl_names+1) THEN $
-    LOADCT, (*(*info).plotparams).imct[((*(*info).plotparams).imct_select-1)>1], $
+    LOADCT, (*(*info).plotparams).imct[((*(*info).plotparams).imct_select-1)>0], $
       RGB_TABLE=rgb_table, /SILENT $
   ELSE $
     rgb_table = $
