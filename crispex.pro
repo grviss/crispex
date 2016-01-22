@@ -16710,55 +16710,63 @@ PRO CRISPEX_SAVE_LINESCAN_SAVE, event, supplied_filename
 	t_id = 't'+STRING((*(*info).dispparams).t,FORMAT='(I0'+STRTRIM(ntpos,2)+')')
   draw_mask = ((*(*info).overlayswitch).mask AND $
               ((*(*info).overlayswitch).maskim)[0])
-	FOR i = (*(*info).dispparams).lp_low, (*(*info).dispparams).lp_upp DO BEGIN
-		(*(*info).dataparams).lp = i
-		CRISPEX_UPDATE_T, event
-		IF ((*(*info).savparams).overlays_incl OR draw_mask) THEN BEGIN
-			CRISPEX_DRAW_XY, event, $
-        NO_CURSOR=ABS((*(*info).savparams).overlays_curs-1), $
-        NO_NUMBER=ABS((*(*info).savparams).overlays_num-1), $
-        THICK=(*(*info).savparams).overlays_thick, $
-				NO_ENDPOINTS=ABS((*(*info).savparams).overlays_pts-1), $
-        SYMSIZE=(*(*info).savparams).overlays_symsize, $
-        ASECBAR=(*(*info).savparams).overlays_asecbar
-			image=TVRD(/TRUE)
-		ENDIF ELSE BEGIN
-      CRISPEX_DRAW_SCALING, event, tmp_image, /MAIN
-      s = SIZE(tmp_image)
-      image = BYTARR(3, s[1], s[2])
-      image[0,*,*] = (REFORM((*(*info).plotparams).rgb_main[*,0]))[tmp_image]
-      image[1,*,*] = (REFORM((*(*info).plotparams).rgb_main[*,1]))[tmp_image]
-      image[2,*,*] = (REFORM((*(*info).plotparams).rgb_main[*,2]))[tmp_image]
-    ENDELSE
-		IF (*(*info).savparams).linescan_ls THEN BEGIN
-			CRISPEX_UPDATE_LP, event
-      CRISPEX_DRAW_SPECTRAL_MAIN, event, /LS_ONLY
-			lsimage = TVRD(/TRUE)
-		ENDIF
-		lp_id = 'lp'+STRING((*(*info).dataparams).lp,FORMAT='(I0'+STRTRIM(nlpos,2)+')')
-		IF ((*(*info).savparams).savpro EQ 'JPEG_LINESCAN') THEN BEGIN
-			filename = (*(*info).paths).opath+supplied_filename+'_'+t_id+'_'+lp_id+'.jpg'
-			WRITE_JPEG, filename, image, TRUE=1, QUALITY=75
-			PRINT, 'Written: '+filename
-			IF (*(*info).savparams).linescan_ls THEN BEGIN
-				lsfilename = (*(*info).paths).opath+supplied_filename+'_detspect_'+$
-          t_id+'_'+lp_id+'.jpg'
-				WRITE_JPEG, lsfilename, lsimage, QUALITY=75
-				PRINT, 'Written: '+lsfilename
-			ENDIF
-		ENDIF
-		IF ((*(*info).savparams).savpro EQ 'PNG_LINESCAN') THEN BEGIN
-			filename = (*(*info).paths).opath+supplied_filename+'_'+t_id+'_'+lp_id+'.png'
-			WRITE_PNG,filename,image
-			PRINT, 'Written: '+filename
-			IF (*(*info).savparams).linescan_ls THEN BEGIN
-				lsfilename = (*(*info).paths).opath+supplied_filename+'_detspect_'+$
-          t_id+'_'+lp_id+'.png'
-				WRITE_PNG,lsfilename,lsimage
-				PRINT, 'Written: '+lsfilename
-			ENDIF
-		ENDIF
-	ENDFOR
+  FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
+    ; Only loop over selected diagnostics
+    dd_sel = (*(*(*info).intparams).wheredispdiag)[d] 
+    lp_low = (*(*info).intparams).diag_start[dd_sel] + $
+              (*(*info).dispparams).lp_low_tmp[dd_sel]
+    lp_upp = (*(*info).intparams).diag_start[dd_sel] + $
+              (*(*info).dispparams).lp_upp_tmp[dd_sel]
+  	FOR i=lp_low,lp_upp DO BEGIN
+  		(*(*info).dataparams).lp = i
+  		CRISPEX_UPDATE_T, event
+  		IF ((*(*info).savparams).overlays_incl OR draw_mask) THEN BEGIN
+  			CRISPEX_DRAW_XY, event, $
+          NO_CURSOR=ABS((*(*info).savparams).overlays_curs-1), $
+          NO_NUMBER=ABS((*(*info).savparams).overlays_num-1), $
+          THICK=(*(*info).savparams).overlays_thick, $
+  				NO_ENDPOINTS=ABS((*(*info).savparams).overlays_pts-1), $
+          SYMSIZE=(*(*info).savparams).overlays_symsize, $
+          ASECBAR=(*(*info).savparams).overlays_asecbar
+  			image=TVRD(/TRUE)
+  		ENDIF ELSE BEGIN
+        CRISPEX_DRAW_SCALING, event, tmp_image, /MAIN
+        s = SIZE(tmp_image)
+        image = BYTARR(3, s[1], s[2])
+        image[0,*,*] = (REFORM((*(*info).plotparams).rgb_main[*,0]))[tmp_image]
+        image[1,*,*] = (REFORM((*(*info).plotparams).rgb_main[*,1]))[tmp_image]
+        image[2,*,*] = (REFORM((*(*info).plotparams).rgb_main[*,2]))[tmp_image]
+      ENDELSE
+  		IF (*(*info).savparams).linescan_ls THEN BEGIN
+  			CRISPEX_UPDATE_LP, event
+        CRISPEX_DRAW_SPECTRAL_MAIN, event, /LS_ONLY
+  			lsimage = TVRD(/TRUE)
+  		ENDIF
+  		lp_id = 'lp'+STRING((*(*info).dataparams).lp,FORMAT='(I0'+STRTRIM(nlpos,2)+')')
+  		IF ((*(*info).savparams).savpro EQ 'JPEG_LINESCAN') THEN BEGIN
+  			filename = (*(*info).paths).opath+supplied_filename+'_'+t_id+'_'+lp_id+'.jpg'
+  			WRITE_JPEG, filename, image, TRUE=1, QUALITY=75
+  			PRINT, 'Written: '+filename
+  			IF (*(*info).savparams).linescan_ls THEN BEGIN
+  				lsfilename = (*(*info).paths).opath+supplied_filename+'_detspect_'+$
+            t_id+'_'+lp_id+'.jpg'
+  				WRITE_JPEG, lsfilename, lsimage, QUALITY=75
+  				PRINT, 'Written: '+lsfilename
+  			ENDIF
+  		ENDIF
+  		IF ((*(*info).savparams).savpro EQ 'PNG_LINESCAN') THEN BEGIN
+  			filename = (*(*info).paths).opath+supplied_filename+'_'+t_id+'_'+lp_id+'.png'
+  			WRITE_PNG,filename,image
+  			PRINT, 'Written: '+filename
+  			IF (*(*info).savparams).linescan_ls THEN BEGIN
+  				lsfilename = (*(*info).paths).opath+supplied_filename+'_detspect_'+$
+            t_id+'_'+lp_id+'.png'
+  				WRITE_PNG,lsfilename,lsimage
+  				PRINT, 'Written: '+lsfilename
+  			ENDIF
+  		ENDIF
+  	ENDFOR
+  ENDFOR
 	(*(*info).dataparams).lp = lp_before
 	CRISPEX_UPDATE_T, event
 	IF (*(*info).savparams).overlays_incl THEN CRISPEX_DRAW_XY, event
