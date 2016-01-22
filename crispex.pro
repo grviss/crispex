@@ -16733,7 +16733,7 @@ PRO CRISPEX_SAVE_LINESCAN_SAVE, event, supplied_filename
 		IF (*(*info).savparams).linescan_ls THEN BEGIN
 			CRISPEX_UPDATE_LP, event
       CRISPEX_DRAW_SPECTRAL_MAIN, event, /LS_ONLY
-			lsimage = TVRD()
+			lsimage = TVRD(/TRUE)
 		ENDIF
 		lp_id = 'lp'+STRING((*(*info).dataparams).lp,FORMAT='(I0'+STRTRIM(nlpos,2)+')')
 		IF ((*(*info).savparams).savpro EQ 'JPEG_LINESCAN') THEN BEGIN
