@@ -2579,7 +2579,43 @@ PRO CRISPEX_DISPLAYS_ALL_TO_FRONT, event
 	IF ((*(*info).winids).abouttlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).abouttlb, /SHOW
 	IF ((*(*info).winids).errtlb NE 0) THEN WIDGET_CONTROL, (*(*info).winids).errtlb, /SHOW
   ; Control panel
-  WIDGET_CONTROL, (*(*info).winids).root, /SHOW
+  ; WIDGET_CONTROL, (*(*info).winids).root, /SHOW
+END
+
+PRO CRISPEX_DISPLAYS_GATHER_ALL, event
+; Gathers all windows to control panel offsets
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
+  ; Get control panel offsets
+  geometry = WIDGET_INFO((*(*info).winids).root, /GEOMETRY)
+  ; Get TLBs
+  tlbs = [(*(*info).winids).sjitlb, (*(*info).winids).sptlb, $
+          (*(*info).winids).lstlb, (*(*info).winids).phistlb, $
+          (*(*info).winids).reftlb, (*(*info).winids).doptlb, $
+          (*(*info).winids).imreftlb, $ 
+          (*(*info).winids).retrdettlb, (*(*info).winids).looptlb, $
+          (*(*info).winids).refsptlb, (*(*info).winids).reflstlb, $
+          (*(*info).winids).inttlb, $
+          (*(*info).winids).savetlb, (*(*info).winids).detsavetlb, $
+          (*(*info).winids).restoretlb, (*(*info).winids).savewintlb, $
+          (*(*info).winids).saveoptwintlb, (*(*info).winids).intmenutlb, $
+          (*(*info).winids).preftlb, $
+          (*(*info).winids).paramtlb, (*(*info).winids).estimatetlb, $
+	        (*(*info).winids).feedbacktlb, (*(*info).winids).restsesfeedbtlb, $
+	        (*(*info).winids).abouttlb, (*(*info).winids).errtlb]
+  where_tlb_set = WHERE(tlbs NE 0, nwhere_tlb_set)
+  ; Apply offsets to visible windos
+  FOR k=0,nwhere_tlb_set-1 DO BEGIN
+    WIDGET_CONTROL, tlbs[where_tlb_set[k]], TLB_SET_XOFFSET=geometry.xoffset, $
+      TLB_SET_YOFFSET=geometry.yoffset
+  ENDFOR
+	IF (TOTAL(*(*(*info).winids).restlooptlb) NE 0) THEN $
+    FOR i=0,N_ELEMENTS(*(*(*info).winids).restlooptlb)-1 DO $
+    WIDGET_CONTROL, (*(*(*info).winids).restlooptlb)[i], $
+      TLB_SET_XOFFSET=geometry.xoffset, TLB_SET_YOFFSET=geometry.yoffset
+  ; Bring all windos to front
+  CRISPEX_DISPLAYS_ALL_TO_FRONT, event
 END
 
 PRO CRISPEX_DISPWIDS, event
@@ -20339,8 +20375,12 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
                           ACCELERATOR='Ctrl+Shift+I')
 	sh_zoom_out		      = WIDGET_BUTTON(viewmenu, VALUE='Zoom out', EVENT_PRO='CRISPEX_ZOOMFAC_DECR',$
                           ACCELERATOR='Ctrl+Shift+O')
-	focus_session_windows= WIDGET_BUTTON(viewmenu, VALUE='Bring all to front', /SEPARATOR, $
-                          EVENT_PRO='CRISPEX_DISPLAYS_ALL_TO_FRONT', ACCELERATOR = 'Ctrl+F')
+  gather_seswins      = WIDGET_BUTTON(viewmenu, VALUE='Gather windows', $
+                          /SEPARATOR, EVENT_PRO='CRISPEX_DISPLAYS_GATHER_ALL', $
+                          ACCELERATOR='Ctrl+G')
+	focus_session_windows= WIDGET_BUTTON(viewmenu, VALUE='Bring all to front', $
+                          EVENT_PRO='CRISPEX_DISPLAYS_ALL_TO_FRONT', $
+                          ACCELERATOR='Ctrl+F')
   ; Movie
   moviemenu           = WIDGET_BUTTON(menubar, VALUE='Movie', /MENU)
 	sh_fbwd_button		  = WIDGET_BUTTON(moviemenu, VALUE='Step to previous frame', $
