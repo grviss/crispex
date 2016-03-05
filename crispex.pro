@@ -1684,7 +1684,7 @@ PRO CRISPEX_ABOUT_RELEASE_INFO, event, SET_VERINFO=set_verinfo
 	  	'Developed by: Gregal Vissers', $
 	  	'               Institute of Theoretical Astrophysics,',$
 	  	'               University of Oslo',$
-	  	'               2009-2015']
+	  	'               2009-2016']
     WIDGET_CONTROL, (*(*info).ctrlsabout).relnotes_button, $
       SET_VALUE='Release notes'
   ENDELSE
@@ -19672,11 +19672,6 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       imwiny = imwiny_default
     ENDELSE
   ENDELSE
-  ; Fix window sizes for pixelratio
-  IF (pixelratio GT 1) THEN $
-    imwinx *= pixelratio $
-  ELSE IF (pixelratio LT 1) THEN $
-    imwiny /= pixelratio
 
   ; Initial color bar settings and fix window sizes for color bar positioning
   ctbar_init = ((extreme_aspect AND (imwinx LT imwiny)) OR (imwinx LT 0.5*imwiny)) 
@@ -19697,6 +19692,12 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     ENDIF
     ctbar_width = imwinx
   ENDELSE
+  ; Fix window sizes for pixelratio
+  IF (pixelratio GT 1) THEN $
+    imwinx *= pixelratio $
+  ELSE IF (pixelratio LT 1) THEN $
+    imwiny /= pixelratio
+
   IF (verbosity[1] EQ 1) THEN $
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, msg+'Main image window set to '+$
       STRTRIM(imwinx,2)+'x'+STRTRIM(imwiny,2)+'.', /NEWLINE, /NO_ROUTINE
