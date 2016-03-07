@@ -11872,6 +11872,8 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
                     WIDGET_SLIDER(scaling_base, TITLE='Default gamma', MIN=0, MAX=1000, $
                       VALUE=500*(ALOG10((*(*info).prefs).gamma_val)+1), $
                       EVENT_PRO='CRISPEX_PREFERENCES_SET_SCALING_GAMMA', /SUPPRESS, /DRAG)
+  use_current     = WIDGET_BUTTON(scaling_base, VALUE='Use current values', $
+                      EVENT_PRO='CRISPEX_PREFERENCES_SET_SCALING_CURRENT')
 	displays_opts	  = WIDGET_BASE(scaling_base, /COLUMN, /NONEXCLUSIVE)
 	(*(*info).ctrlspref).displays_slices = $
                     WIDGET_BUTTON(displays_opts, $
@@ -12102,31 +12104,56 @@ PRO CRISPEX_PREFERENCES_SET_SLICES_IMSCALE, event
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 END
 
-PRO CRISPEX_PREFERENCES_SET_SCALING_HISTO_OPT, event
+PRO CRISPEX_PREFERENCES_SET_SCALING_HISTO_OPT, event, $
+  SET_HISTO_OPT_VAL=set_histo_opt_val
 ; Handles setting the default histrogram optimisation value
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	WIDGET_CONTROL, (*(*info).ctrlspref).histo_opt_txt, GET_VALUE = textvalue
-	(*(*info).prefs).tmp_histo_opt_val = textvalue[0]
+  IF (N_ELEMENTS(SET_HISTO_OPT_VAL) NE 1) THEN BEGIN
+  	WIDGET_CONTROL, (*(*info).ctrlspref).histo_opt_txt, GET_VALUE=textvalue 
+	  (*(*info).prefs).tmp_histo_opt_val = textvalue[0]
+  ENDIF ELSE BEGIN
+	  (*(*info).prefs).tmp_histo_opt_val = set_histo_opt_val
+  	WIDGET_CONTROL, (*(*info).ctrlspref).histo_opt_txt, $
+      SET_VALUE=STRTRIM(STRING(set_histo_opt_val, FORMAT='(F15.10)'),2)
+  ENDELSE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_histo_opt_val], $
       labels=['Histogram optimisation value']
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 END
 
-PRO CRISPEX_PREFERENCES_SET_SCALING_GAMMA, event
-; Handles setting the default histrogram optimisation value
+PRO CRISPEX_PREFERENCES_SET_SCALING_GAMMA, event, SET_GAMMA_VAL=set_gamma_val
+; Handles setting the default gamma value 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  (*(*info).prefs).tmp_gamma_val = 10.^((FLOAT(event.VALUE)/500.) - 1.)
+  IF (N_ELEMENTS(SET_GAMMA_VAL) NE 1) THEN $
+    (*(*info).prefs).tmp_gamma_val = 10.^((FLOAT(event.VALUE)/500.) - 1.) $
+  ELSE BEGIN
+    (*(*info).prefs).tmp_gamma_val = set_gamma_val
+    gamma_slider_val = 500 * (ALOG10(set_gamma_val) + 1)
+    WIDGET_CONTROL, (*(*info).ctrlspref).gamma_slid, $
+      SET_VALUE=gamma_slider_val
+  ENDELSE
   WIDGET_CONTROL, (*(*info).ctrlspref).gamma_label, $
     SET_VALUE=STRING((*(*info).prefs).tmp_gamma_val,FORMAT='(F6.3)')
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_gamma_val], $
       labels=['Gamma']
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
+END
+
+PRO CRISPEX_PREFERENCES_SET_SCALING_CURRENT, event
+; Handles setting the scaling parameters to current values
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  CRISPEX_PREFERENCES_SET_SCALING_GAMMA, event, $
+    SET_GAMMA_VAL=(*(*info).scaling).gamma[(*(*info).scaling).idx] 
+  CRISPEX_PREFERENCES_SET_SCALING_HISTO_OPT, event, $
+    SET_HISTO_OPT_VAL=(*(*info).scaling).histo_opt_val[(*(*info).scaling).idx] 
 END
 
 PRO CRISPEX_PREFERENCES_SET_INTERPOLATE, event
