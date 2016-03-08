@@ -11450,8 +11450,11 @@ PRO CRISPEX_PB_BG, event
       REFSSP_UPDATE=((((*(*info).dataswitch).reffile EQ 1) AND $ 
                       ((*(*info).dataswitch).refspfile EQ 0)) AND $
                       ((*(*info).pbparams).spmode EQ 0))
-	CRISPEX_DRAW, event, LS_NO_MAIN=((*(*info).dataswitch).spfile EQ 0), $
-    LS_NO_REF=((*(*info).dataswitch).refspfile EQ 0)
+	CRISPEX_DRAW, event, $
+    LS_NO_MAIN=(((*(*info).dataswitch).spfile EQ 0) AND $
+                ((*(*info).pbparams).spmode EQ 0)), $
+    LS_NO_REF=((*(*info).dataswitch).refspfile EQ 0), $
+    NO_REF=(*(*info).pbparams).spmode, NO_SJI=(*(*info).pbparams).spmode
 	IF (((*(*info).feedbparams).verbosity)[4] EQ 1) THEN BEGIN
 		(*(*info).feedbparams).count_pbstats += 1
 		newtime = SYSTIME(/SECONDS)
