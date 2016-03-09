@@ -2921,9 +2921,9 @@ PRO CRISPEX_DISPLAYS_INT_MENU, event, XOFFSET=xoffset, YOFFSET=yoffset
     lsname = 'int_sel_ls_'+STRTRIM(i,2)   ; Line-style combobox name
     clname = 'int_sel_cl_'+STRTRIM(i,2)   ; Color combobox name
     ; Wavelength combobox labels
-    lp_labels = LINDGEN((*(*(*info).intparams).diag_widths)[$
+    lp_labels = LINDGEN((*(*info).intparams).diag_width[$
       (*(*(*info).intparams).sel_diagnostics)[i]])+$
-      (*(*(*info).intparams).diag_starts)[$
+      (*(*info).intparams).diag_start[$
       (*(*(*info).intparams).sel_diagnostics)[i]]
     IF (*(*info).plotswitch).v_dop_set THEN $
       lp_labels = STRTRIM(lp_labels,2)+' ('+STRTRIM((*(*info).dataparams).lps[$
@@ -2956,7 +2956,7 @@ PRO CRISPEX_DISPLAYS_INT_MENU, event, XOFFSET=xoffset, YOFFSET=yoffset
         (*(*(*info).intparams).seldisp_diagnostics)[i] )
     WIDGET_CONTROL, (*(*info).ctrlsint).lp_box, $
       SET_COMBOBOX_SELECT=(*(*(*info).intparams).sellp_diagnostics)[i]-$
-      (*(*(*info).intparams).diag_starts)[(*(*(*info).intparams).sel_diagnostics)[i]],$
+      (*(*info).intparams).diag_start[(*(*(*info).intparams).sel_diagnostics)[i]],$
       SENSITIVE=( ((*(*info).dataparams).nlp GT 1) AND $
         (*(*(*info).intparams).seldisp_diagnostics)[i] )
     WIDGET_CONTROL, (*(*info).ctrlsint).ls_box, $
@@ -3139,9 +3139,9 @@ PRO CRISPEX_DISPLAYS_INT_SEL_DIAG, event
 	IF ( (*(*(*info).intparams).seldisp_diagnostics)[eventval] EQ 1) THEN $
     (*(*(*info).intparams).sel_diagnostics)[eventval] = event.INDEX
   ; Adjust possible wavelengths
-  lp_labels = LINDGEN((*(*(*info).intparams).diag_widths)[$
+  lp_labels = LINDGEN((*(*info).intparams).diag_width[$
     (*(*(*info).intparams).sel_diagnostics)[eventval]])+$
-    (*(*(*info).intparams).diag_starts)[$
+    (*(*info).intparams).diag_start[$
     (*(*(*info).intparams).sel_diagnostics)[eventval]]
   IF (*(*info).plotswitch).v_dop_set THEN $
     lp_labels = STRTRIM(lp_labels,2)+' ('+STRTRIM((*(*info).dataparams).lps[$
@@ -3153,7 +3153,7 @@ PRO CRISPEX_DISPLAYS_INT_SEL_DIAG, event
     SET_VALUE=lp_labels, SET_COMBOBOX_SELECT=0
   ; Change actual wavelength variable to reflect adjustment
   (*(*(*info).intparams).sellp_diagnostics)[eventval] = $
-    (*(*(*info).intparams).diag_starts)[(*(*(*info).intparams).sel_diagnostics)[eventval]]
+    (*(*info).intparams).diag_start[(*(*(*info).intparams).sel_diagnostics)[eventval]]
 	CRISPEX_DRAW_INT, event
 END
 
@@ -3165,7 +3165,7 @@ PRO CRISPEX_DISPLAYS_INT_SEL_LP, event
 	WIDGET_CONTROL, event.ID, GET_UVALUE = eventval
 	IF ( (*(*(*info).intparams).seldisp_diagnostics)[eventval] EQ 1) THEN $
     (*(*(*info).intparams).sellp_diagnostics)[eventval] = event.INDEX+$
-      (*(*(*info).intparams).diag_starts)[(*(*(*info).intparams).sel_diagnostics)[eventval]]
+      (*(*info).intparams).diag_start[(*(*(*info).intparams).sel_diagnostics)[eventval]]
 	CRISPEX_DRAW_INT, event
 END
 
@@ -9077,12 +9077,22 @@ PRO CRISPEX_INT_SAVE, event
   	lightcurve = FLTARR((*(*info).dispparams).t_range,N_ELEMENTS(condition))
   	avg_intensity = FLTARR(N_ELEMENTS(condition))
   	FOR i=0,N_ELEMENTS(condition)-1 DO BEGIN
-  		lightcurve[0,i] = REFORM( ( ( *(*(*info).data).spdata)[ $
-        FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * (*(*info).dataparams).ns + $
-        FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns + $
-  			(*(*info).dataparams).s ] )[$
-        (*(*(*info).intparams).sellp_diagnostics)[condition[i]],$
-          (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp] )
+			IF (*(*info).dataswitch).spfile THEN BEGIN
+  		  lightcurve[0,i] = REFORM( ( ( *(*(*info).data).spdata)[ $
+          FIX((*(*info).dataparams).y) * (*(*info).dataparams).nx * (*(*info).dataparams).ns + $
+          FIX((*(*info).dataparams).x) * (*(*info).dataparams).ns + $
+  		  	(*(*info).dataparams).s ] )[$
+          (*(*(*info).intparams).sellp_diagnostics)[condition[i]],$
+            (*(*info).dispparams).t_low:(*(*info).dispparams).t_upp] )
+      ENDIF ELSE BEGIN
+				FOR t=0,(*(*info).dataparams).nt-1 DO BEGIN
+					lightcurve[t,i] = ((*(*(*info).data).imagedata)[$
+            t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
+            (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
+						(*(*(*info).intparams).sellp_diagnostics)[condition[i]]])[$
+            (*(*info).dataparams).x,(*(*info).dataparams).y]
+				ENDFOR
+      ENDELSE
   		avg_intensity[i] = MEAN(lightcurve[*,i], /NAN)
   	ENDFOR
     diagnostics = (*(*info).intparams).diagnostics[(*(*(*info).intparams).sel_diagnostics)[condition]]
