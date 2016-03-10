@@ -8413,9 +8413,9 @@ PRO CRISPEX_DRAW_REFLOOPSLAB, event
       ; black compared to the data values
       min_dispslice_data = $
         -(1+(MIN(dispslice_data) LT 0)*2) * ABS(MIN(dispslice_data))
-      IF ((*(*(*info).loopsdata).empty_slice)[0,0] NE min_dispslice_data) THEN $
-        REPLICATE_INPLACE, *(*(*info).loopsdata).empty_slice, min_dispslice_data
-      dispslice = (*(*(*info).loopsdata).empty_slice)[*, $
+      IF ((*(*(*info).loopsdata).empty_refslice)[0,0] NE min_dispslice_data) THEN $
+        REPLICATE_INPLACE, *(*(*info).loopsdata).empty_refslice, min_dispslice_data
+      dispslice = (*(*(*info).loopsdata).empty_refslice)[*, $
         (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).t_low]:$
         (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).t_upp]]
       idx_out = $
@@ -8427,7 +8427,7 @@ PRO CRISPEX_DRAW_REFLOOPSLAB, event
             (*(*(*info).loopparams).databounds_ref)[2*i+1],*]
     ENDIF
   ENDIF ELSE BEGIN
-    dispslice = *(*(*info).loopsdata).empty_slice
+    dispslice = *(*(*info).loopsdata).empty_refslice
     minmax = [0,1]
   ENDELSE
   TVLCT, r_cur, g_cur, b_cur, /GET
@@ -8499,9 +8499,9 @@ PRO CRISPEX_DRAW_SJILOOPSLAB, event
       ; black compared to the data values
       min_dispslice_data = $
         -(1+(MIN(dispslice_data) LT 0)*2) * ABS(MIN(dispslice_data))
-      IF ((*(*(*info).loopsdata).empty_slice)[0,0] NE min_dispslice_data) THEN $
-        REPLICATE_INPLACE, *(*(*info).loopsdata).empty_slice, min_dispslice_data
-      dispslice = (*(*(*info).loopsdata).empty_slice)[*, $
+      IF ((*(*(*info).loopsdata).empty_sjislice)[0,0] NE min_dispslice_data) THEN $
+        REPLICATE_INPLACE, *(*(*info).loopsdata).empty_sjislice, min_dispslice_data
+      dispslice = (*(*(*info).loopsdata).empty_sjislice)[*, $
         (*(*(*info).dispparams).tsel_sji)[(*(*info).dispparams).t_low]:$
         (*(*(*info).dispparams).tsel_sji)[(*(*info).dispparams).t_upp]]
       idx_out = $
@@ -8513,7 +8513,7 @@ PRO CRISPEX_DRAW_SJILOOPSLAB, event
             (*(*(*info).loopparams).databounds_sji)[2*i+1],*]
     ENDIF
   ENDIF ELSE BEGIN
-    dispslice = *(*(*info).loopsdata).empty_slice
+    dispslice = *(*(*info).loopsdata).empty_sjislice
     minmax = [0,1]
   ENDELSE
   TVLCT, r_cur, g_cur, b_cur, /GET
@@ -10699,24 +10699,33 @@ PRO CRISPEX_LOOP_GET, event, ADD_REMOVE=add_remove
 	IF (*(*info).winswitch).showloop THEN BEGIN
 		CRISPEX_LOOP_GET_SLAB, event
 		CRISPEX_DISPLAYS_LOOPSLAB_REPLOT_AXES, event					
+    ; If ngaps >= 1 create empty slice for display purposes
+    IF ((*(*info).loopparams).ngaps GE 1) THEN $
+      *(*(*info).loopsdata).empty_slice = $
+        MAKE_ARRAY(N_ELEMENTS(*(*(*info).loopparams).xr), $
+        (*(*info).dataparams).mainnt, $
+        TYPE=SIZE(*(*(*info).data).imagedata, /TYPE))
 	ENDIF
 	IF (*(*info).winswitch).showrefloop THEN BEGIN
 		CRISPEX_LOOP_GET_REFSLAB, event
 		CRISPEX_DISPLAYS_REFLOOPSLAB_REPLOT_AXES, event					
+    ; If ngaps >= 1 create empty slice for display purposes
+    IF ((*(*info).loopparams).ngaps_ref GE 1) THEN $
+      *(*(*info).loopsdata).empty_refslice = $
+        MAKE_ARRAY(N_ELEMENTS(*(*(*info).loopparams).xr), $
+        (*(*info).dataparams).refnt, $
+        TYPE=SIZE(*(*(*info).data).refdata, /TYPE))
 	ENDIF
 	IF (*(*info).winswitch).showsjiloop THEN BEGIN
 		CRISPEX_LOOP_GET_SJISLAB, event
 		CRISPEX_DISPLAYS_SJILOOPSLAB_REPLOT_AXES, event					
+    ; If ngaps >= 1 create empty slice for display purposes
+    IF ((*(*info).loopparams).ngaps_sji GE 1) THEN $
+      *(*(*info).loopsdata).empty_sjislice = $
+        MAKE_ARRAY(N_ELEMENTS(*(*(*info).loopparams).xr), $
+        (*(*info).dataparams).sjint, $
+        TYPE=SIZE(*(*(*info).data).sjidata, /TYPE))
 	ENDIF
-  ; If ngaps >= 1 OR ngaps_ref >= 1, create empty slice for display purposes
-  IF (((*(*info).loopparams).ngaps GE 1) OR $
-    ((*(*info).loopparams).ngaps_ref GE 1) OR $
-    ((*(*info).loopparams).ngaps_sji GE 1)) THEN BEGIN
-    *(*(*info).loopsdata).empty_slice = $
-      MAKE_ARRAY(N_ELEMENTS(*(*(*info).loopparams).xr), $
-        (*(*info).dispparams).t_upp-(*(*info).dispparams).t_low+1, $
-        TYPE=SIZE(*(*(*info).data).imagedata, /TYPE))
-  ENDIF
 END
 
 PRO CRISPEX_LOOP_GET_PATH, event, ADD_REMOVE=add_remove
@@ -22077,6 +22086,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		exact_loopslab:exact_loopslab, exact_loopslice:exact_loopslice, $	
 		det_loopslab:det_loopslab, det_loopslice:det_loopslice, $	
     empty_slice:PTR_NEW(INTARR(10,10)), $
+    empty_refslice:PTR_NEW(INTARR(10,10)), $
+    empty_sjislice:PTR_NEW(INTARR(10,10)), $
     rest_empty_slice:PTR_NEW(INTARR(10,10)), $
     det_empty_slice:PTR_NEW(INTARR(10,10)) $
 	}
