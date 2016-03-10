@@ -4182,15 +4182,14 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_SELECT, event
                   STRPOS((*(*info).dataparams).refimfilename,'.',/REVERSE_SEARCH)))
 			sjibase = FILE_BASENAME(STRMID((*(*info).dataparams).sjifilename,0,$
                   STRPOS((*(*info).dataparams).sjifilename,'.',/REVERSE_SEARCH)))
-      ; Check whether it is a main or reference loop
+      ; Check whether it is a main, reference or SJI loop
+      disp_imref = 0  
 			IF (STRLEN(refbase) GT 0) THEN $
-        disp_imref = STRCMP(refbase,FILE_BASENAME($
-          (*(*info).restoreparams).disp_loopfile),STRLEN(refbase)) $
-      ELSE IF (STRLEN(sjibase) GT 0) THEN $
-        disp_imref = STRCMP(sjibase,FILE_BASENAME($
-          (*(*info).restoreparams).disp_loopfile),STRLEN(sjibase))*2 $
-      ELSE $
-        disp_imref = 0
+        disp_imref += STRCMP(refbase,FILE_BASENAME($
+          (*(*info).restoreparams).disp_loopfile),STRLEN(refbase)) 
+      IF (STRLEN(sjibase) GT 0) THEN $
+        disp_imref += STRCMP(sjibase,FILE_BASENAME($
+          (*(*info).restoreparams).disp_loopfile),STRLEN(sjibase))*2
       ; If there are already loops being displayed, append variables to current
       ; selection
 			IF (TOTAL(*(*(*info).restoreparams).disp_loopnr) GE 0) THEN BEGIN
