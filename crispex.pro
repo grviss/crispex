@@ -19419,13 +19419,10 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   showls = ((hdr.spfile OR (hdr.nlp GT 1)) AND (singlewav_windows EQ 0))
   showrefls = $
     ((hdr.refspfile OR (hdr.refnlp GT 1)) AND (refsinglewav_windows EQ 0))
-  
-  IF showrefls THEN BEGIN
-		lp_ref_last = hdr.refnlp - 1L
-		lp_ref_start = hdr.reflc
-	ENDIF ELSE IF (hdr.refnlp GT 1) THEN BEGIN
-		lp_ref_last = lp_last
-		lp_ref_start = hdr.lc
+ 
+  IF (hdr.refnlp GT 1) THEN BEGIN
+    lp_ref_last = hdr.refnlp - 1L
+    lp_ref_start = hdr.reflc
 	ENDIF ELSE BEGIN
 		lp_ref_last = 1L
 		lp_ref_start = 0L
@@ -20985,10 +20982,10 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	loop_feedb_but		  = WIDGET_BUTTON(loop_but_frame, VALUE = 'Path feedback', $
                           EVENT_PRO = 'CRISPEX_LOOP_FEEDBACK')
 	WIDGET_CONTROL, loop_feedb_but, /SET_BUTTON
-	loop_buts_frame		  = WIDGET_BASE(analysis_tab, /ROW)
-	rem_loop_pt_but		  = WIDGET_BUTTON(loop_buts_frame, VALUE = 'Remove last loop point', $
+	loop_buts_frame		  = WIDGET_BASE(analysis_tab, /GRID_LAYOUT, COLUMN=2)
+	rem_loop_pt_but		  = WIDGET_BUTTON(loop_buts_frame, VALUE = 'Remove last point', $
                           EVENT_PRO = 'CRISPEX_LOOP_REMOVE_POINT', SENSITIVE = 0)
-	loop_slice_but		  = WIDGET_BUTTON(loop_buts_frame, VALUE = 'Time slice along loop', $
+	loop_slice_but		  = WIDGET_BUTTON(loop_buts_frame, VALUE = 'Get diagram along path', $
                           EVENT_PRO = 'CRISPEX_DISPLAYS_LOOPSLAB_GET', SENSITIVE = 0)
   analysis_divider1   = CRISPEX_WIDGET_DIVIDER(analysis_tab)
   ; Measurement tool controls
