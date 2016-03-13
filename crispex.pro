@@ -5264,7 +5264,6 @@ PRO CRISPEX_DISPRANGE_INT_T_RANGE, event
 	CRISPEX_DISPRANGE_T_RANGE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).lower_t_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_low,2)
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_t_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_upp,2)
-	IF (*(*info).winswitch).showint THEN WIDGET_CONTROL, (*(*info).ctrlsint).reset_trange_but, SENSITIVE = (((*(*info).plotaxes).int_upp_t-(*(*info).plotaxes).int_low_t+1) NE (*(*info).dataparams).nt)
 END
 
 PRO CRISPEX_DISPRANGE_INT_T_RESET, event
@@ -5275,9 +5274,6 @@ PRO CRISPEX_DISPRANGE_INT_T_RESET, event
 	(*(*info).plotaxes).int_upp_t = (*(*info).dispparams).t_last
 	(*(*info).plotaxes).int_low_t = (*(*info).dispparams).t_first
 	CRISPEX_DISPRANGE_INT_T_RANGE, event
-	WIDGET_CONTROL, (*(*info).ctrlsint).upper_t_int_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_upp,2)
-	WIDGET_CONTROL, (*(*info).ctrlsint).lower_t_int_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_low,2)
-	WIDGET_CONTROL, (*(*info).ctrlsint).reset_trange_but, SENSITIVE = 0
 END
 
 PRO CRISPEX_DISPRANGE_LS_LOW, event
@@ -5410,7 +5406,6 @@ PRO CRISPEX_DISPRANGE_T_LOW, event
 	IF ((*(*info).winswitch).showint AND (*(*info).intparams).lock_t) THEN BEGIN
 		(*(*info).plotaxes).int_low_t = (*(*info).dispparams).t_low
 		CRISPEX_DISPRANGE_INT_T_RANGE, event
-		IF (*(*info).winswitch).showint THEN WIDGET_CONTROL, (*(*info).ctrlsint).lower_t_int_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_low,2)
 	ENDIF ELSE CRISPEX_DISPRANGE_T_RANGE, event
 END
 
@@ -5427,7 +5422,6 @@ PRO CRISPEX_DISPRANGE_T_UPP, event
 	IF ((*(*info).winswitch).showint AND (*(*info).intparams).lock_t) THEN BEGIN
 		(*(*info).plotaxes).int_upp_t = (*(*info).dispparams).t_upp
 		CRISPEX_DISPRANGE_INT_T_RANGE, event
-		IF (*(*info).winswitch).showint THEN WIDGET_CONTROL, (*(*info).ctrlsint).upper_t_int_text, SET_VALUE = STRTRIM((*(*info).dispparams).t_upp,2)
 	ENDIF ELSE CRISPEX_DISPRANGE_T_RANGE, event
 END
 
@@ -7477,8 +7471,8 @@ PRO CRISPEX_DRAW_INT, event
 					(*(*info).dataparams).s ] )[$
           (*(*(*info).intparams).sellp_diagnostics)[condition[i]],*] )
 			ENDIF ELSE BEGIN
-				ssp = FLTARR((*(*info).dataparams).nt)
-				FOR t=0,(*(*info).dataparams).nt-1 DO BEGIN
+				ssp = FLTARR((*(*info).dataparams).mainnt)
+				FOR t=0,(*(*info).dataparams).mainnt-1 DO BEGIN
 					ssp[t] = ((*(*(*info).data).imagedata)[$
             t * (*(*info).dataparams).nlp * (*(*info).dataparams).ns + $
             (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
@@ -7487,10 +7481,12 @@ PRO CRISPEX_DRAW_INT, event
 				ENDFOR
 			ENDELSE
 			avgdint = ssp / ABS(MEAN(ssp, /NAN))
+      tarr_main = $
+        (*(*(*info).dispparams).tarr_main)[UNIQ(*(*(*info).dispparams).tarr_main)]
 			LOADCT, 12, /SILENT
 			plotcol = ((*(*info).intparams).colors_diagnostics)[selcol[i]]
       ; Plot lightcurve
-			OPLOT, *(*(*info).dispparams).tarr_main, avgdint, COLOR=plotcol, $
+			OPLOT, tarr_main, avgdint, COLOR=plotcol, $
         LINESTYLE=(*(*(*info).intparams).sellines_diagnostics)[condition[i]], $
         THICK=(*(*info).plotparams).plotthick
 			LOADCT, 0, /SILENT
@@ -20995,11 +20991,11 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	apix_base		        = WIDGET_BASE(analysis_tab, /ROW)
 	apix_label		      = WIDGET_LABEL(apix_base, VALUE = 'Pixel size:', /ALIGN_LEFT, SENSITIVE = 0)
   IF hdr.dx_fixed THEN BEGIN
-  	dx_text		        = WIDGET_LABEL(apix_base, VALUE=STRTRIM(hdr.dx,2), $
-                          /ALIGN_LEFT, XSIZE=7, SENSITIVE=0) 
+  	dx_text		        = WIDGET_LABEL(apix_base, VALUE=STRTRIM(STRING(hdr.dx, $
+                          FORMAT='(F5.3)'),2), /ALIGN_LEFT, SENSITIVE=0) 
 	  x_label		        = WIDGET_LABEL(apix_base, VALUE = 'X', /ALIGN_CENTER, SENSITIVE = 0)
-  	dy_text		        = WIDGET_LABEL(apix_base, VALUE=STRTRIM(hdr.dy,2), $
-                          /ALIGN_LEFT, XSIZE=7, SENSITIVE = 0) 
+  	dy_text		        = WIDGET_LABEL(apix_base, VALUE=STRTRIM(STRING(hdr.dy, $
+                          FORMAT='(F5.3)'),2), /ALIGN_LEFT, SENSITIVE = 0) 
   ENDIF ELSE BEGIN
   	dx_text		= WIDGET_TEXT(apix_base, VALUE = STRTRIM(hdr.dx,2), /EDITABLE, XSIZE=7, $
                     EVENT_PRO = 'CRISPEX_MEASURE_DX', SENSITIVE = 0)
