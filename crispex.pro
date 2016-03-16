@@ -7426,7 +7426,7 @@ PRO CRISPEX_DRAW_SJI, event
 	CRISPEX_DRAW_SCALING, event, sjidisp, minimum, maximum, /SJI
   IF ((*(*(*info).scaling).imagescale)[3] EQ 2) AND $
      ((*(*info).dispparams).t_sji NE (*(*info).dispparams).t_sji_old) THEN $
-    CRISPEX_DRAW_CTBAR, event, /DOPPLER, MINIMUM=minimum, MAXIMUM=maximum
+    CRISPEX_DRAW_CTBAR, event, /SJI, MINIMUM=minimum, MAXIMUM=maximum
 	WSET, (*(*info).winids).sjiwid
   TVLCT, (*(*info).plotparams).rgb_sji
   TV, CONGRID(sjidisp,(*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny)
