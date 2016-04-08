@@ -5886,17 +5886,17 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
 	ENDIF ;ELSE 
   IF ~KEYWORD_SET(NO_CURSOR) THEN BEGIN
     ; Overplot cursor location
-    IF ((main_wid OR ref_wid OR sji_wid) AND eqtc0) THEN BEGIN
-      LOADCT, 13, /SILENT
-      curscolor = 255
-    ENDIF ELSE BEGIN
-      IF (main_wid+ref_wid+sji_wid EQ 0) THEN curscolor = 255
-    ENDELSE
-    IF KEYWORD_SET(SJI) THEN BEGIN
-      IF ((*(*info).dispswitch).xysji_out_of_range EQ 0) THEN $
-        PLOTS, sx_loc, sy_loc, /DEVICE, PSYM=1, COLOR=curscolor, THICK=thick, $
-          SYMSIZE=symsize
-    ENDIF ELSE $
+;    IF ((main_wid OR ref_wid OR sji_wid) AND eqtc0) THEN BEGIN
+;     IF eqtc0 THEN LOADCT, 13, /SILENT
+;      curscolor = 255
+;    ENDIF ELSE BEGIN
+;      IF (main_wid+ref_wid+sji_wid EQ 0) THEN curscolor = 255
+;    ENDELSE
+;    IF KEYWORD_SET(SJI) THEN BEGIN
+;      IF ((*(*info).dispswitch).xysji_out_of_range EQ 0) THEN $
+;        PLOTS, sx_loc, sy_loc, /DEVICE, PSYM=1, COLOR=curscolor, THICK=thick, $
+;          SYMSIZE=symsize
+;    ENDIF ELSE $
       PLOTS, sx_loc, sy_loc, /DEVICE, PSYM=1, COLOR=curscolor, THICK=thick, $
         SYMSIZE=symsize
   ENDIF
@@ -7063,7 +7063,7 @@ PRO CRISPEX_DRAW_TIMESLICES, event
 	IF (*(*info).winswitch).showretrdet THEN CRISPEX_DRAW_RETR_DET, event
 END
 
-PRO CRISPEX_DRAW_SUBCOLOR, event, imref, subcolor, minimum, maximum, $
+PRO CRISPEX_DRAW_SUBCOLOR, event, dispdata, subcolor, $ 
   XYRANGE=xyrange, SJI=sji, REFERENCE=reference
 ; Determines the color beneath the cursor to get the cursor color
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -7092,40 +7092,16 @@ PRO CRISPEX_DRAW_SUBCOLOR, event, imref, subcolor, minimum, maximum, $
       yfirst= (*(*info).dispparams).y_first
       ylast = (*(*info).dispparams).y_last
     ENDELSE
-      x_upp = xcurs+5 > xfirst < xlast
-      x_low = xcurs-5 > xfirst < xlast
-      y_upp = ycurs+5 > yfirst < ylast
-      y_low = ycurs-5 > yfirst < ylast
+    dxy = 1
+    x_upp = xcurs+dxy > xfirst < xlast
+    x_low = xcurs-dxy > xfirst < xlast
+    y_upp = ycurs+dxy > yfirst < ylast
+    y_low = ycurs-dxy > yfirst < ylast
 	ENDIF ELSE BEGIN
 		x_low = xyrange[0]	&	x_upp = xyrange[1]
 		y_low = xyrange[2]	&	y_upp = xyrange[3]
 	ENDELSE
-  scale_idx = $
-    ((imref EQ 0) OR (imref EQ 2)) * (*(*info).intparams).lp_diag_all + $
-    ((imref GT 0)+(imref GT 2)) * (*(*info).intparams).ndiagnostics + $
-    (imref EQ 1) * (*(*info).intparams).lp_ref_diag_all + $
-    (imref GT 1) * (*(*info).intparams).nrefdiagnostics 
-	IF (imref EQ 0) THEN $
-		selected_data = (*(*(*info).data).imagedata)[$
-      (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * $
-      (*(*info).dataparams).ns + (*(*info).dataparams).s * $
-      (*(*info).dataparams).nlp + (*(*info).dataparams).lp]$
-	ELSE IF (imref EQ 1) THEN BEGIN
-		IF ((*(*info).dataparams).refnt GT 1) THEN $
-      selected_data = (*(*(*info).data).refdata)[(*(*info).dispparams).t_ref *  $
-        (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref]$
-    ELSE $
-			selected_data = (*(*(*info).data).refdata)[(*(*info).dataparams).lp_ref]
-	ENDIF ELSE IF (imref EQ 2) THEN	$
-    selected_data = *(*(*info).data).dopslice $
-  ELSE IF (imref EQ 3) THEN $
-    selected_data = *(*(*info).data).sjislice 
-  minimum = MIN(selected_data, MAX=maximum, /NAN)
-  minmax = CRISPEX_SCALING_CONTRAST(minimum,maximum,$
-    (*(*info).scaling).minimum[scale_idx],(*(*info).scaling).maximum[scale_idx])
-	scaled_data = BYTSCL(selected_data[x_low:x_upp, y_low:y_upp], $
-    MIN=minmax[0], MAX=minmax[1], /NAN)
-	subcolor = MEAN(scaled_data, /NAN)
+	subcolor = MEAN(dispdata[x_low:x_upp, y_low:y_upp], /NAN)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [x_low,x_upp,y_low,y_upp,subcolor], $
       labels=['x_low','x_upp','y_low','y_upp','subcolor']
@@ -7269,7 +7245,7 @@ PRO CRISPEX_DRAW_XY, event, no_cursor=no_cursor, no_number=no_number, $
 	WSET, (*(*info).winids).imwid
   TVLCT, (*(*info).plotparams).rgb_main
   TV, CONGRID(imdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
-	CRISPEX_DRAW_SUBCOLOR, event, 0, subcolor, minimum, maximum
+	CRISPEX_DRAW_SUBCOLOR, event, imdisp, subcolor
 	IF (subcolor GE 122) THEN curscolor = 0 ELSE curscolor = 255
 	CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, NO_CURSOR=no_cursor, $
     NO_NUMBER=no_number, THICK=thick, NO_ENDPOINTS=no_endpoints, SYMSIZE=symsize, $
@@ -7310,7 +7286,7 @@ PRO CRISPEX_DRAW_DOPPLER, event
     TVLCT, (*(*info).plotparams).rgb_dop
     TV, CONGRID(dopdisp,(*(*info).winsizes).xywinx, (*(*info).winsizes).xywiny)
     TVLCT, r_cur, g_cur, b_cur
-		CRISPEX_DRAW_SUBCOLOR, event, 2, dopsubcolor, dopminimum, dopmaximum
+		CRISPEX_DRAW_SUBCOLOR, event, dopdisp, dopsubcolor
 		IF (dopsubcolor GE 122) THEN $
       dopcurscolor = 0 
 		CRISPEX_DRAW_CURSCROSS_PLOT, event, dopcurscolor, $
@@ -7353,7 +7329,7 @@ PRO CRISPEX_DRAW_REF, event
 	WSET, (*(*info).winids).refwid
   TVLCT, (*(*info).plotparams).rgb_ref
   TV, CONGRID(refdisp,(*(*info).winsizes).refwinx, (*(*info).winsizes).refwiny) 
-	CRISPEX_DRAW_SUBCOLOR, event, 1, subcolor_ref, refmin, refmax, /REFERENCE
+	CRISPEX_DRAW_SUBCOLOR, event, refdisp, subcolor_ref, /REFERENCE
 	IF (subcolor_ref GE 122) THEN curscolor_ref = 0 ELSE curscolor_ref = 255
 	CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor_ref, $
     DRAW_MASK=((*(*info).overlayswitch).mask AND $
@@ -7380,12 +7356,13 @@ PRO CRISPEX_DRAW_IMREF_BLINK, event
     TVLCT, (*(*info).plotparams).rgb_ref
     TV, CONGRID(refdisp_sel,(*(*info).winsizes).imrefwinx, $
       (*(*info).winsizes).imrefwiny) 
-		CRISPEX_DRAW_SUBCOLOR, event, 1, subcolor_ref, refmin, refmax
+		CRISPEX_DRAW_SUBCOLOR, event, refdisp, subcolor_ref, /REFERENCE
 		IF (subcolor_ref GE 122) THEN curscolor_ref = 0 ELSE curscolor_ref = 255
 		CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor_ref, $
       DRAW_MASK=((*(*info).overlayswitch).mask AND $
                 ((*(*info).overlayswitch).maskim)[1])
-		CRISPEX_DRAW_SUBCOLOR, event, 1, color_reftxt, refmin, refmax
+		CRISPEX_DRAW_SUBCOLOR, event, refdisp, color_reftxt, /REFERENCE, $
+      XYRANGE=[10,100,10,20]
 		IF (color_reftxt GE 122) THEN reftxtcol = 0 ELSE reftxtcol = 255
     label = 'Reference'
     time_val = (*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t]
@@ -7397,12 +7374,12 @@ PRO CRISPEX_DRAW_IMREF_BLINK, event
     TVLCT, (*(*info).plotparams).rgb_main
     TV, CONGRID(imdisp_sel,(*(*info).winsizes).imrefwinx, $
       (*(*info).winsizes).imrefwiny) 
-		CRISPEX_DRAW_SUBCOLOR, event, 0, subcolor, minimum, maximum
+		CRISPEX_DRAW_SUBCOLOR, event, imdisp, subcolor
 		IF (subcolor GE 122) THEN curscolor = 0 ELSE curscolor = 255
 		CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, $
       DRAW_MASK=((*(*info).overlayswitch).mask AND $
                 ((*(*info).overlayswitch).maskim)[0])
-		CRISPEX_DRAW_SUBCOLOR, event, 0, color_txt, minimum, maximum
+		CRISPEX_DRAW_SUBCOLOR, event, imdisp, color_txt, XYRANGE=[10,100,10,20]
 		IF (color_txt GE 122) THEN txtcol = 0 ELSE txtcol = 255
     label = 'Main'
     time_val = (*(*(*info).dispparams).tarr_main)[(*(*info).dispparams).t]
@@ -7431,7 +7408,7 @@ PRO CRISPEX_DRAW_SJI, event
   TVLCT, (*(*info).plotparams).rgb_sji
   TV, CONGRID(sjidisp,(*(*info).winsizes).sjiwinx, (*(*info).winsizes).sjiwiny)
   ; Determine cursor colour and overplot cursors and masks
-	CRISPEX_DRAW_SUBCOLOR, event, 3, subcolor_sji, sjimin, sjimax, /SJI
+	CRISPEX_DRAW_SUBCOLOR, event, sjidisp, subcolor_sji, /SJI
 	IF (subcolor_sji GE 122) THEN curscolor_sji = 0 ELSE curscolor_sji = 255
 	CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor_sji, $
     DRAW_MASK=((*(*info).overlayswitch).mask AND $
@@ -21014,6 +20991,20 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   analysis_divider2   = CRISPEX_WIDGET_DIVIDER(analysis_tab)
 
   ; ==================== Overlays Tab ====================
+  ; Color settings base
+  colset_overlay_label= WIDGET_LABEL(overlays_tab, VALUE='Color settings:', $
+                          /ALIGN_LEFT)
+	masks_overlay_ct_cbox= WIDGET_COMBOBOX(overlays_tab, $
+                          VALUE=ct_idl_names_cbox, $
+                          EVENT_PRO='CRISPEX_MASK_OVERLAY_SELECT_COLOR_TABLE', $
+                          SENSITIVE=maskfile)
+	maskct = 13
+	WIDGET_CONTROL, masks_overlay_ct_cbox, SET_COMBOBOX_SELECT=maskct
+	masks_overlay_col_slid= WIDGET_SLIDER(overlays_tab, MIN=0, MAX=255, $
+                            VALUE=255, TITLE='Color index', $
+                            EVENT_PRO='CRISPEX_MASK_OVERLAY_COLOR_SLIDER',$
+                            /DRAG, SENSITIVE = maskfile)
+  overlays_divider1   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
   ; Mask overlays base
   masks_overlay_label = WIDGET_LABEL(overlays_tab, VALUE='Mask:',/ALIGN_LEFT)
 	masks_overlay		    = WIDGET_BASE(overlays_tab, /ROW)
@@ -21021,15 +21012,6 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	masks_overlay_buts	= CW_BGROUP(masks_overlay, ['Main','Reference','Doppler'],$
                           BUTTON_UVALUE=INDGEN(3),IDS=mask_button_ids,/NONEXCLUSIVE, /ROW, $
                           EVENT_FUNC = 'CRISPEX_BGROUP_MASK_OVERLAY')
-	masks_overlay_ct_cbox= WIDGET_COMBOBOX(overlays_tab, $
-                          VALUE = ct_idl_names_cbox, $
-                          EVENT_PRO = 'CRISPEX_MASK_OVERLAY_SELECT_COLOR_TABLE', $
-                          SENSITIVE = maskfile)
-	maskct = 13
-	WIDGET_CONTROL, masks_overlay_ct_cbox, SET_COMBOBOX_SELECT = maskct
-	masks_overlay_col_slid= WIDGET_SLIDER(overlays_tab, MIN = 0, MAX = 255, VALUE = 255, $
-                            TITLE = 'Color index', EVENT_PRO='CRISPEX_MASK_OVERLAY_COLOR_SLIDER',$
-                            /DRAG, SENSITIVE = maskfile)
   overlays_divider1   = CRISPEX_WIDGET_DIVIDER(overlays_tab)
   ; Loop overlays base                            
 	overlay_label		    = WIDGET_LABEL(overlays_tab, VALUE = 'Paths:', /ALIGN_LEFT)
