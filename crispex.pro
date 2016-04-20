@@ -20226,6 +20226,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   rgb_ref = rgb_table
   rgb_dop = rgb_table
   rgb_main = rgb_table
+  rgb_sji = rgb_table
   ; Adjust color tables if appropriate
   IF ((STRTRIM(main_instr,2) EQ 'IRIS') AND iris_lct_exist) THEN BEGIN
     rgb_main = CRISPEX_GET_RGB_TABLE(TABLE_NAME='FUV', /IRIS) 
@@ -20242,17 +20243,21 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     ENDIF
   ENDIF
   IF (hdr.sjifile AND (iris_lct_exist OR aia_lct_exist)) THEN BEGIN
-    sji_channel = (FITSHEAD2STRUCT(*hdr.hdrs_sji[0])).tdesc1
-    splitchannel = STRSPLIT(sji_channel,'_',/EXTRACT)
-    is_iris_sji = (splitchannel[0] EQ 'SJI')
-    ; Remove _THIN from AIA SJI FITS cubes
-    IF (is_iris_sji EQ 0) THEN sji_channel = splitchannel[0]    
-    rgb_sji = CRISPEX_GET_RGB_TABLE(TABLE_NAME=sji_channel, $
-      IRIS=(is_iris_sji AND iris_lct_exist), $
-      SDO=((is_iris_sji EQ 0) AND aia_lct_exist))
-    imct[3] = (WHERE(ct_names EQ sji_channel))[0]
-  ENDIF ELSE $
-    rgb_sji = rgb_table
+    ; Check whether loading IRIS or SDO data, otherwise load default color table
+    is_iris_or_sdo = ( (STRTRIM((FITSHEAD2STRUCT(*hdr.hdrs_sji[0])).telescop,2) EQ 'IRIS') OR $
+                       (STRTRIM((FITSHEAD2STRUCT(*hdr.hdrs_sji[0])).telescop,2) EQ 'SDO') )
+    IF is_iris_or_sdo THEN BEGIN
+      sji_channel = (FITSHEAD2STRUCT(*hdr.hdrs_sji[0])).tdesc1
+      splitchannel = STRSPLIT(sji_channel,'_',/EXTRACT)
+      is_iris_sji = (splitchannel[0] EQ 'SJI')
+      ; Remove _THIN from AIA SJI FITS cubes
+      IF (is_iris_sji EQ 0) THEN sji_channel = splitchannel[0]    
+      rgb_sji = CRISPEX_GET_RGB_TABLE(TABLE_NAME=sji_channel, $
+        IRIS=(is_iris_sji AND iris_lct_exist), $
+        SDO=((is_iris_sji EQ 0) AND aia_lct_exist))
+      imct[3] = (WHERE(ct_names EQ sji_channel))[0]
+    ENDIF 
+  ENDIF 
 
   IF (TOTAL(verbosity[0:1]) GE 1) THEN $
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, '(initial scaling parameters)', $
