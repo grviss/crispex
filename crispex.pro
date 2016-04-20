@@ -7071,27 +7071,18 @@ PRO CRISPEX_DRAW_SUBCOLOR, event, dispdata, subcolor, $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (N_ELEMENTS(XYRANGE) EQ 0) THEN BEGIN
     IF KEYWORD_SET(SJI) THEN BEGIN
-      xcurs = LONG((*(*info).dataparams).xsji)
-      ycurs = LONG((*(*info).dataparams).ysji)
-      xfirst= (*(*info).dispparams).xsji_first
-      xlast = (*(*info).dispparams).xsji_last
-      yfirst= (*(*info).dispparams).ysji_first
-      ylast = (*(*info).dispparams).ysji_last
+      xcurs = LONG((*(*info).dataparams).xsji - (*(*info).zooming).xsjipos)
+      ycurs = LONG((*(*info).dataparams).ysji - (*(*info).zooming).ysjipos)
     ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
-      xcurs = LONG((*(*info).dataparams).xref)
-      ycurs = LONG((*(*info).dataparams).yref)
-      xfirst= (*(*info).dispparams).xref_first
-      xlast = (*(*info).dispparams).xref_last
-      yfirst= (*(*info).dispparams).yref_first
-      ylast = (*(*info).dispparams).yref_last
+      xcurs = LONG((*(*info).dataparams).xref - (*(*info).zooming).xrefpos)
+      ycurs = LONG((*(*info).dataparams).yref - (*(*info).zooming).yrefpos)
     ENDIF ELSE BEGIN
-      xcurs = LONG((*(*info).dataparams).x)
-      ycurs = LONG((*(*info).dataparams).y)
-      xfirst= (*(*info).dispparams).x_first
-      xlast = (*(*info).dispparams).x_last
-      yfirst= (*(*info).dispparams).y_first
-      ylast = (*(*info).dispparams).y_last
+      xcurs = LONG((*(*info).dataparams).x - (*(*info).zooming).xpos)
+      ycurs = LONG((*(*info).dataparams).y - (*(*info).zooming).ypos)
     ENDELSE
+    sizedata = SIZE(dispdata)
+    xfirst = 0          & xlast = sizedata[1] - 1
+    yfirst = 0          & ylast = sizedata[2] - 1
     dxy = 1
     x_upp = xcurs+dxy > xfirst < xlast
     x_low = xcurs-dxy > xfirst < xlast
