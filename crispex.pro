@@ -618,110 +618,6 @@ FUNCTION CRISPEX_TRANSFORM_GET_WCS, x_in, y_in, wcs_a, wcs_b, $
 END
 
 ;------------------------- BUTTON GROUP FUNCTIONS
-FUNCTION CRISPEX_BGROUP_DIAGNOSTICS_SELECT, event
-; Handles selection of diagnostics and calls necessary replot procedures
-  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event
-  IF (event.VALUE EQ 0) THEN BEGIN
-    (*(*info).intparams).disp_diagnostics = $
-      REPLICATE(1,(*(*info).intparams).ndiagnostics)   
-    (*(*info).intparams).ndisp_diagnostics = $
-      TOTAL((*(*info).intparams).disp_diagnostics)
-    FOR i=0,(*(*info).intparams).ndiagnostics-1 DO $
-      WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i+1], $
-        /SET_BUTTON, /SENSITIVE
-  ENDIF ELSE BEGIN
-    sel_idx = event.VALUE-1
-    (*(*info).intparams).disp_diagnostics[sel_idx] = event.SELECT 
-    (*(*info).intparams).ndisp_diagnostics = $
-      TOTAL((*(*info).intparams).disp_diagnostics)
-    IF ((*(*info).intparams).ndisp_diagnostics EQ 1) THEN $
-      WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[$
-        WHERE((*(*info).intparams).disp_diagnostics EQ 1)+1], SENSITIVE=0 $
-    ELSE $
-      FOR i=0,(*(*info).intparams).ndiagnostics-1 DO $
-        WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i+1], /SENSITIVE
-  ENDELSE
-  WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[0], $
-    SENSITIVE=((*(*info).intparams).ndisp_diagnostics NE $
-               (*(*info).intparams).ndiagnostics), $
-    SET_BUTTON=((*(*info).intparams).ndisp_diagnostics EQ $
-                (*(*info).intparams).ndiagnostics)
-  IF ((*(*info).intparams).ndisp_diagnostics NE $
-      (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
-    IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
-      CRISPEX_SLIDER_LP_REF_LOCK, event, /UNLOCK, /NO_DRAW
-    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE=0
-  ENDIF ELSE $
-    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
-  CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /MAIN
-  ; Adjust slider settings based on available lp-range
-  CRISPEX_DISPRANGE_LP_RANGE, event, /NO_DRAW
-  CRISPEX_UPDATE_T, event
-  CRISPEX_SCALING_APPLY_SELECTED, event
-  IF (*(*info).winswitch).showsp THEN BEGIN
-    CRISPEX_UPDATE_SPSLICE, event
-    CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
-  ENDIF
-  IF (*(*info).winswitch).showphis THEN BEGIN
-    CRISPEX_UPDATE_PHISLICE, event, /NO_DRAW
-    CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event
-  ENDIF
-  CRISPEX_DRAW, event, /NO_REF, /LS_NO_REF
-END
-
-FUNCTION CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT, event
-; Handles selection of reference diagnostics and calls necessary replot 
-; procedures
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info	
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event
-  IF (event.VALUE EQ 0) THEN BEGIN
-    (*(*info).intparams).disp_refdiagnostics = $
-      REPLICATE(1,(*(*info).intparams).nrefdiagnostics)   
-    (*(*info).intparams).ndisp_refdiagnostics = $
-      TOTAL((*(*info).intparams).disp_refdiagnostics)
-    FOR i=0,(*(*info).intparams).nrefdiagnostics-1 DO $
-      WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[i+1], $
-        /SET_BUTTON, /SENSITIVE
-  ENDIF ELSE BEGIN
-    sel_idx = event.VALUE-1
-    (*(*info).intparams).disp_refdiagnostics[sel_idx] = event.SELECT
-    (*(*info).intparams).ndisp_refdiagnostics = $
-      TOTAL((*(*info).intparams).disp_refdiagnostics)
-    IF ((*(*info).intparams).ndisp_refdiagnostics EQ 1) THEN $
-      WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[$
-        WHERE((*(*info).intparams).disp_refdiagnostics EQ 1)+1], SENSITIVE=0 $
-    ELSE $
-      FOR i=0,(*(*info).intparams).nrefdiagnostics-1 DO $
-        WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[i+1], $
-          /SENSITIVE
-  ENDELSE
-  WIDGET_CONTROL, (*(*info).ctrlscp).refspecwin_button_ids[0], $
-    SENSITIVE=((*(*info).intparams).ndisp_refdiagnostics NE $
-                (*(*info).intparams).nrefdiagnostics), $
-    SET_BUTTON=((*(*info).intparams).ndisp_refdiagnostics EQ $
-                (*(*info).intparams).nrefdiagnostics)
-  IF ((*(*info).intparams).ndisp_diagnostics NE $
-    (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
-    IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
-      CRISPEX_SLIDER_LP_REF_LOCK, event, /UNLOCK, /NO_DRAW
-    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE=0
-  ENDIF ELSE $
-    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
-  CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /REFERENCE
-  ; Adjust slider settings based on available lp-range
-  CRISPEX_DISPRANGE_LP_REF_RANGE, event, /NO_DRAW
-  CRISPEX_UPDATE_T, event
-  CRISPEX_SCALING_APPLY_SELECTED, event
-  IF (*(*info).winswitch).showrefsp THEN BEGIN
-    CRISPEX_UPDATE_REFSPSLICE, event
-    CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
-  ENDIF
-  CRISPEX_DRAW, event, /NO_MAIN, /LS_NO_MAIN
-END
-
 FUNCTION CRISPEX_BGROUP_DETSPECT_IMREF, event, SESSION_RESTORE=session_restore
   ; Handles the selection of detspect options 
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
@@ -892,54 +788,139 @@ FUNCTION CRISPEX_BGROUP_SAVE_IMREFSJI_LOOP, event
       labels=['Saving from cube setting']
 END
 
-FUNCTION CRISPEX_BGROUP_STOKES_SELECT_SP, event, NO_DRAW=no_draw
-  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+FUNCTION CRISPEX_BGROUP_STOKES_SELECT_SP, event, NO_DRAW=no_draw, $
+  SET_BUTTONS=set_buttons
+  WIDGET_CONTROL, event.TOP, GET_UVALUE=info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	(*(*info).stokesparams).prev_select_sp = (*(*info).stokesparams).select_sp
-	(*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ $
-    (*(*info).stokesparams).button_labels[event.VALUE])] = $
-                                      event.SELECT
-  sens = (TOTAL((*(*info).stokesparams).select_sp) NE 1)
-	FOR i=0,TOTAL((*(*info).stokesparams).select_sp)-1 DO BEGIN
-    FOR k=0,N_ELEMENTS((*(*info).stokesparams).button_labels)-1 DO BEGIN
-		  IF (((*(*info).stokesparams).labels)[$
-          (WHERE((*(*info).stokesparams).select_sp EQ 1))[i]] EQ $
-           (*(*info).stokesparams).button_labels[k]) THEN $
-        WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[k], $
-        SENSITIVE = sens, /SET_BUTTON 
-    ENDFOR
-	ENDFOR
-  CRISPEX_UPDATE_SSP, event
-	CRISPEX_DISPLAYS_LS_RESIZE, event, /STOKES_SELECT
+  IF ((*(*info).stokesparams).mainref_select EQ 0) THEN BEGIN
+    IF ~KEYWORD_SET(SET_BUTTONS) THEN BEGIN
+    	(*(*info).stokesparams).prev_select_sp = (*(*info).stokesparams).select_sp
+    	(*(*info).stokesparams).select_sp[WHERE((*(*info).stokesparams).labels EQ $
+        (*(*info).stokesparams).button_labels[event.VALUE])] = $
+                                          event.SELECT
+    ENDIF
+    select_sp = (*(*info).stokesparams).select_sp
+    button_labels = (*(*info).stokesparams).button_labels
+    labels = (*(*info).stokesparams).labels
+  ENDIF ELSE BEGIN
+    IF ~KEYWORD_SET(SET_BUTTONS) THEN BEGIN
+    	(*(*info).stokesparams).prev_select_refsp = $
+        (*(*info).stokesparams).select_refsp
+    	(*(*info).stokesparams).select_refsp[$
+        WHERE((*(*info).stokesparams).labels_ref EQ $
+        (*(*info).stokesparams).button_labels[event.VALUE])] = $
+                                          event.SELECT
+    ENDIF
+    select_sp = (*(*info).stokesparams).select_refsp
+    button_labels = (*(*info).stokesparams).button_labels
+    labels = (*(*info).stokesparams).labels_ref
+  ENDELSE
+  ; Process settings
+  ; Stokes parameter selected for detailed spectrum plot?
+  wherestokes_sp = WHERE(select_sp EQ 1, count)
+  IF (count GT 0) THEN $
+	  stokes_sp_select = labels[wherestokes_sp] $
+  ELSE $
+	  stokes_sp_select = ''
+  ; Total number of selected Stokes parameters for detailed spectrum plot?
+  total_sp_select = TOTAL((*(*info).stokesparams).select_sp)
+  FOR i=0,N_ELEMENTS((*(*info).stokesparams).button_labels)-1 DO BEGIN
+    ; Stokes parameter available in data?
+    stokes_enabled = $
+      (WHERE(labels EQ (*(*info).stokesparams).button_labels[i]) GE 0)
+    ; Determine setting of buttons accordingly
+    stokes_sp_set = (WHERE(stokes_sp_select EQ $
+                    (*(*info).stokesparams).button_labels[i]) GE 0)
+    WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[i], $
+      SET_BUTTON=stokes_sp_set, $
+      SENSITIVE=(stokes_enabled AND ((total_sp_select GT 1) OR $
+                (total_sp_select AND ABS(stokes_sp_set-1))))
+  ENDFOR
+  ; Redraw if necessary
+  IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
+    IF ((*(*info).stokesparams).mainref_select EQ 0) THEN BEGIN
+      CRISPEX_UPDATE_SSP, event
+  	  CRISPEX_DISPLAYS_LS_RESIZE, event, /STOKES_SELECT
+    ENDIF ELSE BEGIN
+      CRISPEX_UPDATE_REFSSP, event
+  	  CRISPEX_DISPLAYS_REFLS_RESIZE, event, /STOKES_SELECT
+    ENDELSE
+  ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [STRJOIN(((*(*info).stokesparams).labels)[$
       WHERE((*(*info).stokesparams).select_sp EQ 1)],', ')],$
         labels=['Stokes detspect selected']
 END
 
-FUNCTION CRISPEX_BGROUP_STOKES_SELECT_XY, event, NO_DRAW=no_draw
-  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+FUNCTION CRISPEX_BGROUP_STOKES_SELECT_XY, event, NO_DRAW=no_draw, $
+  SET_BUTTONS=set_buttons
+  WIDGET_CONTROL, event.TOP, GET_UVALUE=info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  (*(*info).dataparams).s = $
-    WHERE((*(*info).stokesparams).labels EQ $
-      (*(*info).stokesparams).button_labels[event.VALUE])
-	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, $
-      [((*(*info).stokesparams).labels)[(*(*info).dataparams).s]],$
-      labels=['Stokes image selected']
-  IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
-    CRISPEX_SCALING_APPLY_SELECTED, event
-  	CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE, event
-  	CRISPEX_UPDATE_T, event
-  	CRISPEX_UPDATE_SLICES, event, /NO_DRAW, $
-      NO_PHIS=((*(*info).winswitch).showphis EQ 0) 
-  	IF ((*(*info).winids).sptlb GT 0) THEN $
-      CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
-    CRISPEX_DRAW_CTBAR, event, /MAIN
-	  CRISPEX_DRAW, event
-  ENDIF
+  IF ~KEYWORD_SET(SET_BUTTONS) THEN BEGIN
+    IF ((*(*info).stokesparams).mainref_select EQ 0) THEN BEGIN
+      (*(*info).dataparams).s = $
+        WHERE((*(*info).stokesparams).labels EQ $
+          (*(*info).stokesparams).button_labels[event.VALUE])
+    ENDIF ELSE BEGIN
+      (*(*info).dataparams).s_ref = $
+        WHERE((*(*info).stokesparams).labels_ref EQ $
+          (*(*info).stokesparams).button_labels[event.VALUE])
+    ENDELSE
+    IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
+      CRISPEX_SCALING_APPLY_SELECTED, event, $
+        UPDATE_MAIN=((*(*info).stokesparams).mainref_select EQ 0), $
+        UPDATE_REF=(*(*info).stokesparams).mainref_select
+    	IF ((*(*info).stokesparams).mainref_select EQ $
+          (*(*info).ctrlsswitch).imrefdetspect) THEN $
+          CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE, event
+    	CRISPEX_UPDATE_T, event
+    	CRISPEX_UPDATE_SLICES, event, /NO_DRAW, $
+        NO_PHIS=((*(*info).winswitch).showphis EQ 0), $
+        SSP_UPDATE=((*(*info).stokesparams).mainref_select EQ 0), $
+        REFSSP_UPDATE=(*(*info).stokesparams).mainref_select
+      IF (((*(*info).stokesparams).mainref_select EQ 0) AND $
+          ((*(*info).winids).sptlb GT 0)) THEN BEGIN
+        CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
+        CRISPEX_UPDATE_SPSLICE, event
+      ENDIF
+      IF ((*(*info).stokesparams).mainref_select AND $
+          ((*(*info).winids).refsptlb GT 0)) THEN BEGIN
+        CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
+        CRISPEX_UPDATE_REFSPSLICE, event
+      ENDIF
+      CRISPEX_DRAW_CTBAR, event, $
+        MAIN=((*(*info).stokesparams).mainref_select EQ 0), $
+        REFERENCE=(*(*info).stokesparams).mainref_select
+  	  CRISPEX_DRAW, event
+    ENDIF 
+  ENDIF ELSE BEGIN
+    IF ((*(*info).stokesparams).mainref_select EQ 0) THEN BEGIN
+      labels = (*(*info).stokesparams).labels
+      label_sel = labels[(*(*info).dataparams).s]
+    ENDIF ELSE BEGIN
+      labels = (*(*info).stokesparams).labels_ref
+      label_sel = labels[(*(*info).dataparams).s_ref]
+    ENDELSE
+    FOR i=0,N_ELEMENTS((*(*info).stokesparams).button_labels)-1 DO BEGIN
+      ; Stokes parameter available in data?
+      stokes_enabled = $
+        (WHERE(labels EQ (*(*info).stokesparams).button_labels[i]) GE 0)
+      WIDGET_CONTROL, (*(*info).ctrlscp).stokes_button_ids[i], $
+        SENSITIVE=stokes_enabled, $
+        SET_BUTTON=(label_sel EQ (*(*info).stokesparams).button_labels[i])
+    ENDFOR
+  ENDELSE
+END
+
+FUNCTION CRISPEX_BGROUP_STOKES_SELECT_IMREF, event
+  WIDGET_CONTROL, event.TOP, GET_UVALUE=info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  (*(*info).stokesparams).mainref_select = event.VALUE
+  imbuttons = CRISPEX_BGROUP_STOKES_SELECT_XY(event, /NO_DRAW, /SET_BUTTONS)
+  spbuttons = CRISPEX_BGROUP_STOKES_SELECT_SP(event, /NO_DRAW, /SET_BUTTONS)
 END
 
 FUNCTION CRISPEX_BGROUP_ZOOMFAC_SET, event, NO_DRAW=no_draw, $
@@ -1275,7 +1256,7 @@ FUNCTION CRISPEX_FITSPOINTER, filename, header, EXTEN_NO=exten_no, SILENT=silent
   RETURN,datapointer  
 END
 
-FUNCTION CRISPEX_TAG_DELETE, Structure, Tags
+FUNCTION CRISPEX_TAG_DELETE, Structure, Tags, VERBOSE=verbose
   ; Deletes Tags from Structure
   ntags = N_ELEMENTS(Tags) 
   IF (ntags GE 1) THEN BEGIN
@@ -1284,8 +1265,12 @@ FUNCTION CRISPEX_TAG_DELETE, Structure, Tags
     ; Check where the tags are located and set select array to 0 correspondingly
     FOR i=0,ntags-1 DO BEGIN
       wheretag = WHERE(STRLOWCASE(tagnames) EQ STRLOWCASE(tags[i]), count)
-      IF (count NE 0) THEN $
+      IF (count NE 0) THEN BEGIN
         seltags[wheretag] = 0
+        IF KEYWORD_SET(VERBOSE) THEN $
+          MESSAGE, tags[i]+' found. Excluding from structure.',/INFO
+      ENDIF ELSE IF KEYWORD_SET(VERBOSE) THEN $
+          MESSAGE, tags[i]+' not found in structure. Skipping tag.', /INFO
     ENDFOR
     seltags = WHERE(seltags EQ 1)
     nseltags = N_ELEMENTS(seltags)
@@ -2195,8 +2180,35 @@ FUNCTION CRISPEX_GET_RGB_TABLE, event, TABLE_NAME=table_name, IRIS=iris, $
       WIDGET_CONTROL, (*(*info).ctrlscp).displays_ct_cbox, $
         SET_COMBOBOX_SELECT=(*(*info).plotparams).imct[ct_sel]+1, /SENSITIVE
   ENDIF
-
   RETURN, rgb_table
+END
+
+FUNCTION CRISPEX_GET_PLOTPOS, ns, winx, margin, wall, V_DOP_SET=v_dop_set
+  ; Get detailed spectrum plot positions
+  ; Determine number of panels for detailed spectrum window
+	IF (ns LE 2) THEN BEGIN
+		npanels = ns	&	cols = ns	&	rowarr = REPLICATE(0,ns)
+	ENDIF ELSE BEGIN
+		npanels = 4	&	cols = 2	&	rowarr = [1,1,0,0]
+	ENDELSE
+	rows = CEIL(npanels / FLOAT(cols))
+  ; Determine plot width and height, and consequent window height
+	width = (1. - (cols*margin + wall))/FLOAT(cols)
+	height 	= width * 2D / (1 + SQRT(5))
+	IF KEYWORD_SET(V_DOP_SET) THEN $
+    winy = (margin + rows*height + rows*margin + (rows-1)*wall) * winx $
+  ELSE $
+    winy = (wall + rows*height + rows*margin) * winx
+  ; Determine plot positions
+	x0 	= margin + (INDGEN(npanels) MOD cols) * (width + margin) 
+	x1 	= x0 + width 
+	y0   = (margin + rowarr * $
+              (height + margin + KEYWORD_SET(V_DOP_SET)*wall)) * winx/winy
+	y1 	= y0 + height * winx/winy
+
+  result = {x0:x0, x1:x1, y0:y0, y1:y1, width:width, height:height, winy:winy}
+
+  RETURN, result
 END
 
 ;========================= PROCEDURES
@@ -2346,7 +2358,7 @@ PRO CRISPEX_COORDS_TRANSFORM_XY, event, MAIN2SJI=main2sji, MAIN2REF=main2ref, $
       (*(*info).dataparams).yref = (*(*info).dataparams).y
     ENDIF ELSE BEGIN
       ; If mapping, subscript mapping array with main coordinates
-      xyref = (*(*info).dataparams).pix_main2ref[*, $
+      xyref = (*(*(*info).dataparams).pix_main2ref)[*, $
           (*(*info).dataparams).x, (*(*info).dataparams).y]
       (*(*info).dataparams).xref = xyref[0]
       (*(*info).dataparams).yref = xyref[1]
@@ -2360,7 +2372,7 @@ PRO CRISPEX_COORDS_TRANSFORM_XY, event, MAIN2SJI=main2sji, MAIN2REF=main2ref, $
       (*(*info).dataparams).y = (*(*info).dataparams).yref
     ENDIF ELSE BEGIN
       ; If mapping, subscript mapping array with reference coordinates
-      xy = (*(*info).dataparams).pix_ref2main[*, $
+      xy = (*(*(*info).dataparams).pix_ref2main)[*, $
           (*(*info).dataparams).xref, (*(*info).dataparams).yref]
       (*(*info).dataparams).x = xy[0]
       (*(*info).dataparams).y = xy[1]
@@ -2540,6 +2552,136 @@ PRO CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old, NT_OLD=nt_old
       t_set = (WHERE(tdiff EQ MIN(tdiff, /NAN)))[0]
     ENDIF ELSE t_set = 0
     CRISPEX_DISPRANGE_T_RESET, event, /NO_DRAW, T_SET=t_set
+END
+
+
+;========================= DIAGNOSTIC SELECTION PROCEDURES
+PRO CRISPEX_DIAGNOSTICS_SELECT, event
+	WIDGET_CONTROL, event.TOP, GET_UVALUE=info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF (event.INDEX EQ 0) THEN BEGIN
+    ; Handle the setting of Display all: reset variables and list_values
+    (*(*info).intparams).disp_diagnostics = $
+      REPLICATE(1,(*(*info).intparams).ndiagnostics)   
+    (*(*info).intparams).ndisp_diagnostics = $
+      TOTAL((*(*info).intparams).disp_diagnostics)
+    list_values = ['Display all', $
+      REPLICATE('Hide ',(*(*info).intparams).ndiagnostics)+$
+      (*(*info).intparams).diagnostics]
+    WIDGET_CONTROL, (*(*info).ctrlscp).specwin_cbox, SET_VALUE=list_values, $
+      SET_COMBOBOX_SELECT=1
+  ENDIF ELSE BEGIN
+    sel_idx = event.INDEX-1
+    (*(*info).intparams).disp_diagnostics[sel_idx] = $
+      ABS((*(*info).intparams).disp_diagnostics[sel_idx]-1)
+    (*(*info).intparams).ndisp_diagnostics = $
+      TOTAL((*(*info).intparams).disp_diagnostics)
+    IF ((*(*info).intparams).ndisp_diagnostics EQ 0) THEN BEGIN
+      ; Failsafe against hiding all diagnostics
+      (*(*info).intparams).disp_diagnostics[sel_idx] = 1
+      (*(*info).intparams).ndisp_diagnostics = 1
+    ENDIF
+    ; Adjust the selected value with a Display/Hide comment
+    list_values_text = (['Display ','Hide '])[$
+      (*(*info).intparams).disp_diagnostics[sel_idx] EQ 1]
+    WIDGET_CONTROL, (*(*info).ctrlscp).specwin_cbox, GET_VALUE=list_values
+    list_values[sel_idx+1] = list_values_text + $
+      (*(*info).intparams).diagnostics[sel_idx]
+    WIDGET_CONTROL, (*(*info).ctrlscp).specwin_cbox, SET_VALUE=list_values, $
+      SET_COMBOBOX_SELECT=event.INDEX
+  ENDELSE
+  ; Adjust label text depending on whether all or some are displayed
+  IF ((*(*info).intparams).ndisp_diagnostics EQ $
+      (*(*info).intparams).ndiagnostics) THEN $
+    label_text = 'Main: Displaying all' $
+  ELSE $
+    label_text = 'Main: Displaying selected'
+  WIDGET_CONTROL, (*(*info).ctrlscp).main_specwin_label, $
+    SET_VALUE=label_text
+  IF ((*(*info).intparams).ndisp_diagnostics NE $
+      (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
+    IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
+      CRISPEX_SLIDER_LP_REF_LOCK, event, /UNLOCK, /NO_DRAW
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE=0
+  ENDIF ELSE $
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
+  CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /MAIN
+  ; Adjust slider settings based on available lp-range
+  CRISPEX_DISPRANGE_LP_RANGE, event, /NO_DRAW
+  CRISPEX_UPDATE_T, event
+  CRISPEX_SCALING_APPLY_SELECTED, event
+  IF (*(*info).winswitch).showsp THEN BEGIN
+    CRISPEX_UPDATE_SPSLICE, event
+    CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
+  ENDIF
+  IF (*(*info).winswitch).showphis THEN BEGIN
+    CRISPEX_UPDATE_PHISLICE, event, /NO_DRAW
+    CRISPEX_DISPLAYS_PHIS_REPLOT_AXES, event
+  ENDIF
+  CRISPEX_DRAW, event, /NO_REF, /LS_NO_REF
+END
+
+PRO CRISPEX_REFDIAGNOSTICS_SELECT, event
+	WIDGET_CONTROL, event.TOP, GET_UVALUE=info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF (event.INDEX EQ 0) THEN BEGIN
+    ; Handle the setting of Display all: reset variables and list_values
+    (*(*info).intparams).disp_refdiagnostics = $
+      REPLICATE(1,(*(*info).intparams).nrefdiagnostics)   
+    (*(*info).intparams).ndisp_refdiagnostics = $
+      TOTAL((*(*info).intparams).disp_refdiagnostics)
+    list_values = ['Display all', $
+      REPLICATE('Hide ',(*(*info).intparams).nrefdiagnostics)+$
+      (*(*info).intparams).refdiagnostics]
+    WIDGET_CONTROL, (*(*info).ctrlscp).ref_specwin_cbox, SET_VALUE=list_values, $
+      SET_COMBOBOX_SELECT=1
+  ENDIF ELSE BEGIN
+    sel_idx = event.INDEX-1
+    (*(*info).intparams).disp_refdiagnostics[sel_idx] = $
+      ABS((*(*info).intparams).disp_refdiagnostics[sel_idx]-1)
+    (*(*info).intparams).ndisp_refdiagnostics = $
+      TOTAL((*(*info).intparams).disp_refdiagnostics)
+    IF ((*(*info).intparams).ndisp_refdiagnostics EQ 0) THEN BEGIN
+      ; Failsafe against hiding all diagnostics
+      (*(*info).intparams).disp_refdiagnostics[sel_idx] = 1
+      (*(*info).intparams).ndisp_refdiagnostics = 1
+    ENDIF
+    ; Adjust the selected value with a Display/Hide comment
+    list_values_text = (['Display ','Hide '])[$
+      (*(*info).intparams).disp_refdiagnostics[sel_idx] EQ 1]
+    WIDGET_CONTROL, (*(*info).ctrlscp).ref_specwin_cbox, GET_VALUE=list_values
+    list_values[sel_idx+1] = list_values_text + $
+      (*(*info).intparams).refdiagnostics[sel_idx]
+    WIDGET_CONTROL, (*(*info).ctrlscp).ref_specwin_cbox, SET_VALUE=list_values, $
+      SET_COMBOBOX_SELECT=event.INDEX
+  ENDELSE
+  ; Adjust label text depending on whether all or some are displayed
+  IF ((*(*info).intparams).ndisp_refdiagnostics EQ $
+      (*(*info).intparams).nrefdiagnostics) THEN $
+    label_text = 'Reference: Displaying all' $
+  ELSE $
+    label_text = 'Reference: Displaying selected'
+  WIDGET_CONTROL, (*(*info).ctrlscp).ref_specwin_label, $
+    SET_VALUE=label_text
+  IF ((*(*info).intparams).ndisp_diagnostics NE $
+      (*(*info).intparams).ndisp_refdiagnostics) THEN BEGIN
+    IF (*(*info).ctrlsswitch).lp_ref_lock THEN $
+      CRISPEX_SLIDER_LP_REF_LOCK, event, /UNLOCK, /NO_DRAW
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE=0
+  ENDIF ELSE $
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, /SENSITIVE
+  CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /REFERENCE
+  ; Adjust slider settings based on available lp-range
+  CRISPEX_DISPRANGE_LP_REF_RANGE, event, /NO_DRAW
+  CRISPEX_UPDATE_T, event
+  CRISPEX_SCALING_APPLY_SELECTED, event
+  IF (*(*info).winswitch).showrefsp THEN BEGIN
+    CRISPEX_UPDATE_REFSPSLICE, event
+    CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
+  ENDIF
+  CRISPEX_DRAW, event, /NO_MAIN, /LS_NO_MAIN
 END
 
 ;========================= DISPLAYS PROCEDURES
@@ -2747,18 +2889,34 @@ PRO CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN		; If selected options for reference
-		WIDGET_CONTROL, (*(*info).ctrlscp).subtract_but, SET_BUTTON = (*(*info).plotswitch).ref_subtract
-		WIDGET_CONTROL, (*(*info).ctrlscp).scale_detspect_but, SET_BUTTON = (*(*info).dispswitch).ref_detspect_scale
-		WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, SET_VALUE = STRTRIM((*(*info).plotaxes).ls_low_y_ref,2)
-		WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, SET_VALUE = STRTRIM((*(*info).plotaxes).ls_upp_y_ref,2)
-		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_label, SET_VALUE = ((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).refheightset]+':'
-	ENDIF ELSE BEGIN				; If selected options for main
-		WIDGET_CONTROL, (*(*info).ctrlscp).subtract_but, SET_BUTTON = (*(*info).plotswitch).subtract
-		WIDGET_CONTROL, (*(*info).ctrlscp).scale_detspect_but, SET_BUTTON = (*(*info).dispswitch).detspect_scale
-		WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],2)
-		WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],2)
-		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_label, SET_VALUE = ((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).heightset]+':'
+	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN		
+    ; If selected options for reference
+		WIDGET_CONTROL, (*(*info).ctrlscp).subtract_but, $
+      SET_BUTTON=(*(*info).plotswitch).ref_subtract
+		WIDGET_CONTROL, (*(*info).ctrlscp).scale_detspect_but, $
+      SET_BUTTON=(*(*info).dispswitch).ref_detspect_scale
+		WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, $
+      SET_VALUE=STRTRIM((*(*(*info).plotaxes).ls_low_y_ref)[$
+        (*(*info).dataparams).s_ref],2)
+		WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, $
+      SET_VALUE=STRTRIM((*(*(*info).plotaxes).ls_upp_y_ref)[$
+        (*(*info).dataparams).s_ref],2)
+		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_label, $
+      SET_VALUE=((*(*info).plottitles).lswintitle)[$
+      (*(*info).plotswitch).refheightset]+':'
+	ENDIF ELSE BEGIN				
+    ; If selected options for main
+		WIDGET_CONTROL, (*(*info).ctrlscp).subtract_but, $
+      SET_BUTTON=(*(*info).plotswitch).subtract
+		WIDGET_CONTROL, (*(*info).ctrlscp).scale_detspect_but, $
+      SET_BUTTON=(*(*info).dispswitch).detspect_scale
+		WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, $
+      SET_VALUE=STRTRIM((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],2)
+		WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, $
+      SET_VALUE=STRTRIM((*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],2)
+		WIDGET_CONTROL, (*(*info).ctrlscp).detspect_label, $
+      SET_VALUE=((*(*info).plottitles).lswintitle)[$
+      (*(*info).plotswitch).heightset]+':'
 	ENDELSE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).ctrlsswitch).imrefdetspect], labels=['imrefdetspect']
@@ -3499,18 +3657,26 @@ PRO CRISPEX_DISPLAYS_SJILOOPSLAB, event, NO_DRAW=no_draw
 END
 
 PRO CRISPEX_DISPLAYS_PLOT_RESIZE, event, new_xres_tmp, new_yres_tmp, $
-  init_xres, init_yres, init_xmargin, init_xwall, new_xres, new_yres, new_width, new_height, $
-	x0, x1, y0, y1, v_dop_set, INX0=inx0, INX1=inx1, INY0=iny0, INY1=iny1, ERROR=error, $
-  SLICE=slice, DETSPECT=detspect, STOKES_SELECT=stokes_select
+  init_xres, init_yres, init_xmargin, init_xwall, new_xres, new_yres, $
+  new_width, new_height, x0, x1, y0, y1, v_dop_set, $
+  INX0=inx0, INX1=inx1, INY0=iny0, INY1=iny1, ERROR=error, $
+  SLICE=slice, DETSPECT=detspect, STOKES_SELECT=stokes_select, $
+  REFERENCE=reference
 ; Handles the display plot resizing
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (N_ELEMENTS(v_dop_set) NE 1) THEN v_dop_set = 0
 	IF KEYWORD_SET(DETSPECT) THEN BEGIN												; If considering main detailed spectrum
-		curns = TOTAL((*(*info).stokesparams).select_sp)
+    IF ~KEYWORD_SET(REFERENCE) THEN $
+  		curns = TOTAL((*(*info).stokesparams).select_sp) $
+    ELSE $
+  		curns = TOTAL((*(*info).stokesparams).select_refsp) 
 		IF KEYWORD_SET(STOKES_SELECT) THEN BEGIN
-			prevns = TOTAL((*(*info).stokesparams).prev_select_sp)
+      IF ~KEYWORD_SET(REFERENCE) THEN $
+			  prevns = TOTAL((*(*info).stokesparams).prev_select_sp) $
+      ELSE $
+			  prevns = TOTAL((*(*info).stokesparams).prev_select_refsp) 
 			new_xres_tmp = init_xres											; Default: no change in xsize
 			new_yres_tmp = init_yres											; Default: no change in ysize
 			IF (v_dop_set EQ 1) THEN offset = init_xmargin ELSE offset = init_xwall
@@ -3591,11 +3757,13 @@ PRO CRISPEX_DISPLAYS_LS_RESIZE, event, STOKES_SELECT=stokes_select
 	ENDIF ELSE BEGIN
 		newlsxres = event.X		&	newlsyres = event.Y
 	ENDELSE
-	CRISPEX_DISPLAYS_PLOT_RESIZE, event, newlsxres, newlsyres, (*(*info).winsizes).lsxres, $
-    (*(*info).winsizes).lsyres, (*(*info).plotpos).lsxmargin_init, $
-    (*(*info).plotpos).lsxwall_init, lsxres, lsyres, lswidth, lsheight, $
-		lsx0, lsx1, lsy0, lsy1, (*(*info).plotswitch).v_dop_set, INX0=(*(*info).plotpos).lsx0, $
-    INX1=(*(*info).plotpos).lsx1, INY0=(*(*info).plotpos).lsy0, INY1=(*(*info).plotpos).lsy1, $
+	CRISPEX_DISPLAYS_PLOT_RESIZE, event, newlsxres, newlsyres, $
+    (*(*info).winsizes).lsxres, (*(*info).winsizes).lsyres, $
+    (*(*info).plotpos).lsxmargin_init, (*(*info).plotpos).lsxwall_init, $
+    lsxres, lsyres, lswidth, lsheight, lsx0, lsx1, lsy0, lsy1, $
+    (*(*info).plotswitch).v_dop_set, $
+    INX0=(*(*info).plotpos).lsx0, INX1=(*(*info).plotpos).lsx1, $
+    INY0=(*(*info).plotpos).lsy0, INY1=(*(*info).plotpos).lsy1, $
     ERROR=error, /DETSPECT, STOKES_SELECT=stokes_select
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).lsxres = lsxres	& 	(*(*info).winsizes).lsyres = lsyres
@@ -3648,44 +3816,56 @@ PRO CRISPEX_DISPLAYS_IMREFBLINK_TOGGLE, event
     CRISPEX_VERBOSE_GET, event, [(*(*info).winids).imreftlb,(*(*info).winids).imrefwid,(*(*info).winids).imrefdrawid], labels=['imreftlb','imrefwid','imrefdrawid']
 END
 
-PRO CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, NO_DRAW=no_draw, $
-  REFERENCE=reference
+PRO CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, DISP=disp, KILL=kill, $
+  NO_DRAW=no_draw, REFERENCE=reference, NO_FEEDBPARAMS=no_feedbparams
 ; Detailed spectrum window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
   IF KEYWORD_SET(REFERENCE) THEN BEGIN
-		IF ((*(*info).winswitch).showrefls EQ 0) THEN BEGIN
-			title = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+((*(*info).plottitles).reflswintitle)[(*(*info).plotswitch).refheightset]
+    IF (KEYWORD_SET(DISP) OR KEYWORD_SET(KILL)) THEN BEGIN
+      (*(*info).winswitch).showrefls = KEYWORD_SET(DISP)
+    ENDIF ELSE $
+    	(*(*info).winswitch).showrefls = event.SELECT
+		IF (*(*info).winswitch).showrefls THEN BEGIN
+			title = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+$
+        ((*(*info).plottitles).reflswintitle)[(*(*info).plotswitch).refheightset]
 			CRISPEX_WINDOW, (*(*info).winsizes).reflsxres, $
         (*(*info).winsizes).reflsyres, (*(*info).winids).root, title, tlb, wid,$
         (*(*info).winsizes).reflsxoffset, (*(*info).winsizes).reflsyoffset, $
-        DRAWID = lsdrawid, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_REFLS_RESIZE'
-			(*(*info).winids).reflstlb = tlb		&	(*(*info).winids).reflswid = wid	&	(*(*info).winswitch).showrefls = 1
-			(*(*info).winids).reflsdrawid = lsdrawid	&	(*(*info).winids).reflswintitle = title
+        DRAWID=lsdrawid, RESIZING=1, RES_HANDLER='CRISPEX_DISPLAYS_REFLS_RESIZE'
+			(*(*info).winids).reflstlb = tlb		
+      (*(*info).winids).reflswid = wid	
+			(*(*info).winids).reflsdrawid = lsdrawid	
+      (*(*info).winids).reflswintitle = title
 			WIDGET_CONTROL, (*(*info).winids).reflstlb, SET_UVALUE = info
       CRISPEX_UPDATE_REFSSP, event
 			IF ~KEYWORD_SET(NO_DRAW) THEN CRISPEX_DRAW_SPECTRAL_REF, event, /LS_ONLY
 		ENDIF ELSE BEGIN
 			WIDGET_CONTROL, (*(*info).winids).reflstlb, /DESTROY
 			(*(*info).winids).reflstlb = 0
-			(*(*info).winswitch).showrefls = 0
 		ENDELSE
-    CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=($
-      ((*(*info).winswitch).showref EQ 0) AND $
-      ((*(*info).winswitch).showrefsp EQ 0))
+    IF ~KEYWORD_SET(NO_FEEDBPARAMS) THEN $
+      CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=($
+        ((*(*info).winswitch).showref EQ 0) AND $
+        ((*(*info).winswitch).showrefsp EQ 0))
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-      CRISPEX_VERBOSE_GET, event, [(*(*info).winids).reflstlb,(*(*info).winids).reflswid,(*(*info).winids).reflsdrawid], labels=['reflstlb','reflswid','reflsdrawid']
+      CRISPEX_VERBOSE_GET, event, [(*(*info).winids).reflstlb,$
+        (*(*info).winids).reflswid,(*(*info).winids).reflsdrawid], $
+        labels=['reflstlb','reflswid','reflsdrawid']
 	ENDIF ELSE BEGIN
 		IF ((*(*info).winswitch).showls EQ 0) THEN BEGIN
-			title = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).heightset]
+			title = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+$
+        ((*(*info).plottitles).lswintitle)[(*(*info).plotswitch).heightset]
 			CRISPEX_WINDOW, (*(*info).winsizes).lsxres, (*(*info).winsizes).lsyres, $
         (*(*info).winids).root, title, tlb, wid, $
         (*(*info).winsizes).lsxoffset, (*(*info).winsizes).lsyoffset, $
-        DRAWID = lsdrawid, RESIZING = 1, $
-				RES_HANDLER = 'CRISPEX_DISPLAYS_LS_RESIZE'
-			(*(*info).winids).lstlb = tlb		&	(*(*info).winids).lswid = wid	&	(*(*info).winswitch).showls = 1
-			(*(*info).winids).lsdrawid = lsdrawid	&	(*(*info).winids).lswintitle = title
+        DRAWID=lsdrawid, RESIZING=1, RES_HANDLER='CRISPEX_DISPLAYS_LS_RESIZE'
+			(*(*info).winids).lstlb = tlb		
+      (*(*info).winids).lswid = wid	
+      (*(*info).winswitch).showls = 1
+			(*(*info).winids).lsdrawid = lsdrawid	
+      (*(*info).winids).lswintitle = title
 			WIDGET_CONTROL, (*(*info).winids).lstlb, SET_UVALUE = info
       CRISPEX_UPDATE_SSP, event
 			IF ~KEYWORD_SET(NO_DRAW) THEN CRISPEX_DRAW_SPECTRAL_MAIN, event, /LS_ONLY
@@ -3695,7 +3875,9 @@ PRO CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, NO_DRAW=no_draw, $
 			(*(*info).winswitch).showls = 0
 		ENDELSE
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-      CRISPEX_VERBOSE_GET, event, [(*(*info).winids).lstlb,(*(*info).winids).lswid,(*(*info).winids).lsdrawid], labels=['lstlb','lswid','lsdrawid']
+      CRISPEX_VERBOSE_GET, event, [(*(*info).winids).lstlb,$
+        (*(*info).winids).lswid,(*(*info).winids).lsdrawid], $
+        labels=['lstlb','lswid','lsdrawid']
 	ENDELSE
 END
 
@@ -3969,12 +4151,16 @@ PRO CRISPEX_DISPLAYS_PHIS_TOGGLE, event, NO_DRAW=no_draw
       (*(*info).winids).phisdrawid], labels=['phistlb','phiswid','phisdrawid']
 END
 
-PRO CRISPEX_DISPLAYS_REF_TOGGLE, event, NO_DRAW=no_draw
+PRO CRISPEX_DISPLAYS_REF_TOGGLE, event, DISP=disp, KILL=kill, NO_DRAW=no_draw, $
+  NO_FEEDBPARAMS=no_feedbparams
 ; Reference image window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
-	(*(*info).winswitch).showref = event.SELECT
+  IF (KEYWORD_SET(DISP) OR KEYWORD_SET(KILL)) THEN BEGIN
+    (*(*info).winswitch).showref = KEYWORD_SET(DISP)
+  ENDIF ELSE $
+  	(*(*info).winswitch).showref = event.SELECT
 	IF (*(*info).winswitch).showref THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': Reference image'
 		CRISPEX_WINDOW, (*(*info).winsizes).refwinx, (*(*info).winsizes).refwiny, $
@@ -4008,9 +4194,10 @@ PRO CRISPEX_DISPLAYS_REF_TOGGLE, event, NO_DRAW=no_draw
 		WIDGET_CONTROL, (*(*info).winids).reftlb, /DESTROY
 		(*(*info).winids).reftlb = 0
 	ENDELSE
-  CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=($
-    ((*(*info).winswitch).showrefls EQ 0) AND $
-    ((*(*info).winswitch).showrefsp EQ 0))
+  IF ~KEYWORD_SET(NO_FEEDBPARAMS) THEN $
+    CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=($
+      ((*(*info).winswitch).showrefls EQ 0) AND $
+      ((*(*info).winswitch).showrefsp EQ 0))
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, SENSITIVE = $
     (((*(*info).dataparams).nlp EQ (*(*info).dataparams).refnlp) AND $
      ((*(*info).dataparams).refnlp GT 1))
@@ -4586,15 +4773,25 @@ PRO CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB, event, NO_DRAW=no_draw
 	  	labels=['retrdettlb','retrdetwid','retrdetdrawid']
 END
 	
-PRO CRISPEX_DISPLAYS_REFLS_RESIZE, event							
+PRO CRISPEX_DISPLAYS_REFLS_RESIZE, event, STOKES_SELECT=stokes_select							
 ; Detailed spectrum window resize handler, gets new window dimensions and calls (re)display routines
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	CRISPEX_DISPLAYS_PLOT_RESIZE, event, event.X, event.Y, (*(*info).winsizes).reflsxres, $
-    (*(*info).winsizes).reflsyres, (*(*info).plotpos).reflsxmargin_init, $
-    (*(*info).plotpos).reflsxwall_init, reflsxres, reflsyres, reflswidth, reflsheight, $
-    reflsx0, reflsx1, reflsy0, reflsy1, (*(*info).plotswitch).v_dop_set_ref, ERROR=error
+	IF KEYWORD_SET(STOKES_SELECT) THEN BEGIN
+		newlsxres = (*(*info).winsizes).reflsxres	
+    newlsyres = (*(*info).winsizes).reflsyres
+	ENDIF ELSE BEGIN
+		newlsxres = event.X		&	newlsyres = event.Y
+	ENDELSE
+	CRISPEX_DISPLAYS_PLOT_RESIZE, event, newlsxres, newlsyres, $
+    (*(*info).winsizes).reflsxres, (*(*info).winsizes).reflsyres, $
+    (*(*info).plotpos).reflsxmargin_init, (*(*info).plotpos).reflsxwall_init, $
+    reflsxres, reflsyres, reflswidth, reflsheight, reflsx0, reflsx1, reflsy0, $
+    reflsy1, (*(*info).plotswitch).v_dop_set_ref, $
+    INX0=(*(*info).plotpos).reflsx0, INX1=(*(*info).plotpos).reflsx1, $
+    INY0=(*(*info).plotpos).reflsy0, INY1=(*(*info).plotpos).reflsy1, $
+    ERROR=error, /DETSPECT, /REFERENCE, STOKES_SELECT=stokes_select
 	IF error THEN CRISPEX_DISPLAYS_RESIZE_ERROR, event ELSE BEGIN
 		(*(*info).winsizes).reflsxres = reflsxres	& 	(*(*info).winsizes).reflsyres = reflsyres
 		(*(*info).plotpos).reflsx0 = reflsx0		&	(*(*info).plotpos).reflsx1 = reflsx1
@@ -4616,6 +4813,15 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	WSET, (*(*info).winids).refspwid
+	IF (*(*info).plotswitch).v_dop_set_ref THEN $
+    extratitle = '!C' $
+  ELSE $
+    extratitle = ''
+	IF (*(*info).plotswitch).refmultichannel THEN $
+    title = 'Stokes '+((*(*info).stokesparams).labels_ref)[$
+      (*(*info).dataparams).s_ref]+extratitle $
+  ELSE $
+    title = ''
   ; Set axes parameters depending on # of diagnostics
   IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
     xticklen = 1E-9   & xtitle = ''
@@ -4657,7 +4863,8 @@ PRO CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event, NO_AXES=no_axes
     t_low_y /= (10.^(order_corr))
     t_upp_y /= (10.^(order_corr))
   ENDIF 
-  IF (*(*info).plotswitch).v_dop_set_ref THEN topxtitle = 'Doppler velocity [km/s]'
+  topxtitle = title
+  IF (*(*info).plotswitch).v_dop_set_ref THEN topxtitle += 'Doppler velocity [km/s]'
   ; Plot basic axes box
   PLOT, (*(*info).dataparams).lps, *(*(*info).dispparams).tarr_ref, $
     YR = [t_low_y,t_upp_y], /YS, XR=xrange, $
@@ -4820,23 +5027,30 @@ PRO CRISPEX_DISPLAYS_REFSP_RESIZE, event
   CRISPEX_DRAW_SPECTRAL_REF, event, /SP_ONLY
 END
 
-PRO CRISPEX_DISPLAYS_REFSP_TOGGLE, event, NO_DRAW=no_draw
+PRO CRISPEX_DISPLAYS_REFSP_TOGGLE, event, DISP=disp, KILL=kill, NO_DRAW=no_draw, $
+  NO_FEEDBPARAMS=no_feedbparams
 ; Reference temporal spectrum display window creation procedure
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
+  IF (KEYWORD_SET(DISP) OR KEYWORD_SET(KILL)) THEN BEGIN
+    (*(*info).winswitch).showrefsp = KEYWORD_SET(DISP)
+  ENDIF ELSE $
+  	(*(*info).winswitch).showrefsp = event.SELECT
   ; If window doesn't exist, create it
-	IF ((*(*info).winswitch).showrefsp EQ 0) THEN BEGIN
+	IF (*(*info).winswitch).showrefsp THEN BEGIN
 		title = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+$
       ((*(*info).plottitles).refspwintitle)[(*(*info).plotswitch).refheightset]
     ; Create window
 		CRISPEX_WINDOW, (*(*info).winsizes).refspxres, (*(*info).winsizes).refspyres, $
       (*(*info).winids).root, title, refsptlb, refspwid, $
       (*(*info).winsizes).refspxoffset, (*(*info).winsizes).refspyoffset, $
-      DRAWID = refspdrawid, RESIZING = 1, RES_HANDLER = 'CRISPEX_DISPLAYS_REFSP_RESIZE'
+      DRAWID=refspdrawid, RESIZING=1, RES_HANDLER='CRISPEX_DISPLAYS_REFSP_RESIZE'
     ; Save window variables
-		(*(*info).winids).refsptlb = refsptlb		&	(*(*info).winids).refspwid = refspwid	&	(*(*info).winswitch).showrefsp = 1
-		(*(*info).winids).refspdrawid = refspdrawid	&	(*(*info).winids).refspwintitle = title 
+		(*(*info).winids).refsptlb = refsptlb		
+    (*(*info).winids).refspwid = refspwid	
+		(*(*info).winids).refspdrawid = refspdrawid	
+    (*(*info).winids).refspwintitle = title 
 		WIDGET_CONTROL, (*(*info).winids).refsptlb, SET_UVALUE = info
     ; Fill window
     CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
@@ -4846,14 +5060,15 @@ PRO CRISPEX_DISPLAYS_REFSP_TOGGLE, event, NO_DRAW=no_draw
 	ENDIF ELSE BEGIN
 		WIDGET_CONTROL, (*(*info).winids).refsptlb, /DESTROY
 		(*(*info).winids).refsptlb = 0
-		(*(*info).winswitch).showrefsp = 0
 	ENDELSE
-  CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=($
-    ((*(*info).winswitch).showrefls EQ 0) AND $
-    ((*(*info).winswitch).showref EQ 0))
+  IF ~KEYWORD_SET(NO_FEEDBPARAMS) THEN $
+    CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=($
+      ((*(*info).winswitch).showrefls EQ 0) AND $
+      ((*(*info).winswitch).showref EQ 0))
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).refsptlb,(*(*info).winids).refspwid,$
-      (*(*info).winids).refspdrawid], labels=['refsptlb','refspwid','refspdrawid']
+    CRISPEX_VERBOSE_GET, event, [(*(*info).winids).refsptlb,$
+      (*(*info).winids).refspwid,(*(*info).winids).refspdrawid], $
+      labels=['refsptlb','refspwid','refspdrawid']
 END
 
 PRO CRISPEX_DISPLAYS_SJI_TOGGLE, event, DISP=disp, KILL=kill, NO_DRAW=no_draw
@@ -5150,27 +5365,34 @@ PRO CRISPEX_DISPLAYS_SP_TOGGLE, event, NO_DRAW=no_draw
 END
 
 PRO CRISPEX_DISPLAYS_STOKES_SELECT_XY_RECOVER_YRANGE, event
-; Restores lower/upper y-values of specific Stokes component detailed spectrum plot for input
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+; Restores lower/upper y-values of specific Stokes component detailed spectrum
+; plot for input
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, $
-    SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],2)
-	WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, $
-    SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],2)
+  IF ((*(*info).stokesparams).mainref_select EQ 0) THEN BEGIN
+    ls_low_y = (*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s]
+    ls_upp_y = (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s]
+  ENDIF ELSE BEGIN
+    ls_low_y = (*(*(*info).plotaxes).ls_low_y_ref)[(*(*info).dataparams).s_ref]
+    ls_upp_y = (*(*(*info).plotaxes).ls_upp_y_ref)[(*(*info).dataparams).s_ref]
+  ENDELSE
+	WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, SET_VALUE=STRTRIM(ls_low_y,2)
+	WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, SET_VALUE=STRTRIM(ls_upp_y,2)
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, [(*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],$
-                                 (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s]], $
-                            		labels=['Lower detspect y-value','Upper detspect y-value']
-	IF (*(*info).winswitch).showint THEN BEGIN
+    CRISPEX_VERBOSE_GET, event, [ls_low_y,ls_upp_y], $
+      labels=['Lower detspect y-value','Upper detspect y-value']
+	IF (((*(*info).stokesparams).mainref_select EQ 0) AND $
+       (*(*info).winswitch).showint) THEN BEGIN
 		WIDGET_CONTROL, (*(*info).ctrlsint).lower_y_int_text, $
-      SET_VALUE = STRTRIM((*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s],2)
+      SET_VALUE=STRTRIM((*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s],2)
 		WIDGET_CONTROL, (*(*info).ctrlsint).upper_y_int_text, $
-      SET_VALUE = STRTRIM((*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s],2)
+      SET_VALUE=STRTRIM((*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s],2)
 		IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-      CRISPEX_VERBOSE_GET, event, [(*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s],$
-                                   (*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s]], $
-                            			labels=['Lower int y-value','Upper int y-value']
+      CRISPEX_VERBOSE_GET, event, $
+        [(*(*(*info).plotaxes).int_low_y)[(*(*info).dataparams).s],$
+        (*(*(*info).plotaxes).int_upp_y)[(*(*info).dataparams).s]], $
+        labels=['Lower int y-value','Upper int y-value']
 	ENDIF
 END
 
@@ -5283,14 +5505,23 @@ PRO CRISPEX_DISPRANGE_LS_LOW, event
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, GET_VALUE = textvalue
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN
-		(*(*info).plotaxes).ls_low_y_ref = FLOAT(textvalue[0]) 
-		IF ((*(*info).plotaxes).ls_low_y_ref GE (*(*info).plotaxes).ls_upp_y_ref) THEN (*(*info).plotaxes).ls_upp_y_ref = (*(*info).plotaxes).ls_low_y_ref + 1 
-		WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, SET_VALUE = STRTRIM((*(*info).plotaxes).ls_upp_y_ref,2)
+		(*(*(*info).plotaxes).ls_low_y_ref)[(*(*info).dataparams).s_ref] = $
+      FLOAT(textvalue[0]) 
+		IF ((*(*(*info).plotaxes).ls_low_y_ref)[(*(*info).dataparams).s_ref] GE $
+        (*(*(*info).plotaxes).ls_upp_y_ref)[(*(*info).dataparams).s_ref]) THEN $
+			(*(*(*info).plotaxes).ls_upp_y_ref)[(*(*info).dataparams).s_ref] = $
+        (*(*(*info).plotaxes).ls_low_y_ref)[(*(*info).dataparams).s_ref] + 1 
+		WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, $
+      SET_VALUE=STRTRIM((*(*(*info).plotaxes).ls_upp_y_ref)[$
+      (*(*info).dataparams).s_ref],2)
 	ENDIF ELSE BEGIN
 		(*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] = FLOAT(textvalue[0]) 
-		IF ((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] GE (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s]) THEN $
-			(*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] = (*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] + 1 
-		WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],2)
+		IF ((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] GE $
+        (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s]) THEN $
+			(*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] = $
+        (*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] + 1 
+		WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, $
+      SET_VALUE=STRTRIM((*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],2)
 	ENDELSE
 	CRISPEX_DISPRANGE_LS_RANGE, event
 END
@@ -5302,28 +5533,49 @@ PRO CRISPEX_DISPRANGE_LS_UPP, event
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, GET_VALUE = textvalue
 	IF (*(*info).ctrlsswitch).imrefdetspect THEN BEGIN
-		(*(*info).plotaxes).ls_upp_y_ref = FLOAT(textvalue[0])
-		IF ((*(*info).plotaxes).ls_upp_y_ref LE (*(*info).plotaxes).ls_low_y_ref) THEN (*(*info).plotaxes).ls_low_y_ref = (*(*info).plotaxes).ls_upp_y_ref - 1 
-		WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, SET_VALUE = STRTRIM((*(*info).plotaxes).ls_low_y_ref,2)
+		(*(*(*info).plotaxes).ls_upp_y_ref)[(*(*info).dataparams).s_ref] = $
+      FLOAT(textvalue[0])
+		IF ((*(*(*info).plotaxes).ls_upp_y_ref)[(*(*info).dataparams).s_ref] LE $
+        (*(*(*info).plotaxes).ls_low_y_ref)[(*(*info).dataparams).s_ref]) THEN $
+			(*(*(*info).plotaxes).ls_low_y_ref)[(*(*info).dataparams).s_ref] = $
+        (*(*(*info).plotaxes).ls_upp_y_ref)[(*(*info).dataparams).s_ref] - 1 
+		WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, $
+      SET_VALUE=STRTRIM((*(*(*info).plotaxes).ls_low_y_ref)[$
+      (*(*info).dataparams).s_ref],2)
 	ENDIF ELSE BEGIN
 		(*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] = FLOAT(textvalue[0])
-		IF ((*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] LE (*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s]) THEN $
-			(*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] = (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] - 1 
-		WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, SET_VALUE = STRTRIM((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],2)
+		IF ((*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] LE $
+        (*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s]) THEN $
+			(*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] = $
+        (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] - 1 
+		WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, $
+      SET_VALUE=STRTRIM((*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],2)
 	ENDELSE
 	CRISPEX_DISPRANGE_LS_RANGE, event
 END
 
 PRO CRISPEX_DISPRANGE_LS_RANGE, event, NO_DRAW=no_draw
-; Determines range from change in lower or upper y-value of detailed spectrum display window and calls (re)display routine
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+; Determines range from change in lower or upper y-value of detailed spectrum
+; display window and calls (re)display routine
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF (*(*info).ctrlsswitch).imrefdetspect THEN (*(*info).plotaxes).ls_yrange_ref = (*(*info).plotaxes).ls_upp_y_ref - (*(*info).plotaxes).ls_low_y_ref ELSE $
-		(*(*(*info).plotaxes).ls_yrange)[(*(*info).dataparams).s] = (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] - (*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] 
+	IF (*(*info).ctrlsswitch).imrefdetspect THEN $
+		(*(*(*info).plotaxes).ls_yrange_ref)[(*(*info).dataparams).s_ref] = $
+      (*(*(*info).plotaxes).ls_upp_y_ref)[(*(*info).dataparams).s_ref] - $
+      (*(*(*info).plotaxes).ls_low_y_ref)[(*(*info).dataparams).s_ref] $
+  ELSE $
+		(*(*(*info).plotaxes).ls_yrange)[(*(*info).dataparams).s] = $
+      (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s] - $
+      (*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s] 
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, [(*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],(*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],$
-		(*(*info).plotaxes).ls_low_y_ref,(*(*info).plotaxes).ls_upp_y_ref], labels=['Lower main y-value','Upper main y-value','Lower ref y-value','Upper ref y-value']
+    CRISPEX_VERBOSE_GET, event, $
+      [(*(*(*info).plotaxes).ls_low_y)[(*(*info).dataparams).s],$
+       (*(*(*info).plotaxes).ls_upp_y)[(*(*info).dataparams).s],$
+       (*(*(*info).plotaxes).ls_low_y_ref)[(*(*info).dataparams).s_ref],$
+       (*(*(*info).plotaxes).ls_upp_y_ref)[(*(*info).dataparams).s_ref]],$
+       labels=['Lower main y-value','Upper main y-value','Lower ref y-value',$
+       'Upper ref y-value']
 	IF ~KEYWORD_SET(NO_DRAW) THEN CRISPEX_DRAW, event
 END
 
@@ -5332,9 +5584,14 @@ PRO CRISPEX_DISPRANGE_LS_SCALE_SELECT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE=info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF (*(*info).ctrlsswitch).imrefdetspect THEN (*(*info).dispswitch).ref_detspect_scale = event.SELECT ELSE (*(*info).dispswitch).detspect_scale = event.SELECT
+	IF (*(*info).ctrlsswitch).imrefdetspect THEN $
+    (*(*info).dispswitch).ref_detspect_scale = event.SELECT $
+  ELSE $
+    (*(*info).dispswitch).detspect_scale = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, [(*(*info).dispswitch).detspect_scale,(*(*info).dispswitch).ref_detspect_scale], labels=['Scale main detspect','Scale ref detspect']
+    CRISPEX_VERBOSE_GET, event, [(*(*info).dispswitch).detspect_scale,$
+      (*(*info).dispswitch).ref_detspect_scale], $
+      labels=['Scale main detspect','Scale ref detspect']
 	CRISPEX_DISPRANGE_LS_SCALE, event
 END
 
@@ -5354,11 +5611,17 @@ PRO CRISPEX_DISPRANGE_LS_SCALE_MAIN, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).detspect_scale THEN BEGIN
-		IF (*(*info).plotswitch).scalestokes THEN ms = (*(*info).dataparams).ms * ((*(*info).paramparams).scale_cubes)[0] ELSE ms = ((*(*info).dataparams).ms) * ((*(*info).paramparams).scale_cubes)[0]
+		IF (*(*info).plotswitch).scalestokes THEN $
+      ms = (*(*info).dataparams).ms * ((*(*info).paramparams).scale_cubes)[0] $
+    ELSE $
+      ms = ((*(*info).dataparams).ms) * ((*(*info).paramparams).scale_cubes)[0]
 		(*(*(*info).plotaxes).ls_low_y) /= ms 
 		(*(*(*info).plotaxes).ls_upp_y) /= ms
 	ENDIF ELSE BEGIN
-		IF (*(*info).plotswitch).scalestokes THEN ms = (*(*info).dataparams).ms ELSE ms = ((*(*info).dataparams).ms)
+		IF (*(*info).plotswitch).scalestokes THEN $
+      ms = (*(*info).dataparams).ms $
+    ELSE $
+      ms = ((*(*info).dataparams).ms)
 		(*(*(*info).plotaxes).ls_low_y) *= ms * ((*(*info).paramparams).scale_cubes)[0]
 		(*(*(*info).plotaxes).ls_upp_y) *= ms * ((*(*info).paramparams).scale_cubes)[0]
 	ENDELSE
@@ -5372,14 +5635,22 @@ PRO CRISPEX_DISPRANGE_LS_SCALE_REF, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF (*(*info).dispswitch).ref_detspect_scale THEN BEGIN
-		(*(*info).plotaxes).ls_low_y_ref /= ((*(*info).dataparams).refms * ((*(*info).paramparams).scale_cubes)[1]) 
-		(*(*info).plotaxes).ls_upp_y_ref /= ((*(*info).dataparams).refms * ((*(*info).paramparams).scale_cubes)[1])
+		(*(*(*info).plotaxes).ls_low_y_ref) /= $
+      ((*(*info).dataparams).refms * ((*(*info).paramparams).scale_cubes)[1]) 
+		(*(*(*info).plotaxes).ls_upp_y_ref) /= $
+      ((*(*info).dataparams).refms * ((*(*info).paramparams).scale_cubes)[1])
 	ENDIF ELSE BEGIN
-		(*(*info).plotaxes).ls_low_y_ref *= (*(*info).dataparams).refms * ((*(*info).paramparams).scale_cubes)[1]
-		(*(*info).plotaxes).ls_upp_y_ref *= (*(*info).dataparams).refms * ((*(*info).paramparams).scale_cubes)[1]
+		(*(*(*info).plotaxes).ls_low_y_ref) *= $
+      (*(*info).dataparams).refms * ((*(*info).paramparams).scale_cubes)[1]
+		(*(*(*info).plotaxes).ls_upp_y_ref) *= $
+      (*(*info).dataparams).refms * ((*(*info).paramparams).scale_cubes)[1]
 	ENDELSE
-	WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, SET_VALUE = STRTRIM((*(*info).plotaxes).ls_low_y_ref,2)
-	WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, SET_VALUE = STRTRIM((*(*info).plotaxes).ls_upp_y_ref,2)
+	WIDGET_CONTROL, (*(*info).ctrlscp).lower_y_text, $
+    SET_VALUE=STRTRIM((*(*(*info).plotaxes).ls_low_y_ref)[$
+    (*(*info).dataparams).s_ref],2)
+	WIDGET_CONTROL, (*(*info).ctrlscp).upper_y_text, $
+    SET_VALUE=STRTRIM((*(*(*info).plotaxes).ls_upp_y_ref)[$
+    (*(*info).dataparams).s_ref],2)
 END
 
 PRO CRISPEX_DISPRANGE_LS_SUBTRACT, event
@@ -5387,9 +5658,14 @@ PRO CRISPEX_DISPRANGE_LS_SUBTRACT, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF (*(*info).ctrlsswitch).imrefdetspect THEN (*(*info).plotswitch).ref_subtract = event.SELECT ELSE (*(*info).plotswitch).subtract = event.SELECT
+	IF (*(*info).ctrlsswitch).imrefdetspect THEN $
+    (*(*info).plotswitch).ref_subtract = event.SELECT $
+  ELSE $
+    (*(*info).plotswitch).subtract = event.SELECT
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
-    CRISPEX_VERBOSE_GET, event, [(*(*info).plotswitch).subtract,(*(*info).plotswitch).ref_subtract], labels=['Subtract from main','Subtract from ref']
+    CRISPEX_VERBOSE_GET, event, $
+      [(*(*info).plotswitch).subtract,(*(*info).plotswitch).ref_subtract], $
+      labels=['Subtract from main','Subtract from ref']
 	CRISPEX_DRAW, event
 END
 
@@ -6135,8 +6411,8 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
         ny = (*(*info).dataparams).sjiny
       ENDIF ELSE IF ((imref)[sel_loops[i]] EQ 2) THEN BEGIN
         ; imref=2: reference
-        wcs_from = (*(*info).dataparams).wcs_ref
-        pix_from2main = (*(*info).dataparams).pix_ref2main
+        wcs_from = *(*(*info).dataparams).wcs_ref
+        pix_from2main = *(*(*info).dataparams).pix_ref2main
         pix_from2sji = *(*(*info).dataparams).pix_ref2sji
         dx_from = (*(*info).dataparams).refdx
         dy_from = (*(*info).dataparams).refdy
@@ -6149,7 +6425,7 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
       ENDIF ELSE BEGIN
         ; imref=1: main
         wcs_from = (*(*info).dataparams).wcs_main
-        pix_from2ref = (*(*info).dataparams).pix_main2ref
+        pix_from2ref = *(*(*info).dataparams).pix_main2ref
         pix_from2sji = *(*(*info).dataparams).pix_main2sji
         dx_from = (*(*info).dataparams).dx
         dy_from = (*(*info).dataparams).dy
@@ -6208,9 +6484,9 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
               xyp_ref = {x:xp_ref, y:yp_ref}
             ENDIF ELSE $
               xyp_ref = CRISPEX_TRANSFORM_GET_WCS(xp_orig, yp_orig, $
-                wcs_from, (*(*info).dataparams).wcs_ref, /PIXEL, /COORD)
+                wcs_from, *(*(*info).dataparams).wcs_ref, /PIXEL, /COORD)
             xyr_ref = CRISPEX_TRANSFORM_GET_WCS(xr_orig, yr_orig, $
-              wcs_from, (*(*info).dataparams).wcs_ref, $
+              wcs_from, *(*(*info).dataparams).wcs_ref, $
               /PIXEL, /COORD, /NO_ROUND)
           ENDIF ELSE IF ((*(*info).dispswitch).main2ref_no_map EQ 0) THEN BEGIN
             ; Else, use header information for transform
@@ -6327,8 +6603,8 @@ PRO CRISPEX_DRAW_MASK_OVERLAYS, event, REFERENCE=reference
     IF ((*(*info).dataswitch).wcs_set AND $
       (*(*info).dataswitch).ref_wcs_set) THEN BEGIN
       ; If WCS info available, use that for the transform
-      xp = REFORM(((*(*info).dataparams).pix_ref2main[*,xcoords,0])[0,*])
-      yp = REFORM(((*(*info).dataparams).pix_ref2main[*,0,ycoords])[1,0,*])
+      xp = REFORM(((*(*(*info).dataparams).pix_ref2main)[*,xcoords,0])[0,*])
+      yp = REFORM(((*(*(*info).dataparams).pix_ref2main)[*,0,ycoords])[1,0,*])
       xy_low_upp = {x:xp, y:yp}
     ENDIF ELSE BEGIN
       ; Else use header information for transform
@@ -6349,8 +6625,8 @@ PRO CRISPEX_DRAW_MASK_OVERLAYS, event, REFERENCE=reference
     IF ((*(*info).dataswitch).wcs_set AND $
       (*(*info).dataswitch).ref_wcs_set) THEN BEGIN
       ; If WCS info available, use that for the transform
-      xp = REFORM(((*(*info).dataparams).pix_ref2main[*,xcoords_new,0])[0,*])
-      yp = REFORM(((*(*info).dataparams).pix_ref2main[*,0,ycoords_new])[1,0,*])
+      xp = REFORM(((*(*(*info).dataparams).pix_ref2main)[*,xcoords_new,0])[0,*])
+      yp = REFORM(((*(*(*info).dataparams).pix_ref2main)[*,0,ycoords_new])[1,0,*])
       xypos_low_upp = {x:xp, y:yp}
     ENDIF ELSE BEGIN
       ; Else use header information for transform
@@ -6398,8 +6674,8 @@ PRO CRISPEX_DRAW_RASTER_OVERLAYS, event, REFERENCE=reference, SJI=sji
   FOR i=0,(*(*info).dataparams).nx-1 DO BEGIN
     IF KEYWORD_SET(REFERENCE) THEN $
       sxyraster = CRISPEX_TRANSFORM_DATA2DEVICE(info, $
-        X=(*(*info).dataparams).pix_main2ref[0,i,*], $
-        Y=(*(*info).dataparams).pix_main2ref[1,i,*], /REF) $
+        X=(*(*(*info).dataparams).pix_main2ref)[0,i,*], $
+        Y=(*(*(*info).dataparams).pix_main2ref)[1,i,*], /REF) $
     ELSE IF KEYWORD_SET(SJI) THEN $
       sxyraster = CRISPEX_TRANSFORM_DATA2DEVICE(info, $
         X=(*(*(*info).dataparams).pix_main2sji)[0,i,*], $
@@ -6460,8 +6736,8 @@ PRO CRISPEX_DRAW_RASTER_TIMING_OVERLAYS, event, MAIN=main, REFERENCE=reference,$
   sel_color = (*(*info).overlayparams).maskcolor
   ; Convert main x-position to REF/SJI depending on display
   IF KEYWORD_SET(REFERENCE) THEN BEGIN
-    xpos_low = (*(*info).dataparams).pix_main2ref[0,xpos_low,0]
-    xpos_upp = (*(*info).dataparams).pix_main2ref[0,xpos_upp,0]
+    xpos_low = (*(*(*info).dataparams).pix_main2ref)[0,xpos_low,0]
+    xpos_upp = (*(*(*info).dataparams).pix_main2ref)[0,xpos_upp,0]
     IF (*(*info).overlayswitch).refraster THEN $
       sel_color = (((*(*info).overlayparams).maskcolor - 200) MOD 255)
   ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
@@ -6732,7 +7008,7 @@ PRO CRISPEX_DRAW_FEEDBPARAMS, event, UPDATE_REF=update_ref, $
           FORMAT=(*(*info).paramparams).refycoord_format)
         IF (*(*info).dataswitch).ref_wcs_set THEN BEGIN
           xyref_real = CRISPEX_TRANSFORM_GET_WCS((*(*info).dataparams).xref, $
-            (*(*info).dataparams).yref, (*(*info).dataparams).wcs_ref, $
+            (*(*info).dataparams).yref, *(*(*info).dataparams).wcs_ref, $
             /COORD, /NO_ROUND)
           xreal_val = xyref_real.x
           yreal_val = xyref_real.y
@@ -7872,238 +8148,256 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
     TOTAL((*(*info).dataparams).lp_ref GE *(*(*info).intparams).refdiag_starts)-1
   IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showrefls) THEN BEGIN
     ; Pre-draw procedures: detailed spectrum (LS)
-	  refspec = ((*(*info).dataparams).refspec)
-	  refms = (*(*info).dataparams).refms
-	  ls_low_y = (*(*info).plotaxes).ls_low_y_ref
-	  ls_upp_y = (*(*info).plotaxes).ls_upp_y_ref
-	  order_corr=0.
-	  IF (*(*info).dispswitch).ref_detspect_scale THEN $
-      reflsytitle = 'Scaled '+STRLOWCASE((*(*info).plottitles).reflsytitle) $
-    ELSE BEGIN
-	  	IF ((FLOOR(ALOG10(ABS(ls_low_y))) LE -2) OR $
-          (FLOOR(ALOG10(ABS(ls_upp_y))) GE 3)) THEN BEGIN
-	  		order_corr = FLOOR(ALOG10(ABS(ls_upp_y)))
-	  		reflsytitle = $
-          (*(*info).plottitles).reflsytitle+' (x10!U'+STRTRIM(order_corr,2)+'!N)'
-	  	ENDIF ELSE reflsytitle = (*(*info).plottitles).reflsytitle
-	  	ls_low_y /= (10.^(order_corr))
-	  	ls_upp_y /= (10.^(order_corr))
-	  ENDELSE
-	  IF ((*(*info).dispswitch).ref_detspect_scale EQ 0) THEN BEGIN
-	  	refspec *= refms * ((*(*info).paramparams).scale_cubes)[1] / $
-        (10.^(order_corr))
-	  	refms = 1
-	  ENDIF
-    ; Set x-axes parameters depending on # of diagnostics
-    IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
-      xtlen_basic_fac = 0.5
-      xtlen_major_fac = 0.8
-      xtickname = REPLICATE(' ',60)
-      xtitle = ''
-    ENDIF ELSE BEGIN
-      xtlen_basic_fac = 1.
-      xtickname = ''
-      xtitle = (*(*info).plottitles).refspxtitle
-    ENDELSE
-    xticklen = xtlen_basic_fac * (*(*info).plotaxes).reflsxticklen
-    IF (*(*info).plotswitch).v_dop_set_ref THEN $
-      topxtitle = 'Doppler velocity [km/s]'
-    ; Get data for display
-    IF ((*(*info).dataswitch).refspfile EQ 1) THEN $
-      refssp = $
-        ((*(*(*info).data).refssp_cur)[*,(*(*info).dispparams).t_ref])/refms $
-    ELSE $
-      refssp = (*(*(*info).data).refssp_cur)/refms
-    IF ((*(*info).dispswitch).ref_detspect_scale EQ 0) THEN $
-      refssp *= ((*(*info).paramparams).scale_cubes)[1] / (10.^(order_corr))
-    ; Determine proportional spectral window size for LS
-    diag_range_ls = *(*(*info).plotaxes).refdiag_ratio * $
-      ((*(*info).plotpos).reflsx1 - (*(*info).plotpos).reflsx0)
-    FOR d=0,(*(*info).intparams).ndisp_refdiagnostics-1 DO BEGIN
-      disp_idx = (*(*(*info).intparams).wheredisprefdiag)[d]
-      mult_idx = (*(*info).intparams).ndiagnostics+disp_idx
-      lp_lower = (*(*info).dispparams).lp_ref_low_tmp[disp_idx]+$
-        (*(*info).intparams).refdiag_start[disp_idx]
-      lp_upper = (*(*info).dispparams).lp_ref_upp_tmp[disp_idx]+$
-        (*(*info).intparams).refdiag_start[disp_idx]
-      ; Draw REFLS window
-	    WSET, (*(*info).winids).reflswid
-      ; Determine xrange to display
-      xrange = (*(*info).dataparams).reflps[[lp_lower,lp_upper]] 
-      lp_ref_lower = (*(*info).intparams).refdiag_start[$
-        (*(*(*info).intparams).wheredisprefdiag)[d]]
-      lp_ref_upper = lp_ref_lower+(*(*info).intparams).refdiag_width[$
-        (*(*(*info).intparams).wheredisprefdiag)[d]]-1
-      ; Set y-axes parameters based on diagnostic plot
-      IF (d EQ 0) THEN BEGIN
-        offset = 0 
-        ytickname = '' 
-        ytitle = reflsytitle
+   ; Loop over all selected Stokes parameters (will always be at least 1) for
+   ; detailed spectrum plots
+    FOR i=0,TOTAL((*(*info).stokesparams).select_refsp)-1 DO BEGIN
+      s = (WHERE((*(*info).stokesparams).select_refsp EQ 1))[i]
+	    refspec = ((*(*info).dataparams).refspec)[*,s]
+   		IF (*(*info).plotswitch).scalestokes THEN $
+         refms = (*(*info).dataparams).refms $
+       ELSE $
+         refms = ((*(*info).dataparams).refms)[s]
+	    ls_low_y = (*(*(*info).plotaxes).ls_low_y_ref)[s]
+	    ls_upp_y = (*(*(*info).plotaxes).ls_upp_y_ref)[s]
+	    order_corr=0.
+	    IF (*(*info).dispswitch).ref_detspect_scale THEN $
+        reflsytitle = 'Scaled '+STRLOWCASE((*(*info).plottitles).reflsytitle) $
+      ELSE BEGIN
+	    	IF ((FLOOR(ALOG10(ABS(ls_low_y))) LE -2) OR $
+            (FLOOR(ALOG10(ABS(ls_upp_y))) GE 3)) THEN BEGIN
+	    		order_corr = FLOOR(ALOG10(ABS(ls_upp_y)))
+	    		reflsytitle = $
+            (*(*info).plottitles).reflsytitle+' (x10!U'+STRTRIM(order_corr,2)+'!N)'
+	    	ENDIF ELSE reflsytitle = (*(*info).plottitles).reflsytitle
+	    	ls_low_y /= (10.^(order_corr))
+	    	ls_upp_y /= (10.^(order_corr))
+	    ENDELSE
+	    IF ((*(*info).dispswitch).ref_detspect_scale EQ 0) THEN BEGIN
+	    	refspec *= refms * ((*(*info).paramparams).scale_cubes)[1] / $
+          (10.^(order_corr))
+	    	refms = 1.
+	    ENDIF
+      ; Set x-axes parameters depending on # of diagnostics
+      IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
+        xtlen_basic_fac = 0.5
+        xtlen_major_fac = 0.8
+        xtickname = REPLICATE(' ',60)
+        xtitle = ''
       ENDIF ELSE BEGIN
-        offset = TOTAL(diag_range_ls[0:(d-1)])
-        ytickname = REPLICATE(' ',60)
-        ytitle = ''
+        xtlen_basic_fac = 1.
+        xtickname = ''
+        xtitle = (*(*info).plottitles).refspxtitle
       ENDELSE
-      ; Determine lower left corner position of plot
-      reflsx0 = (*(*info).plotpos).reflsx0 + offset
-      reflsx1 = diag_range_ls[d] + reflsx0
-      ; Plot basic window 
-      PLOT, (*(*info).dataparams).reflps[lp_ref_lower:lp_ref_upper],$
-        refspec[lp_ref_lower:lp_ref_upper]*$
-        (*(*info).scaling).mult_val[mult_idx], $
-        /NORM, CHARSIZE=1, YS=1, YR=[ls_low_y,ls_upp_y], $
-        XR=xrange, YTICKNAME=ytickname, $
-        XMINOR=(0-((*(*info).intparams).ndisp_refdiagnostics GT 1)), $
-        XTICKINTERVAL=(*(*(*info).plotaxes).xreftickinterval)[0], $
-        XTICKNAME=xtickname, XSTYLE=(*(*info).plotswitch).v_dop_set_ref*8+1, $
-        XTICK_GET=xtickvals, BACKGROUND=(*(*info).plotparams).bgplotcol, $
-        XTITLE = xtitle, YTITLE=ytitle, $
-        POSITION=[reflsx0,((*(*info).plotpos).reflsy0),$
-        reflsx1,((*(*info).plotpos).reflsy1)], $
-        XTICKLEN = xticklen, YTICKLEN = (*(*info).plotaxes).reflsyticklen, $
-        COLOR = (*(*info).plotparams).plotcol, LINE=3, $
-        NOERASE=(((*(*info).intparams).nrefdiagnostics GT 1) AND (d GT 0))
-        ; Overplot average spectrum
-      	OPLOT, (*(*info).dataparams).reflps[lp_ref_lower:lp_ref_upper], $
-          refspec[lp_ref_lower:lp_ref_upper]*(*(*info).scaling).mult_val[$
-          mult_idx], LINE=3, COLOR=(*(*info).plotparams).plotcol, $
-          THICK=(*(*info).plotparams).plotthick
-        IF ((*(*info).scaling).mult_val[mult_idx] NE 1) THEN BEGIN
-          XYOUTS,0.1*(xrange[1]-xrange[0])+xrange[0], $
-            0.9*(ls_upp_y-ls_low_y)+ls_low_y, $
-            STRING((*(*info).scaling).mult_val[mult_idx], $
-            FORMAT='(F'+STRTRIM(FLOOR(ALOG10(ABS((*(*info).scaling).mult_val[$
-            mult_idx])))+3+((*(*info).scaling).mult_val[mult_idx] LT 0),2)+$
-            '.1)')+'x',COLOR=(*(*info).plotparams).plotcol, /DATA
-        ENDIF
-      ; In case of multiple diagnostics
-      IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
-        ; Draw x-title centered on plot box on first pass
-        IF (d EQ 0) THEN $
-          XYOUTS,((*(*info).plotpos).reflsx1-(*(*info).plotpos).reflsx0)/2.+$
-            (*(*info).plotpos).reflsx0, (*(*info).plotpos).reflsy0/5.,$
-            (*(*info).plottitles).refspxtitle,ALIGNMENT=0.5, $
-            COLOR=(*(*info).plotparams).plotcol, /NORMAL
-        ; Set range for Doppler axis
-        vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[disp_idx])[$
-          [(*(*info).dispparams).lp_ref_low_tmp[disp_idx], $
-           (*(*info).dispparams).lp_ref_upp_tmp[disp_idx]]]
-        IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
-          ; Redraw x-axis with custom labelling
-          IF (*(*info).plotswitch).xreftick_reset THEN BEGIN
-            (*(*info).plotaxes).xreftickvals[d] = $
-              PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xtickvals, $
-              TICKSEP=(*(*(*info).plotaxes).xreftickinterval)[1]))
-            IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
-              (*(*info).plotswitch).xreftick_reset = 0
+      xticklen = xtlen_basic_fac * (*(*info).plotaxes).reflsxticklen
+      IF (*(*info).plotswitch).v_dop_set_ref THEN $
+        topxtitle = 'Doppler velocity [km/s]'
+      ; Get data for display
+      IF ((*(*info).dataswitch).refspfile EQ 1) THEN $
+        refssp = $
+          ((*(*(*info).data).refssp_cur[i])[*,(*(*info).dispparams).t_ref])/refms $
+      ELSE $
+        refssp = (*(*(*info).data).refssp_cur[i])/refms
+      IF ((*(*info).dispswitch).ref_detspect_scale EQ 0) THEN $
+        refssp *= ((*(*info).paramparams).scale_cubes)[1] / (10.^(order_corr))
+      ; Determine proportional spectral window size for LS
+      diag_range_ls = *(*(*info).plotaxes).refdiag_ratio * $
+        (((*(*info).plotpos).reflsx1)[i] - ((*(*info).plotpos).reflsx0)[i])
+      FOR d=0,(*(*info).intparams).ndisp_refdiagnostics-1 DO BEGIN
+        disp_idx = (*(*(*info).intparams).wheredisprefdiag)[d]
+        mult_idx = (*(*info).intparams).ndiagnostics+disp_idx
+        lp_lower = (*(*info).dispparams).lp_ref_low_tmp[disp_idx]+$
+          (*(*info).intparams).refdiag_start[disp_idx]
+        lp_upper = (*(*info).dispparams).lp_ref_upp_tmp[disp_idx]+$
+          (*(*info).intparams).refdiag_start[disp_idx]
+        ; Draw REFLS window
+	      WSET, (*(*info).winids).reflswid
+        ; Determine xrange to display
+        xrange = (*(*info).dataparams).reflps[[lp_lower,lp_upper]] 
+        lp_ref_lower = (*(*info).intparams).refdiag_start[$
+          (*(*(*info).intparams).wheredisprefdiag)[d]]
+        lp_ref_upper = lp_ref_lower+(*(*info).intparams).refdiag_width[$
+          (*(*(*info).intparams).wheredisprefdiag)[d]]-1
+        ; Set y-axes parameters based on diagnostic plot
+        IF (d EQ 0) THEN BEGIN
+          offset = 0 
+          ytickname = '' 
+          ytitle = reflsytitle
+        ENDIF ELSE BEGIN
+          offset = TOTAL(diag_range_ls[0:(d-1)])
+          ytickname = REPLICATE(' ',60)
+          ytitle = ''
+        ENDELSE
+        ; Determine lower left corner position of plot
+        reflsx0 = ((*(*info).plotpos).reflsx0)[i] + offset
+        reflsx1 = diag_range_ls[d] + reflsx0
+        ; Plot basic window 
+        PLOT, (*(*info).dataparams).reflps[lp_ref_lower:lp_ref_upper],$
+          refspec[lp_ref_lower:lp_ref_upper]*$
+          (*(*info).scaling).mult_val[mult_idx], $
+          /NORM, CHARSIZE=1, YS=1, YR=[ls_low_y,ls_upp_y], $
+          XR=xrange, YTICKNAME=ytickname, $
+          XMINOR=(0-((*(*info).intparams).ndisp_refdiagnostics GT 1)), $
+          XTICKINTERVAL=(*(*(*info).plotaxes).xreftickinterval)[0], $
+          XTICKNAME=xtickname, XSTYLE=(*(*info).plotswitch).v_dop_set_ref*8+1, $
+          XTICK_GET=xtickvals, BACKGROUND=(*(*info).plotparams).bgplotcol, $
+          XTITLE = xtitle, YTITLE=ytitle, $
+          POSITION=[reflsx0,((*(*info).plotpos).reflsy0)[i],$
+          reflsx1,((*(*info).plotpos).reflsy1)[i]], $
+          XTICKLEN = xticklen, YTICKLEN = (*(*info).plotaxes).reflsyticklen, $
+          COLOR = (*(*info).plotparams).plotcol, LINE=3, $
+          NOERASE=(((*(*info).intparams).nrefdiagnostics GT 1) AND (d GT 0) OR $
+          (i GT 0))
+          ; Overplot average spectrum
+        	OPLOT, (*(*info).dataparams).reflps[lp_ref_lower:lp_ref_upper], $
+            refspec[lp_ref_lower:lp_ref_upper]*(*(*info).scaling).mult_val[$
+            mult_idx], LINE=3, COLOR=(*(*info).plotparams).plotcol, $
+            THICK=(*(*info).plotparams).plotthick
+          IF ((*(*info).scaling).mult_val[mult_idx] NE 1) THEN BEGIN
+            XYOUTS,0.1*(xrange[1]-xrange[0])+xrange[0], $
+              0.9*(ls_upp_y-ls_low_y)+ls_low_y, $
+              STRING((*(*info).scaling).mult_val[mult_idx], $
+              FORMAT='(F'+STRTRIM(FLOOR(ALOG10(ABS((*(*info).scaling).mult_val[$
+              mult_idx])))+3+((*(*info).scaling).mult_val[mult_idx] LT 0),2)+$
+              '.1)')+'x',COLOR=(*(*info).plotparams).plotcol, /DATA
           ENDIF
-          wherenonempty = $
-            WHERE(*(*(*info).plotaxes).xreftickvals[d] NE ' ', count)
-          IF (count GT 0) THEN BEGIN
-            FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-              PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xreftickvals[d])[$
-                wherenonempty[k]]), [ls_low_y,xtlen_major_fac*$
-                (ls_upp_y-ls_low_y)*(*(*info).plotaxes).reflsxticklen+ls_low_y],$
-                COLOR=(*(*info).plotparams).plotcol
-            ENDFOR
-          ENDIF
-          AXIS, XAXIS=0, XTICKLEN=1E-9, XRANGE=xrange, /XS, $
-            XTICKNAME=*(*(*info).plotaxes).xreftickvals[d], $
-            COLOR=(*(*info).plotparams).plotcol, $
-            XTICKINTERVAL=(*(*(*info).plotaxes).xreftickinterval)[0]
-        ENDIF
-      ENDIF ELSE $
-        vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[0])[$
-          [(*(*info).dispparams).lp_ref_low_tmp,$
-          (*(*info).dispparams).lp_ref_upp_tmp]]
-      ; Display Doppler velocities on top axis if info available
-      IF ((*(*info).plotswitch).v_dop_set_ref EQ 1) THEN BEGIN
+        ; In case of multiple diagnostics
         IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
-          XYOUTS,((*(*info).plotpos).reflsx1-(*(*info).plotpos).reflsx0)/2.+$
-            (*(*info).plotpos).reflsx0,(*(*info).plotpos).reflsy0/5.*3+$
-            (*(*info).plotpos).reflsy1, topxtitle, ALIGNMENT=0.5, $
-            COLOR = (*(*info).plotparams).plotcol,/NORMAL
-          topxtitle = ''
-        ENDIF 
-        ; Draw top axis
-        IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
-          ; Plot the initial tick marks and get the tick vals
-    	  	AXIS, XAXIS=1, XRANGE=vdop_xrange, $
-            XSTYLE=1, XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol,$
-            XTICKINTERVAL=(*(*(*info).plotaxes).xrefdoptickinterval)[0], $
-            XTICKNAME=REPLICATE(' ',60), XTICK_GET=xdoptickvals, $
-            XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).reflsxticklen, $
-            XMINOR=-1
-          ; Redraw x-axis with custom labelling
-          IF (*(*info).plotswitch).xrefdoptick_reset THEN BEGIN
-            (*(*info).plotaxes).xrefdoptickvals[d] = $
-              PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xdoptickvals, $
-              TICKSEP=(*(*(*info).plotaxes).xrefdoptickinterval)[1],$
-              /DOPPLER))
-            wherenonempty = WHERE(*(*(*info).plotaxes).xrefdoptickvals[d] NE ' ')
-            ; Determine Doppler tick mark locations
-            (*(*info).plotaxes).xrefdoptickloc[d] = $
-              PTR_NEW(CRISPEX_PLOTAXES_XDOPTICKLOC(xdoptickvals, wherenonempty, $
-              vdop_xrange, [(*(*info).dataparams).reflps[lp_ref_lower], $
-              (*(*info).dataparams).reflps[lp_ref_upper]]))
-            IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
-              (*(*info).plotswitch).xrefdoptick_reset = 0
+          ; Draw x-title centered on plot box on first pass
+          IF (d EQ 0) THEN $
+            XYOUTS,((*(*info).plotpos).reflsx1-(*(*info).plotpos).reflsx0)/2.+$
+              (*(*info).plotpos).reflsx0, (*(*info).plotpos).reflsy0/5.,$
+              (*(*info).plottitles).refspxtitle,ALIGNMENT=0.5, $
+              COLOR=(*(*info).plotparams).plotcol, /NORMAL
+          ; Set range for Doppler axis
+          vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[disp_idx])[$
+            [(*(*info).dispparams).lp_ref_low_tmp[disp_idx], $
+             (*(*info).dispparams).lp_ref_upp_tmp[disp_idx]]]
+          IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
+            ; Redraw x-axis with custom labelling
+            IF (*(*info).plotswitch).xreftick_reset THEN BEGIN
+              (*(*info).plotaxes).xreftickvals[d] = $
+                PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xtickvals, $
+                TICKSEP=(*(*(*info).plotaxes).xreftickinterval)[1]))
+              IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
+                (*(*info).plotswitch).xreftick_reset = 0
+            ENDIF
+            wherenonempty = $
+              WHERE(*(*(*info).plotaxes).xreftickvals[d] NE ' ', count)
+            IF (count GT 0) THEN BEGIN
+              FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+                PLOTS,[1.,1.]*FLOAT((*(*(*info).plotaxes).xreftickvals[d])[$
+                  wherenonempty[k]]), [ls_low_y,xtlen_major_fac*$
+                  (ls_upp_y-ls_low_y)*(*(*info).plotaxes).reflsxticklen+ls_low_y],$
+                  COLOR=(*(*info).plotparams).plotcol
+              ENDFOR
+            ENDIF
+            AXIS, XAXIS=0, XTICKLEN=1E-9, XRANGE=xrange, /XS, $
+              XTICKNAME=*(*(*info).plotaxes).xreftickvals[d], $
+              COLOR=(*(*info).plotparams).plotcol, $
+              XTICKINTERVAL=(*(*(*info).plotaxes).xreftickinterval)[0]
           ENDIF
-          wherenonempty = $
-            WHERE(*(*(*info).plotaxes).xrefdoptickvals[d] NE ' ', count)
-          IF (count GT 0) THEN BEGIN
-            FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
-              PLOTS,[1.,1.]*(*(*(*info).plotaxes).xrefdoptickloc[d])[k], $
-                [ls_upp_y,-xtlen_major_fac*(ls_upp_y-ls_low_y)*$
-                (*(*info).plotaxes).reflsxticklen+ls_upp_y], $
-                COLOR=(*(*info).plotparams).plotcol
-            ENDFOR
-          ENDIF
-          ; Add the labels
-          AXIS, XAXIS=1, XTICKLEN=1E-9, XRANGE=vdop_xrange, /XS, $
-            XTICKNAME=*(*(*info).plotaxes).xrefdoptickvals[d], $
-            COLOR=(*(*info).plotparams).plotcol, XMINOR=-1, $
-            XTICKINTERVAL=(*(*(*info).plotaxes).xrefdoptickinterval)[0]
         ENDIF ELSE $
-      	  AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).lsxticklen, $
-            XRANGE=vdop_xrange, XSTYLE=1, XTITLE = topxtitle, $
-            COLOR = (*(*info).plotparams).plotcol;,$
-      ENDIF 
-      ; Draw line through y=0
-    	IF ((ls_low_y LT 0.) AND (ls_upp_y GT 0.)) THEN $
-        PLOTS, xrange, [0.,0.], COLOR = (*(*info).plotparams).plotcol
-      ; Only overplot detailed spectrum if x/y is not out of range
-      IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
-        ; Overplot detailed spectrum
-      	OPLOT, (*(*info).dataparams).reflps[lp_ref_lower:lp_ref_upper], $
-          refssp[lp_ref_lower:lp_ref_upper]*(*(*info).scaling).mult_val[$
-          mult_idx], LINE=0, COLOR = (*(*info).plotparams).plotcol, $
-          THICK=(*(*info).plotparams).plotthick
-        ; Overplot average minus detailed spectrum
-      	IF (*(*info).plotswitch).ref_subtract THEN $
-      		OPLOT, (*(*info).dataparams).reflps[lp_ref_lower:lp_ref_upper], $
-            (refspec[lp_ref_lower:lp_ref_upper]-refssp[$
-            lp_ref_lower:lp_ref_upper])*(*(*info).scaling).mult_val[mult_idx], $
-            COLOR=(*(*info).plotparams).plotcol, LINE=2, $
+          vdop_xrange = (*(*(*info).plotaxes).v_dop_ref[0])[$
+            [(*(*info).dispparams).lp_ref_low_tmp,$
+            (*(*info).dispparams).lp_ref_upp_tmp]]
+        ; Display Stokes label if Stokes data
+        IF (*(*info).plotswitch).refmultichannel THEN $
+    		  XYOUTS, $
+            ((*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_upp]-$
+            (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low])*0.1+$
+            (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low], $
+    			  (ls_upp_y-ls_low_y)*0.9+ls_low_y, 'Stokes '+$
+            ((*(*info).stokesparams).labels_ref)[s], $
+            COLOR=(*(*info).plotparams).plotcol
+        ; Display Doppler velocities on top axis if info available
+        IF ((*(*info).plotswitch).v_dop_set_ref EQ 1) THEN BEGIN
+          IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
+            XYOUTS,((*(*info).plotpos).reflsx1-(*(*info).plotpos).reflsx0)/2.+$
+              (*(*info).plotpos).reflsx0,(*(*info).plotpos).reflsy0/5.*3+$
+              (*(*info).plotpos).reflsy1, topxtitle, ALIGNMENT=0.5, $
+              COLOR = (*(*info).plotparams).plotcol,/NORMAL
+            topxtitle = ''
+          ENDIF 
+          ; Draw top axis
+          IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
+            ; Plot the initial tick marks and get the tick vals
+    	    	AXIS, XAXIS=1, XRANGE=vdop_xrange, $
+              XSTYLE=1, XTITLE = topxtitle, COLOR = (*(*info).plotparams).plotcol,$
+              XTICKINTERVAL=(*(*(*info).plotaxes).xrefdoptickinterval)[0], $
+              XTICKNAME=REPLICATE(' ',60), XTICK_GET=xdoptickvals, $
+              XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).reflsxticklen, $
+              XMINOR=-1
+            ; Redraw x-axis with custom labelling
+            IF (*(*info).plotswitch).xrefdoptick_reset THEN BEGIN
+              (*(*info).plotaxes).xrefdoptickvals[d] = $
+                PTR_NEW(CRISPEX_PLOTAXES_XTICKVALS_SELECT(xdoptickvals, $
+                TICKSEP=(*(*(*info).plotaxes).xrefdoptickinterval)[1],$
+                /DOPPLER))
+              wherenonempty = WHERE(*(*(*info).plotaxes).xrefdoptickvals[d] NE ' ')
+              ; Determine Doppler tick mark locations
+              (*(*info).plotaxes).xrefdoptickloc[d] = $
+                PTR_NEW(CRISPEX_PLOTAXES_XDOPTICKLOC(xdoptickvals, wherenonempty, $
+                vdop_xrange, [(*(*info).dataparams).reflps[lp_ref_lower], $
+                (*(*info).dataparams).reflps[lp_ref_upper]]))
+              IF (d EQ ((*(*info).intparams).ndisp_refdiagnostics-1)) THEN $
+                (*(*info).plotswitch).xrefdoptick_reset = 0
+            ENDIF
+            wherenonempty = $
+              WHERE(*(*(*info).plotaxes).xrefdoptickvals[d] NE ' ', count)
+            IF (count GT 0) THEN BEGIN
+              FOR k=0,N_ELEMENTS(wherenonempty)-1 DO BEGIN
+                PLOTS,[1.,1.]*(*(*(*info).plotaxes).xrefdoptickloc[d])[k], $
+                  [ls_upp_y,-xtlen_major_fac*(ls_upp_y-ls_low_y)*$
+                  (*(*info).plotaxes).reflsxticklen+ls_upp_y], $
+                  COLOR=(*(*info).plotparams).plotcol
+              ENDFOR
+            ENDIF
+            ; Add the labels
+            AXIS, XAXIS=1, XTICKLEN=1E-9, XRANGE=vdop_xrange, /XS, $
+              XTICKNAME=*(*(*info).plotaxes).xrefdoptickvals[d], $
+              COLOR=(*(*info).plotparams).plotcol, XMINOR=-1, $
+              XTICKINTERVAL=(*(*(*info).plotaxes).xrefdoptickinterval)[0]
+          ENDIF ELSE $
+        	  AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).lsxticklen, $
+              XRANGE=vdop_xrange, XSTYLE=1, XTITLE = topxtitle, $
+              COLOR = (*(*info).plotparams).plotcol;,$
+        ENDIF 
+        ; Draw line through y=0
+    	  IF ((ls_low_y LT 0.) AND (ls_upp_y GT 0.)) THEN $
+          PLOTS, xrange, [0.,0.], COLOR = (*(*info).plotparams).plotcol
+        ; Only overplot detailed spectrum if x/y is not out of range
+        IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
+          ; Overplot detailed spectrum
+        	OPLOT, (*(*info).dataparams).reflps[lp_ref_lower:lp_ref_upper], $
+            refssp[lp_ref_lower:lp_ref_upper]*(*(*info).scaling).mult_val[$
+            mult_idx], LINE=0, COLOR = (*(*info).plotparams).plotcol, $
             THICK=(*(*info).plotparams).plotthick
-        IF (d EQ lp_ref_diag) THEN BEGIN
-          TVLCT, r_cur, g_cur, b_cur, /GET
-	        LOADCT, (*(*info).overlayparams).maskct, /SILENT
-          ; Overplot spectral indicator
-        	PLOTS, [1,1] * (*(*info).dataparams).reflps[$
-            (*(*info).dataparams).lp_ref],[ls_low_y,ls_upp_y],$
-            COLOR=(*(*info).overlayparams).maskcolor,$
-            THICK=(*(*info).plotparams).plotthick
-          TVLCT, r_cur, g_cur, b_cur
+          ; Overplot average minus detailed spectrum
+        	IF (*(*info).plotswitch).ref_subtract THEN $
+        		OPLOT, (*(*info).dataparams).reflps[lp_ref_lower:lp_ref_upper], $
+              (refspec[lp_ref_lower:lp_ref_upper]-refssp[$
+              lp_ref_lower:lp_ref_upper])*(*(*info).scaling).mult_val[mult_idx], $
+              COLOR=(*(*info).plotparams).plotcol, LINE=2, $
+              THICK=(*(*info).plotparams).plotthick
+          IF (d EQ lp_ref_diag) THEN BEGIN
+            TVLCT, r_cur, g_cur, b_cur, /GET
+	          LOADCT, (*(*info).overlayparams).maskct, /SILENT
+            ; Overplot spectral indicator
+          	PLOTS, [1,1] * (*(*info).dataparams).reflps[$
+              (*(*info).dataparams).lp_ref],[ls_low_y,ls_upp_y],$
+              COLOR=(*(*info).overlayparams).maskcolor,$
+              THICK=(*(*info).plotparams).plotthick
+            TVLCT, r_cur, g_cur, b_cur
+          ENDIF
         ENDIF
-      ENDIF 
+      ENDFOR
+      IF (*(*info).dispswitch).xyref_out_of_range THEN $
+        XYOUTS, ((*(*info).plotpos).reflsx1[i]-(*(*info).plotpos).reflsx0[i])/2.+$
+          (*(*info).plotpos).reflsx0[i], ((*(*info).plotpos).reflsy1[i]-$
+          (*(*info).plotpos).reflsy0[i])/2.+(*(*info).plotpos).reflsy0[i], $
+          'No data availabe for!Cselected pixel position', $
+          COLOR=(*(*info).plotparams).plotcol, ALIGN=0.5, CHARSIZE=1.2, /NORMAL
     ENDFOR
-    IF (*(*info).dispswitch).xyref_out_of_range THEN $
-      XYOUTS, ((*(*info).plotpos).reflsx1-(*(*info).plotpos).reflsx0)/2.+$
-        (*(*info).plotpos).reflsx0, ((*(*info).plotpos).reflsy1-$
-        (*(*info).plotpos).reflsy0)/2.+(*(*info).plotpos).reflsy0, $
-        'No data availabe for!Cselected pixel position', $
-        COLOR=(*(*info).plotparams).plotcol, ALIGN=0.5, CHARSIZE=1.2, /NORMAL
   ENDIF
   ; Pre-draw procedures: spectrum-time diagram (SP)
   IF (~KEYWORD_SET(LS_ONLY) AND (*(*info).winswitch).showrefsp) THEN BEGIN
@@ -9092,8 +9386,8 @@ PRO CRISPEX_IO_FAILSAFES_MAIN, imcube, spcube, input_single_cube, $
   ; If SPCUBE has been supplied, check IMCUBE and SPCUBE compatibility
 	IF hdr_out.spfile THEN BEGIN         
     ; Check whether SPCUBE and IMCUBE are actually the same
-		IF ((spcube EQ imcube) OR ((hdr_in.nlp EQ hdr_in.nx) AND (hdr_in.mainnt EQ hdr_in.ny) AND $
-       (hdr_in.spnt EQ hdr_in.imnt))) THEN BEGIN
+		IF ((spcube EQ imcube) OR ((hdr_in.nlp EQ hdr_in.nx) AND $
+       (hdr_in.mainnt EQ hdr_in.ny) AND (hdr_in.spnt EQ hdr_in.imnt))) THEN BEGIN
       CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'IMCUBE and SPCUBE must be different. Please check '+$
         'input (you seem to have provided the same file twice).',/ERROR,/NO_ROUTINE
 			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
@@ -9179,10 +9473,14 @@ PRO CRISPEX_IO_FAILSAFES_REF, refcube, input_single_cube, HDR_IN=hdr_in, HDR_OUT
   io_failsafe_error = 0
   IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN
     ; Failsafe against providing the same file as REFIMCUBE and REFSPCUBE
-  	IF ((refcube[1] EQ refcube[0]) OR $         ; Check whether input cube names are the same, or
-      (hdr_out.refnlp EQ hdr_out.refspnx) AND $         ; the cubes have same first dimensions
-      (hdr_out.refnt EQ hdr_out.refspny) AND $          ; the cubes have same second dimenions
-      (hdr_out.refspnt EQ hdr_out.refimnt)) THEN BEGIN  ; the cubes have same third dimensions
+    ; Check whether input cube names are the same, or
+  	IF ((refcube[1] EQ refcube[0]) OR $         
+      ; the cubes have same first dimensions
+      (hdr_out.refnlp EQ hdr_out.refspnx) AND $        
+      ; the cubes have same second dimenions
+      (hdr_out.refnt EQ hdr_out.refspny) AND $          
+      ; the cubes have same third dimensions
+      (hdr_out.refspnt EQ hdr_out.refimnt)) THEN BEGIN  
       CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image and spectral cubes must be '+$
         'different. Please check input (you seem to have provided the same file twice).', /ERROR, $
         /NO_ROUTINE, /NEWLINE
@@ -9191,8 +9489,8 @@ PRO CRISPEX_IO_FAILSAFES_REF, refcube, input_single_cube, HDR_IN=hdr_in, HDR_OUT
   		RETURN
   	ENDIF
     ; Failsafe against providing incompatible REFIMCUBE and REFSPCUBE
-  	IF ((hdr_out.refnx*hdr_out.refny NE hdr_out.refspnt) OR $
-        (hdr_out.refnt*hdr_out.refnlp NE hdr_out.refimnt)) THEN BEGIN							
+  	IF ((hdr_out.refnx*hdr_out.refny*hdr_out.refns NE hdr_out.refspnt) OR $
+        (hdr_out.refnt*hdr_out.refnlp*hdr_out.refns NE hdr_out.refimnt)) THEN BEGIN
       CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image and spectral cubes have '+$
         'incompatible dimensions and seem to belong to different datasets. Please check whether '+$
         'the input is correct (you provided REFCUBE[0]='+STRTRIM(refcube[0],2)+' and REFCUBE[1]='+$
@@ -9201,6 +9499,22 @@ PRO CRISPEX_IO_FAILSAFES_REF, refcube, input_single_cube, HDR_IN=hdr_in, HDR_OUT
       io_failsafe_error = 1
   		RETURN
   	ENDIF
+    ; Check, for multichannel cube, whether channels are incompatible
+		IF hdr_out.refmultichannel THEN BEGIN
+			IF ((hdr_out.refspstokes NE hdr_out.refimstokes) OR $
+          (hdr_out.refspns NE hdr_out.refimns)) THEN BEGIN
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+          'The reference image and spectral cubes have incompatible number of '+$
+          'channels and seem to belong to different datasets. Please check '+$
+          'whether the input is correct (you provided REFCUBE[0]='+$
+          STRTRIM(refcube[0],2)+' and REFCUBE[1]='+STRTRIM(refcube[1],2)+').',$
+          /ERROR,/NO_ROUTINE
+				IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+        io_failsafe_error = 1
+				RETURN
+			ENDIF ELSE $
+        hdr_out.ns = hdr_in.imns  ; If they are compatible, set general number of channels
+		ENDIF ELSE hdr_out.ns = 1L       ; If not multiple channels, set general number channels to 1
     ; Check whether SINGLE_CUBE keyword has been set in combination with provided SPCUBE
 		IF (N_ELEMENTS(INPUT_SINGLE_CUBE) GT 0) THEN BEGIN
       CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Calling CRISPEX with SINGLE_CUBE with a 2-element '+$
@@ -9526,52 +9840,93 @@ PRO CRISPEX_IO_OPEN_MAINCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
   CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, SPCUBE=hdr_out.spfilename
 END
 
-PRO CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
-                              SINGLE_CUBE=single_cube, $
-                              IO_FAILSAFE_REF_ERROR=io_failsafe_ref_error, $
-                              IO_FAILSAFE_MAIN_REF_ERROR=io_failsafe_main_ref_error
+PRO CRISPEX_IO_OPEN_REFCUBE, event, REFCUBE=refcube, HDR_IN=hdr_in, $
+      HDR_OUT=hdr_out, SINGLE_CUBE=single_cube, $
+      IO_FAILSAFE_REF_ERROR=io_failsafe_ref_error, $
+      IO_FAILSAFE_MAIN_REF_ERROR=io_failsafe_main_ref_error
   io_failsafe_ref_error = 0
   io_failsafe_main_ref_error = 0
+  IF ((N_ELEMENTS(event) EQ 1) AND (N_ELEMENTS(REFCUBE) LT 1)) THEN BEGIN
+    ; If called from file menu, event is created and passed, load variables
+    WIDGET_CONTROL, event.TOP, GET_UVALUE=info
+    WIDGET_CONTROL, /HOURGLASS
+    ; Use current reference file directory instead of input path
+    IF ((*(*info).dataparams).refimfilename NE '') THEN $
+      file_for_path = (*(*info).dataparams).refimfilename $
+    ELSE $
+      file_for_path = (*(*info).dataparams).imfilename
+    ipath = FILE_DIRNAME(file_for_path)+PATH_SEP() 
+    instance_label = (*(*info).sesparams).instance_label
+    hdr_out = *(*(*info).ioparams).hdr
+    filters = ['*fits','*cube']
+  	refext = STRMID(file_for_path, STRPOS(file_for_path,'.',/REVERSE_SEARCH)+1,$
+      STRLEN(file_for_path))
+    title = 'Select reference image'
+    IF (event.ID EQ (*(*info).ctrlscp).openrefimsp) THEN $
+      title += ' and spectral files' $
+    ELSE $
+      title += ' file'
+  	IF ABS(STRMATCH(refext,'fits',/FOLD_CASE)-1) THEN $
+      filters = REVERSE(filters)
+	  refcube = DIALOG_PICKFILE(/READ, /MUST_EXIST, PATH=ipath, $
+      TITLE='CRISPEX'+instance_label+': '+title, FILTER=filters, $
+      MULTIPLE_FILES=(event.ID EQ (*(*info).ctrlscp).openrefimsp))
+    IF (N_ELEMENTS(refcube) EQ 1) THEN BEGIN
+      ; Handle single file select and failsafe against selecting only 1 file
+      ; when called from openrefimsp
+      hdr_out.refspfilename = ''
+      hdr_out.refspfile = 0
+    ENDIF ELSE $
+      ; Failsafe against selecting more than two files
+      refcube = refcube[0:1]
+  ENDIF ELSE $ 
     hdr_out = hdr_in
-    ipath = hdr_out.ipath
-    instance_label = hdr_out.instance_label
 	IF ((N_ELEMENTS(REFCUBE) GE 1) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN					
     hdr_out.refimfilename = refcube[0]
     ; Check existence of file, else throw error message
     IF (FILE_TEST(hdr_out.refimfilename) EQ 0) THEN BEGIN
-      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image file "'+hdr_out.refimfilename+$
-        '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+      IF (N_ELEMENTS(event) NE 1) THEN $
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference image file "'+$
+          hdr_out.refimfilename+'" does not exist. Please check your input.', $
+          /ERROR,/NO_ROUTINE 
       io_failsafe_ref_error = 1
       RETURN
     ENDIF
-  	refimext = STRMID(hdr_out.refimfilename,STRPOS(hdr_out.refimfilename,'.',/REVERSE_SEARCH)+1,$
-                      STRLEN(hdr_out.refimfilename))
+  	refimext = STRMID(hdr_out.refimfilename,STRPOS(hdr_out.refimfilename,'.',$
+      /REVERSE_SEARCH)+1,STRLEN(hdr_out.refimfilename))
   	hdr_out.refimcube_compatibility = ABS(STRMATCH(refimext,'fits',/FOLD_CASE)-1)
     ; If single_cube value has been set from single FITS cube, use that
-    IF ((hdr_out.refimcube_compatibility EQ 0) AND (N_ELEMENTS(REFCUBE) NE 2)) THEN $
+    IF ((hdr_out.refimcube_compatibility EQ 0) AND $
+        (N_ELEMENTS(REFCUBE) NE 2)) THEN $
       ref_single_cube = hdr_out.single_cube[1] $
     ELSE IF (N_ELEMENTS(SINGLE_CUBE) EQ 2) THEN $
       ref_single_cube = single_cube[1]
-  ; Handle reference image cube first, only after that check for reference spectral cube
-    CRISPEX_IO_PARSE_HEADER, hdr_out.refimfilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
-                           CUBE_COMPATIBILITY=hdr_out.refimcube_compatibility, EXTEN_NO=0, /REFIMCUBE
+  ; Handle reference image cube first, only after that check for reference
+  ; spectral cube
+    CRISPEX_IO_PARSE_HEADER, hdr_out.refimfilename, HDR_IN=hdr_out, $
+      HDR_OUT=hdr_out, CUBE_COMPATIBILITY=hdr_out.refimcube_compatibility, $
+      EXTEN_NO=0, /REFIMCUBE
     IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN
       hdr_out.refspfilename = refcube[1]
       ; Check existence of file, else throw error message
       IF (FILE_TEST(hdr_out.refspfilename) EQ 0) THEN BEGIN
-        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference spectral file "'+hdr_out.refspfilename+$
-          '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference spectral file "'+$
+          hdr_out.refspfilename+'" does not exist. Please check your input.', $
+          /ERROR,/NO_ROUTINE
         io_failsafe_ref_error = 1
         RETURN
       ENDIF
-     	refspext = STRMID(hdr_out.refspfilename,STRPOS(hdr_out.refspfilename,'.',/REVERSE_SEARCH)+1,$
-                        STRLEN(hdr_out.refspfilename))
+     	refspext = STRMID(hdr_out.refspfilename,STRPOS(hdr_out.refspfilename,'.',$
+        /REVERSE_SEARCH)+1,STRLEN(hdr_out.refspfilename))
     	hdr_out.refspcube_compatibility = ABS(STRMATCH(refspext,'fits',/FOLD_CASE)-1)
-      CRISPEX_IO_PARSE_HEADER, hdr_out.refspfilename, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
-                             CUBE_COMPATIBILITY=hdr_out.refspcube_compatibility, EXTEN_NO=0, /REFSPCUBE
+      CRISPEX_IO_PARSE_HEADER, hdr_out.refspfilename, HDR_IN=hdr_out, $
+        HDR_OUT=hdr_out, CUBE_COMPATIBILITY=hdr_out.refspcube_compatibility, $
+        EXTEN_NO=0, /REFSPCUBE
     ENDIF 
-    CRISPEX_IO_FAILSAFES_REF, refcube, ref_single_cube, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
-                            STARTUPTLB=startuptlb, IO_FAILSAFE_ERROR=io_failsafe_ref_error
+    hdr_out.refmultichannel = (hdr_out.refns GE 2)
+    CRISPEX_IO_FAILSAFES_REF, refcube, ref_single_cube, HDR_IN=hdr_out, $
+      HDR_OUT=hdr_out, STARTUPTLB=startuptlb, $
+      IO_FAILSAFE_ERROR=io_failsafe_ref_error
     IF (io_failsafe_ref_error EQ 1) THEN RETURN
     CRISPEX_IO_FAILSAFES_MAIN_REF, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
                             STARTUPTLB=startuptlb, $
@@ -9585,6 +9940,53 @@ PRO CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     hdr_out.ytitle[1] = hdr_out.refblabel+refytitle_unit
     hdr_out.xtitle[1] = hdr_out.reflplabel+refxtitle_unit
   ENDIF
+  IF hdr_out.refmultichannel THEN BEGIN
+    stokes_labels = STRSPLIT(STRMID(hdr_out.refimstokes,1,$
+      STRLEN(hdr_out.refimstokes)-2),',',/EXTRACT)
+  	IF (N_ELEMENTS(stokes_labels) NE hdr_out.refimns) THEN BEGIN
+  		PRINT,'ERROR: The number of reference Stokes components ('+$
+        STRTRIM(hdr_out.refimns,2)+') does not '+$
+        'correspond to the number of Stokes labels ('+$
+        STRTRIM(N_ELEMENTS(stokes_labels),2)+').'
+  		PRINT,'       Please check whether the reference Stokes cube '+$
+        'production has proceded correctly.'
+  		WIDGET_CONTROL, startuptlb, /DESTROY
+      io_failsafe_main_error = 1
+  		RETURN
+  	ENDIF ELSE BEGIN
+  		stokes_select_sp = INTARR(hdr_out.refns)
+      wherestokesi = WHERE(stokes_labels EQ 'I', icount)
+      wherestokesq = WHERE(stokes_labels EQ 'Q', qcount)
+      wherestokesu = WHERE(stokes_labels EQ 'U', ucount)
+      wherestokesv = WHERE(stokes_labels EQ 'V', vcount)
+      IF (icount GT 0) THEN BEGIN
+  			hdr_out.refstokes_enabled[0] = 1 
+  			stokes_select_sp[wherestokesi] = 1
+  		ENDIF
+      IF (qcount GT 0) THEN BEGIN
+  			hdr_out.refstokes_enabled[1] = 1 
+  			stokes_select_sp[wherestokesq] = 1
+  		ENDIF 
+      IF (ucount GT 0) THEN BEGIN
+  			hdr_out.refstokes_enabled[2] = 1 
+  			stokes_select_sp[wherestokesu] = 1
+  		ENDIF 
+      IF (vcount GT 0) THEN BEGIN
+  			hdr_out.refstokes_enabled[3] = 1 
+  			stokes_select_sp[wherestokesv] = 1
+  		ENDIF
+  	ENDELSE
+  ENDIF ELSE BEGIN
+    stokes_labels = ['I']
+    stokes_select_sp = 1
+  ENDELSE
+  hdr_out.refscalestokes_max = (TOTAL(hdr_out.refstokes_enabled[1:3]) GE 1)
+  hdr_out = CREATE_STRUCT(hdr_out, $
+    'stokes_labels_ref', stokes_labels, $
+    'stokes_select_refsp', stokes_select_sp)
+  IF (hdr_out.verbosity[1] EQ 1) THEN $
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Stokes parameters: '+$
+      STRJOIN(hdr_out.stokes_labels_ref,' ')
   IF (hdr_out.refnt GT 1) THEN BEGIN
     tsel_ref = LONARR(hdr_out.mainnt)
     FOR tt=0,hdr_out.mainnt-1 DO BEGIN
@@ -9594,35 +9996,203 @@ PRO CRISPEX_IO_OPEN_REFCUBE, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     hdr_out = CREATE_STRUCT(hdr_out, 'tsel_ref', tsel_ref)
   ENDIF ELSE $
     hdr_out = CREATE_STRUCT(hdr_out, 'tsel_ref', 0)
-  CRISPEX_IO_OPEN_REFCUBE_READ, REFCUBE=refcube, HDR_IN=hdr_out, HDR_OUT=hdr_out
+  IF (N_ELEMENTS(event) EQ 1) THEN BEGIN
+    ; If called from file menu, parse header and parameters
+    ; Read reference parameters
+    text = 'Reading reference cube file'
+    title = 'Loading reference cube'
+    IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN
+      text += 's...' 
+      title += 's'
+    ENDIF ELSE text += '...'
+    CRISPEX_WINDOW_USER_FEEDBACK, event, title, text
+    no_prev_ref = ((*(*info).data).lunrefim EQ 0) 
+    IF (no_prev_ref EQ 0) THEN FREE_LUN, (*(*info).data).lunrefim
+    IF ((*(*info).data).lunrefsp NE 0) THEN FREE_LUN, (*(*info).data).lunrefsp
+    *(*(*info).ioparams).hdr = hdr_out
+    CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_OUT=hdr_out
+    *(*(*info).ioparams).hdr = hdr_out
+    refwinx_old = (*(*info).winsizes).refwinx
+    refwiny_old = (*(*info).winsizes).refwiny
+    refmaster_t = ((*(*info).dispparams).master_time EQ 1) 
+    IF refmaster_t THEN BEGIN
+      t_old = (*(*(*info).dispparams).tarr_ref)[(*(*info).dispparams).t_sji]
+      nt_old = (*(*info).dataparams).sjint
+    ENDIF
+    ; Handle the header
+    WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, $
+      SET_VALUE='Parsing header information...'
+    CRISPEX_IO_HANDLE_HDR, event, /REFERENCE
+    ; Kill reference SP and LS windows
+    WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, $
+      SET_VALUE='Resetting windows...'
+    IF ((*(*info).winids).refsptlb NE 0) THEN $
+      CRISPEX_DISPLAYS_REFSP_TOGGLE, event, /KILL, /NO_DRAW, /NO_FEEDBPARAMS
+    IF ((*(*info).winids).reflstlb NE 0) THEN $
+      CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, /REFERENCE, /KILL, /NO_DRAW, $
+        /NO_FEEDBPARAMS
+   ; Only kill the reference window if the sizes have changed
+    IF (((*(*info).winsizes).refwinx NE refwinx_old) OR $
+        ((*(*info).winsizes).refwiny NE refwiny_old)) THEN BEGIN
+      IF ((*(*info).winids).reftlb NE 0) THEN $
+        CRISPEX_DISPLAYS_REF_TOGGLE, event, /KILL, /NO_DRAW, /NO_FEEDBPARAMS
+      ; Re-draw the reference window
+      CRISPEX_DISPLAYS_REF_TOGGLE, event, /DISP, /NO_DRAW, /NO_FEEDBPARAMS
+    ENDIF
+    ; Spawn reference SP and LS windows as required
+    ; Draw LS if refnlp > 1
+    IF ((*(*info).dataparams).refnlp GT 1) THEN BEGIN
+      CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /REFERENCE
+      CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, event, /REFERENCE, /DISP, /NO_DRAW, $
+        /NO_FEEDBPARAMS
+      IF ((*(*info).dispswitch).ref_detspect_scale EQ 0) THEN BEGIN
+        CRISPEX_DISPRANGE_LS_SCALE_REF, event
+        CRISPEX_DISPRANGE_LS_RANGE, event, /NO_DRAW
+      ENDIF
+      ; Draw SP if refnlp > 1 AND refnt > 1
+      IF (((*(*info).dataparams).refnt GT 1) AND $
+           (*(*info).dataswitch).refspfile) THEN $
+        CRISPEX_DISPLAYS_REFSP_TOGGLE, event, /DISP, /NO_DRAW, $
+          /NO_FEEDBPARAMS
+    ENDIF
+    IF no_prev_ref THEN (*(*info).overlayswitch).refraster = $
+      ((SIZE((*(*info).dataparams).tarr_raster_main,/N_DIMENSIONS) GT 1) OR $
+       ((*(*info).dataparams).nx EQ 1))
+    ; Set zooming sliders correctly
+  	WIDGET_CONTROL, (*(*info).ctrlsref).xrefpos_slider, $
+      SENSITIVE=((*(*info).zooming).factor NE 1), $
+      SET_VALUE=(*(*info).zooming).xrefpos
+  	WIDGET_CONTROL, (*(*info).ctrlsref).yrefpos_slider, $
+      SENSITIVE=((*(*info).zooming).factor NE 1),$
+      SET_VALUE=(*(*info).zooming).yrefpos
+    ; Reset timing
+    IF refmaster_t THEN BEGIN
+      CRISPEX_COORDS_TRANSFORM_T, event, T_OLD=t_old, NT_OLD=nt_old
+      CRISPEX_UPDATE_T, event
+    ENDIF ELSE $
+      result = CRISPEX_BGROUP_MASTER_TIME(event, /NO_DRAW)
+    CRISPEX_SCALING_APPLY_SELECTED, event
+    ; Change color table if tables are available
+    IF (hdr_out.refimcube_compatibility EQ 0) THEN $
+      ref_instr = $
+        (FITSHEAD2STRUCT(*(*(*(*info).dataparams).hdrs[1])[0])).instrume $
+    ELSE $
+      ref_instr = ''
+    IF ((STRTRIM(ref_instr,2) EQ 'IRIS') AND $
+        (*(*info).plotswitch).iris_lct_exist) THEN BEGIN
+      (*(*info).plotparams).rgb_ref = CRISPEX_GET_RGB_TABLE(event, $
+        TABLE_NAME='FUV', /IRIS, /SET_CT_CBOX, CT_SEL=1) 
+    ENDIF
+    CRISPEX_DRAW_CTBAR, event, /REFERENCE
+    ; Only redraw the Reference windows
+    CRISPEX_DRAW, event, NO_MAIN=(refmaster_t EQ 0), $
+      NO_PHIS=(refmaster_t EQ 0), LS_NO_MAIN=(refmaster_t EQ 0), $
+      NO_SJI=(refmaster_t EQ 0)
+    ; Reset control panel elements where necessary
+    WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, $
+      SET_VALUE='Resetting control panel...'
+    ; Spectral tab
+      lp_ref_but_condition = (((*(*info).dataparams).refnlp GT 1) AND $
+        ((*(*info).dataparams).refnlp EQ (*(*info).dataparams).nlp))
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_but, $
+      SET_BUTTON=lp_ref_but_condition, SENSITIVE=lp_ref_but_condition
+    WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, $
+      SET_VALUE=(*(*info).dataparams).lp_ref, $
+      SET_SLIDER_MAX=(*(*info).dataparams).refnlp-1, $
+      SENSITIVE=(((*(*info).dataparams).refnlp GT 1) AND $
+        ((*(*info).dataparams).refnlp NE (*(*info).dataparams).nlp))
+    ; Spatial tab
+    WIDGET_CONTROL, (*(*info).ctrlscp).xref_slider, $
+      SET_VALUE=(*(*info).dataparams).xref, $
+      SET_SLIDER_MAX=(*(*info).dataparams).refnx-1, /SENSITIVE
+    WIDGET_CONTROL, (*(*info).ctrlscp).yref_slider, $
+      SET_VALUE=(*(*info).dataparams).yref, $
+      SET_SLIDER_MAX=(*(*info).dataparams).refny-1, /SENSITIVE
+    ; Scaling tab
+    ls_mult_list = [REPLICATE('Main ',(*(*info).intparams).ndiagnostics)+$
+                    (*(*info).intparams).diagnostics, $
+                    REPLICATE('Reference ',(*(*info).intparams).nrefdiagnostics)+$
+                    (*(*info).intparams).refdiagnostics]
+    WIDGET_CONTROL, (*(*info).ctrlscp).ls_mult_cbox, SET_VALUE=ls_mult_list
+    ; Diagnostics tab
+    IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN $
+      list_values = ['Display all', $
+        REPLICATE('Hide ',(*(*info).intparams).nrefdiagnostics)+$
+              (*(*info).intparams).refdiagnostics] $
+    ELSE $
+      list_values = 'N/A'
+    WIDGET_CONTROL, (*(*info).ctrlscp).ref_specwin_label, $
+      SET_VALUE='Reference: Displaying all'
+    WIDGET_CONTROl, (*(*info).ctrlscp).ref_specwin_cbox, SET_VALUE=list_values,$
+      SENSITIVE=((*(*info).intparams).nrefdiagnostics GT 1)
+    ; Displays tab
+    reset_detspect_imref = $
+      CRISPEX_BGROUP_DETSPECT_IMREF(event, /SESSION_RESTORE)
+		CRISPEX_DISPLAYS_DETSPECT_SET_BUTTONS, event
+    reset_refdisplays_select = $
+      CRISPEX_BGROUP_REFDISPLAYS_SELECT(event, /SESSION_RESTORE)
+    ; Enable control panel buttons and sliders if no ref was previously loaded
+    IF no_prev_ref THEN BEGIN
+      ; Temporal tab
+      WIDGET_CONTROL, (*(*info).ctrlscp).master_time_ids[0], /SENSITIVE
+      WIDGET_CONTROL, (*(*info).ctrlscp).master_time_ids[1], /SENSITIVE
+      ; Scaling tab
+      CRISPEX_SCALING_SET_BOXBUTTONS, event
+      CRISPEX_SCALING_SET_SLIDERS, event
+      ; Overlays tab
+      nrasterdims = SIZE((*(*info).dataparams).tarr_raster_main,/N_DIMENSIONS)
+      raster_sensitive = ((*(*info).dataswitch).reffile AND $
+        ((nrasterdims GT 1) OR ((*(*info).dataparams).nx EQ 1)))
+      WIDGET_CONTROL, (*(*info).ctrlscp).raster_label, $
+        SENSITIVE=raster_sensitive
+      WIDGET_CONTROL, (*(*info).ctrlscp).raster_button_ids[0], $
+        SENSITIVE=raster_sensitive, $
+        SET_BUTTON=((*(*info).overlayswitch).refraster AND $
+        ((nrasterdims GT 1) OR ((*(*info).dataparams).nx EQ 1)))
+      WIDGET_CONTROL, (*(*info).ctrlscp).raster_timing_label, $
+        SENSITIVE=(nrasterdims GT 1)
+      WIDGET_CONTROL, (*(*info).ctrlscp).raster_timing_button_ids[2], $
+        SENSITIVE=(nrasterdims GT 1), SET_BUTTON=(nrasterdims GT 1)
+    ENDIF
+    CRISPEX_DRAW_FEEDBPARAMS, event, /UPDATE_REF
+    CRISPEX_WINDOW_USER_FEEDBACK_CLOSE, event
+  ENDIF ELSE $
+    CRISPEX_IO_OPEN_REFCUBE_READ, REFCUBE=refcube, HDR_IN=hdr_out, HDR_OUT=hdr_out
 END
 
-PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT=hdr_out
+PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, $
+  HDR_OUT=hdr_out
   IF (N_ELEMENTS(event) EQ 1) THEN BEGIN
-    WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+    WIDGET_CONTROL, event.TOP, GET_UVALUE=info
     hdr_out = *(*(*info).ioparams).hdr
   ENDIF ELSE hdr_out = hdr_in
   ; Read in reference image cube
-	IF ((N_ELEMENTS(REFCUBE) GE 1) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN	; REFIMCUBE as filename
+	IF ((N_ELEMENTS(REFCUBE) GE 1) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN	
+    ; REFIMCUBE as filename
 		OPENR, lunrefim, refcube[0], /get_lun, $
-           SWAP_ENDIAN = ((hdr_out.refimtype GT 1) AND (hdr_out.endian NE hdr_out.refimendian))
+           SWAP_ENDIAN=((hdr_out.refimtype GT 1) AND $
+                        (hdr_out.endian NE hdr_out.refimendian))
     referencefile = ASSOC(lunrefim,MAKE_ARRAY(hdr_out.refnx,hdr_out.refny,$
                       TYPE=hdr_out.refimtype,/NOZERO),hdr_out.refimoffset)
 		hdr_out.showref = 1
     hdr_out.lunrefim = lunrefim
     CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, REFIMCUBE=hdr_out.refimfilename
     ; Read in reference spectral cube if so provided
-    IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN                                ; REFSPCUBE as filename
+    IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN                                
+      ; REFSPCUBE as filename
 			OPENR, lunrefsp, refcube[1], /get_lun, $
-             SWAP_ENDIAN = ((hdr_out.refsptype GT 1) AND (hdr_out.endian NE hdr_out.refspendian))						
+             SWAP_ENDIAN=((hdr_out.refsptype GT 1) AND $
+                          (hdr_out.endian NE hdr_out.refspendian))						
       referencespectra = ASSOC(lunrefsp,MAKE_ARRAY(hdr_out.refnlp,hdr_out.refnt, $
                             TYPE=hdr_out.refsptype,/NOZERO),hdr_out.refspoffset)
 			hdr_out.refspfile = 1	
       hdr_out.lunrefsp = lunrefsp
-      CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, REFSPCUBE=hdr_out.refspfilename
+      CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, $
+        REFSPCUBE=hdr_out.refspfilename
     ENDIF 
 	ENDIF ELSE BEGIN
-    IF (N_ELEMENTS(REFCUBE) GT 1) THEN BEGIN								                ; REFCUBE as image array
+    IF (N_ELEMENTS(REFCUBE) GT 1) THEN BEGIN								                
+      ; REFCUBE as image array
 		  hdr_out.refnx = LONG((SIZE(refcube))[1])
 		  hdr_out.refny = LONG((SIZE(refcube))[2])
 		  IF (SIZE(REFCUBE,/N_DIMENSIONS) EQ 3) THEN $
@@ -9654,8 +10224,11 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, HDR_OUT
                       hdr_out.refnlp*hdr_out.refns, TYPE=hdr_out.refimtype,$
                       /NOZERO),hdr_out.refimoffset)
 			hdr_out.refscan = PTR_NEW(refscanfile, /NO_COPY)
+      IF (N_ELEMENTS(event) EQ 1) THEN $
+        *hdr_out.refsspscan = (*hdr_out.refscan)[0]
 		ENDIF 
-	  IF (hdr_out.refspfile EQ 1) THEN hdr_out.refspdata = PTR_NEW(referencespectra, /NO_COPY) 
+	  IF (hdr_out.refspfile EQ 1) THEN $
+      hdr_out.refspdata = PTR_NEW(referencespectra, /NO_COPY) 
 	ENDIF 
 END
 
@@ -9882,9 +10455,10 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
 END
 
 PRO CRISPEX_IO_OPEN_SJICUBE_READ, event, HDR_IN=hdr_in, HDR_OUT=hdr_out
-  IF (N_ELEMENTS(event) EQ 1) THEN $
-    hdr_out = *(*(*info).ioparams).hdr $
-  ELSE $
+  IF (N_ELEMENTS(event) EQ 1) THEN BEGIN
+    WIDGET_CONTROL, event.TOP, GET_UVALUE=info 
+    hdr_out = *(*(*info).ioparams).hdr 
+  ENDIF ELSE $
     hdr_out = hdr_in
 	OPENR, lunsji, hdr_out.sjifilename, /get_lun, $
          SWAP_ENDIAN = ((hdr_out.sjitype GT 1) AND (hdr_out.endian NE hdr_out.sjiendian))
@@ -9937,9 +10511,396 @@ PRO CRISPEX_IO_OPEN_MASKCUBE_READ, HDR_IN=hdr_in, HDR_OUT=hdr_out
     CRISPEX_IO_FEEDBACK, hdr_out.verbosity, hdr_out, MASKCUBE=hdr_out.maskfilename
 END
 
-PRO CRISPEX_IO_HANDLE_HDR, event, SJI=sji
+PRO CRISPEX_IO_HANDLE_HDR, event, REFERENCE=reference, SJI=sji
   WIDGET_CONTROL, event.TOP, GET_UVALUE = info
   hdr = *(*(*info).ioparams).hdr
+  IF KEYWORD_SET(REFERENCE) THEN BEGIN
+    ; ctrlsswitch pointer
+    (*(*info).ctrlsswitch).lp_ref_lock = (hdr.refnlp EQ hdr.nlp)
+    ; data pointer
+    *(*info).data = CRISPEX_TAG_DELETE(*(*info).data, 'REFSSP_CUR')
+    *(*info).data = CREATE_STRUCT(*(*info).data, 'refssp_cur', PTRARR(hdr.refns))
+    (*(*info).data).refdata = hdr.refdata
+    (*(*info).data).refspdata = hdr.refspdata
+    IF ((hdr.refnlp GT 1) AND (hdr.refspfile EQ 0)) THEN BEGIN
+      (*(*info).data).refscan = hdr.refscan
+      (*(*info).data).refsspscan = hdr.refsspscan
+    ENDIF
+    (*(*info).data).refslice = hdr.refslice
+    (*(*info).data).lunrefim = hdr.lunrefim
+    (*(*info).data).lunrefsp = hdr.lunrefsp
+    ; dataparams pointer
+    (*(*info).dataparams).refimfilename = hdr.refimfilename
+    (*(*info).dataparams).refspfilename = hdr.refspfilename
+    (*(*info).dataparams).hdrs[1] = PTR_NEW(hdr.hdrs_ref)
+    (*(*info).dataparams).next[1] = N_ELEMENTS(hdr.hdrs_ref)
+    (*(*info).dataparams).date_obs_ref = hdr.date_obs_ref
+    (*(*info).dataparams).refnx = hdr.refnx
+    (*(*info).dataparams).refny = hdr.refny
+    (*(*info).dataparams).refdx = hdr.refdx
+    (*(*info).dataparams).refdy = hdr.refdy
+    (*(*info).dataparams).d_refnx = (hdr.refnx / (*(*info).zooming).factor) < $
+        ((*(*info).dataparams).refnx-1)
+    (*(*info).dataparams).d_refny = (hdr.refny / (*(*info).zooming).factor) < $
+        ((*(*info).dataparams).refny-1)
+    (*(*info).dataparams).xval_ref = hdr.xval_ref
+    (*(*info).dataparams).yval_ref = hdr.yval_ref
+    (*(*info).dataparams).xpix_ref = hdr.xpix_ref
+    (*(*info).dataparams).ypix_ref = hdr.ypix_ref
+    IF (hdr.wcs_set AND hdr.ref_wcs_set) THEN BEGIN
+      pix_main2ref = ROUND(WCS_GET_PIXEL(hdr.wcs_ref, WCS_GET_COORD(hdr.wcs_main)))
+      pix_ref2main = ROUND(WCS_GET_PIXEL(hdr.wcs_main, WCS_GET_COORD(hdr.wcs_ref)))
+    ENDIF ELSE BEGIN
+      result = CRISPEX_TRANSFORM_GET_COORDMAPS(hdr, /MAINREF)
+      pix_main2ref = ROUND(result.pix_a2b)
+      pix_ref2main = ROUND(result.pix_b2a)
+    ENDELSE
+    IF (*(*info).winswitch).showsji THEN BEGIN
+      IF (hdr.sji_wcs_set AND hdr.ref_wcs_set) THEN BEGIN
+        pix_ref2sji = ROUND(WCS_GET_PIXEL(hdr.wcs_sji, WCS_GET_COORD(hdr.wcs_ref)))
+        pix_sji2ref = ROUND(WCS_GET_PIXEL(hdr.wcs_ref, WCS_GET_COORD(hdr.wcs_sji)))
+      ENDIF ELSE BEGIN
+        result = CRISPEX_TRANSFORM_GET_COORDMAPS(hdr, /REFSJI)
+        pix_ref2sji = ROUND(result.pix_a2b)
+        pix_sji2ref = ROUND(result.pix_b2a)
+      ENDELSE
+    ENDIF ELSE BEGIN
+      pix_ref2sji = 0.
+      pix_sji2ref = 0.
+    ENDELSE
+    *(*(*info).dataparams).pix_main2ref = pix_main2ref
+    *(*(*info).dataparams).pix_ref2main = pix_ref2main
+    *(*(*info).dataparams).pix_ref2sji = pix_ref2sji
+    *(*(*info).dataparams).pix_sji2ref = pix_sji2ref
+    *(*(*info).dataparams).wcs_ref = hdr.wcs_ref
+    IF ((*(*info).dispswitch).xy_out_of_range EQ 0) THEN BEGIN
+      (*(*info).dataparams).xref = $
+        pix_main2ref[0,(*(*info).dataparams).x,(*(*info).dataparams).y]
+      (*(*info).dataparams).yref = $
+        pix_main2ref[1,(*(*info).dataparams).x,(*(*info).dataparams).y]
+    ENDIF ELSE IF (*(*info).winswitch).showsji THEN BEGIN
+      IF ((*(*info).dispswitch).xysji_out_of_range EQ 0) THEN BEGIN
+        (*(*info).dataparams).xref = $
+          pix_sji2ref[0,(*(*info).dataparams).xsji,(*(*info).dataparams).ysji]
+        (*(*info).dataparams).yref = $
+          pix_sji2ref[1,(*(*info).dataparams).xsji,(*(*info).dataparams).ysji]
+      ENDIF 
+    ENDIF
+    ; Process spectral parameters
+    *(*info).dataparams = CRISPEX_TAG_DELETE(*(*info).dataparams, $
+      ['REFLPS', 'REFSPEC', 'REFMS', 'TARR_RASTER_REF', 'UTC_RASTER_REF', $
+      'DATE_RASTER_REF'])
+    CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_OUT=hdr, /REFERENCE 
+    *(*info).dataparams = CREATE_STRUCT(*(*info).dataparams, $
+      'reflps', hdr.reflps, 'refspec', hdr.refspec, 'refms', hdr.refms, $
+      'tarr_raster_ref', hdr.tarr_raster_ref, $
+      'utc_raster_ref', hdr.utc_raster_ref, 'date_raster_ref', hdr.date_raster_ref)
+    (*(*info).dataparams).lp_ref = hdr.reflc
+    (*(*info).dataparams).refnlp = hdr.refnlp
+    (*(*info).dataparams).refnt = hdr.refnt
+    (*(*info).dataparams).refns = hdr.refns
+    (*(*info).dataparams).bunit[1] = hdr.refbunit
+    (*(*info).dataparams).lpunit[1] = hdr.reflpunit
+    ; dataswitch pointer
+    (*(*info).dataswitch).reffile = hdr.showref
+    (*(*info).dataswitch).refspfile = hdr.refspfile
+    (*(*info).dataswitch).ref_wcs_set = hdr.ref_wcs_set
+    ; dispparams pointer
+    (*(*info).dispparams).xref_first = 0L
+    (*(*info).dispparams).yref_first = 0L
+    (*(*info).dispparams).xref_last = hdr.refnx-1
+    (*(*info).dispparams).yref_last = hdr.refny-1
+    (*(*info).dispparams).lp_ref_first = 0L
+    (*(*info).dispparams).lp_ref_last = hdr.refnlp-1
+    (*(*info).dispparams).lp_ref_low = 0L
+    (*(*info).dispparams).lp_ref_upp = hdr.refnlp-1
+    (*(*info).dispparams).lp_ref_range = hdr.refnlp
+    *(*info).dispparams = CRISPEX_TAG_DELETE(*(*info).dispparams, $
+      ['LP_REF_LOW_TMP','LP_REF_UPP_TMP','LP_REF_LOW_BOUNDS',$
+       'LP_REF_UPP_BOUNDS'])
+     *(*info).dispparams = CREATE_STRUCT(*(*info).dispparams, $
+       'lp_ref_low_tmp', REPLICATE(0,hdr.nrefdiagnostics), $
+       'lp_ref_upp_tmp', hdr.refdiag_width-1, $
+       'lp_ref_low_bounds', hdr.refdiag_start, $
+       'lp_ref_upp_bounds', hdr.refdiag_start+(hdr.refdiag_width-1))
+    refheightset = 0
+		IF (N_ELEMENTS(hdr.xtitle) EQ 2) THEN BEGIN
+			IF (STRCOMPRESS(hdr.xtitle[1]) NE '') THEN BEGIN
+				refheightset = (STRCMP(hdr.xtitle[1],'Height',6,/FOLD_CASE) OR $
+                        STRCMP(hdr.xtitle[1],'z',1,/FOLD_CASE))
+        IF refheightset THEN BEGIN
+				  hdr.v_dop_set[1] = 0
+				  hdr.refspxtitle = hdr.xtitle[1]
+        ENDIF
+			ENDIF
+		ENDIF
+    CRISPEX_IO_PARSE_VDOP, hdr, refheightset, result, /REFERENCE
+    (*(*info).dispparams).v_dop_upp[1] = result.v_dop_upp_max
+    (*(*info).dispparams).v_dop_low[1] = result.v_dop_low_min
+    (*(*info).dispparams).v_dop_ref_low_min = result.v_dop_low_min
+    (*(*info).dispparams).v_dop_ref_low_max = result.v_dop_low_max
+    (*(*info).dispparams).v_dop_ref_upp_min = result.v_dop_upp_min
+    (*(*info).dispparams).v_dop_ref_upp_max = result.v_dop_upp_max
+    (*(*info).dispparams).tsel_ref = PTR_NEW(hdr.tsel_ref)
+    (*(*info).dispparams).tarr_ref = PTR_NEW(hdr.tarr_ref[hdr.tsel_ref])
+    (*(*info).dispparams).utc_ref = PTR_NEW(hdr.utc_ref[hdr.tsel_ref])
+    (*(*info).dispparams).t_ref = hdr.tsel_ref[0]
+    (*(*info).dispparams).t_low_ref = hdr.tarr_ref[0]
+    (*(*info).dispparams).t_upp_ref = hdr.tarr_ref[(hdr.refnt-1)>0]
+    ; dispswitch pointer
+    (*(*info).dispswitch).xyref_out_of_range = $
+      (((*(*info).dataparams).xref LT 0) OR $
+       ((*(*info).dataparams).yref LT 0) OR $
+       ((*(*info).dataparams).xref GE hdr.refnx) OR $
+       ((*(*info).dataparams).yref GE hdr.refny))
+    ; Failsafe for REFSSP_CUR when xyref_out_of_range is true
+    IF (*(*info).dispswitch).xyref_out_of_range THEN BEGIN
+      FOR i=0,(*(*info).dataparams).refns-1 DO $
+        (*(*info).data).refssp_cur[i] = PTR_NEW($
+          FLTARR((*(*info).dataparams).refnlp, (*(*info).dataparams).refnt))
+    ENDIF
+    (*(*info).dispswitch).main2ref_no_map = hdr.main2ref_no_map
+    (*(*info).dispswitch).warprefspslice = hdr.warprefspslice
+    ; intparams pointer
+    ; First remove potentially conflicting tags and re-add
+    *(*info).intparams = CRISPEX_TAG_DELETE(*(*info).intparams, $
+      ['REFDIAGNOSTICS','DISP_REFDIAGNOSTICS','REFDIAG_START','REFDIAG_WIDTH',$
+      'REFDIAG_UPP'])
+    *(*info).intparams = CREATE_STRUCT(*(*info).intparams, $
+      'refdiagnostics', hdr.refdiagnostics, $
+      'disp_refdiagnostics', REPLICATE(1,hdr.nrefdiagnostics),$
+      'refdiag_start', hdr.refdiag_start, 'refdiag_width', hdr.refdiag_width, $
+      'refdiag_upp', hdr.refdiag_start+hdr.refdiag_width-1)
+    (*(*info).intparams).nrefdiagnostics = hdr.nrefdiagnostics
+    (*(*info).intparams).refdiag_starts = PTR_NEW(hdr.refdiag_start)
+    (*(*info).intparams).refdiag_widths = PTR_NEW(hdr.refdiag_width)
+    (*(*info).intparams).wheredisprefdiag = $
+      PTR_NEW(LINDGEN(hdr.nrefdiagnostics))
+    (*(*info).intparams).ndisp_refdiagnostics = hdr.nrefdiagnostics
+    (*(*info).intparams).lp_ref_diag_all = $
+      TOTAL((*(*info).dataparams).lp_ref GE (*(*info).intparams).refdiag_start)-1
+    (*(*info).intparams).refsinglewav_windows = $
+      (FIX(TOTAL(hdr.refdiag_width)) EQ hdr.nrefdiagnostics)
+    ; overlayswitch pointer -> use old values
+    ; paramswitch pointer
+    (*(*info).paramswitch).t_raster_ref = ((N_ELEMENTS(hdr.tarr_raster_ref) NE $
+        N_ELEMENTS(hdr.tarr_ref)))
+    ; paramparams pointer
+    ; Spatial coordinates
+    (*(*info).paramparams).refxcoord_format = $
+      '(I'+STRTRIM(FLOOR(ALOG10(hdr.refnx))+1,2)+')'
+    (*(*info).paramparams).refycoord_format = $
+      '(I'+STRTRIM(FLOOR(ALOG10(hdr.refny))+1,2)+')'
+    IF hdr.ref_wcs_set THEN BEGIN
+      (*(*info).paramparams).refxcoord_real_format = '(F6.1)'
+      (*(*info).paramparams).refycoord_real_format = '(F6.1)'
+    ENDIF ELSE BEGIN
+      (*(*info).paramparams).refxcoord_real_format = $
+        '(F'+STRTRIM(FLOOR(ALOG10(hdr.refnx*hdr.refdx))+3,2)+'.1)'
+      (*(*info).paramparams).refycoord_real_format = $
+        '(F'+STRTRIM(FLOOR(ALOG10(hdr.refny*hdr.refdy))+3,2)+'.1)'
+    ENDELSE
+    ; Wavelength coordinates
+    IF (hdr.refnlp GT 1) THEN $
+      (*(*info).paramparams).lp_ref_idx_format = $
+        '(I'+STRTRIM(FLOOR(ALOG10(hdr.refnlp))+1,2)+')' $
+    ELSE $
+      (*(*info).paramparams).lp_ref_idx_format = ''
+    IF ((hdr.refnlp GT 1) AND hdr.v_dop_set[1]) THEN BEGIN
+      (*(*info).paramparams).lp_ref_real_format = $
+        '(F'+STRTRIM(FLOOR(ALOG10(hdr.reflps[hdr.refnlp-1]))+3,2)+'.1)'
+      (*(*info).paramparams).lp_ref_vdop_format = $
+        '(F'+STRTRIM(FLOOR(ALOG10(MAX(ABS((*hdr.v_dop_ref[0])[$
+        [0,hdr.refnlp-1]]))))+5,2)+'.2)'
+    ENDIF ELSE BEGIN
+      (*(*info).paramparams).lp_ref_real_format = ''
+      (*(*info).paramparams).lp_ref_vdop_format = ''
+    ENDELSE
+    ; Time coordinates
+    (*(*info).paramparams).t_ref_idx_format = $
+      '(I'+STRTRIM(FLOOR(ALOG10(hdr.refnt))+1,2)+')'
+    IF ((hdr.refnt GT 1) AND (hdr.dt NE 0)) THEN BEGIN
+      ; Check real timing feedback
+      wheretgt0 = WHERE(hdr.tarr_ref GT 0, count)
+      IF (count GT 0) THEN $
+        t_sel = wheretgt0[count-1] $
+      ELSE $
+        t_sel = 0
+      IF (hdr.date_obs_ref NE '0') THEN $
+        (*(*info).paramparams).t_ref_real_format = $
+          '(A'+STRTRIM(STRLEN(hdr.utc_ref[t_sel]),2)+')'  $
+      ELSE $
+        (*(*info).paramparams).t_ref_real_format = $
+          '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_ref[t_sel]))+3,2)+'.1)'
+      ; Check reference raster timing feedback
+      IF (*(*info).paramswitch).t_raster_ref THEN BEGIN
+        xref_tmp = ROUND((*(*info).dataparams).refnx/2.)
+        ; Check where raster times greater than 0
+        wheretgt0 = WHERE(hdr.tarr_raster_ref[xref_tmp,*] GT 0, count) 
+        IF (count GT 0) THEN $
+          t_sel = wheretgt0[count-1] $
+        ELSE $
+          t_sel = 0
+        IF (hdr.date_obs_main NE '0') THEN BEGIN
+            (*(*info).paramparams).t_raster_ref_real_format = $
+              '(A'+STRTRIM(STRLEN(hdr.utc_raster_ref[xref_tmp,t_sel]),2)+')'  
+        ENDIF ELSE BEGIN
+          (*(*info).paramparams).t_raster_ref_real_format = $
+            '(F'+STRTRIM(FLOOR(ALOG10(hdr.tarr_raster_ref[xref_tmp,t_sel]))+$
+            3,2)+'.1)'
+        ENDELSE
+      ENDIF ELSE BEGIN
+        (*(*info).paramparams).t_raster_ref_real_format = ''
+        IF ((*(*info).ctrlsparam).t_raster_ref_real_val NE 0) THEN $
+          WIDGET_CONTROL, (*(*info).ctrlsparam).t_raster_ref_real_val, $
+            SET_VALUE='N/A'
+      ENDELSE
+    ENDIF
+    ; plotaxes pointer
+    (*(*info).plotaxes).xreftickinterval = PTR_NEW(0.)
+    (*(*info).plotaxes).xrefdoptickinterval = PTR_NEW(0.)
+    *(*info).plotaxes = CRISPEX_TAG_DELETE(*(*info).plotaxes, $
+      ['XREFTICKVALS','XREFDOPTICKVALS','XREFDOPTICKLOC','V_DOP_REF'])
+    *(*info).plotaxes = CREATE_STRUCT(*(*info).plotaxes, $
+      'xreftickvals', PTRARR(hdr.nrefdiagnostics), $
+      'xrefdoptickvals', PTRARR(hdr.nrefdiagnostics), $
+      'xrefdoptickloc', PTRARR(hdr.nrefdiagnostics), $
+      'v_dop_ref', hdr.v_dop_ref)
+    (*(*info).plotaxes).refdiag_ratio = $
+      PTR_NEW(hdr.refdiag_width/FLOAT(hdr.refdiag_width))
+    (*(*info).plotaxes).refdiag_range_sp = $
+      PTR_NEW((hdr.refdiag_width/FLOAT(TOTAL(hdr.refdiag_width)))*$
+      (*(*info).plotpos).xplspw)
+    (*(*info).plotaxes).v_dop_ref = hdr.v_dop_ref
+    ; plotpos pointer 
+    *(*info).plotpos = CRISPEX_TAG_DELETE(*(*info).plotpos, $
+      ['REFLSX0', 'REFLSX1', 'REFLSY0', 'REFLSY1'])
+    plotpos = CRISPEX_GET_PLOTPOS(hdr.refns, (*(*info).winsizes).lswinx, $
+      (*(*info).plotpos).lsxmargin_init / (*(*info).winsizes).lswinx, $
+      (*(*info).plotpos).lsxwall_init / (*(*info).winsizes).lswinx, $
+      V_DOP_SET=hdr.v_dop_set[1])
+    *(*info).plotpos = CREATE_STRUCT(*(*info).plotpos, $
+      'reflsx0', plotpos.x0, 'reflsx1', plotpos.x1, 'reflsy0', plotpos.y0, $
+      'reflsy1', plotpos.y1)
+  	IF ((hdr.v_dop_set[1] EQ 1) OR (hdr.refns GT 1)) THEN $
+      refspheight = (1. - $
+        ((*(*info).plotpos).spxmargin_init/(*(*info).winsizes).spwinx * 2.) * $
+        (*(*info).winsizes).spwinx/(*(*info).winsizes).spwiny) $
+    ELSE $
+      refspheight = (1. - $
+        ((*(*info).plotpos).spxmargin_init/(*(*info).winsizes).spwinx) + $
+        (*(*info).plotpos).spxwall_init/(*(*info).winsizes).spwinx * $
+        (*(*info).winsizes).spwinx/(*(*info).winsizes).spwiny)
+    (*(*info).plotpos).refspy1 = (*(*info).plotpos).refspy0 + refspheight
+    (*(*info).plotpos).refyplspw = $
+      (*(*info).plotpos).refspy1 - (*(*info).plotpos).refspy0
+    (*(*info).dispparams).refntreb = (*(*info).plotpos).refyplspw * $
+      (*(*info).winsizes).spwiny
+    ; plotswitch pointer
+    (*(*info).plotswitch).refmultichannel = hdr.refmultichannel
+    (*(*info).plotswitch).v_dop_set_ref = hdr.v_dop_set[1]
+    ; plottitles pointer
+    (*(*info).plottitles).refspxtitle = hdr.xtitle[1]
+    (*(*info).plottitles).reflsytitle = hdr.ytitle[1]
+    ; scaling pointer
+    CRISPEX_IO_PARSE_SCALING_INIT, hdr, (*(*info).prefs).histo_opt_val, result,$
+      /REFERENCE, SCALESTOKES=(*(*info).dispswitch).scalestokes, $
+      SHOWLS=((hdr.refspfile OR (hdr.refnlp GT 1)) AND $
+              ((FIX(TOTAL(hdr.refdiag_width)) EQ hdr.nrefdiagnostics) EQ 0))
+    ; Adjust for different number of refdiagnostics
+    nscaling_current = N_ELEMENTS((*(*info).scaling).gamma)
+    gamma = (*(*info).scaling).gamma
+    minimum = (*(*info).scaling).minimum
+    maximum = (*(*info).scaling).maximum
+    histo_opt_val = (*(*info).scaling).histo_opt_val
+    main_mult_val = $
+      (*(*info).scaling).mult_val[0:((*(*info).intparams).ndiagnostics-1)]
+    *(*info).scaling = CRISPEX_TAG_DELETE(*(*info).scaling, $
+      ['MULT_VAL', 'GAMMA', 'MINIMUM', 'MAXIMUM', 'HISTO_OPT_VAL'])
+    gamma = $
+      [gamma[0:2*(*(*info).intparams).ndiagnostics-1], $
+      REPLICATE(gamma[2*(*(*info).intparams).ndiagnostics],$
+      (*(*info).intparams).nrefdiagnostics), gamma[nscaling_current-1]]
+    minimum = [minimum[0:2*(*(*info).intparams).ndiagnostics-1], $
+      REPLICATE(0,(*(*info).intparams).nrefdiagnostics), $
+      minimum[nscaling_current-1]]
+    maximum = [maximum[0:2*(*(*info).intparams).ndiagnostics-1], $
+      REPLICATE(100,(*(*info).intparams).nrefdiagnostics), $
+      maximum[nscaling_current-1]]
+    histo_opt_val = $
+      [histo_opt_val[0:2*(*(*info).intparams).ndiagnostics-1], $
+      REPLICATE(histo_opt_val[2*(*(*info).intparams).ndiagnostics], $
+      (*(*info).intparams).nrefdiagnostics), histo_opt_val[nscaling_current-1]]
+    *(*info).scaling = CREATE_STRUCT(*(*info).scaling, $
+      'mult_val', [main_mult_val, result.mult_val], 'gamma', gamma, $
+      'minimum', minimum, 'maximum', maximum, 'histo_opt_val', histo_opt_val)
+    *(*(*info).plotaxes).ls_low_y_ref = result.ls_low_y
+    *(*(*info).plotaxes).ls_upp_y_ref = result.ls_upp_y
+    *(*(*info).plotaxes).ls_yrange_ref = result.ls_yrange
+    (*(*info).scaling).refmin = result.immin[hdr.reflc]
+    (*(*info).scaling).refmax = result.immax[hdr.reflc]
+    ; stokesparams pointer
+    *(*info).stokesparams = CRISPEX_TAG_DELETE(*(*info).stokesparams, $
+      ['LABELS_REF','SELECT_REFSP','PREV_SELECT_REFSP'])
+    *(*info).stokesparams = CREATE_STRUCT(*(*info).stokesparams, $
+      'labels_ref', hdr.stokes_labels_ref, $
+      'select_refsp', hdr.stokes_select_refsp, $
+      'prev_select_refsp', hdr.stokes_select_refsp)
+    ; refwid pointer -> simply use same ones, or overwrite if window is toggled
+    ;                   off and on in CRISPEX_IO_OPEN_REFCUBE
+    ; winsizes pointer
+    (*(*info).winsizes).reflsyres = plotpos.winy
+    (*(*info).winsizes).reflsxres = (*(*info).winsizes).lswinx
+    (*(*info).winsizes).refspyres = (*(*info).winsizes).spwiny
+    (*(*info).winsizes).refspxres = (*(*info).winsizes).spwinx
+    ; Determine image and pixel aspect ratio
+    screeninfo  = OBJ_NEW('IDLsysMonitorInfo')
+    nmonitors   = screeninfo -> GetNumberOfMonitors()
+    screensizes = screeninfo -> GetRectangles()
+    IF (nmonitors GT 1) THEN $
+	    monitor_order = (INDGEN(nmonitors))[SORT(screensizes[0,0:1])] $
+    ELSE $ 
+      monitor_order = 0
+    y_scr_size = screensizes[3,monitor_order[0]]
+    refpixelratio = FLOAT(ABS(hdr.refdx)) / FLOAT(ABS(hdr.refdy))
+    refwinx_default = hdr.refnx
+    refwiny_default = hdr.refny
+    ; Handle pixel aspect ratio
+    IF (refpixelratio GT 1) THEN refwinx_default *= refpixelratio ELSE $
+      IF (refpixelratio LT 1) THEN refwiny_default /= refpixelratio
+    ; Size refwiny according to the y-pixelsize
+    refwiny = refwiny_default*(*(*info).dataparams).refdy / $
+              FLOAT((*(*info).winsizes).xywiny*(*(*info).dataparams).dy) * $
+              (*(*info).winsizes).xywiny
+    ; If refwiny becomes too big (i.e., because FOV is bigger than y-extent of
+    ; main data) OR if refwiny and imwiny should be the same because of
+    ; respective ny*dy, but aren't, then resize to the final main y-window
+    IF ((refwiny GT y_scr_size) OR $
+      (((*(*info).dataparams).ny*(*(*info).dataparams).dy EQ $
+        (*(*info).dataparams).refny*(*(*info).dataparams).refdy) AND $
+        (refwiny NE (*(*info).winsizes).xywiny))) THEN $
+        refwiny = (*(*info).winsizes).xywiny
+    refwinx = refwinx_default/FLOAT(refwiny_default)*refwiny
+    (*(*info).winsizes).refwiny = refwiny
+    (*(*info).winsizes).refwinx = refwinx_default/FLOAT(refwiny_default)*$
+      (*(*info).winsizes).refwiny
+    ; winsizes.offsets -> use old ones
+    ; zooming pointer
+  	(*(*info).zooming).xrefpos = ((*(*info).dataparams).xref - $
+      (*(*info).dataparams).d_refnx / 2.) > 0
+  	(*(*info).zooming).yrefpos = ((*(*info).dataparams).yref - $
+      (*(*info).dataparams).d_refny / 2.) > 0
+  	IF (((*(*info).zooming).xrefpos+(*(*info).dataparams).d_refnx) GE $
+      (*(*info).dataparams).refnx) THEN $
+      (*(*info).zooming).xrefpos = $
+        (((*(*info).dataparams).refnx-1) - (*(*info).dataparams).d_refnx) > 0
+  	IF (((*(*info).zooming).yrefpos+(*(*info).dataparams).d_refny) GE $
+      (*(*info).dataparams).refny) THEN $
+      (*(*info).zooming).yrefpos = (((*(*info).dataparams).refny-1) - $
+        (*(*info).dataparams).d_refny) > 0
+  	(*(*info).zooming).xrefpos = LONG((*(*info).zooming).xrefpos)
+  	(*(*info).zooming).yrefpos = LONG((*(*info).zooming).yrefpos)
+  ENDIF
   IF KEYWORD_SET(SJI) THEN BEGIN
     ; data pointer
     (*(*info).data).sjidata = hdr.sjidata
@@ -10114,161 +11075,215 @@ PRO CRISPEX_IO_HANDLE_HDR, event, SJI=sji
   ENDIF
 END
 
-PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, MNSPEC=mnspec, $
-                                  SPECTFILE=spectfile, LINE_CENTER=line_center, NO_WARP=no_warp, $
-                                  STARTUPTLB=startuptlb, $
-                                  IO_FAILSAFE_MNSPEC_ERROR=io_failsafe_mnspec_error, $
-                                  IO_FAILSAFE_IMSPECTFILE_ERROR=io_failsafe_imspectfile_error,$
-                                  IO_FAILSAFE_REFSPECTFILE_ERROR=io_failsafe_refspectfile_error, $
-                                  IO_FAILSAFE_LINE_CENTER_ERROR=io_failsafe_line_center_error
+PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+      MAIN=main, REFERENCE=reference, $
+      MNSPEC=mnspec, SPECTFILE=spectfile, LINE_CENTER=line_center, NO_WARP=no_warp, $
+      STARTUPTLB=startuptlb, IO_FAILSAFE_MNSPEC_ERROR=io_failsafe_mnspec_error, $
+      IO_FAILSAFE_IMSPECTFILE_ERROR=io_failsafe_imspectfile_error,$
+      IO_FAILSAFE_REFSPECTFILE_ERROR=io_failsafe_refspectfile_error, $
+      IO_FAILSAFE_LINE_CENTER_ERROR=io_failsafe_line_center_error
   ; Handles spectral settings on loading cubes
-  IF (N_ELEMENTS(event) EQ 1) THEN $
-    WIDGET_CONTROL, event.TOP, GET_UVALUE = info $
-  ELSE $
+  IF (N_ELEMENTS(event) EQ 1) THEN BEGIN
+    WIDGET_CONTROL, event.TOP, GET_UVALUE=info 
+    hdr_out = *(*(*info).ioparams).hdr 
+  ENDIF ELSE $
     hdr_out = hdr_in
-  
+
+  ; Check for setting of MAIN or REFERENCE; if neither supplied, set both
+  IF (~KEYWORD_SET(MAIN) AND ~KEYWORD_SET(REFERENCE)) THEN BEGIN
+    main = 1B
+    reference = 1B
+  ENDIF
+ 
+  ; Initialise failsafe switches
   io_failsafe_mnspec_error = 0
   io_failsafe_imspectfile_error = 0
   io_failsafe_refspectfile_error = 0
   io_failsafe_line_center_error = 0
 
-  ; Check for correct MNSPEC setting
-  IF (N_ELEMENTS(MNSPEC) NE 0) THEN BEGIN
-    CRISPEX_IO_FAILSAFES_MNSPEC, mnspec, hdr_out, STARTUPTLB=startuptlb, $
-                                 IO_FAILSAFE_ERROR=io_failsafe_mnspec_error
-    IF io_failsafe_mnspec_error THEN RETURN
+  ; Check whether SPECTFILE has been provided with save files
+  spectfile_set = 0
+  refspectfile_set = 0
+  IF ((N_ELEMENTS(SPECTFILE) GE 1) AND (SIZE(SPECTFILE,/TYPE) EQ 7)) THEN BEGIN
+    spectfile_set = (spectfile[0] NE '') 
+    ; Check reference
+    refspectfile_set = $
+      ((N_ELEMENTS(SPECTFILE) EQ 2) AND (SIZE(SPECTFILE,/TYPE) EQ 7)) 
   ENDIF 
 
-  ; Handle SPECTFILE input; will only be done when cube is read in compatibility mode (i.e., for
-  ; non-FITS cubes). Check whether SPECTFILE has been provided with save files
-  IF ((N_ELEMENTS(SPECTFILE) GE 1) AND (SIZE(SPECTFILE,/TYPE) EQ 7)) THEN $
-    spectfile_set = (spectfile[0] NE '') ELSE BEGIN
-    spectfile_set = 0
-  ENDELSE
-  IF spectfile_set THEN BEGIN
-    ; Check existence of file, else throw error message
-    IF (FILE_TEST(spectfile[0]) EQ 0) THEN BEGIN
-      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The main spectral save file "'+spectfile[0]+$
-        '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
-      io_failsafe_imspectfile_error = 1
-      RETURN
+  IF KEYWORD_SET(MAIN) THEN BEGIN
+    ; Check for correct MNSPEC setting
+    IF (N_ELEMENTS(MNSPEC) NE 0) THEN BEGIN
+      CRISPEX_IO_FAILSAFES_MNSPEC, mnspec, hdr_out, STARTUPTLB=startuptlb, $
+                                   IO_FAILSAFE_ERROR=io_failsafe_mnspec_error
+      IF io_failsafe_mnspec_error THEN RETURN
+    ENDIF 
+  
+    ; Handle SPECTFILE input; will only be done when cube is read in compatibility 
+    ; mode (i.e., for non-FITS cubes). 
+    IF spectfile_set THEN BEGIN
+      ; Check existence of file, else throw error message
+      IF (FILE_TEST(spectfile[0]) EQ 0) THEN BEGIN
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The main spectral save file "'+$
+          spectfile[0]+'" does not exist. Please check your input.', $
+          /ERROR,/NO_ROUTINE
+        io_failsafe_imspectfile_error = 1
+        RETURN
+      ENDIF
     ENDIF
+    CRISPEX_IO_PARSE_SPECTFILE, spectfile, *hdr_out.imdata, hdr_out.verbosity, $
+      SCANFILE=(*hdr_out.scan)[hdr_out.tsel_main[0]], $
+      HDR_IN=hdr_out, HDR_OUT=hdr_out, MNSPEC=mnspec, /IMCUBE, $
+      CUBE_COMPATIBILITY=hdr_out.imcube_compatibility, $
+      STARTUPTLB=startuptlb, IO_FAILSAFE_ERROR=io_failsafe_imspectfile_error
+    IF (io_failsafe_imspectfile_error EQ 1) THEN RETURN 
   ENDIF
-  CRISPEX_IO_PARSE_SPECTFILE, spectfile, *hdr_out.imdata, hdr_out.verbosity, $
-    SCANFILE=(*hdr_out.scan)[hdr_out.tsel_main[0]], $
-    HDR_IN=hdr_out, HDR_OUT=hdr_out, MNSPEC=mnspec, /IMCUBE, $
-    CUBE_COMPATIBILITY=hdr_out.imcube_compatibility, $
-    STARTUPTLB=startuptlb, IO_FAILSAFE_ERROR=io_failsafe_imspectfile_error
-  IF (io_failsafe_imspectfile_error EQ 1) THEN RETURN 
-  refspectfile_set = ((N_ELEMENTS(SPECTFILE) EQ 2) AND (SIZE(SPECTFILE,/TYPE) EQ 7)) 
-  IF refspectfile_set THEN BEGIN
-    ; Check existence of file, else throw error message
-    IF (FILE_TEST(spectfile[1]) EQ 0) THEN BEGIN
-      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference spectral save file "'+spectfile[1]+$
-        '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
-      io_failsafe_refspectfile_error = 1
-      RETURN
+
+  IF KEYWORD_SET(REFERENCE) THEN BEGIN
+    IF refspectfile_set THEN BEGIN
+      ; Check existence of file, else throw error message
+      IF (FILE_TEST(spectfile[1]) EQ 0) THEN BEGIN
+        CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+          'The reference spectral save file "'+spectfile[1]+$
+          '" does not exist. Please check your input.', /ERROR,/NO_ROUTINE
+        io_failsafe_refspectfile_error = 1
+        RETURN
+      ENDIF
     ENDIF
+    IF (STRCOMPRESS(hdr_out.refimfilename) NE '') THEN BEGIN
+      IF ((N_ELEMENTS(SPECTFILE) EQ 1) AND (refspectfile_set EQ 0)) THEN $
+        spectfile = [spectfile, '']
+      CRISPEX_IO_PARSE_SPECTFILE, spectfile, *hdr_out.refdata, hdr_out.verbosity,$
+        HDR_IN=hdr_out, HDR_OUT=hdr_out, MNSPEC=mnspec, /REFCUBE, $
+        STARTUPTLB=startuptlb, CUBE_COMPATIBILITY=hdr_out.refimcube_compatibility, $
+        IO_FAILSAFE_ERROR=io_failsafe_refspectfile_error
+      IF io_failsafe_refspectfile_error THEN RETURN
+    ENDIF 
   ENDIF
-  IF (STRCOMPRESS(hdr_out.refimfilename) NE '') THEN BEGIN
-    IF ((N_ELEMENTS(SPECTFILE) EQ 1) AND (refspectfile_set EQ 0)) THEN spectfile = [spectfile, '']
-    CRISPEX_IO_PARSE_SPECTFILE, spectfile, *hdr_out.refdata, hdr_out.verbosity, HDR_IN=hdr_out, $
-                                HDR_OUT=hdr_out, $
-                                MNSPEC=mnspec, /REFCUBE, STARTUPTLB=startuptlb, $
-                                CUBE_COMPATIBILITY=hdr_out.refimcube_compatibility, $
-                                IO_FAILSAFE_ERROR=io_failsafe_refspectfile_error
-    IF io_failsafe_refspectfile_error THEN RETURN
-  ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'refspec', 0, 'refms', 0, 'reflps', 0)
+  IF (~KEYWORD_SET(REFERENCE) OR (STRCOMPRESS(hdr_out.refimfilename) EQ '')) THEN $
+    hdr_out = CREATE_STRUCT(hdr_out, 'refspec', 0., 'refms', 0., 'reflps', 0., $
+      'refspectrum', 0.)
 
   ; Handle LINE_CENTER input
   IF (N_ELEMENTS(LINE_CENTER) NE 0) THEN BEGIN
-    CRISPEX_IO_FAILSAFES_LINE_CENTER, line_center, hdr_out, NFILES=(hdr_out.showref+1), $
-                                      STARTUPTLB=startuptlb, SPECTFILE_SET=spectfile_set, $
-                                      REFSPECTFILE_SET=refspectfile_set,$
-                                      IO_FAILSAFE_ERROR=io_failsafe_line_center_error
+    CRISPEX_IO_FAILSAFES_LINE_CENTER, line_center, hdr_out, $
+      NFILES=(hdr_out.showref+1), STARTUPTLB=startuptlb, $
+      SPECTFILE_SET=spectfile_set, REFSPECTFILE_SET=refspectfile_set,$
+      IO_FAILSAFE_ERROR=io_failsafe_line_center_error
   ENDIF ;ELSE io_failsafe_line_center_error = 0
   cube_compatibility = [hdr_out.imcube_compatibility,hdr_out.refimcube_compatibility]
-  IF (io_failsafe_line_center_error EQ 1) THEN RETURN ELSE $
-    CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=(hdr_out.refnlp GT 1)+1, HDR_IN=hdr_out, $
-                                  HDR_OUT=hdr_out,$
-                                  SPECTFILE_SET=spectfile_set, REFSPECTFILE_SET=refspectfile_set,$
-                                  CUBE_COMPATIBILITY=cube_compatibility, DLAMBDA_VAL=dlambda, $
-                                  DLAMBDA_SET=dlambda_set, V_DOP_SET=v_dop_set, $
-                                  IO_FAILSAFE_ERROR=io_failsafe_line_center_error
-  hdr_out = CREATE_STRUCT(hdr_out, 'dlambda', dlambda, 'dlambda_set', dlambda_set, $
-                          'v_dop_set', v_dop_set)
+  IF (io_failsafe_line_center_error EQ 1) THEN $
+    RETURN $
+  ELSE $
+    CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=(hdr_out.refnlp GT 1)+1, $
+      MAIN=KEYWORD_SET(MAIN), $
+      REFERENCE=KEYWORD_SET(REFERENCE), $
+;      REFERENCE=(KEYWORD_SET(REFERENCE) AND (hdr_out.refnlp GT 1)), $
+      HDR_IN=hdr_out, HDR_OUT=hdr_out,SPECTFILE_SET=spectfile_set, $
+      REFSPECTFILE_SET=refspectfile_set,$
+      CUBE_COMPATIBILITY=cube_compatibility, DLAMBDA_VAL=dlambda, $
+      DLAMBDA_SET=dlambda_set, V_DOP_SET=v_dop_set, $
+      IO_FAILSAFE_ERROR=io_failsafe_line_center_error
+  IF (N_ELEMENTS(event) NE 1) THEN $
+    hdr_out = CREATE_STRUCT(hdr_out, 'dlambda', dlambda, $
+                'dlambda_set', dlambda_set, 'v_dop_set', v_dop_set) $
+  ELSE BEGIN
+    hdr_out.dlambda = dlambda
+    hdr_out.dlambda_set = dlambda_set
+    hdr_out.v_dop_set = v_dop_set
+  ENDELSE
+               
   ; Process settings from LINE_CENTER parsing 
   IF (hdr_out.refnlp GT 1) THEN BEGIN
     IF hdr_out.refimcube_compatibility THEN $
-      hdr_out.refspxtitle = (['Spectral position','Wavelength'])[hdr_out.v_dop_set[1]] $
+      hdr_out.refspxtitle = $
+        (['Spectral position','Wavelength'])[hdr_out.v_dop_set[1]] $
     ELSE $
       hdr_out.refspxtitle = hdr_out.xtitle[1]
   ENDIF ELSE BEGIN
     wheretag = WHERE(TAG_NAMES(hdr_out) EQ 'REFLC', count)
     IF (count EQ 0) THEN $
       hdr_out = CREATE_STRUCT(hdr_out, 'reflc', 0L)
+    wheretag = WHERE(TAG_NAMES(hdr_out) EQ 'V_DOP_REF', count)
+    IF (count EQ 0) THEN $
     hdr_out = CREATE_STRUCT(hdr_out, 'v_dop_ref', 0)
   ENDELSE
   IF hdr_out.imcube_compatibility THEN $
     hdr_out.spxtitle = (['Spectral position','Wavelength'])[hdr_out.v_dop_set[0]] $
   ELSE $
     hdr_out.spxtitle = hdr_out.xtitle[0]
-  
-  ; Process settings based on LPS variable and NO_WARP keyword to (not) warp of
-  ; spectral slices
-  IF ~KEYWORD_SET(NO_WARP) THEN no_warp = (hdr_out.ndiagnostics GT 1)
-  IF ((hdr_out.ndiagnostics GT 1) AND (no_warp EQ 0)) THEN BEGIN
-    idx = LINDGEN(hdr_out.nlp)
-    FOR d=0,hdr_out.ndiagnostics-1 DO BEGIN
-      ; Subscript to -2 to exclude the jumps between diagnostics when 
-      ; determining equidistancy
-      IF (d EQ 0) THEN $
-        idx_select = idx[hdr_out.diag_start[d]:$
-          (hdr_out.diag_start[d]+hdr_out.diag_width[d]-2)] $
-      ELSE $
-        idx_select = [idx_select,idx[hdr_out.diag_start[d]:(hdr_out.diag_start[d]+$
-          hdr_out.diag_width[d]-2)]]
-    ENDFOR
-    idx_select = [idx_select,idx(hdr_out.diag_start[d-1]+hdr_out.diag_width[d-1]-1)]
-  ENDIF ELSE idx_select = 0
-  CRISPEX_IO_PARSE_WARPSLICE, hdr_out.lps, hdr_out.nlp, hdr_out.mainnt, $
-                              hdr_out.dlambda[0], hdr_out.dlambda_set[0], $
-                              hdr_out.verbosity, NO_WARP=no_warp, $
-                              WARPSPSLICE=warpspslice, XO=xo, XI=xi, YO=yo, YI=yi, $
-                              IDX_SELECT=idx_select
+ 
+  IF KEYWORD_SET(MAIN) THEN BEGIN
+    ; Process settings based on LPS variable and NO_WARP keyword to (not) warp of
+    ; spectral slices
+    IF ~KEYWORD_SET(NO_WARP) THEN no_warp = (hdr_out.ndiagnostics GT 1)
+    IF ((hdr_out.ndiagnostics GT 1) AND (no_warp EQ 0)) THEN BEGIN
+      idx = LINDGEN(hdr_out.nlp)
+      FOR d=0,hdr_out.ndiagnostics-1 DO BEGIN
+        ; Subscript to -2 to exclude the jumps between diagnostics when 
+        ; determining equidistancy
+        IF (d EQ 0) THEN $
+          idx_select = idx[hdr_out.diag_start[d]:$
+            (hdr_out.diag_start[d]+hdr_out.diag_width[d]-2)] $
+        ELSE $
+          idx_select = [idx_select,idx[hdr_out.diag_start[d]:$
+            (hdr_out.diag_start[d]+hdr_out.diag_width[d]-2)]]
+      ENDFOR
+      idx_select = $
+        [idx_select,idx(hdr_out.diag_start[d-1]+hdr_out.diag_width[d-1]-1)]
+    ENDIF ELSE idx_select = 0
+    CRISPEX_IO_PARSE_WARPSLICE, hdr_out.lps, hdr_out.nlp, hdr_out.mainnt, $
+                                hdr_out.dlambda[0], hdr_out.dlambda_set[0], $
+                                hdr_out.verbosity, NO_WARP=no_warp, $
+                                WARPSPSLICE=warpspslice, XO=xo, XI=xi, $
+                                YO=yo, YI=yi, IDX_SELECT=idx_select
+  ENDIF
 
-  ; Process settings based on REFLPS variable and NO_WARP keyword to (not) warp of
-  ; spectral slices
-  IF ~KEYWORD_SET(NO_WARP) THEN no_warp = (hdr_out.nrefdiagnostics GT 1)
-  IF ((hdr_out.nrefdiagnostics GT 1) AND (no_warp EQ 0)) THEN BEGIN
-    refidx = LINDGEN(hdr_out.refnlp)
-    FOR d=0,hdr_out.nrefdiagnostics-1 DO BEGIN
-      IF (d EQ 0) THEN $
-        refidx_select = refidx[hdr_out.refdiag_start[d]:$
-          (hdr_out.refdiag_start[d]+hdr_out.refdiag_width[d]-2)] $
-      ELSE $
-        refidx_select = [refidx_select,refidx[hdr_out.refdiag_start[d]:$
-          (hdr_out.refdiag_start[d]+hdr_out.refdiag_width[d]-2)]]
-    ENDFOR
-    refidx_select = [refidx_select,refidx(hdr_out.refdiag_start[d-1]+$
-      hdr_out.refdiag_width[d-1]-1)]
-  ENDIF ELSE refidx_select = 0
-  CRISPEX_IO_PARSE_WARPSLICE, hdr_out.reflps, hdr_out.refnlp, hdr_out.refnt, $
-                              hdr_out.dlambda[1], hdr_out.dlambda_set[1], $
-                              hdr_out.verbosity, NO_WARP=no_warp, $
-                              WARPSPSLICE=warprefspslice, XO=xo_ref, XI=xi_ref,$
-                              YO=yo_ref, YI=yi_ref, IDX_SELECT=refidx_select, $
-                              /REFERENCE
-  hdr_out = CREATE_STRUCT(hdr_out, 'xo', xo, 'xi', xi, 'yo', yo, 'yi', yi, $
-    'xo_ref', xo_ref, 'xi_ref', xi_ref, 'yo_ref', yo_ref, 'yi_ref', yi_ref, $
-    'warpspslice', warpspslice, 'warprefspslice', warprefspslice)
+  IF KEYWORD_SET(REFERENCE) THEN BEGIN
+    ; Process settings based on REFLPS variable and NO_WARP keyword to (not) warp of
+    ; spectral slices
+    IF ~KEYWORD_SET(NO_WARP) THEN no_warp = (hdr_out.nrefdiagnostics GT 1)
+    IF ((hdr_out.nrefdiagnostics GT 1) AND (no_warp EQ 0)) THEN BEGIN
+      refidx = LINDGEN(hdr_out.refnlp)
+      FOR d=0,hdr_out.nrefdiagnostics-1 DO BEGIN
+        IF (d EQ 0) THEN $
+          refidx_select = refidx[hdr_out.refdiag_start[d]:$
+            (hdr_out.refdiag_start[d]+hdr_out.refdiag_width[d]-2)] $
+        ELSE $
+          refidx_select = [refidx_select,refidx[hdr_out.refdiag_start[d]:$
+            (hdr_out.refdiag_start[d]+hdr_out.refdiag_width[d]-2)]]
+      ENDFOR
+      refidx_select = [refidx_select,refidx(hdr_out.refdiag_start[d-1]+$
+        hdr_out.refdiag_width[d-1]-1)]
+    ENDIF ELSE refidx_select = 0
+    CRISPEX_IO_PARSE_WARPSLICE, hdr_out.reflps, hdr_out.refnlp, hdr_out.refnt, $
+                                hdr_out.dlambda[1], hdr_out.dlambda_set[1], $
+                                hdr_out.verbosity, NO_WARP=no_warp, $
+                                WARPSPSLICE=warprefspslice, XO=xo_ref, XI=xi_ref,$
+                                YO=yo_ref, YI=yi_ref, IDX_SELECT=refidx_select, $
+                                /REFERENCE
+  ENDIF ELSE BEGIN
+    xo_ref = 0  & yo_ref = 0  & xi_ref = 0  & yi_ref = 0  & warprefspslice = 0
+  ENDELSE
+  IF (N_ELEMENTS(event) NE 1) THEN $
+    hdr_out = CREATE_STRUCT(hdr_out, 'xo', xo, 'xi', xi, 'yo', yo, 'yi', yi, $
+      'xo_ref', xo_ref, 'xi_ref', xi_ref, 'yo_ref', yo_ref, 'yi_ref', yi_ref, $
+      'warpspslice', warpspslice, 'warprefspslice', warprefspslice) $
+  ELSE BEGIN
+    ; Only need to handle reference since only reference will be changed when
+    ; called with event
+    hdr_out = CREATE_STRUCT(hdr_out, 'xo_ref', xo_ref, 'xi_ref', xi_ref, $
+      'yo_ref', yo_ref, 'yi_ref', yi_ref)
+    hdr_out.warprefspslice = warprefspslice
+  ENDELSE
 END
 
-PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
-                                  SPECTFILE_SET=spectfile_set, REFSPECTFILE_SET=refspectfile_set, $
-                                  CUBE_COMPATIBILITY=cube_compatibility, DLAMBDA_VAL=dlambda_val, $
-                                  DLAMBDA_SET=dlambda_set, V_DOP_SET=v_dop_set, $
-                                  IO_FAILSAFE_ERROR=io_failsafe_error
+PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, $
+      MAIN=main, REFERENCE=reference, $
+      HDR_OUT=hdr_out, SPECTFILE_SET=spectfile_set, $
+      REFSPECTFILE_SET=refspectfile_set, CUBE_COMPATIBILITY=cube_compatibility,$
+      DLAMBDA_VAL=dlambda_val, DLAMBDA_SET=dlambda_set, V_DOP_SET=v_dop_set, $
+      IO_FAILSAFE_ERROR=io_failsafe_error
 ; Handles parsing of LINE_CENTER keyword
   ; lcase of 0: LINE_CENTER = <Undefined>
   ; lcase of 1: LINE_CENTER = lc or [[lc],[lc]]
@@ -10289,12 +11304,21 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
 	v_dop_set = BYTARR(2) &  dlambda_set = BYTARR(2)
   nlp_select = [hdr_out.nlp,hdr_out.refnlp]
   spectfile_set = [spectfile_set,refspectfile_set]
+  IF (KEYWORD_SET(MAIN) OR KEYWORD_SET(REFERENCE)) THEN BEGIN
+    d_low = (KEYWORD_SET(REFERENCE)-KEYWORD_SET(MAIN)) > 0
+    d_upp = KEYWORD_SET(REFERENCE)
+  ENDIF ELSE BEGIN
+    d_low = 0
+    d_upp = nfiles-1
+  ENDELSE
  
-  FOR d=0,nfiles-1 DO BEGIN
+  FOR d=d_low,d_upp DO BEGIN
     IF (d EQ 0) THEN tag2 = 'lc' ELSE tag2 = 'reflc'
-    IF ((cube_compatibility[d] NE 1) AND (N_ELEMENTS(LINE_CENTER) GT 0) AND (d NE ndims-1)) THEN BEGIN
-      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Calling CRISPEX with LINE_CENTER, while FITS cubes '+$
-        'are provided, is not allowed. Settings from LINE_CENTER will be ignored.', /WARNING, $
+    IF ((cube_compatibility[d] NE 1) AND (N_ELEMENTS(LINE_CENTER) GT 0) AND $
+      (d NE ndims-1)) THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+        'Calling CRISPEX with LINE_CENTER, while FITS cubes are provided, '+$
+        'is not allowed. Settings from LINE_CENTER will be ignored.', /WARNING, $
         /NO_ROUTINE
         lcase = 0
     ENDIF 
@@ -10302,7 +11326,7 @@ PRO CRISPEX_IO_PARSE_LINE_CENTER, line_center, NFILES=nfiles, HDR_IN=hdr_in, HDR
       lps_select = hdr_out.lps    &   spec_select = hdr_out.spectrum 
     ENDIF ELSE BEGIN
       IF ((nfiles EQ 2) AND (ndims NE 2)) THEN lcase = 0
-      lps_select = hdr_out.reflps &   spec_select = hdr_out.refspec
+      lps_select = hdr_out.reflps &   spec_select = hdr_out.refspectrum
     ENDELSE
     IF ((lcase EQ 1) OR (lcase EQ 3)) THEN $            ; First read parameters from LINE_CENTER
       lc = line_center[0,d] $
@@ -10414,11 +11438,11 @@ PRO CRISPEX_IO_PARSE_SINGLE_CUBE, input_single_cube, HDR_IN=hdr_in, HDR_OUT=hdr_
   ENDIF
 END
 
-PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, SCANFILE=scanfile, $
-                                HDR_IN=hdr_in, HDR_OUT=hdr_out, $
-                                MNSPEC=mnspec, IMCUBE=imcube, REFCUBE=refcube, $
-                                CUBE_COMPATIBILITY=cube_compatibility, STARTUPTLB=startuptlb, $
-                                IO_FAILSAFE_ERROR=io_failsafe_error
+PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, $
+      SCANFILE=scanfile, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
+      MNSPEC=mnspec, IMCUBE=imcube, REFCUBE=refcube, $
+      CUBE_COMPATIBILITY=cube_compatibility, STARTUPTLB=startuptlb, $
+      IO_FAILSAFE_ERROR=io_failsafe_error
 ; Handles parsing the spectral save files into the appropriate variables
   hdr_out = hdr_in
   io_failsafe_error = 0 &  calc_from_cubes = 0
@@ -10524,22 +11548,177 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, SCANFILE=scanfil
       norm_spect = spectrum / FLOAT(norm_factor)
     ENDIF
   ENDIF
-  IF KEYWORD_SET(IMCUBE) THEN BEGIN     ; Fill the related IMCUBE variables with results
-    reform_norm_spect = REFORM(norm_spect[*,0])
-    hdr_out = CREATE_STRUCT(hdr_out, 'mainspec', norm_spect, 'spectrum', reform_norm_spect, $
-                                     'ms', norm_factor)
+  reform_norm_spect = REFORM(norm_spect[*,0])
+  IF KEYWORD_SET(IMCUBE) THEN BEGIN     
+    ; Fill the related IMCUBE variables with results
+    hdr_out = CREATE_STRUCT(hdr_out, 'mainspec', norm_spect, 'spectrum', $
+                reform_norm_spect, 'ms', norm_factor)
     wherelps = WHERE(TAG_NAMES(hdr_out) EQ 'LPS', count)
     IF (count GT 0) THEN BEGIN
       IF (TOTAL(hdr_out.lps) EQ 0) THEN hdr_out.lps = FINDGEN(hdr_out.nlp)
     ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'lps', FINDGEN(hdr_out.nlp))
   ENDIF
-  IF KEYWORD_SET(REFCUBE) THEN BEGIN    ; Fill the related REFCUBE variables with results
-    hdr_out = CREATE_STRUCT(hdr_out, 'refspec', norm_spect, 'refms', norm_factor)
+  IF KEYWORD_SET(REFCUBE) THEN BEGIN    
+    ; Fill the related REFCUBE variables with results
+    hdr_out = CREATE_STRUCT(hdr_out, 'refspec', norm_spect, 'refspectrum', $
+                reform_norm_spect, 'refms', norm_factor)
     wherereflps = WHERE(TAG_NAMES(hdr_out) EQ 'REFLPS', count) 
     IF (count GT 0) THEN BEGIN
       IF (TOTAL(hdr_out.reflps) EQ 0) THEN hdr_out.reflps = FINDGEN(hdr_out.refnlp)
     ENDIF ELSE hdr_out = CREATE_STRUCT(hdr_out, 'reflps', FINDGEN(hdr_out.refnlp))
   ENDIF
+END
+
+PRO CRISPEX_IO_PARSE_VDOP, hdr, heightset, result, REFERENCE=reference
+
+  IF KEYWORD_SET(REFERENCE) THEN BEGIN
+    ndiagnostics = hdr.nrefdiagnostics
+    v_dop = hdr.v_dop_ref
+    nlp = hdr.refnlp
+    lps = hdr.reflps
+    diag_start = hdr.refdiag_start
+    diag_width = hdr.refdiag_width
+    IF (nlp GT 1) THEN BEGIN
+      IF (heightset EQ 0) THEN BEGIN
+        FOR dd=0,ndiagnostics-1 DO BEGIN
+          abs_vdop = ABS(*v_dop[dd])
+          IF (abs_vdop[0] NE 0) THEN BEGIN
+            maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
+              MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
+            min_sub_low = wheremin>0
+            min_sub_upp = (min_sub_low+2)<(nlp-1)
+          ENDIF ELSE BEGIN
+            min_sub_low = N_ELEMENTS(*v_dop[dd])-2
+            min_sub_upp = 1
+          ENDELSE
+          IF (dd EQ 0) THEN BEGIN
+            v_dop_low_min = (*v_dop[dd])[0]
+            v_dop_low_max = (*v_dop[dd])[min_sub_low]
+            v_dop_upp_min = (*v_dop[dd])[min_sub_upp]
+            v_dop_upp_max = (*v_dop[dd])[N_ELEMENTS(*v_dop[dd])-1]
+          ENDIF ELSE BEGIN
+            v_dop_low_min = [v_dop_low_min, (*v_dop[dd])[0]]
+            v_dop_low_max = [v_dop_low_max, (*v_dop[dd])[min_sub_low]]
+            v_dop_upp_min = [v_dop_upp_min, (*v_dop[dd])[min_sub_upp]]
+            v_dop_upp_max = [v_dop_upp_max, (*v_dop[dd])[N_ELEMENTS(*v_dop[dd])-1]]
+          ENDELSE
+        ENDFOR
+      ENDIF ELSE BEGIN
+        ; If heightset (and thus v_dop_set = 0), use lps instead
+        FOR dd=0,ndiagnostics-1 DO BEGIN
+          v_dop_low_min_tmp = lps[diag_start[dd]]
+          v_dop_low_max_tmp = lps[diag_start[dd]+diag_width[dd]-2]
+          v_dop_upp_min_tmp = lps[diag_start[dd]+1] 
+          v_dop_upp_max_tmp = lps[diag_start[dd]+diag_width[dd]-1]
+          IF (dd EQ 0) THEN BEGIN
+            v_dop_low_min = v_dop_low_min_tmp
+            v_dop_low_max = v_dop_low_max_tmp
+            v_dop_upp_min = v_dop_upp_min_tmp
+            v_dop_upp_max = v_dop_upp_max_tmp
+          ENDIF ELSE BEGIN
+            v_dop_low_min = [v_dop_low_min, v_dop_low_min_tmp]
+            v_dop_low_max = [v_dop_low_max, v_dop_low_max_tmp]
+            v_dop_upp_min = [v_dop_upp_min, v_dop_upp_min_tmp]
+            v_dop_upp_max = [v_dop_upp_max, v_dop_upp_max_tmp]
+          ENDELSE
+        ENDFOR
+      ENDELSE
+      v_dop_low_min = FLOOR(MIN(v_dop_low_min,/NAN))
+      v_dop_low_max = FLOOR(MIN(v_dop_low_max,/NAN))
+      v_dop_upp_min = CEIL(MAX(v_dop_upp_min,/NAN))
+      v_dop_upp_max = CEIL(MAX(v_dop_upp_max,/NAN))
+      IF (v_dop_low_min EQ v_dop_low_max) THEN $
+        v_dop_low_min -= 1
+      IF (v_dop_upp_min EQ v_dop_upp_max) THEN $
+        v_dop_upp_max += 1
+    ENDIF ELSE BEGIN
+      v_dop_low_min = 0
+      v_dop_low_max = 1
+      v_dop_upp_min = 0
+      v_dop_upp_max = 1
+    ENDELSE
+  ENDIF
+
+  result = {v_dop_low_min:v_dop_low_min, v_dop_low_max:v_dop_low_max, $
+    v_dop_upp_min:v_dop_upp_min, v_dop_upp_max:v_dop_upp_max}
+END
+
+PRO CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, $
+  REFERENCE=reference, SCALESTOKES=scalestokes, SHOWLS=showls
+  ; scalestokes?
+  ; scfactor
+  ; showrefls
+  scfactor = 2. ; Plot-range accomodates mean ± scfactor * stdev
+  IF KEYWORD_SET(REFERENCE) THEN BEGIN
+    ns = hdr.refns
+    nt = hdr.refnt
+    nlp = hdr.refnlp
+    ms = hdr.refms
+    nt_other = hdr.mainnt
+    data = *hdr.refdata
+    ndiagnostics = hdr.nrefdiagnostics
+    diag_start = hdr.refdiag_start
+    diag_width = hdr.refdiag_width
+  ENDIF
+	ls_low_y = DBLARR(ns,/NOZERO)
+	ls_upp_y = DBLARR(ns,/NOZERO)
+  ls_yrange = DBLARR(ns,/NOZERO)
+	IF (nt EQ 0) THEN BEGIN
+    temp_image = data
+		immean = MEAN(temp_image, /NAN)
+		temp_image = IRIS_HISTO_OPT(temp_image,histo_opt_val, $
+      MISSING=-32768, /SILENT)
+		immin = MIN(temp_image, MAX=immax, /NAN)
+		imsdev = STDDEV(temp_image, /NAN)
+	ENDIF ELSE IF (((nt EQ 1) OR (nt EQ nt_other)) AND (nlp EQ 1)) THEN BEGIN
+    temp_image = data[0]
+		immean = MEAN(temp_image, /NAN)
+		temp_image = IRIS_HISTO_OPT(temp_image,histo_opt_val, $
+      MISSING=-32768, /SILENT)
+		immin = MIN(temp_image, MAX=immax, /NAN)
+		imsdev = STDDEV(temp_image, /NAN)
+	ENDIF ELSE BEGIN
+		immin = DBLARR(nlp,ns,/NOZERO)
+		immax = DBLARR(nlp,ns,/NOZERO)
+		immean = DBLARR(nlp,ns,/NOZERO)
+		imsdev = DBLARR(nlp,ns,/NOZERO)
+    IF KEYWORD_SET(SCALESTOKES) THEN $
+      tmp_ms = REPLICATE(ms,ns) $
+    ELSE $
+      tmp_ms = ms
+    FOR s=0,ns-1 DO BEGIN
+			FOR lp=0,nlp-1 DO BEGIN
+				temp_image = data[s*nlp + lp]
+				immean[lp,s] = MEAN(temp_image, /NAN)
+  			temp_image = IRIS_HISTO_OPT(temp_image,histo_opt_val, $
+          MISSING=-32768, /SILENT)
+				imsdev[lp,s] = STDDEV(temp_image, /NAN)
+				immin[lp,s] = MIN(temp_image, MAX=max_val, /NAN)
+				immax[lp,s] = max_val
+			ENDFOR
+  		IF KEYWORD_SET(SHOWLS) THEN BEGIN
+  			ls_low_y[s] = MIN((immean[*,s]-scfactor*imsdev[*,s])/tmp_ms[s], /NAN)
+  			ls_upp_y[s] = MAX((immean[*,s]+scfactor*imsdev[*,s])/tmp_ms[s], /NAN)
+  	    ls_yrange[s] = ls_upp_y[s] - ls_low_y[s] 
+  		ENDIF 
+    ENDFOR
+	ENDELSE
+  IF (ndiagnostics GT 1) THEN BEGIN
+    ; Determine multiplicative factors
+    mult_val = FLTARR(ndiagnostics, ns, /NOZERO)
+    ls_upp_tmp = FLTARR(ndiagnostics, ns, /NOZERO)
+    FOR s=0,ns-1 DO BEGIN
+      FOR d=0,ndiagnostics-1 DO $
+        ls_upp_tmp[d,s] = MAX((immean[diag_start[d]:$
+                            (diag_start[d]+(diag_width[d]-1)),s]+$
+                            scfactor*imsdev[diag_start[d]:(diag_start[d]+$
+                            (diag_width[d]-1)),s])/ms[s], /NAN)
+      mult_val[*,s] = ls_upp_y[s] / ls_upp_tmp[*,s]
+    ENDFOR
+  ENDIF ELSE mult_val = REPLICATE(1.,ns)
+
+    result = {ls_low_y:ls_low_y, ls_upp_y:ls_upp_y, ls_yrange:ls_yrange, $
+      mult_val:mult_val, immin:immin, immax:immax}
 END
 
 PRO CRISPEX_IO_PARSE_WARPSLICE, lps, nlp, nt, dlambda, dlambda_set, verbosity, $
@@ -10963,10 +12142,14 @@ PRO CRISPEX_LOOP_GET_APPROX_SLAB, event, xrs, yrs, xps, yps, w_lpts, ap_loopslab
 		FOR i=0,(SIZE(xrs[w_lpts]))[1]-1 DO BEGIN
 			IF (i EQ 0) THEN $
         tmp = ((*(*(*info).data).refspdata)[LONG(yrs[w_lpts[i]]) * $
-          (*(*info).dataparams).refnx + LONG(xrs[w_lpts[i]])]) $
+          (*(*info).dataparams).refnx * (*(*info).dataparams).refns + $
+          LONG(xrs[w_lpts[i]]) * (*(*info).dataparams).refns + $
+          (*(*info).dataparams).s_ref]) $
       ELSE $
 				tmp = [ [[tmp]] , [[ ((*(*(*info).data).refspdata)[LONG(yrs[w_lpts[i]]) * $
-          (*(*info).dataparams).refnx + LONG(xrs[w_lpts[i]])]) ]] ]
+          (*(*info).dataparams).refnx * (*(*info).dataparams).refns + $
+          LONG(xrs[w_lpts[i]]) * (*(*info).dataparams).refns + $
+          (*(*info).dataparams).s_ref]) ]] ] 
 		ENDFOR
 	ENDIF ELSE BEGIN
 		FOR i=0,(SIZE(xrs[w_lpts]))[1]-1 DO BEGIN
@@ -11049,11 +12232,15 @@ PRO CRISPEX_LOOP_GET_EXACT_SLICE, event, extractdata, xrs, yrs, xps, yps, $
 			FOR tt=tlow,tupp DO BEGIN
 				IF (tt EQ tlow) THEN $
           tmp = INTERPOLATE( extractdata[$
-            tt * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref], $
+            tt * (*(*info).dataparams).refnlp * (*(*info).dataparams).refns + $
+            (*(*info).dataparams).s_ref * (*(*info).dataparams).refnlp + $
+            (*(*info).dataparams).lp_ref], $
             (xrs)[w_lpts],(yrs)[w_lpts]) $
         ELSE $
 					tmp = [[tmp], [INTERPOLATE( extractdata[$
-            tt * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref], $
+            tt * (*(*info).dataparams).refnlp * (*(*info).dataparams).refns + $
+            (*(*info).dataparams).s_ref * (*(*info).dataparams).refnlp + $
+            (*(*info).dataparams).lp_ref], $
             (xrs)[w_lpts],(yrs)[w_lpts])]]
 			ENDFOR
 		ENDELSE
@@ -11757,7 +12944,7 @@ PRO CRISPEX_PHISLIT_MOVE_UPDATE_XY, event, BWD=bwd, FWD=fwd
 	(*(*info).dataparams).y = ((*(*(*info).data).indices)[$
     (*(*info).phiparams).curindex,*])[1]
   IF (*(*info).winswitch).showref THEN BEGIN
-    xyref = (*(*info).dataparams).pix_main2ref[*,$
+    xyref = (*(*(*info).dataparams).pix_main2ref)[*,$
       (*(*info).dataparams).x, (*(*info).dataparams).y]
     (*(*info).dataparams).xref = xyref[0]
     (*(*info).dataparams).yref = xyref[1]
@@ -12504,26 +13691,33 @@ END
 
 ;========================= READ HEADER PROCEDURE
 PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
-                         IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, REFSPCUBE=refspcube, $
-                         SJICUBE=sjicube, MASKCUBE=maskcube, CUBE_COMPATIBILITY=cube_compatibility,$
+                         IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, $
+                         REFSPCUBE=refspcube, SJICUBE=sjicube, $
+                         MASKCUBE=maskcube, CUBE_COMPATIBILITY=cube_compatibility,$
                          EXTEN_NO=exten_no, SINGLE_CUBE=single_cube
-; Handles read-in of file header, running different parsing depending on CUBE_COMPATIBILITY setting
+  ; Handles read-in of file header, running different parsing depending on
+  ; CUBE_COMPATIBILITY setting   
   ; Start filling data header structure with header info from inputfile
   IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN
-    offset = CRISPEX_FITSPOINTER(filename, EXTEN_NO=exten_no, header, /SILENT)   ; Get header offset to data
-    CRISPEX_READ_FITSHEADER, header, key, filename, $                    ; Parse FITS header into key struct
+    ; Get header offset to data
+    offset = CRISPEX_FITSPOINTER(filename, EXTEN_NO=exten_no, header, /SILENT)   
+    ; Parse FITS header into key struct
+    CRISPEX_READ_FITSHEADER, header, key, filename, $                    
       IMCUBE=imcube, SPCUBE=spcube, REFIMCUBE=refimcube, REFSPCUBE=refspcube, $
       SJICUBE=sjicube, VERBOSE=hdr_out.verbosity[1]
   ENDIF ELSE BEGIN
-    offset = 512                                                ; Set header offset to data
-    CRISPEX_READ_HEADER, filename, datatype=datatype, $         ; Parse old header into variables
-                         dims=dims, nx=nx, ny=ny, nt=nt, endian=endian, stokes=stokes, ns=ns, $
-                         diagnostics=diagnostics
+    offset = 512    ; Set header offset to data
+    ; Parse old header into variables
+    CRISPEX_READ_HEADER, filename, datatype=datatype, $         
+                         dims=dims, nx=nx, ny=ny, nt=nt, endian=endian, $
+                         stokes=stokes, ns=ns, diagnostics=diagnostics
   ENDELSE
-  hdr_out = hdr_in                                              ; Set output hdr to output hdr
-  IF KEYWORD_SET(IMCUBE) THEN BEGIN                             ; Fill hdr_out parameters for IMCUBE
+  hdr_out = hdr_in                                              
+  IF KEYWORD_SET(IMCUBE) THEN BEGIN                             
+    ; Fill hdr_out parameters for IMCUBE
     hdr_out.imoffset = offset
-    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
+    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              
+      ; In case of FITS cube
       hdr_out.imtype = key.datatype     &  hdr_out.imnt = key.nlp * key.nt * key.ns
       hdr_out.nx = key.nx               &  hdr_out.dx = key.dx
       hdr_out.ny = key.ny               &  hdr_out.dy = key.dy
@@ -12609,10 +13803,23 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.spns = ns                 &  hdr_out.spstokes = stokes
       hdr_out.spnt = nt
     ENDELSE
-  ENDIF ELSE IF KEYWORD_SET(REFIMCUBE) THEN BEGIN               ; Fill hdr parameters for REFIMCUBE
+  ENDIF ELSE IF KEYWORD_SET(REFIMCUBE) THEN BEGIN               
+    ; Fill hdr parameters for REFIMCUBE
     hdr_out.refimoffset = offset
-    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
-      hdr_out.refimtype = key.datatype  &  hdr_out.refimnt = key.nlp * key.nt * key.ns
+    wheretag = WHERE(TAG_NAMES(hdr_out) EQ 'TARR_REF', count)
+    IF (count NE 0) THEN $
+      ; Delete potentially conflicting tags from structure...
+      hdr_out = CRISPEX_TAG_DELETE(hdr_out,$
+        ['REFLPS','REFLC','REFSPEC','REFSPECTRUM','REFMS','V_DOP_REF',$
+        'REFDIAGNOSTICS','REFDIAG_START','REFDIAG_WIDTH', $
+        'TARR_REF','TARR_RASTER_REF','TOFFSET_REF','TWAVE_REF','WCS_REF',$
+        'UTC_REF','UTC_RASTER_REF','DATE_REF','DATE_RASTER_REF','TSEL_REF',$
+        'HDRS_REF','XO_REF','XI_REF','YO_REF','YI_REF', $
+        'STOKES_LABELS_REF','STOKES_SELECT_REFSP'])
+    IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              
+      ; In case of FITS cube
+      hdr_out.refimtype = key.datatype  
+      hdr_out.refimnt = key.nlp * key.nt * key.ns
       hdr_out.refnx = key.nx            &  hdr_out.refdx = key.dx
       hdr_out.refny = key.ny            &  hdr_out.refdy = key.dy
       hdr_out.xpix_ref = key.xpix       &  hdr_out.ypix_ref = key.ypix
@@ -12631,7 +13838,6 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       utc_raster_ref = key.utc_raster_sel
       date_ref = key.date_sel
       date_raster_ref = key.date_raster_sel
-      hdr_out = CREATE_STRUCT(hdr_out, 'reflps', key.lam, 'reflc', reflc)
       ; Handle spectral windows, if present
       hdr_out.nrefdiagnostics = key.ndiagnostics
       diagnostics = key.diagnostics
@@ -12642,16 +13848,20 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tarr_raster_ref = key.tarr_raster
       toffset_ref = key.tini_col
       headers = key.headers
+      reflps = key.lam
+      hdr_out = CREATE_STRUCT(hdr_out, 'reflps', reflps, 'reflc', reflc)
     ENDIF ELSE BEGIN                                            
       ; In case of compatibility mode
       hdr_out.refimtype = datatype      &  hdr_out.refimendian = endian
       hdr_out.refnx = nx                &  hdr_out.refdx = 0.0592
       hdr_out.refny = ny                &  hdr_out.refdy = 0.0592
-      hdr_out.refimnt = nt              &  hdr_out.refns = 1L
+      hdr_out.refimns = ns              &  hdr_out.refns = ns
+      hdr_out.refimstokes = stokes      &  hdr_out.refimnt = nt              
       IF (FLOOR(hdr_out.refimnt/FLOAT(hdr_out.mainnt)) EQ $
           hdr_out.refimnt/FLOAT(hdr_out.mainnt)) THEN $
         hdr_out.refnt = hdr_out.mainnt ELSE hdr_out.refnt = 1L
-      hdr_out.refnlp = LONG(hdr_out.refimnt/FLOAT(hdr_out.refnt))
+      hdr_out.refnlp = $
+        LONG(hdr_out.refimnt/(FLOAT(hdr_out.refnt)*FLOAT(hdr_out.refns)))
       CRISPEX_IO_PARSE_SINGLE_CUBE, single_cube, HDR_IN=hdr_out, $
         HDR_OUT=hdr_out,/REFERENCE
       IF (hdr_out.dt EQ 0) THEN $
@@ -12681,12 +13891,13 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       headers = PTR_NEW('')
       wcs_ref = 0
     ENDELSE
-    hdr_out = CREATE_STRUCT(hdr_out, 'refdiagnostics', diagnostics, $
+    hdr_out = CREATE_STRUCT(hdr_out, $;'reflps', reflps, 'reflc', reflc, $
+      'refdiagnostics', diagnostics, $
       'refdiag_start', wstart, 'refdiag_width', wwidth, 'tarr_ref', tarr_ref, $
       'tarr_raster_ref', tarr_raster_ref, 'toffset_ref', toffset_ref, $
       'twave_ref', twave, 'hdrs_ref', headers, 'wcs_ref', wcs_ref, $
       'utc_ref', utc_ref, 'utc_raster_ref', utc_raster_ref, $
-      'date_ref', date_ref, 'date_raster_ref', date_raster_ref)
+      'date_ref', date_ref, 'date_raster_ref', date_raster_ref) 
   ENDIF ELSE IF KEYWORD_SET(REFSPCUBE) THEN BEGIN               ; Fill hdr parameters for REFSPCUBE
     hdr_out.refspoffset = offset
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              ; In case of FITS cube
@@ -12695,6 +13906,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.refsptype = datatype      &  hdr_out.refspendian = endian
       hdr_out.refnlp = nx               &  hdr_out.refnt = ny
       hdr_out.refspnx = nx              &  hdr_out.refspny = ny
+      hdr_out.refspns = ns              &  hdr_out.refspstokes = stokes
       hdr_out.refspnt = nt
     ENDELSE
   ENDIF ELSE IF KEYWORD_SET(SJICUBE) THEN BEGIN                ; Fill hdr parameters for SJICUBE
@@ -12775,7 +13987,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     nt = naxis[sortorder[3]] $
   ELSE $
     nt = 1
-  ns = 1 ; number of Stokes posisitons
+  ns = 1 ; number of Stokes positions
   cslab = [' ']
   ; Convert FITS datatype to IDL datatype
   CASE SXPAR(header,'BITPIX') OF
@@ -14603,10 +15815,18 @@ PRO CRISPEX_SCALING_SELECT_TYPE, event
 	CRISPEX_SCALING_REDRAW, event
 END
 
-PRO CRISPEX_SCALING_APPLY_SELECTED, event
+PRO CRISPEX_SCALING_APPLY_SELECTED, event, UPDATE_MAIN=update_main, $
+  UPDATE_REF=update_ref, UPDATE_DOP=update_dop, UPDATE_SJI=update_sji
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
+  ; Handle keywords
+  IF (N_ELEMENTS(UPDATE_MAIN) EQ 0) THEN update_main = 1
+  IF (N_ELEMENTS(UPDATE_REF) EQ 0) THEN $
+    update_ref = (*(*info).winswitch).showref
+  IF (N_ELEMENTS(UPDATE_DOP) EQ 0) THEN update_dop = $
+    ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) 
+  IF (N_ELEMENTS(UPDATE_SJI) EQ 0) THEN update_sji = (*(*info).winswitch).showsji
   ; Main image
   idx = (*(*info).intparams).lp_diag_all
   IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN BEGIN
@@ -14624,10 +15844,12 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event
     (*(*info).scaling).imagemax_curr = minmax[1]
   ENDIF
   ; Reference image
-  IF (*(*info).winswitch).showref THEN BEGIN
+  IF update_ref THEN BEGIN
     idx = (*(*info).intparams).ndiagnostics + (*(*info).intparams).lp_ref_diag_all
     IF ((*(*(*info).scaling).imagescale)[1] EQ 0) THEN BEGIN
-      minmax_data = (*(*(*info).data).refdata)[(*(*info).dataparams).lp_ref]
+      minmax_data = (*(*(*info).data).refdata)[$
+        (*(*info).dataparams).s_ref * (*(*info).dataparams).refnlp + $
+        (*(*info).dataparams).lp_ref]
       minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
         (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
       (*(*info).scaling).refmin = minmax[0]
@@ -14641,7 +15863,7 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event
     ENDIF
   ENDIF
   ; Doppler image
-  IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN BEGIN
+  IF update_dop THEN BEGIN
     idx = (*(*info).intparams).ndiagnostics + $
       (*(*info).intparams).nrefdiagnostics + (*(*info).intparams).lp_diag_all
     IF ((*(*(*info).scaling).imagescale)[2] EQ 0) THEN BEGIN
@@ -14669,7 +15891,7 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event
     ENDIF
   ENDIF
   ; SJI image
-  IF (*(*info).winswitch).showsji THEN BEGIN
+  IF update_sji THEN BEGIN
     idx = 2*(*(*info).intparams).ndiagnostics + (*(*info).intparams).nrefdiagnostics
     IF ((*(*(*info).scaling).imagescale)[3] EQ 0) THEN BEGIN
       minmax_data = (*(*(*info).data).sjidata)[0]
@@ -15246,29 +16468,8 @@ PRO CRISPEX_SESSION_RESTORE, event
   			WIDGET_CONTROL, (*(*info).ctrlscp).ypos_slider, SET_VALUE = (*(*info).zooming).ypos, $
           SENSITIVE = ((*(*info).zooming).factor NE 1)
   			; ==================== Diagnostics Tab ====================
-        FOR i=0,N_ELEMENTS((*(*info).stokesparams).button_labels)-1 DO BEGIN
-          ; Stokes parameter available in data?
-          stokes_enabled = (WHERE(((*(*info).stokesparams).labels) EQ $
-                                   (*(*info).stokesparams).button_labels[i]) GE 0)
-          ; Stokes parameter selected for detailed spectrum plot?
-          wherestokes_sp = WHERE((*(*info).stokesparams).select_sp EQ 1, count)
-          IF (count GT 0) THEN $
-  			    stokes_sp_select = (*(*info).stokesparams).labels[wherestokes_sp] $
-          ELSE $
-  			    stokes_sp_select = ''
-          ; Determine setting of buttons accordingly
-          stokes_sp_set = (WHERE(stokes_sp_select EQ (*(*info).stokesparams).button_labels[i]) GE 0)
-          ; Total number of selected Stokes parameters for detailed spectrum plot?
-          total_sp_select = TOTAL((*(*info).stokesparams).select_sp)
-          ; Set Stokes image buttons
-          WIDGET_CONTROL, (*(*info).ctrlscp).stokes_button_ids[i], SENSITIVE=stokes_enabled, $
-            SET_BUTTON = (((*(*info).stokesparams).labels)[(*(*info).dataparams).s] EQ $
-                           (*(*info).stokesparams).button_labels[i])
-          ; Set Stokes detailed spectrum buttons
-          WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[i], SET_BUTTON=stokes_sp_set, $
-            SENSITIVE=(stokes_enabled AND ((total_sp_select GT 1) OR $
-                                           (total_sp_select AND ABS(stokes_sp_set-1))))
-        ENDFOR
+        imbuttons = CRISPEX_BGROUP_STOKES_SELECT_XY(event, /NO_DRAW, /SET_BUTTONS)
+        spbuttons = CRISPEX_BGROUP_STOKES_SELECT_SP(event, /NO_DRAW, /SET_BUTTONS)
   			IF ((*(*info).dataparams).nlp EQ 1) THEN $
           WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[0], SET_BUTTON = 0
         ; Spectral window settings
@@ -15285,8 +16486,8 @@ PRO CRISPEX_SESSION_RESTORE, event
                     REPLICATE(1,(*(*info).intparams).ndiagnostics)) AND $
                    ((*(*info).intparams).ndisp_diagnostics NE 1)))]
           FOR i=0,(*(*info).intparams).ndiagnostics DO $
-            WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i], SENSITIVE=sens[i], $
-              SET_BUTTON=set[i]
+            WIDGET_CONTROL, (*(*info).ctrlscp).specwin_button_ids[i], $
+              SENSITIVE=sens[i], SET_BUTTON=set[i]
         ENDIF
         IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
           refset = [((*(*info).intparams).ndisp_refdiagnostics EQ $
@@ -15930,13 +17131,13 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
             (TOTAL(y_coords LT 0) EQ 0) AND $
             (TOTAL(y_coords GE (*(*info).dataparams).refny)) EQ 0) THEN BEGIN
             xp_main = $
-              REFORM(((*(*info).dataparams).pix_ref2main[*,x_coords,0])[0,*])
+              REFORM(((*(*(*info).dataparams).pix_ref2main)[*,x_coords,0])[0,*])
             yp_main = $
-              REFORM(((*(*info).dataparams).pix_ref2main[*,0,y_coords])[1,0,*])
+              REFORM(((*(*(*info).dataparams).pix_ref2main)[*,0,y_coords])[1,0,*])
             xyp = {x:xp_main, y:yp_main}
           ENDIF ELSE $
             xyp = CRISPEX_TRANSFORM_GET_WCS(x_coords, y_coords, $
-              (*(*info).dataparams).wcs_ref, (*(*info).dataparams).wcs_main, $
+              *(*(*info).dataparams).wcs_ref, (*(*info).dataparams).wcs_main, $
               /PIXEL, /COORD)
         ENDIF ELSE BEGIN
           xyp = CRISPEX_TRANSFORM_COORDS(x_coords, y_coords, $
@@ -15965,13 +17166,13 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
             (TOTAL(y_coords LT 0) EQ 0) AND $
             (TOTAL(y_coords GE (*(*info).dataparams).ny)) EQ 0) THEN BEGIN
             xp_ref = $
-              REFORM(((*(*info).dataparams).pix_main2ref[*,x_coords,0])[0,*])
+              REFORM(((*(*(*info).dataparams).pix_main2ref)[*,x_coords,0])[0,*])
             yp_ref = $
-              REFORM(((*(*info).dataparams).pix_main2ref[*,0,y_coords])[1,0,*])
+              REFORM(((*(*(*info).dataparams).pix_main2ref)[*,0,y_coords])[1,0,*])
             xyp = {x:xp_ref, y:yp_ref}
           ENDIF ELSE $
             xyp = CRISPEX_TRANSFORM_GET_WCS(x_coords, y_coords, $
-              (*(*info).dataparams).wcs_main, (*(*info).dataparams).wcs_ref, $
+              (*(*info).dataparams).wcs_main, *(*(*info).dataparams).wcs_ref, $
               /PIXEL, /COORD)
         ENDIF ELSE BEGIN
           xyp = CRISPEX_TRANSFORM_COORDS(x_coords, y_coords, $
@@ -16103,7 +17304,8 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
 			average_spectrum= ((*(*info).dataparams).spec)[*,(*(*info).dataparams).s] 
 			scaling_factor  = (*(*info).dataparams).ms
     ENDIF ELSE IF (imrefsji_sel EQ 1) THEN BEGIN
-			average_spectrum= ((*(*info).dataparams).refspec)
+			average_spectrum= $
+        ((*(*info).dataparams).refspec)[*,(*(*info).dataparams).s_ref]
 			scaling_factor  = (*(*info).dataparams).refms
     ENDIF ELSE BEGIN
       average_spectrum = 0
@@ -16316,13 +17518,13 @@ PRO CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB, event, SAVE_SLICE=save_slice
             (TOTAL(ylp_det LT 0) EQ 0) AND $
             (TOTAL(ylp_det GE (*(*info).dataparams).ny)) EQ 0) THEN BEGIN
             xlp_ref = $
-              REFORM(((*(*info).dataparams).pix_main2ref[*,xlp_det,0])[0,*])
+              REFORM(((*(*(*info).dataparams).pix_main2ref)[*,xlp_det,0])[0,*])
             ylp_ref = $
-              REFORM(((*(*info).dataparams).pix_main2ref[*,0,ylp_det])[1,0,*])
+              REFORM(((*(*(*info).dataparams).pix_main2ref)[*,0,ylp_det])[1,0,*])
             xylp_ref = {x:xlp_ref, y:ylp_ref}
           ENDIF ELSE $
             xylp_ref = CRISPEX_TRANSFORM_GET_WCS(xlp_det, ylp_det, $
-              (*(*info).dataparams).wcs_main, (*(*info).dataparams).wcs_ref, $
+              (*(*info).dataparams).wcs_main, *(*(*info).dataparams).wcs_ref, $
               /PIXEL, /COORD)
         ENDIF ELSE BEGIN
           xylp_ref = CRISPEX_TRANSFORM_COORDS(xlp_det, ylp_det, $
@@ -16342,7 +17544,7 @@ PRO CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB, event, SAVE_SLICE=save_slice
           IF ((*(*info).dataswitch).wcs_set AND $
             (*(*info).dataswitch).ref_wcs_set) THEN $
             xylr_ref = CRISPEX_TRANSFORM_GET_WCS(xlr_tmp, ylr_tmp, $
-              (*(*info).dataparams).wcs_main, (*(*info).dataparams).wcs_ref, $
+              (*(*info).dataparams).wcs_main, *(*(*info).dataparams).wcs_ref, $
               /PIXEL, /COORD, /NO_ROUND) $
           ELSE BEGIN
             xylr_ref = CRISPEX_TRANSFORM_COORDS(xlr_tmp, ylr_tmp, $
@@ -16372,7 +17574,8 @@ PRO CRISPEX_SAVE_RETRIEVE_DET_LOOPSLAB, event, SAVE_SLICE=save_slice
 			average_spectrum = ((*(*info).dataparams).spec)[*,(*(*info).dataparams).s] 
 			scaling_factor = (*(*info).dataparams).ms
 		ENDIF ELSE BEGIN
-			average_spectrum = ((*(*info).dataparams).refspec)
+			average_spectrum = $
+        ((*(*info).dataparams).refspec)[*,(*(*info).dataparams).s_ref]
 			scaling_factor = (*(*info).dataparams).refms
 		ENDELSE
 		vertices        = crossloc_out
@@ -17104,8 +18307,9 @@ PRO CRISPEX_SLIDER_LP_REF_INCR, event
 END
 
 PRO CRISPEX_SLIDER_LP_REF_LOCK, event, UNLOCK=unlock, NO_DRAW=no_draw
-; Handles (un)locking the reference reference to (from) the main spectral position slider
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+; Handles (un)locking the reference reference to (from) the main spectral
+; position slider
+  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
   IF KEYWORD_SET(UNLOCK) THEN BEGIN
@@ -17218,12 +18422,12 @@ PRO CRISPEX_SLIDER_LP_RESTRICT, event, REFERENCE=reference, NO_DRAW=no_draw
     FOR d=0,(*(*info).intparams).nrefdiagnostics-1 DO BEGIN
       IF ((*(*info).plotswitch).refheightset EQ 0) THEN $
         vdop_tmp = (*(*(*info).plotaxes).v_dop_ref[d])[$
-          0:((*(*info).intparams).refdiag_width)[d]-1] $
+          0:(*(*info).intparams).refdiag_width[d]-1] $
       ELSE $
         vdop_tmp = (*(*info).dataparams).reflps[$
-          ((*(*info).intparams).refdiag_start)[d]:$
-          ((*(*info).intparams).refdiag_start)[d]+$
-          ((*(*info).intparams).refdiag_width)[d]-1]
+          (*(*info).intparams).refdiag_start[d]:$
+          (*(*info).intparams).refdiag_start[d]+$
+          (*(*info).intparams).refdiag_width[d]-1]
       wheresel = WHERE((vdop_tmp GE (*(*info).dispparams).v_dop_low[1]) AND $
                        (vdop_tmp LE (*(*info).dispparams).v_dop_upp[1]), $
                        nwheresel)
@@ -17400,7 +18604,9 @@ PRO CRISPEX_SLIDER_T, event
       REFSSP_UPDATE=(((*(*info).dataswitch).reffile EQ 1) AND $
                      ((*(*info).dataswitch).refspfile EQ 0)) $
   ELSE BEGIN		
-		IF (*(*info).dataswitch).onecube THEN $
+		IF ((*(*info).dataswitch).onecube AND $
+        (((*(*info).dataparams).nlp GT 1) OR $
+         ((*(*info).dataparams).refnlp GT 1))) THEN $
       WIDGET_CONTROL, (*(*info).ctrlscp).slice_button, SENSITIVE = 1, $
         SET_VALUE = 'Update spectral windows' 
 	ENDELSE
@@ -17762,8 +18968,6 @@ PRO CRISPEX_UPDATE_SPSLICE, event
           (*(*info).scaling).histo_opt_val[disp_idx], $
           (*(*info).scaling).minimum[disp_idx],$
           (*(*info).scaling).maximum[disp_idx])
-          (*(*info).scaling).spslice_min[disp_idx] = minmax[0]
-          (*(*info).scaling).spslice_max[disp_idx] = minmax[1]
       ENDIF ELSE BEGIN
         IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN $
           minmax = [(*(*info).scaling).imagemin, (*(*info).scaling).imagemax] $
@@ -17797,8 +19001,10 @@ PRO CRISPEX_UPDATE_REFSPSLICE, event
   IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
     t_low = (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).t_low]
     t_upp = (*(*(*info).dispparams).tsel_ref)[(*(*info).dispparams).t_upp]
-  	refspslice = ((*(*(*info).data).refspdata)[ FIX((*(*info).dataparams).yref) * $
-                  (*(*info).dataparams).refnx + FIX((*(*info).dataparams).xref) ])
+  	refspslice = ((*(*(*info).data).refspdata)[ $
+      FIX((*(*info).dataparams).yref) * (*(*info).dataparams).refnx * $
+      (*(*info).dataparams).refns + FIX((*(*info).dataparams).xref) * $
+      (*(*info).dataparams).refns + (*(*info).dataparams).s_ref ])
     ; Warp slice if non-equidistant lp
   	IF (*(*info).dispswitch).warprefspslice THEN $                
       dispslice = WARP_TRI( $
@@ -17821,8 +19027,6 @@ PRO CRISPEX_UPDATE_REFSPSLICE, event
           (*(*info).scaling).histo_opt_val[disp_idx], $
           (*(*info).scaling).minimum[disp_idx],$
           (*(*info).scaling).maximum[disp_idx])
-          (*(*info).scaling).spslice_min[disp_idx] = refminmax[0]
-          (*(*info).scaling).spslice_max[disp_idx] = refminmax[1]
       ENDIF ELSE BEGIN
         IF ((*(*(*info).scaling).imagescale)[1] EQ 0) THEN $
           refminmax = [(*(*info).scaling).refmin, (*(*info).scaling).refmax] $
@@ -17878,16 +19082,24 @@ PRO CRISPEX_UPDATE_REFSSP, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  IF ((*(*info).dispswitch).xyref_out_of_range EQ 0) THEN BEGIN
-    IF ((*(*info).dataswitch).refspfile EQ 1) THEN BEGIN
-      sspidx = LONG((*(*info).dataparams).yref) * (*(*info).dataparams).refnx + $
-               LONG((*(*info).dataparams).xref)
-      refssp = ( ( *(*(*info).data).refspdata)[sspidx] ) 
-    ; If no spectral cube supplied, determine from image cube
-    ENDIF ELSE $
-      refssp = REFORM((*(*(*info).data).refsspscan)[$
-                LONG((*(*info).dataparams).xref),LONG((*(*info).dataparams).yref),*])
-    *(*(*info).data).refssp_cur = refssp
+  wheres = WHERE((*(*info).stokesparams).select_refsp EQ 1, count) 
+  IF ((count GT 0) AND ((*(*info).dispswitch).xyref_out_of_range EQ 0)) THEN BEGIN
+  	FOR i=0,TOTAL((*(*info).stokesparams).select_refsp)-1 DO BEGIN
+      IF ((*(*info).dataswitch).refspfile EQ 1) THEN BEGIN
+        sspidx = LONG((*(*info).dataparams).yref) * $
+                    (*(*info).dataparams).refnx * (*(*info).dataparams).refns + $
+                    LONG((*(*info).dataparams).xref) * $
+                    (*(*info).dataparams).refns + wheres[i]
+        refssp = ( ( *(*(*info).data).refspdata)[sspidx] ) 
+      ; If no spectral cube supplied, determine from image cube
+      ENDIF ELSE $
+        refssp = REFORM((*(*(*info).data).refsspscan)[$
+                  LONG((*(*info).dataparams).xref),$
+                  LONG((*(*info).dataparams).yref),$
+                  (wheres[i] * (*(*info).dataparams).refnlp):$
+                  ((wheres[i]+1) * (*(*info).dataparams).refnlp - 1)])
+      (*(*info).data).refssp_cur[i] = PTR_NEW(refssp)
+    ENDFOR
   ENDIF
 END
 
@@ -17920,7 +19132,7 @@ PRO CRISPEX_UPDATE_PHISLIT_COORDS, event, PHI_ANGLE=phi_angle
     y_pts_loc = REFORM((*(*(*info).phiparams).y_pts)[*,0])
     ; Convert to REFERENCE if displaying
     IF (*(*info).winswitch).showref THEN BEGIN
-      xyref = (*(*info).dataparams).pix_main2ref[*, x_pts_loc, y_pts_loc]
+      xyref = (*(*(*info).dataparams).pix_main2ref)[*, x_pts_loc, y_pts_loc]
       *(*(*info).phiparams).x_pts_ref = REFORM(xyref[0,*,0])
       *(*(*info).phiparams).y_pts_ref = REFORM(xyref[1,0,*])
     ENDIF
@@ -17986,8 +19198,6 @@ PRO CRISPEX_UPDATE_PHISLICE, event, NO_DRAW=no_draw
           (*(*info).scaling).histo_opt_val[disp_idx], $
             (*(*info).scaling).minimum[disp_idx],$
           (*(*info).scaling).maximum[disp_idx])
-          (*(*info).scaling).phislice_min[disp_idx] = minmax[0]
-          (*(*info).scaling).phislice_max[disp_idx] = minmax[1]
         ENDIF ELSE BEGIN
           IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN $
             minmax = [(*(*info).scaling).imagemin, (*(*info).scaling).imagemax] $
@@ -18088,8 +19298,8 @@ PRO CRISPEX_UPDATE_T, event
 	ENDIF
   ; Determine main image, in case the cube has a spectral dimension
 	IF ((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube THEN BEGIN
-    basecubeidx = (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * (*(*info).dataparams).ns+ $
-			            (*(*info).dataparams).s * (*(*info).dataparams).nlp
+    basecubeidx = (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * $
+      (*(*info).dataparams).ns+ (*(*info).dataparams).s * (*(*info).dataparams).nlp
 		*(*(*info).data).xyslice = (*(*(*info).data).imagedata)[$
       basecubeidx + (*(*info).dataparams).lp]
 		IF ((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) THEN $
@@ -18113,8 +19323,11 @@ PRO CRISPEX_UPDATE_T, event
 	ENDIF
   ; Determine reference image
 	IF ((*(*info).winswitch).showref OR (*(*info).winswitch).showimref) THEN BEGIN
-		IF (((*(*info).dataparams).refnlp GT 1) AND ((*(*info).dataparams).refnt GT 1)) THEN BEGIN
-      refidx = (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref
+		IF (((*(*info).dataparams).refnlp GT 1) AND $
+        ((*(*info).dataparams).refnt GT 1)) THEN BEGIN
+      refidx = (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp * $
+        (*(*info).dataparams).refns + (*(*info).dataparams).s_ref * $
+        (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref
       *(*(*info).data).refslice = (*(*(*info).data).refdata)[refidx]
 		ENDIF ELSE BEGIN
 			IF ((*(*info).dataparams).refnt EQ 0) THEN $
@@ -18122,15 +19335,20 @@ PRO CRISPEX_UPDATE_T, event
 			ELSE IF ((*(*info).dataparams).refnt EQ 1) THEN BEGIN
 				IF ((*(*info).dataparams).refnlp NE 1) THEN $
           *(*(*info).data).refslice = (*(*(*info).data).refdata)[$
+            (*(*info).dataparams).s_ref * (*(*info).dataparams).refnlp + $
             (*(*info).dataparams).lp_ref] $
 				ELSE $
           *(*(*info).data).refslice = (*(*(*info).data).refdata)[0]
-			ENDIF ELSE IF ((*(*info).dataparams).refnt EQ (*(*info).dataparams).nt) THEN BEGIN
+			ENDIF ELSE IF ((*(*info).dataparams).refnt EQ $
+                     (*(*info).dataparams).nt) THEN BEGIN
         *(*(*info).data).refslice = (*(*(*info).data).refdata)[$
-          (*(*info).dispparams).t_ref]
+          (*(*info).dispparams).t_ref * (*(*info).dataparams).refns + $
+          (*(*info).dataparams).s_ref]
 			ENDIF ELSE $
         *(*(*info).data).refslice = (*(*(*info).data).refdata)[$
-          (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref]
+          (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp * $
+          (*(*info).dataparams).refns + (*(*info).dataparams).s_ref * $
+          (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref]
 		ENDELSE
 	ENDIF
   ; Determine mask image
@@ -18459,16 +19677,17 @@ PRO CRISPEX_WINDOW, xsize, ysize, leader, title, base, wid, xoffset, yoffset, $
 	WIDGET_CONTROL, drawid, GET_VALUE = wid
 END
 
-PRO CRISPEX_WINDOW_OK, event, title, message1, OK_EVENT=ok_event, CANCEL_EVENT=cancel_event, $
-  CANCEL_LABEL=cancel_label, BASE=base, BLOCK=block, NO_SHOW_EVENT=no_show_event, $
+PRO CRISPEX_WINDOW_OK, event, title, message1, OK_EVENT=ok_event, $
+  CANCEL_EVENT=cancel_event, CANCEL_LABEL=cancel_label, BASE=base, $
+  BLOCK=block, NO_SHOW_EVENT=no_show_event, $
   NO_SHOW_CHOICES=no_show_choices, SET_CHOICE_IDX=set_choice_idx
 ; Sets up the message windows with only an OK-button
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	fulltitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+STRTRIM(title,2)
-	base = WIDGET_BASE(TITLE = fulltitle, GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, $
-    /TLB_KILL_REQUEST_EVENTS)
+	base = WIDGET_BASE(TITLE = fulltitle, GROUP_LEADER = (*(*info).winids).root, $
+    TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
 	disp = WIDGET_BASE(base, /COLUMN)
 	message_base = WIDGET_BASE(disp, /COLUMN)
   final_msg = CRISPEX_SPLIT_MSG(message1, 50) ; Set maximum width in characters to 50
@@ -18477,14 +19696,16 @@ PRO CRISPEX_WINDOW_OK, event, title, message1, OK_EVENT=ok_event, CANCEL_EVENT=c
   IF (N_ELEMENTS(NO_SHOW_EVENT) EQ 1) THEN BEGIN
     divider = CRISPEX_WIDGET_DIVIDER(disp)
     choice_base = WIDGET_BASE(disp, /ALIGN_CENTER)
-    choices = WIDGET_COMBOBOX(choice_base, VALUE=NO_SHOW_CHOICES, EVENT_PRO=NO_SHOW_EVENT)
+    choices = WIDGET_COMBOBOX(choice_base, VALUE=NO_SHOW_CHOICES, $
+      EVENT_PRO=NO_SHOW_EVENT)
     IF (N_ELEMENTS(SET_CHOICE_IDX) EQ 1) THEN $
       WIDGET_CONTROL, choices, SET_COMBOBOX_SELECT=set_choice_idx
   ENDIF
 	IF (N_ELEMENTS(CANCEL_EVENT) GT 0) THEN BEGIN
 		IF (N_ELEMENTS(CANCEL_LABEL) NE 1) THEN cancel_label = 'Cancel'
-		button_base = WIDGET_BASE(disp,COLUMN=2,/GRID_LAYOUT,/ALIGN_CENTER) 
-		cancel_but = WIDGET_BUTTON(button_base, VALUE = cancel_label, EVENT_PRO = cancel_event)
+		button_base = WIDGET_BASE(disp, COLUMN=2, /GRID_LAYOUT, /ALIGN_CENTER) 
+		cancel_but = WIDGET_BUTTON(button_base, VALUE=cancel_label, $
+      EVENT_PRO=cancel_event)
 	ENDIF ELSE button_base = WIDGET_BASE(disp,/ROW,/ALIGN_CENTER)
 	ok_but = WIDGET_BUTTON(button_base, VALUE = '   OK   ' , EVENT_PRO = ok_event)
 	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = 500, TLB_SET_YOFFSET = 500
@@ -18493,24 +19714,32 @@ PRO CRISPEX_WINDOW_OK, event, title, message1, OK_EVENT=ok_event, CANCEL_EVENT=c
 	XMANAGER, 'CRISPEX', base, NO_BLOCK=ABS(block-1)
 END
 
-PRO CRISPEX_WINDOW_USER_FEEDBACK, event, title, initial_feedback, close_button=close_button, session=session
+PRO CRISPEX_WINDOW_USER_FEEDBACK, event, title, initial_feedback, $
+  CLOSE_BUTTON=close_button, SESSION=session
 ; Sets up the message windows for user feedback 
-	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	WIDGET_CONTROL, event.TOP, GET_UVALUE=info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	fulltitle = 'CRISPEX'+(*(*info).sesparams).instance_label+': '+STRTRIM(title,2)
-	base = WIDGET_BASE(TITLE = fulltitle, GROUP_LEADER = (*(*info).winids).root, TLB_FRAME_ATTR = 1, /TLB_KILL_REQUEST_EVENTS)
+	base = WIDGET_BASE(TITLE=fulltitle, GROUP_LEADER=(*(*info).winids).root, $
+    XSIZE=(*(*info).winsizes).aboutwinx, TLB_FRAME_ATTR=1, /TLB_KILL_REQUEST_EVENTS)
 	disp = WIDGET_BASE(base, /COLUMN)
 	message_base = WIDGET_BASE(disp, /COLUMN)
-	(*(*info).ctrlsfeedb).feedback_text = WIDGET_LABEL(message_base, VALUE = initial_feedback, /ALIGN_LEFT, /DYNAMIC_RESIZE)
+	(*(*info).ctrlsfeedb).feedback_text = $
+    WIDGET_LABEL(message_base, VALUE=initial_feedback, /ALIGN_LEFT, /DYNAMIC_RESIZE)
 	IF KEYWORD_SET(close_button) THEN BEGIN
 		button_base = WIDGET_BASE(disp,/ROW,/ALIGN_CENTER)
-		(*(*info).ctrlsfeedb).close_button = WIDGET_BUTTON(button_base, VALUE = 'Close', EVENT_PRO = 'CRISPEX_WINDOW_USER_FEEDBACK_CLOSE', SENSITIVE = 0)
-	ENDIF ELSE empty_text = WIDGET_LABEL(message_base, VALUE = ' ')
-	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET = 500, TLB_SET_YOFFSET = 500
-	WIDGET_CONTROL, base, SET_UVALUE = info
+		(*(*info).ctrlsfeedb).close_button = $
+      WIDGET_BUTTON(button_base, VALUE='Close', $
+      EVENT_PRO='CRISPEX_WINDOW_USER_FEEDBACK_CLOSE', SENSITIVE=0)
+	ENDIF ELSE empty_text = WIDGET_LABEL(message_base, VALUE=' ')
+	WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET=500, TLB_SET_YOFFSET=500
+	WIDGET_CONTROL, base, SET_UVALUE=info
 	XMANAGER, 'CRISPEX', base, /NO_BLOCK
-	IF KEYWORD_SET(SESSION) THEN (*(*info).winids).restsesfeedbtlb = base ELSE (*(*info).winids).feedbacktlb = base
+	IF KEYWORD_SET(SESSION) THEN $
+    (*(*info).winids).restsesfeedbtlb = base $
+  ELSE $
+    (*(*info).winids).feedbacktlb = base
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [base], labels=['feedbacktlb']
 END
@@ -18697,8 +19926,8 @@ PRO CRISPEX_ZOOM_UPDATE_SLIDERS, event, cursor_x=cursor_x, cursor_y=cursor_y, $
   	WIDGET_CONTROL, (*(*info).ctrlsref).yrefpos_slider, SENSITIVE=sensitive[1],$
       SET_VALUE=(*(*info).zooming).yrefpos
     ; Get imrefblink boundaries
-    result = CRISPEX_GET_IMREF_BLINK_BOUNDS((*(*info).dataparams).pix_main2ref,$
-      (*(*info).dataparams).pix_ref2main, (*(*info).zooming).xpos, $
+    result = CRISPEX_GET_IMREF_BLINK_BOUNDS(*(*(*info).dataparams).pix_main2ref,$
+      *(*(*info).dataparams).pix_ref2main, (*(*info).zooming).xpos, $
       (*(*info).zooming).xpos+(*(*info).dataparams).d_nx, $
       (*(*info).zooming).ypos, $
       (*(*info).zooming).ypos+(*(*info).dataparams).d_ny, $
@@ -18860,8 +20089,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK,'CRISPEX has been compiled from: '+file_crispex
 
 ;========================= VERSION AND REVISION NUMBER
-  ; Version 1.7.1 (rev 774, cvs_rev 1.204) == version 1.7.1.0
-	base_version_number = '1.7.1'
+  ; Version 1.7.2 (rev 798, cvs_rev 1.228) == version 1.7.2.0
+	base_version_number = '1.7.2'
   
   ; Get revision number from CVS $Id
   id_string='; $Id$'
@@ -18873,7 +20102,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   revnr = 634+FIX(cvs_rev)-64             ; rev_nr=634, cvs_rev=64 when implemented
  
   ; Change rev_nr and cvs_rev below whenever changing base_versions_number!
-  subvnr = 652 + (FIX(cvs_rev)-82) - 774  ; rev_nr=652, cvs_rev=82 when implemented
+  subvnr = 652 + (FIX(cvs_rev)-82) - 798  ; rev_nr=652, cvs_rev=82 when implemented
   
   ; Convert revision and version numbers to strings
   revision_number = STRTRIM(revnr,2)   
@@ -19068,15 +20297,18 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	ENDIF
 
 ;========================= READ-IN AND INITIALISATION OF FILES
-  ; N.B.: After CRISPEX v1.6.3 FITS cubes have become the standard. Old read-in procedures 
-  ; are retained in compatibility for older cubes. Differentiation is performed based on filename
-  ; extension, where FITS cubes are assumed to have a *.fits extension (case insensitive).
-  IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, 'Reading input files... '
+  ; N.B.: After CRISPEX v1.6.3 FITS cubes have become the standard. Old read-in
+  ; procedures are retained in compatibility for older cubes. Differentiation is
+  ; performed based on filename extension, where FITS cubes are assumed to have a
+  ; *.fits extension (case insensitive).
+  IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, $
+    'Reading input files... '
   IF ((BYTE(1L,0,1))[0] EQ 1) THEN endian = 'l' ELSE endian = 'b' ; Check endianness of machine
   dt_keyword_set = (N_ELEMENTS(DT) EQ 1) 
   IF (dt_keyword_set EQ 0) THEN dt = 0.
   
-  ; Handle input file headers by parsing them into the hdr structure; first initialise hdr
+  ; Handle input file headers by parsing them into the hdr structure; 
+  ; first initialise hdr
   hdr = {$
             ; Data types
             imtype:0, sptype:0, refimtype:0, refsptype:0, sjitype:0, $
@@ -19091,11 +20323,12 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
             ; Compatibility switches
             imcube_compatibility:0B, spcube_compatibility:0B, $
             refimcube_compatibility:0B, refspcube_compatibility:0B, $
-            maskcube_compatibility:0B, multichannel:0B, $
+            maskcube_compatibility:0B, multichannel:0B, refmultichannel:0B, $
             ; Data dimensions
             nx:0L, ny:0L, nlp:1L, mainnt:1L, ns:1L, imnt:0L, spnt:0L, imns:0L, $
             spns:0L, $ 
-            refnx:0L, refny:0L, refnlp:0L, refnt:0L, refns:0L, refimnt:0L, $
+            refnx:0L, refny:0L, refnlp:0L, refnt:0L, refns:1L, refimnt:0L, $
+            refimns:0L, refspns:0L, $
             refspnt:0L, refspnx:0L, refspny:0L, sjinx:0L, sjiny:0L, sjint:1L, $
             masknx:0L, maskny:0L, masknt:0L, $
             ; Spatial reference values
@@ -19118,9 +20351,11 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
             xtitle:STRARR(2), ytitle:STRARR(2), refspxtitle:'', spxtitle:'', $
             spytitle:'', $
             ; Stokes and diagnostics parameters
-            imstokes:'', spstokes:'', imdiagnostics:'', $
-            stokes_enabled:[0,0,0,0], scalestokes_max:0, ndiagnostics:1, $
-            nrefdiagnostics:1, $
+            imstokes:'', spstokes:'', refimstokes:'', refspstokes:'', $
+            imdiagnostics:'', $
+            stokes_enabled:[0,0,0,0], scalestokes_max:0, $
+            refstokes_enabled:[0,0,0,0], refscalestokes_max:0, $
+            ndiagnostics:1, nrefdiagnostics:1, $
             ; File units
             lunim:0, lunsp:0, lunrefim:0, lunrefsp:0, lunsji:0, lunmask:0, $
             ; File names
@@ -19258,8 +20493,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	feedback_text = ['Setting start-up options... ','> Parameters from/for mean spectrum... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 	detspect_scale_enable = (hdr.nlp GT 1)
-	detspect_scale = (hdr.nlp GT 1)
-	ref_detspect_scale = (hdr.refnlp GT 1)
+	detspect_scale = 1      ; Default regardless of spectral info or not
+	ref_detspect_scale = 1  ; Default regardless of spectral info or not 
 
 	scalestokes = (N_ELEMENTS(SCALE_STOKES) EQ 1) 
 	IF (N_ELEMENTS(SCALE_STOKES) GT 1) THEN $
@@ -19267,34 +20502,41 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
            'number! Reverting to standard scaling.'
 
   ; Set final XTITLE and YTITLE variables for LS and SP windows
-	IF (N_ELEMENTS(XTITLE) EQ 1) THEN BEGIN         ; Check whether XTITLE has 1 element
-    IF (N_ELEMENTS(REFXTITLE) EQ 1) THEN $        ; Check whether REFXTITLE has 1 element
-      hdr.xtitle = [xtitle[0],refxtitle[0]] $     ; If so, fill xtitle variable with both
-    ELSE $                                        ; Else, fill xtitle variable only with main
+	IF (N_ELEMENTS(XTITLE) EQ 1) THEN BEGIN         
+    IF (N_ELEMENTS(REFXTITLE) EQ 1) THEN $        
+      ; If both main and reference xtitle given, use them
+      hdr.xtitle = [xtitle[0],refxtitle[0]] $     
+    ELSE $                                        
+      ; Else, fill xtitle variable only with main
       hdr.xtitle = [xtitle[0],''] 
-  ENDIF ELSE IF (N_ELEMENTS(XTITLE) EQ 2) THEN $  ; Check whether XTITLE has 2 elements
-    hdr.xtitle = xtitle $                         ; If so, use that
-  ELSE IF (N_ELEMENTS(REFXTITLE) EQ 1) THEN $     ; If not, check whether REFXTITLE has 1 element
-    hdr.xtitle = ['',refxtitle[0]]                ; If so, set 2nd xtitle element to that
-	IF (N_ELEMENTS(YTITLE) EQ 1) THEN BEGIN         ; Check whether YTITLE has 1 element
-    IF (N_ELEMENTS(REFYTITLE) EQ 1) THEN $        ; Check whether REFYTITLE has 1 element
-      hdr.ytitle = [ytitle[0],refytitle[0]] $     ; If so, fill ytitle variable with both
-    ELSE $                                        ; Else, fill ytitle variable only with main
+  ENDIF ELSE IF (N_ELEMENTS(XTITLE) EQ 2) THEN $  
+    ; If xtitle keyword provided with 2 elements, use them
+    hdr.xtitle = xtitle $                         
+  ELSE IF (N_ELEMENTS(REFXTITLE) EQ 1) THEN $     
+    ; If REFXTITLE provided, use that one
+    hdr.xtitle = ['',refxtitle[0]]                
+  ; Repeat procedure for YTITLE/REFYTITLE
+	IF (N_ELEMENTS(YTITLE) EQ 1) THEN BEGIN         
+    IF (N_ELEMENTS(REFYTITLE) EQ 1) THEN $        
+      hdr.ytitle = [ytitle[0],refytitle[0]] $     
+    ELSE $                                        
       hdr.ytitle = [ytitle[0],''] 
-  ENDIF ELSE IF (N_ELEMENTS(YTITLE) EQ 2) THEN $  ; Check whether YTITLE has 2 elements
-    hdr.ytitle = ytitle $                         ; If so, use that
-  ELSE IF (N_ELEMENTS(REFYTITLE) EQ 1) THEN $     ; If not, check whether REFYTITLE has 1 element
-    hdr.ytitle = ['',refytitle[0]]                ; If so, set 2nd ytitle element to that
+  ENDIF ELSE IF (N_ELEMENTS(YTITLE) EQ 2) THEN $  
+    hdr.ytitle = ytitle $                         
+  ELSE IF (N_ELEMENTS(REFYTITLE) EQ 1) THEN $     
+    hdr.ytitle = ['',refytitle[0]]                
   
-  CRISPEX_IO_SETTINGS_SPECTRAL, HDR_IN=hdr, HDR_OUT=hdr, MNSPEC=mnspec, SPECTFILE=spectfile,$
-                                LINE_CENTER=line_center, NO_WARP=no_warp, STARTUPTLB=startuptlb, $
-                                IO_FAILSAFE_MNSPEC_ERROR=io_failsafe_mnspec_error, $
-                                IO_FAILSAFE_IMSPECTFILE_ERROR=io_failsafe_imspectfile_error, $
-                                IO_FAILSAFE_REFSPECTFILE_ERROR=io_failsafe_refspectfile_error, $
-                                IO_FAILSAFE_LINE_CENTER_ERROR=io_failsafe_line_center_error
+  CRISPEX_IO_SETTINGS_SPECTRAL, HDR_IN=hdr, HDR_OUT=hdr, $
+    /MAIN, REFERENCE=(hdr.refnlp GT 1), MNSPEC=mnspec, $
+    SPECTFILE=spectfile, LINE_CENTER=line_center, NO_WARP=no_warp, $
+    STARTUPTLB=startuptlb, IO_FAILSAFE_MNSPEC_ERROR=io_failsafe_mnspec_error, $
+    IO_FAILSAFE_IMSPECTFILE_ERROR=io_failsafe_imspectfile_error, $
+    IO_FAILSAFE_REFSPECTFILE_ERROR=io_failsafe_refspectfile_error, $
+    IO_FAILSAFE_LINE_CENTER_ERROR=io_failsafe_line_center_error
 
   IF ((io_failsafe_mnspec_error EQ 1) OR (io_failsafe_imspectfile_error EQ 1) OR $
-      (io_failsafe_refspectfile_error EQ 1) OR (io_failsafe_line_center_error EQ 1)) THEN BEGIN
+      (io_failsafe_refspectfile_error EQ 1) OR $
+      (io_failsafe_line_center_error EQ 1)) THEN BEGIN
     CRISPEX_CLOSE_FREE_LUN, hdr.lunim, hdr.lunsp, hdr.lunrefim, hdr.lunrefsp, $
       hdr.lunmask, hdr.lunsji, IMDISP=(hdr.lunim NE 0), SPDISP=(hdr.lunsp NE 0), $
       REFIMDISP=(hdr.lunrefim NE 0), REFSPDISP=(hdr.lunrefsp NE 0), $
@@ -19513,60 +20755,11 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   ENDELSE
 
   IF (hdr.showref AND (hdr.refnlp GT 1) AND (refsinglewav_windows EQ 0)) THEN BEGIN
-    IF (refheightset EQ 0) THEN BEGIN
-      FOR dd=0,hdr.nrefdiagnostics-1 DO BEGIN
-        abs_vdop = ABS(*hdr.v_dop_ref[dd])
-        IF (abs_vdop[0] NE 0) THEN BEGIN
-          maxvdop_loc = MAX(abs_vdop[WHERE(abs_vdop NE MIN(abs_vdop,/NAN))],$
-            MIN=minvdop_loc, SUBSCRIPT_MIN=wheremin, /NAN)
-          min_sub_low = wheremin>0
-          min_sub_upp = (min_sub_low+2)<(hdr.refnlp-1)
-        ENDIF ELSE BEGIN
-          min_sub_low = N_ELEMENTS(*hdr.v_dop_ref[dd])-2
-          min_sub_upp = 1
-        ENDELSE
-        IF (dd EQ 0) THEN BEGIN
-          v_dop_ref_low_min = (*hdr.v_dop_ref[dd])[0]
-          v_dop_ref_low_max = (*hdr.v_dop_ref[dd])[min_sub_low]
-          v_dop_ref_upp_min = (*hdr.v_dop_ref[dd])[min_sub_upp]
-          v_dop_ref_upp_max = (*hdr.v_dop_ref[dd])[$
-                                N_ELEMENTS(*hdr.v_dop_ref[dd])-1]
-        ENDIF ELSE BEGIN
-          v_dop_ref_low_min = [v_dop_ref_low_min, (*hdr.v_dop_ref[dd])[0]]
-          v_dop_ref_low_max = [v_dop_ref_low_max, (*hdr.v_dop_ref[dd])[min_sub_low]]
-          v_dop_ref_upp_min = [v_dop_ref_upp_min, (*hdr.v_dop_ref[dd])[min_sub_upp]]
-          v_dop_ref_upp_max = [v_dop_ref_upp_max, $
-            (*hdr.v_dop_ref[dd])[N_ELEMENTS(*hdr.v_dop_ref[dd])-1]]
-        ENDELSE
-      ENDFOR
-    ENDIF ELSE BEGIN
-      ; If heightset (and thus v_dop_set = 0), use lps instead
-      FOR dd=0,hdr.nrefdiagnostics-1 DO BEGIN
-        v_dop_ref_low_min_tmp = hdr.reflps[hdr.refdiag_start[dd]]
-        v_dop_ref_low_max_tmp = hdr.reflps[hdr.refdiag_start[dd]+hdr.refdiag_width[dd]-2]
-        v_dop_ref_upp_min_tmp = hdr.reflps[hdr.refdiag_start[dd]+1] 
-        v_dop_ref_upp_max_tmp = hdr.reflps[hdr.refdiag_start[dd]+hdr.refdiag_width[dd]-1]
-        IF (dd EQ 0) THEN BEGIN
-          v_dop_ref_low_min = v_dop_ref_low_min_tmp
-          v_dop_ref_low_max = v_dop_ref_low_max_tmp
-          v_dop_ref_upp_min = v_dop_ref_upp_min_tmp
-          v_dop_ref_upp_max = v_dop_ref_upp_max_tmp
-        ENDIF ELSE BEGIN
-          v_dop_ref_low_min = [v_dop_ref_low_min, v_dop_ref_low_min_tmp]
-          v_dop_ref_low_max = [v_dop_ref_low_max, v_dop_ref_low_max_tmp]
-          v_dop_ref_upp_min = [v_dop_ref_upp_min, v_dop_ref_upp_min_tmp]
-          v_dop_ref_upp_max = [v_dop_ref_upp_max, v_dop_ref_upp_max_tmp]
-        ENDELSE
-      ENDFOR
-    ENDELSE
-    v_dop_ref_low_min = FLOOR(MIN(v_dop_ref_low_min,/NAN))
-    v_dop_ref_low_max = FLOOR(MIN(v_dop_ref_low_max,/NAN))
-    v_dop_ref_upp_min = CEIL(MAX(v_dop_ref_upp_min,/NAN))
-    v_dop_ref_upp_max = CEIL(MAX(v_dop_ref_upp_max,/NAN))
-    IF (v_dop_ref_low_min EQ v_dop_ref_low_max) THEN $
-      v_dop_ref_low_min -= 1
-    IF (v_dop_ref_upp_min EQ v_dop_ref_upp_max) THEN $
-      v_dop_ref_upp_max += 1
+    CRISPEX_IO_PARSE_VDOP, hdr, refheightset, result, /REFERENCE
+    v_dop_ref_low_min = result.v_dop_low_min
+    v_dop_ref_low_max = result.v_dop_low_max
+    v_dop_ref_upp_min = result.v_dop_upp_min
+    v_dop_ref_upp_max = result.v_dop_upp_max
   ENDIF ELSE BEGIN
     v_dop_ref_low_min = 0
     v_dop_ref_low_max = 1
@@ -19791,30 +20984,19 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 
   ; ==================== Main detailed spectrum window ====================
   ; Set detailed spectrum window parameters
-	lswinx 		= lspx_factor * x_scr_size											; Set maximum x-extent of loc spec win
+  ; Set maximum x-extent of loc spec win
+	lswinx 		= lspx_factor * x_scr_size											
 	lsmargin 	= 0.12
 	lswall 		= 0.03
 	lswintitle	= ['Detailed spectrum','Height distribution']
 	xsize 		= 1.*lswinx
-  ; Determine number of panels for detailed spectrum window
-	IF (hdr.ns LE 2) THEN BEGIN
-		npanels = hdr.ns	&	cols = hdr.ns	&	rowarr = REPLICATE(0,hdr.ns)
-	ENDIF ELSE BEGIN
-		npanels = 4	&	cols = 2	&	rowarr = [1,1,0,0]
-	ENDELSE
-	rows = CEIL(npanels / FLOAT(cols))
-  ; Determine plot width and height, and consequent window height
-	lswidth = (1. - (cols*lsmargin + lswall))/FLOAT(cols)
-	lsheight = lswidth * 2D / (1 + SQRT(5))
-	IF (hdr.v_dop_set[0] EQ 1) THEN $
-    lswiny = (lsmargin + rows*lsheight + rows*lsmargin + (rows-1)*lswall) * lswinx $
-  ELSE $
-    lswiny = (lswall + rows*lsheight + rows*lsmargin) * lswinx
-  ; Determine plot positions
-	lsx0 		= lsmargin + (INDGEN(npanels) MOD cols) * (lswidth + lsmargin) 
-	lsx1 		= lsx0 + lswidth 
-	lsy0 		= (lsmargin + rowarr * (lsheight + lsmargin + hdr.v_dop_set[0]*lswall)) * lswinx/lswiny
-	lsy1 		= lsy0 + lsheight * lswinx/lswiny
+  plotpos = CRISPEX_GET_PLOTPOS(hdr.ns, lswinx, lsmargin, lswall, $
+              V_DOP_SET=(hdr.v_dop_set[0] EQ 1))
+  lsx0 = plotpos.x0 & lsx1 = plotpos.x1
+  lsy0 = plotpos.y0 & lsy1 = plotpos.y1
+  lswidth = plotpos.width
+  lsheight = plotpos.height
+  lswiny = plotpos.winy
   ; Determine default margin, wall and tickmark length 
 	lsxmargin_init	= lsmargin * lswinx
 	lsxwall_init	= lswall * lswinx
@@ -19825,18 +21007,13 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   ; Set reference spectrum window parameters
 	reflswintitle	= ['Reference detailed spectrum','Reference height distribution']
 	reflswinx	= lswinx
-  ; Determine plot width and height, and consequent window height
-	reflswidth 	= (xsize/lswinx - (lsmargin + lswall))
-	reflsheight 	= reflswidth * 2D / (1 + SQRT(5))
-	IF (hdr.v_dop_set[1] EQ 1) THEN $
-    reflswiny = (lsmargin + reflsheight + lsmargin) * lswinx $
-  ELSE $
-    reflswiny = (lsmargin + reflsheight + lswall) * lswinx
-  ; Determine plot positions
-	reflsx0 	= lsmargin 
-	reflsx1 	= reflsx0 + reflswidth 
-	reflsy0 	= lsmargin * reflswinx/reflswiny
-	reflsy1 	= reflsy0 + reflsheight * reflswinx/reflswiny
+  plotpos = CRISPEX_GET_PLOTPOS(hdr.refns, lswinx, lsmargin, lswall, $
+              V_DOP_SET=(hdr.v_dop_set[1] EQ 1))
+  reflsx0 = plotpos.x0  & reflsx1 = plotpos.x1
+  reflsy0 = plotpos.y0  & reflsy1 = plotpos.y1
+  reflswidth = plotpos.width
+  reflsheight = plotpos.height
+  reflswiny = plotpos.winy
   ; Determine default margin, wall and tickmark length 
 	reflsxmargin_init= lsmargin * reflswinx
 	reflsxwall_init	= lswall * reflswinx
@@ -19916,7 +21093,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	refspwiny	= spwiny 
 	refspwintitle	= ['Reference spectral T-slice','Reference height T-slice']
   ; Determine plot width and height
-	IF (hdr.v_dop_set[1] EQ 1) THEN $
+	IF ((hdr.v_dop_set[1] EQ 1) OR (hdr.refns GT 1)) THEN $
     refspheight = (1. - (spmargin * 2.) * spwinx/spwiny) $
   ELSE $
     refspheight = (1. - (spmargin + spwall) * spwinx/spwiny)
@@ -20094,7 +21271,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
           (hdr.diag_start[d]+(hdr.diag_width[d]-1)),j]+$
           scfactor*imsdev[hdr.diag_start[d]:(hdr.diag_start[d]+$
           (hdr.diag_width[d]-1)),j])/hdr.ms[j], /NAN)
-      main_mult_val[*,j] = ls_upp_y[j] / ls_upp_tmp
+      main_mult_val[*,j] = ls_upp_y[j] / ls_upp_tmp[*,j]
     ENDFOR
   ENDIF ELSE main_mult_val = REPLICATE(1.,hdr.ns)
 	ls_low_y = PTR_NEW(ls_low_y,/NO_COPY)
@@ -20103,60 +21280,23 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	int_low_y = PTR_NEW(int_low_y,/NO_COPY)
 	int_upp_y = PTR_NEW(int_upp_y,/NO_COPY)
 
-	ls_low_y_ref = 0
-	ls_upp_y_ref = 0
-  ls_yrange_ref = 0
-	IF hdr.showref THEN BEGIN
-		IF (hdr.refnt EQ 0) THEN BEGIN
-      temp_refimage = *hdr.refdata
-			refmean = MEAN(temp_refimage, /NAN)
-			temp_refimage = IRIS_HISTO_OPT(temp_refimage,histo_opt_val, $
-        MISSING=-32768, /SILENT)
-			refmin = MIN(temp_refimage, MAX=refmax, /NAN)
-			refsdev = STDDEV(temp_refimage, /NAN)
-		ENDIF ELSE IF (((hdr.refnt EQ 1) OR $
-      (hdr.refnt EQ hdr.mainnt)) AND (hdr.refnlp EQ 1)) THEN BEGIN
-      temp_refimage = (*hdr.refdata)[0]
-			refmean = MEAN(temp_refimage, /NAN)
-			temp_refimage = IRIS_HISTO_OPT(temp_refimage,histo_opt_val, $
-        MISSING=-32768, /SILENT)
-			refmin = MIN(temp_refimage, MAX=refmax, /NAN)
-			refsdev = STDDEV(temp_refimage, /NAN)
-		ENDIF ELSE BEGIN
-			refmin = FLTARR(hdr.refnlp)
-			refmax = FLTARR(hdr.refnlp)
-			refmean = FLTARR(hdr.refnlp)
-			refsdev = FLTARR(hdr.refnlp)
-			FOR lp=0,hdr.refnlp-1 DO BEGIN
-				temp_refimage = (*hdr.refdata)[lp]
-				refmean[lp] = MEAN(temp_refimage, /NAN)
-  			temp_refimage = IRIS_HISTO_OPT(temp_refimage,histo_opt_val, $
-          MISSING=-32768, /SILENT)
-				refsdev[lp] = STDDEV(temp_refimage, /NAN)
-				refmin[lp] = MIN(temp_refimage, MAX=max_val, /NAN)
-				refmax[lp] = max_val
-			ENDFOR
-		ENDELSE
-		IF showrefls THEN BEGIN
-			ls_low_y_ref = MIN((refmean-scfactor*refsdev)/hdr.refms, /NAN)
-			ls_upp_y_ref = MAX((refmean+scfactor*refsdev)/hdr.refms, /NAN)
-	    ls_yrange_ref = ls_upp_y_ref - ls_low_y_ref 
-		ENDIF 
-    IF (hdr.nrefdiagnostics GT 1) THEN BEGIN
-      ; Determine multiplicative factors
-      ls_upp_tmp = FLTARR(hdr.nrefdiagnostics, /NOZERO)
-      FOR d=0,hdr.nrefdiagnostics-1 DO $
-        ls_upp_tmp[d]=MAX((refmean[hdr.refdiag_start[d]:$
-          (hdr.refdiag_start[d]+(hdr.refdiag_width[d]-1))]+$
-          scfactor*refsdev[hdr.refdiag_start[d]:(hdr.refdiag_start[d]+$
-          (hdr.refdiag_width[d]-1))])/hdr.refms, /NAN)
-      ref_mult_val = ls_upp_y_ref / ls_upp_tmp
-    ENDIF ELSE ref_mult_val = 1.
-	ENDIF ELSE BEGIN
-		refmin = 0
-		refmax = 0
-    ref_mult_val = 0
-	ENDELSE
+  IF hdr.showref THEN BEGIN
+    CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, /REFERENCE, $
+      SCALESTOKES=scalestokes, SHOWLS=showrefls
+    ls_low_y_ref = PTR_NEW(result.ls_low_y, /NO_COPY)
+    ls_upp_y_ref = PTR_NEW(result.ls_upp_y, /NO_COPY)
+    ls_yrange_ref = PTR_NEW(result.ls_yrange, /NO_COPY)
+    ref_mult_val = result.mult_val
+    refmin = result.immin
+    refmax = result.immax
+  ENDIF ELSE BEGIN
+    ls_low_y_ref = PTR_NEW(0.)
+    ls_upp_y_ref = PTR_NEW(0.)
+    ls_yrange_ref = PTR_NEW(0.)
+    ref_mult_val = 0.
+    refmin = 0.
+    refmax = 0.
+  ENDELSE
 
   sjidata_tmp = (*hdr.sjidata)[0]
   ; If SJI data is scaled integer, descale and convert to float
@@ -20354,8 +21494,15 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   ; Submenus in menu bar
   ; File
 	filemenu		        = WIDGET_BUTTON(menubar, VALUE='File', /MENU, UVALUE='file')
-  openmenu            = WIDGET_BUTTON(filemenu, VALUE = 'Open', /MENU)
-  opensji             = WIDGET_BUTTON(openmenu, VALUE = 'Slit-jaw image...', $
+  openmenu            = WIDGET_BUTTON(filemenu, VALUE = 'Open', /MENU, $
+                          /SENSITIVE)
+  openrefim           = WIDGET_BUTTON(openmenu, VALUE='Reference image cube...', $
+                          EVENT_PRO='CRISPEX_IO_OPEN_REFCUBE', $
+                          /SENSITIVE)
+  openrefimsp         = WIDGET_BUTTON(openmenu, VALUE='Reference image and spectral cube...', $
+                          EVENT_PRO='CRISPEX_IO_OPEN_REFCUBE', $
+                          /SENSITIVE)
+  opensji             = WIDGET_BUTTON(openmenu, VALUE='Slit-jaw image cube...', $
                           EVENT_PRO='CRISPEX_IO_OPEN_SJICUBE', $
                           SENSITIVE=(hdr.imcube_compatibility EQ 0))
   header_button       = WIDGET_BUTTON(filemenu, VALUE='Show file header(s)', $
@@ -20720,71 +21867,88 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	zoom_frame		      = WIDGET_BASE(spatial_tab, /ROW)
 	zoom_label		      = WIDGET_LABEL(zoom_frame, VALUE = 'Zoom:', /ALIGN_LEFT)
 	zoom_but_field      = WIDGET_BASE(zoom_frame, /ROW )
-	zoom_buts	          = CW_BGROUP(zoom_but_field,STRTRIM(FIX(zoomfactors),2)+REPLICATE('x',$
-                          N_ELEMENTS(zoomfactors)), BUTTON_UVALUE=INDGEN(N_ELEMENTS(zoomfactors)), $
+	zoom_buts	          = CW_BGROUP(zoom_but_field,STRTRIM(FIX(zoomfactors),2)+$
+                          REPLICATE('x',N_ELEMENTS(zoomfactors)), $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(zoomfactors)), $
                           IDS=zoom_button_ids,/EXCLUSIVE, /ROW, $
                           EVENT_FUNC = 'CRISPEX_BGROUP_ZOOMFAC_SET')
   spatial_divider2    = CRISPEX_WIDGET_DIVIDER(spatial_tab)
 
   ; ==================== Diagnostics Tab ====================
   ; Stokes part
-	stokes_disp_label		= WIDGET_LABEL(diagnostics_tab, VALUE = 'Stokes parameter:', /ALIGN_LEFT)
-	stokes_main			    = WIDGET_BASE(diagnostics_tab, /ROW)
-	stokes_main_label		= WIDGET_LABEL(stokes_main, VALUE = 'Main image:',/ALIGN_LEFT)
-	stokes_xy_but_field = WIDGET_BASE(stokes_main, /ROW )
+  stokes_dispsel_base = WIDGET_BASE(diagnostics_tab, /ROW)
+	stokes_disp_label		= WIDGET_LABEL(stokes_dispsel_base, $
+                          VALUE='Stokes parameter:', /ALIGN_LEFT)
+  stokes_mainref_sel  = CW_BGROUP(stokes_dispsel_base, ['Main','Reference'], $
+                          IDS=stokes_mainref_ids, /EXCLUSIVE, /ROW, $
+                          EVENT_FUNC='CRISPEX_BGROUP_STOKES_SELECT_IMREF', $
+                          /NO_RELEASE)
+  stokes_button_sub   = WIDGET_BASE(diagnostics_tab, /GRID_LAYOUT, COLUMN=2)
+  stokes_imbase       = WIDGET_BASE(stokes_button_sub, /COLUMN, $
+                          XSIZE=FLOOR((tab_width+extra_pad+3*pad)/2.1))
+  stokes_lsbase       = WIDGET_BASE(stokes_button_sub, /COLUMN)
+	stokes_main_label		= WIDGET_LABEL(stokes_imbase, VALUE = 'Image:',$
+                          /ALIGN_LEFT)
   stokes_button_labels= ['I','Q','U','V']
-  stokes_xy_buts      = CW_BGROUP(stokes_xy_but_field, stokes_button_labels, $
-                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), IDS=stokes_button_ids,$
-                          /EXCLUSIVE, /ROW, EVENT_FUNC = 'CRISPEX_BGROUP_STOKES_SELECT_XY')
-	stokes_sp			      = WIDGET_BASE(diagnostics_tab, /ROW)
-	stokes_sp_label		  = WIDGET_LABEL(stokes_sp, VALUE = 'Detailed spectra:',/ALIGN_LEFT)
-  stokes_sp_buts      = CW_BGROUP(stokes_sp, stokes_button_labels, $
+  stokes_xy_buts      = CW_BGROUP(stokes_imbase, stokes_button_labels, $
+                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)),$
+                          IDS=stokes_button_ids, /EXCLUSIVE, /ROW, $
+                          EVENT_FUNC='CRISPEX_BGROUP_STOKES_SELECT_XY', $
+                          /NO_RELEASE)
+	stokes_sp_label		  = WIDGET_LABEL(stokes_lsbase, VALUE='Detailed spectra:',$
+                          /ALIGN_LEFT)
+  stokes_sp_buts      = CW_BGROUP(stokes_lsbase, stokes_button_labels, $
                           BUTTON_UVALUE=INDGEN(N_ELEMENTS(stokes_button_labels)), $
                           IDS=stokes_spbutton_ids, /NONEXCLUSIVE, /ROW, $
                           EVENT_FUNC = 'CRISPEX_BGROUP_STOKES_SELECT_SP')
   diagnostics_divider1= CRISPEX_WIDGET_DIVIDER(diagnostics_tab)
   ; Setting Stokes buttons
 	spconstraint		= (hdr.nlp GT 1)
+  FOR i=0,N_ELEMENTS(stokes_mainref_ids)-1 DO $
+    WIDGET_CONTROL, stokes_mainref_ids[i], $
+      SENSITIVE=([hdr.multichannel,hdr.refmultichannel])[i], $
+      SET_BUTTON=(i EQ 0)
   FOR i=0,N_ELEMENTS(stokes_button_labels)-1 DO BEGIN
-    WIDGET_CONTROL, stokes_button_ids[i], SENSITIVE=hdr.stokes_enabled[i], SET_BUTTON=(i EQ 0)
+    WIDGET_CONTROL, stokes_button_ids[i], SENSITIVE=hdr.stokes_enabled[i], $
+      SET_BUTTON=(i EQ 0)
     IF (hdr.multichannel OR (i GT 0)) THEN $
       set_constraint = (spconstraint AND hdr.stokes_enabled[i]) $
     ELSE $
       set_constraint = spconstraint
-    WIDGET_CONTROL, stokes_spbutton_ids[i], SENSITIVE=(spconstraint AND hdr.stokes_enabled[i]), $
+    WIDGET_CONTROL, stokes_spbutton_ids[i], $
+      SENSITIVE=(spconstraint AND hdr.stokes_enabled[i]), $
       SET_BUTTON=set_constraint
   ENDFOR
   ; Spectral window part
-  specwin_disp_label  = WIDGET_LABEL(diagnostics_tab, VALUE = 'Spectral windows:', /ALIGN_LEFT)
-  specwin_sub_frame   = WIDGET_BASE(diagnostics_tab, /GRID_LAYOUT, COLUMN=2)
-  main_select_base    = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME, $
-                          Y_SCROLL_SIZE=(hdr.ndiagnostics GT 1)*200, $
-                          X_SCROLL_SIZE=FLOOR((tab_width+extra_pad+3*pad)/2.5))
-	main_specwin_label  = WIDGET_LABEL(main_select_base, VALUE = 'Main:', /ALIGN_LEFT)
+  specwin_disp_label  = WIDGET_LABEL(diagnostics_tab, $
+                          VALUE='Spectral windows:', /ALIGN_LEFT)
+  main_select_base    = WIDGET_BASE(diagnostics_tab,/COLUMN,$
+                          XSIZE=tab_width+5*pad)
+	main_specwin_label  = WIDGET_LABEL(main_select_base, $
+                          VALUE='Main: Displaying all', /ALIGN_LEFT, $
+                          /DYNAMIC_RESIZE)
   IF (hdr.ndiagnostics GT 1) THEN $
-    vals = ['Display all',hdr.diagnostics] $
+    vals = ['Display all',REPLICATE('Hide ',hdr.ndiagnostics)+hdr.diagnostics] $
   ELSE $
-    vals = 'Display all'
-  specwin_buts        = CW_BGROUP(main_select_base, vals, $
-                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(vals)), IDS=specwin_button_ids, $
-                          /NONEXCLUSIVE, /COLUMN, EVENT_FUNC='CRISPEX_BGROUP_DIAGNOSTICS_SELECT')
-  FOR i=0,N_ELEMENTS(vals)-1 DO $
-    WIDGET_CONTROL, specwin_button_ids[i], SENSITIVE=(i GT 0), /SET_BUTTON
-  ref_select_base     = WIDGET_BASE(specwin_sub_frame,/COLUMN,/FRAME, $
-                          Y_SCROLL_SIZE=(hdr.nrefdiagnostics GT 1)*200, $
-                          X_SCROLL_SIZE=FLOOR(tab_width/2.5))
-	ref_specwin_label   = WIDGET_LABEL(ref_select_base, VALUE = 'Reference:', /ALIGN_LEFT)
+    vals = 'N/A'
+  specwin_cbox        = WIDGET_COMBOBOX(main_select_base, VALUE=vals, $
+                          EVENT_PRO='CRISPEX_DIAGNOSTICS_SELECT', $
+                          SENSITIVE=(hdr.ndiagnostics GT 1))
   IF (hdr.nrefdiagnostics GT 1) THEN $
-    vals = ['Display all',hdr.refdiagnostics] $
-  ELSE IF hdr.showref THEN $
-    vals = 'Display all' $
+    vals = ['Display all', REPLICATE('Hide ',hdr.nrefdiagnostics)+$
+            hdr.refdiagnostics] $
   ELSE $
-    vals = 'N/A        '
-  refspecwin_buts     = CW_BGROUP(ref_select_base, vals, $
-                          BUTTON_UVALUE=INDGEN(N_ELEMENTS(vals)), IDS=refspecwin_button_ids, $
-                          /NONEXCLUSIVE, /COLUMN, EVENT_FUNC='CRISPEX_BGROUP_REFDIAGNOSTICS_SELECT')
-  FOR i=0,N_ELEMENTS(vals)-1 DO $
-    WIDGET_CONTROL, refspecwin_button_ids[i], SENSITIVE=(i GT 0), /SET_BUTTON
+    vals = 'N/A'
+  IF (hdr.showref) THEN $
+    label_text = 'Display all' $
+  ELSE $
+    label_text = 'N/A'
+	ref_specwin_label   = WIDGET_LABEL(main_select_base, $
+                          VALUE='Reference: '+label_text, /ALIGN_LEFT, $
+                          /DYNAMIC_RESIZE)
+  ref_specwin_cbox    = WIDGET_COMBOBOX(main_select_base, VALUE=vals, $
+                          EVENT_PRO='CRISPEX_REFDIAGNOSTICS_SELECT', $
+                          SENSITIVE=(hdr.nrefdiagnostics GT 1))
   diagnostics_divider2= CRISPEX_WIDGET_DIVIDER(diagnostics_tab)
 
   ; ==================== Displays Tab ====================
@@ -21140,9 +22304,9 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
         refycoord_real_format = ''
       ENDELSE
 		  refxycoord_val = WIDGET_LABEL(params_ref_base, VALUE=refcoord_txt, $
-        /ALIGN_RIGHT)
+        /ALIGN_RIGHT, /DYNAMIC_RESIZE)
 		  refxycoord_real_val = WIDGET_LABEL(params_ref_base, VALUE=refcoord_real_txt, $
-        /ALIGN_RIGHT)
+        /ALIGN_RIGHT, /DYNAMIC_RESIZE)
     params_sji_base = WIDGET_BASE(params_position_base, /COLUMN, /ALIGN_RIGHT)
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE='Slit-jaw', /ALIGN_RIGHT)
       IF hdr.sjifile THEN BEGIN
@@ -21258,10 +22422,10 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
         /ALIGN_RIGHT, /DYNAMIC_RESIZE)
 		  IF show_lp_val_label THEN $
         lp_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_real_txt, $
-          /ALIGN_RIGHT)
+          /ALIGN_RIGHT, /DYNAMIC_RESIZE)
 		  IF show_lp_vdop_label THEN $
         lp_ref_vdop_val = WIDGET_LABEL(params_ref_base, VALUE=lp_ref_vdop_txt, $
-          /ALIGN_RIGHT)
+          /ALIGN_RIGHT, /DYNAMIC_RESIZE)
       ; SJI placeholders
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
 		  lp_sji_idx_val = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
@@ -21389,10 +22553,10 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
         t_ref_real_val = 0
       ENDELSE
 		  t_ref_idx_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_idx_txt, $
-        /ALIGN_RIGHT)
+        /ALIGN_RIGHT, /DYNAMIC_RESIZE)
       IF dt_set THEN $
         t_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=t_ref_real_txt, $
-          /ALIGN_RIGHT)
+          /ALIGN_RIGHT, /DYNAMIC_RESIZE)
       ; -------------------- Reference raster time feedback --------------------
       IF refraster_time_fb THEN BEGIN
         ; Check where raster times greater than 0
@@ -21425,7 +22589,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       ENDELSE
       IF (raster_time_fb OR refraster_time_fb) THEN $
         t_raster_ref_real_val = WIDGET_LABEL(params_ref_base, $
-          VALUE=t_raster_ref_real_txt, /ALIGN_RIGHT) $
+          VALUE=t_raster_ref_real_txt, /ALIGN_RIGHT, /DYNAMIC_RESIZE) $
       ELSE $
         t_raster_ref_real_val = 0
       ; -------------------- SJI time feedback --------------------
@@ -21480,8 +22644,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
         dataval_ref_real_format = ''
         dataval_ref_real_txt = 'N/A'
       ENDELSE
-		  dataval_ref_real_val = WIDGET_LABEL(params_ref_base, VALUE=dataval_ref_real_txt, $
-        /ALIGN_RIGHT)
+		  dataval_ref_real_val = WIDGET_LABEL(params_ref_base, $
+        VALUE=dataval_ref_real_txt, /ALIGN_RIGHT, /DYNAMIC_RESIZE)
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
       IF hdr.sjifile THEN $ 
         dataval_sji_real_txt = STRING(sjidata_tmp[xsji_start,ysji_start], $
@@ -21683,6 +22847,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 
 ;------------------------- CONTROL PANEL BUTTON/TEXT REFERENCES
 	ctrlscp = { $
+    openrefim:openrefim, openrefimsp:openrefimsp, $
 		save_loop_pts:save_loop_pts, timeslicemenu:timeslicemenu, clear_current_estimate:clear_current_estimate, $			
 		sel_saved_loop:sel_saved_loop, all_saved_loop:all_saved_loop, det_file_but:det_file_loop, $
 		fbwd_button:fbwd_button, bwd_button:backward_button, pause_button:pause_button, $
@@ -21702,9 +22867,10 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		x_slider:x_slid, y_slider:y_slid, xref_slider:xref_slid, $
     yref_slider:yref_slid, $
 		zoom_button_ids:zoom_button_ids, xpos_slider:xpos_slider, ypos_slider:ypos_slider, $			
+    stokes_mainref_ids:stokes_mainref_ids, $
     stokes_button_ids:stokes_button_ids, stokes_spbutton_ids:stokes_spbutton_ids, $
-    specwin_buts:specwin_buts, refspecwin_buts:refspecwin_buts, $
-    specwin_button_ids:specwin_button_ids, refspecwin_button_ids:refspecwin_button_ids, $
+    specwin_cbox:specwin_cbox, main_specwin_label:main_specwin_label, $
+    ref_specwin_cbox:ref_specwin_cbox, ref_specwin_label:ref_specwin_label, $
 		detspect_label:detspect_label, scale_detspect_but:scale_detspect_but, $
     detspect_imref_button_ids:detspect_imref_button_ids, $
     subtract_but:subtract_but, $		
@@ -21842,7 +23008,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     refslice:hdr.refslice, maskdata:hdr.maskdata, maskslice:maskslice, $
     dopslice:dopslice, spdata:hdr.spdata, $
     sspscan:sspscan, ssp_cur:PTRARR(hdr.imns), refspdata:hdr.refspdata, $
-    refscan:hdr.refscan, refsspscan:hdr.refsspscan, refssp_cur:PTR_NEW(0), $
+    refscan:hdr.refscan, refsspscan:hdr.refsspscan, refssp_cur:PTRARR(hdr.refns), $
     spslice:PTR_NEW(0), spslice_congrid:PTR_NEW(0), $
     refspslice:PTR_NEW(0), refspslice_congrid:PTR_NEW(0), $
 		emptydopslice:emptydopslice, scan:hdr.scan, phiscan:phiscan, $
@@ -21875,10 +23041,11 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     xval_sji:hdr.xval_sji, yval_sji:hdr.yval_sji, $
     xpix:hdr.xpix, ypix:hdr.ypix, xpix_ref:hdr.xpix_ref, ypix_ref:hdr.ypix_ref,$
     xpix_sji:hdr.xpix_sji, ypix_sji:hdr.ypix_sji, $
-    pix_main2ref:pix_main2ref, pix_ref2main:pix_ref2main, $
+    pix_main2ref:PTR_NEW(pix_main2ref), pix_ref2main:PTR_NEW(pix_ref2main), $
     pix_main2sji:PTR_NEW(pix_main2sji), pix_sji2main:PTR_NEW(pix_sji2main), $
     pix_ref2sji:PTR_NEW(pix_ref2sji), pix_sji2ref:PTR_NEW(pix_sji2ref), $
-    wcs_main:hdr.wcs_main, wcs_ref:hdr.wcs_ref, wcs_sji:PTR_NEW(hdr.wcs_sji), $
+    wcs_main:hdr.wcs_main, wcs_ref:PTR_NEW(hdr.wcs_ref), $
+    wcs_sji:PTR_NEW(hdr.wcs_sji), $
     xref:DOUBLE(xref_start), yref:DOUBLE(yref_start), $
     xsji:DOUBLE(xsji_start), ysji:DOUBLE(ysji_start), $
     tarr_raster_main:hdr.tarr_raster_main, tarr_raster_ref:hdr.tarr_raster_ref,$
@@ -21887,7 +23054,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     tarr_sji:PTR_NEW(hdr.tarr_sji), utc_sji:PTR_NEW(hdr.utc_sji), $
     date_sji:PTR_NEW(hdr.date_sji), $
 		lc:hdr.lc, lp:lp_start, lp_ref:lp_ref_start, lp_dop:lp_start, nlp:hdr.nlp,$
-    refnlp:hdr.refnlp, ns:hdr.ns, s:0L, $					
+    refnlp:hdr.refnlp, ns:hdr.ns, s:0L, refns:hdr.refns, s_ref:0L, $					
 		lps:hdr.lps, ms:hdr.ms, spec:hdr.mainspec, $
 		reflps:hdr.reflps, refms:hdr.refms, refspec:hdr.refspec, $
 		nt:hdr.mainnt, mainnt:hdr.mainnt, refnt:hdr.refnt, masknt:hdr.masknt, $
@@ -21978,7 +23145,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	dispswitch = { $
 		restricted_t_range:PTR_NEW(0), restricted_lp_range:PTR_NEW(0), $
     restricted_lp_ref_range:PTR_NEW(0), exts:exts_set, refexts:refexts_set, $
-    lp_restrict:[1,0], $
+    lp_restrict:[1,0], scalestokes:scalestokes, $
     warpspslice:hdr.warpspslice, warprefspslice:hdr.warprefspslice, $
 		detspect_scale:detspect_scale, ref_detspect_scale:ref_detspect_scale, $
     drawdop:0, sjiscaled:hdr.sjiscaled, main2ref_no_map:hdr.main2ref_no_map, $
@@ -22004,16 +23171,19 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     selcol_diagnostics:PTR_NEW(hdr.selcol_diagnostics), $
     sellp_diagnostics:PTR_NEW(hdr.sellp_diagnostics), $
     disp_diagnostics:REPLICATE(1,hdr.ndiagnostics), ndisp_diagnostics:hdr.ndiagnostics, $
-    disp_refdiagnostics:REPLICATE(1,hdr.nrefdiagnostics), ndisp_refdiagnostics:hdr.nrefdiagnostics, $
+    disp_refdiagnostics:REPLICATE(1,hdr.nrefdiagnostics), $
+    ndisp_refdiagnostics:hdr.nrefdiagnostics, $
 		diagnostics:hdr.diagnostics, ndiagnostics:hdr.ndiagnostics, lock_t:1, $ 
     diag_start:hdr.diag_start, diag_width:hdr.diag_width, $
     diag_starts:PTR_NEW(hdr.diag_start), diag_widths:PTR_NEW(hdr.diag_width), $
     wheredispdiag:PTR_NEW(LONARR(hdr.ndiagnostics)), $
-    refdiagnostics:hdr.refdiagnostics, nrefdiagnostics:hdr.nrefdiagnostics, $
-    refdiag_start:hdr.refdiag_start, refdiag_width:hdr.refdiag_width, $
+    refdiagnostics:hdr.refdiagnostics, $                   
+    nrefdiagnostics:hdr.nrefdiagnostics, $
+    refdiag_start:hdr.refdiag_start, $   
+    refdiag_width:hdr.refdiag_width, $   
     refdiag_starts:PTR_NEW(hdr.refdiag_start), $
     refdiag_widths:PTR_NEW(hdr.refdiag_width), $
-    refdiag_upp:hdr.refdiag_start+hdr.refdiag_width-1, $
+    refdiag_upp:PTR_NEW(hdr.refdiag_start+hdr.refdiag_width-1), $   ;not used??
     wheredisprefdiag:PTR_NEW(LONARR(hdr.nrefdiagnostics)), $
     lp_diag_all:0, lp_ref_diag_all:0, $
     singlewav_windows:singlewav_windows,$
@@ -22213,6 +23383,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	plotswitch = { $
 		heightset:heightset, refheightset:refheightset, $
     multichannel:hdr.multichannel, scalestokes:scalestokes, $
+    refmultichannel:hdr.refmultichannel, $
 		v_dop_set:hdr.v_dop_set[0], v_dop_set_ref:hdr.v_dop_set[1], $
     iris_lct_exist:iris_lct_exist, aia_lct_exist:aia_lct_exist, $
     subtract:0, ref_subtract:0, $				
@@ -22287,17 +23458,15 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 ;------------------------- SCALING
 	scaling = { $
 		imagescale:imagescale, imagemin:immin[hdr.lc], imagemax:immax[hdr.lc], $
-		refmin:refmin[hdr.reflc], refmax:refmax[hdr.reflc], imrefscaling:0, relative:relative_scaling, $	
-		scalestokes_max:hdr.scalestokes_max, dopmin:dopplermin[hdr.lc], dopmax:dopplermax[hdr.lc], $
+		refmin:refmin[hdr.reflc], refmax:refmax[hdr.reflc], imrefscaling:0, $
+    relative:relative_scaling, $
+		scalestokes_max:hdr.scalestokes_max, dopmin:dopplermin[hdr.lc], $
+    dopmax:dopplermax[hdr.lc], $
     sjimin:sjimin, sjimax:sjimax, t_current:t_start, $
     imagemin_curr:immin[hdr.lc], imagemax_curr:immax[hdr.lc], $
 		refmin_curr:refmin[hdr.reflc], refmax_curr:refmax[hdr.reflc], $
 		dopmin_curr:dopplermin[hdr.lc], dopmax_curr:dopplermax[hdr.lc], $
     sjimin_curr:sjimin, sjimax_curr:sjimax, $
-    spslice_min:REPLICATE(immin[hdr.lc],2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
-    spslice_max:REPLICATE(immax[hdr.lc],2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
-    phislice_min:REPLICATE(immin[hdr.lc],2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
-    phislice_max:REPLICATE(immax[hdr.lc],2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
     gamma:REPLICATE(gamma_val,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1), $
     minimum:REPLICATE(0,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
     maximum:REPLICATE(100,2*hdr.ndiagnostics+hdr.nrefdiagnostics+1),  $
@@ -22307,8 +23476,11 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	}
 ;------------------------- STOKES PARAMS
 	stokesparams = { $
-		labels:hdr.stokes_labels, button_labels:stokes_button_labels, select_sp:hdr.stokes_select_sp, $	
-		prev_select_sp:hdr.stokes_select_sp $
+		labels:hdr.stokes_labels, labels_ref:hdr.stokes_labels_ref, $
+    button_labels:stokes_button_labels, mainref_select:0, $
+    select_sp:hdr.stokes_select_sp, prev_select_sp:hdr.stokes_select_sp, $
+    select_refsp:hdr.stokes_select_refsp, $
+    prev_select_refsp:hdr.stokes_select_refsp $
 	}
 ;------------------------- VERSION INFO
 	versioninfo = { $
@@ -22532,7 +23704,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	IF (*(*info).winswitch).showls THEN BEGIN
 		(*(*info).winswitch).showls = 0
 ;		(*(*info).ctrlsswitch).imrefdetspect = 0
-		CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, pseudoevent, NO_DRAW=(*(*info).winswitch).showrefls
+		CRISPEX_DISPLAYS_IMREF_LS_TOGGLE, pseudoevent, $
+      NO_DRAW=(*(*info).winswitch).showrefls
 		IF startupwin THEN WSHOW, startupwid
 	ENDIF
 	IF (*(*info).winswitch).showref THEN BEGIN
@@ -22658,4 +23831,21 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
           SET_CHOICE_IDX=(*(*info).prefs).warnings
     ENDIF
   ENDIF
+
+  ; Show release notes when using release version for the first time
+  IF dir_settings_write THEN BEGIN
+    latest_release_file = dir_settings+'latest_release_version.idlsave'
+    IF FILE_TEST(latest_release_file) THEN BEGIN
+      RESTORE, latest_release_file
+      show_release_notes = (release_base_version_number NE base_version_number) 
+    ENDIF ELSE $
+      show_release_notes = 1
+    IF show_release_notes THEN BEGIN
+      CRISPEX_ABOUT_WINDOW, pseudoevent
+      CRISPEX_ABOUT_RELEASE_INFO, pseudoevent
+      release_base_version_number = base_version_number
+      SAVE, release_base_version_number, FILENAME=latest_release_file
+    ENDIF
+  ENDIF
+
 END

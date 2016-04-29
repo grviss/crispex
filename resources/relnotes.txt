@@ -1,8 +1,8 @@
-* Added color table selection and color bars to displays, 
-  with IRIS and AIA color table support (SolarSoft only)
-* Extended internal plot parameters to include line thickness
-* Enabled loading SJI from file menu, even when no SJI was 
-  provided initially
-* Fixed miscellaneous minor bugs (including overlays when 
-  saving as JPG/PNG/MPEG; display of feedback window on 
-  updating slices when spectral cubes are provided)
+* Enabled loading reference data from file menu, even when
+  no reference files were provided initially
+* Enabled loading Stokes data cubes as reference data 
+* Implemented gather windows option (given window placement
+  issues on multi-screen setups running OS X El Capitan)
+* Fixed miscellaneous minor bugs (colour table loading, SJI
+  loading, negative value parameter feedback, cursor colour
+  update, lightcurve plot selection, pixelsize window sizing, a.o.)
