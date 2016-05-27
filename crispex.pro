@@ -878,8 +878,13 @@ FUNCTION CRISPEX_BGROUP_STOKES_SELECT_XY, event, NO_DRAW=no_draw, $
     	CRISPEX_UPDATE_T, event
     	CRISPEX_UPDATE_SLICES, event, /NO_DRAW, $
         NO_PHIS=((*(*info).winswitch).showphis EQ 0), $
-        SSP_UPDATE=((*(*info).stokesparams).mainref_select EQ 0), $
-        REFSSP_UPDATE=(*(*info).stokesparams).mainref_select
+  		  SSP_UPDATE=(((*(*info).stokesparams).mainref_select EQ 0) AND $
+                      ((*(*info).dataswitch).spfile EQ 0) AND $
+                      (*(*info).winswitch).showls), $
+        REFSSP_UPDATE=((*(*info).stokesparams).mainref_select AND $
+                      ((*(*info).dataswitch).reffile EQ 1) AND $
+                       ((*(*info).dataswitch).refspfile EQ 0) AND $
+                        (*(*info).winswitch).showrefls) 
       IF (((*(*info).stokesparams).mainref_select EQ 0) AND $
           ((*(*info).winids).sptlb GT 0)) THEN BEGIN
         CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
@@ -6893,7 +6898,8 @@ PRO CRISPEX_DRAW, event, NO_MAIN=no_main, NO_REF=no_ref, NO_SJI=no_sji, $
 	ENDIF 
 	CRISPEX_DRAW_IMREF, event, NO_MAIN=no_main, NO_REF=no_ref, NO_SJI=no_sji
 	IF ((*(*info).winswitch).showls OR (*(*info).winswitch).showsp OR $
-    (*(*info).winswitch).showrefls OR (*(*info).winswitch).showrefsp) THEN $
+    (*(*info).winswitch).showrefls OR (*(*info).winswitch).showrefsp) OR $
+    (*(*info).winswitch).showphis THEN $
       CRISPEX_DRAW_SPECTRAL, event, NO_MAIN=ls_no_main, NO_REF=ls_no_ref, $
         NO_PHIS=no_phis
 	IF ((*(*info).winswitch).showloop OR (*(*info).winswitch).showrefloop OR $
@@ -12615,9 +12621,11 @@ PRO CRISPEX_PB_BG, event
     CRISPEX_UPDATE_SLICES, event, /NO_DRAW, $
       NO_PHIS=((*(*info).winswitch).showphis EQ 0), $
       SSP_UPDATE=(((*(*info).dataswitch).spfile EQ 0) AND $
+                  (*(*info).winswitch).showls AND $
                   ((*(*info).pbparams).spmode EQ 0)), $
       REFSSP_UPDATE=((((*(*info).dataswitch).reffile EQ 1) AND $ 
                       ((*(*info).dataswitch).refspfile EQ 0)) AND $
+                      (*(*info).winswitch).showrefls AND $
                       ((*(*info).pbparams).spmode EQ 0))
 	CRISPEX_DRAW, event, $
     LS_NO_MAIN=(((*(*info).dataswitch).spfile EQ 0) AND $
@@ -12739,9 +12747,12 @@ PRO CRISPEX_PB_FASTBACKWARD, event
 		IF ((*(*info).dispparams).t LT (*(*info).dispparams).t_low) THEN (*(*info).dispparams).t = (*(*info).dispparams).t_upp
 		CRISPEX_UPDATE_T, event
 		WIDGET_CONTROL, (*(*info).ctrlscp).t_slider, SET_VALUE = (*(*info).dispparams).t
-		CRISPEX_UPDATE_SLICES, event, SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
+		CRISPEX_UPDATE_SLICES, event, $
+		  SSP_UPDATE=(((*(*info).dataswitch).spfile EQ 0) AND $
+                    (*(*info).winswitch).showls), $
       REFSSP_UPDATE=(((*(*info).dataswitch).reffile EQ 1) AND $
-                     ((*(*info).dataswitch).refspfile EQ 0)), $
+                     ((*(*info).dataswitch).refspfile EQ 0) AND $
+                      (*(*info).winswitch).showrefls), $
       /NO_DRAW, NO_PHIS=((*(*info).winswitch).showphis EQ 0)
 		CRISPEX_DRAW, event
 		CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET, /NO_PB_TYPE
@@ -12760,9 +12771,12 @@ PRO CRISPEX_PB_FASTFORWARD, event
 		(*(*info).dispparams).t = (((*(*info).dispparams).t - (*(*info).dispparams).t_low + (*(*info).pbparams).t_step) MOD ((*(*info).dispparams).t_upp - (*(*info).dispparams).t_low + 1)) + (*(*info).dispparams).t_low
 		CRISPEX_UPDATE_T, event
 		WIDGET_CONTROL, (*(*info).ctrlscp).t_slider, SET_VALUE = (*(*info).dispparams).t
-		CRISPEX_UPDATE_SLICES, event, SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
+		CRISPEX_UPDATE_SLICES, event, $
+		  SSP_UPDATE=(((*(*info).dataswitch).spfile EQ 0) AND $
+                    (*(*info).winswitch).showls), $
       REFSSP_UPDATE=(((*(*info).dataswitch).reffile EQ 1) AND $
-                     ((*(*info).dataswitch).refspfile EQ 0)), $
+                     ((*(*info).dataswitch).refspfile EQ 0) AND $
+                      (*(*info).winswitch).showrefls), $
       /NO_DRAW , NO_PHIS=((*(*info).winswitch).showphis EQ 0)
 		CRISPEX_DRAW, event
 		CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET, /NO_PB_TYPE
@@ -12785,9 +12799,12 @@ PRO CRISPEX_PB_PAUSE, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).pbparams).mode,(*(*info).pbparams).lmode,STRTRIM((*(*info).dispparams).t,2)], labels=['Play mode','Loop mode','t']
 	CRISPEX_PB_BUTTONS_SET, event, /PAUSE_SET, /NO_PB_TYPE
-  CRISPEX_UPDATE_SLICES, event, SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
+  CRISPEX_UPDATE_SLICES, event, $
+	  SSP_UPDATE=(((*(*info).dataswitch).spfile EQ 0) AND $
+                  (*(*info).winswitch).showls), $
     REFSSP_UPDATE=(((*(*info).dataswitch).reffile EQ 1) AND $
-                   ((*(*info).dataswitch).refspfile EQ 0)), $
+                   ((*(*info).dataswitch).refspfile EQ 0) AND $
+                    (*(*info).winswitch).showrefls), $
     /LS_DRAW, /REFLS_DRAW, NO_PHIS=((*(*info).winswitch).showphis EQ 0)
 END
 
@@ -18596,13 +18613,14 @@ PRO CRISPEX_SLIDER_T, event
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).dispparams).t], labels=['t']
 	CRISPEX_UPDATE_T, event
-	IF ((*(*info).dispparams).phislice_update OR (event.DRAG EQ 0) AND $
-    ((*(*info).winswitch).showls OR (*(*info).winswitch).showrefls)) THEN $
+	IF ((*(*info).dispparams).phislice_update OR (event.DRAG EQ 0)) THEN $
     CRISPEX_UPDATE_SLICES, event, /NO_DRAW, $
       NO_PHIS=((*(*info).winswitch).showphis EQ 0), $
-		  SSP_UPDATE=((*(*info).dataswitch).spfile EQ 0), $
+		  SSP_UPDATE=(((*(*info).dataswitch).spfile EQ 0) AND $
+                    (*(*info).winswitch).showls), $
       REFSSP_UPDATE=(((*(*info).dataswitch).reffile EQ 1) AND $
-                     ((*(*info).dataswitch).refspfile EQ 0)) $
+                     ((*(*info).dataswitch).refspfile EQ 0) AND $
+                      (*(*info).winswitch).showrefls) $
   ELSE BEGIN		
 		IF ((*(*info).dataswitch).onecube AND $
         (((*(*info).dataparams).nlp GT 1) OR $
@@ -18876,38 +18894,44 @@ END
 PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw, NO_PHIS=no_phis, $
   SSP_UPDATE=ssp_update, REFSSP_UPDATE=refssp_update, $
   LS_DRAW=ls_draw, REFLS_DRAW=refls_draw, NO_FEEDBACK=no_feedback
-; Gets the new spectral phi slit scan for update of the spectral phi slit
-; slice after change in framenumber
+  ; Handles getting new new spectral scans after change in frame number, also
+  ; updating detailed spectra if need be
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
+  ; Override NO_FEEDBACK setting if need be
+  IF (N_ELEMENTS(NO_FEEDBACK) NE 1) THEN $
+    no_feedback = $
+      (KEYWORD_SET(SSP_UPDATE) AND ((*(*info).winswitch).showls EQ 0)) AND $
+      (KEYWORD_SET(REFSSP_UPDATE) AND ((*(*info).winswitch).showrefls EQ 0)) AND $
+      (~KEYWORD_SET(NO_PHIS) AND ((*(*info).winswitch).showphis EQ 0))
+    print,KEYWORD_SET(SSP_UPDATE), KEYWORD_SET(REFSSP_UPDATE), no_feedback
   IF (~KEYWORD_SET(NO_PHIS) OR KEYWORD_SET(SSP_UPDATE) OR $
     KEYWORD_SET(REFSSP_UPDATE)) THEN BEGIN
-    WIDGET_CONTROL,/HOURGLASS
     IF ~KEYWORD_SET(NO_FEEDBACK) THEN BEGIN
+      WIDGET_CONTROL,/HOURGLASS
       totslices = $
-        ((*(*info).winswitch).showrefls AND ((*(*info).dataswitch).refspfile EQ 0))+$
+        ((*(*info).winswitch).showrefls AND $
+        ((*(*info).dataswitch).refspfile EQ 0))+$
   	    ((*(*info).winswitch).showphis OR $
         ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls))+$
         (~KEYWORD_SET(NO_PHIS) AND (*(*info).winswitch).showphis) 
       base_txt = 'Updating '+STRLOWCASE((*(*info).paramparams).sp_h[$
         (*(*info).plotswitch).heightset])+' slices... '
-      CRISPEX_WINDOW_USER_FEEDBACK, event, 'Updating slices', base_txt+'(may take some time)'
+      CRISPEX_WINDOW_USER_FEEDBACK, event, 'Updating slices', $
+        base_txt+'(may take some time)'
     ENDIF
-    IF ((*(*info).winswitch).showrefls AND ((*(*info).dataswitch).refspfile EQ 0)) THEN BEGIN
+    IF KEYWORD_SET(REFSSP_UPDATE) THEN BEGIN
     	IF ((*(*info).dataparams).refnt GT 1) THEN $
         *(*(*info).data).refsspscan = $
           (*(*(*info).data).refscan)[(*(*info).dispparams).t_ref] 
-      IF KEYWORD_SET(REFSSP_UPDATE) THEN BEGIN
-        CRISPEX_UPDATE_REFSSP, event
-        IF KEYWORD_SET(REFLS_DRAW) THEN CRISPEX_DRAW_SPECTRAL_REF, event, /LS_ONLY
-      ENDIF
+      CRISPEX_UPDATE_REFSSP, event
+      IF KEYWORD_SET(REFLS_DRAW) THEN CRISPEX_DRAW_SPECTRAL_REF, event, /LS_ONLY
       IF ~KEYWORD_SET(NO_FEEDBACK) THEN $
         WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, $
           SET_VALUE=base_txt+'1/'+STRTRIM(totslices,2)+' done            '
     ENDIF
-  	IF ((*(*info).winswitch).showphis OR $
-        ((*(*info).dataswitch).onecube AND (*(*info).winswitch).showls)) THEN BEGIN
+    IF (~KEYWORD_SET(NO_PHIS) OR KEYWORD_SET(SSP_UPDATE)) THEN BEGIN
   		IF ((*(*info).dataparams).mainnt GT 1) THEN $
         *(*(*info).data).sspscan = $
           (*(*(*info).data).scan)[(*(*info).dispparams).t_main] 
@@ -18919,7 +18943,7 @@ PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw, NO_PHIS=no_phis, $
         WIDGET_CONTROL, (*(*info).ctrlsfeedb).feedback_text, SET_VALUE=base_txt+$
           STRTRIM(KEYWORD_SET(REFSSP_UPDATE)+1,2)+'/'+STRTRIM(totslices,2)+$
           ' done            '
-      IF (~KEYWORD_SET(NO_PHIS) AND (*(*info).winswitch).showphis) THEN BEGIN
+      IF ~KEYWORD_SET(NO_PHIS) THEN BEGIN
     		*(*(*info).data).phiscan = (*(*(*info).data).sspscan)[*,*,$
            ((*(*info).dataparams).s * (*(*info).dataparams).nlp):$
           (((*(*info).dataparams).s+1)*(*(*info).dataparams).nlp-1)] 
@@ -23693,9 +23717,15 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   IF ((*(*info).winswitch).showsp OR (*(*info).winswitch).showls OR $
     (*(*info).winswitch).showphis) THEN $
     CRISPEX_DRAW_GET_SPECTRAL_AXES, pseudoevent, /MAIN
-	IF ((((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube) $
-    AND ((*(*info).winswitch).showphis NE 1)) THEN $
-    CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW, /NO_FEEDBACK
+;	IF ((((*(*info).dataswitch).spfile EQ 1) OR (*(*info).dataswitch).onecube) $
+;    AND ((*(*info).winswitch).showphis NE 1)) THEN $
+    CRISPEX_UPDATE_SLICES, pseudoevent, /NO_DRAW, /NO_FEEDBACK, $
+      NO_PHIS=((*(*info).winswitch).showphis EQ 0), $
+		  SSP_UPDATE=(((*(*info).dataswitch).spfile EQ 0) AND $
+                    (*(*info).winswitch).showls), $
+      REFSSP_UPDATE=(((*(*info).dataswitch).reffile EQ 1) AND $
+                     ((*(*info).dataswitch).refspfile EQ 0) AND $
+                      (*(*info).winswitch).showrefls) 
 	IF (*(*info).winswitch).showsp THEN BEGIN
 		(*(*info).winswitch).showsp = 0
 		CRISPEX_DISPLAYS_SP_TOGGLE, pseudoevent
