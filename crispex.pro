@@ -18905,7 +18905,6 @@ PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw, NO_PHIS=no_phis, $
       (KEYWORD_SET(SSP_UPDATE) AND ((*(*info).winswitch).showls EQ 0)) AND $
       (KEYWORD_SET(REFSSP_UPDATE) AND ((*(*info).winswitch).showrefls EQ 0)) AND $
       (~KEYWORD_SET(NO_PHIS) AND ((*(*info).winswitch).showphis EQ 0))
-    print,KEYWORD_SET(SSP_UPDATE), KEYWORD_SET(REFSSP_UPDATE), no_feedback
   IF (~KEYWORD_SET(NO_PHIS) OR KEYWORD_SET(SSP_UPDATE) OR $
     KEYWORD_SET(REFSSP_UPDATE)) THEN BEGIN
     IF ~KEYWORD_SET(NO_FEEDBACK) THEN BEGIN
