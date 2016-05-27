@@ -15438,13 +15438,16 @@ PRO CRISPEX_RETRIEVE_DET_CANCEL, event
 END
 
 ;========================= RETRIEVE FROM SAVED LOOP POINT PROCEDURES
-PRO CRISPEX_RETRIEVE_LOOP_MENU, event, set_but_array
+PRO CRISPEX_RETRIEVE_LOOP_MENU, event, set_but_array, $
+  XOFFSET=xoffset, YOFFSET=yoffset
 ; Sets up the retrieved loop points menu and reads in the data from the respective files
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	CRISPEX_FIND_CLSAV, event, /ALLOW_SELECT_DIR, /ALL_FILES
 	IF ((*(*info).retrparams).clfilecount GT 0) THEN BEGIN
+    IF (N_ELEMENTS(XOFFSET) NE 1) THEN xoffset = (*(*info).winsizes).spxoffset
+    IF (N_ELEMENTS(YOFFSET) NE 1) THEN yoffset = 0
 		WIDGET_CONTROL,/HOURGLASS
 		WIDGET_CONTROL, (*(*info).ctrlscp).sel_saved_loop, SENSITIVE = 0
 		(*(*info).loopswitch).retrieve_loops = 1
@@ -15534,8 +15537,7 @@ PRO CRISPEX_RETRIEVE_LOOP_MENU, event, set_but_array
 		get_loops = WIDGET_BUTTON(dec_buts, VALUE = 'Retrieve and save', $
       EVENT_PRO = 'CRISPEX_RETRIEVE_LOOP_MENU_CONTINUE', SENSITIVE = 0)
 		(*(*info).ctrlsloop).get_loops = get_loops
-		WIDGET_CONTROL, base, /REALIZE, $
-      TLB_SET_XOFFSET=(*(*info).winsizes).spxoffset, TLB_SET_YOFFSET = 0
+		WIDGET_CONTROL, base, /REALIZE, TLB_SET_XOFFSET=xoffset, TLB_SET_YOFFSET=yoffset
 		WIDGET_CONTROL, base, SET_UVALUE = info
 		XMANAGER, 'CRISPEX', base, /NO_BLOCK
 		(*(*info).winids).savetlb = base
@@ -15696,10 +15698,12 @@ PRO CRISPEX_RETRIEVE_LOOP_UPDATE_FILELIST, event
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	WIDGET_CONTROL, (*(*info).winids).root, SET_UVALUE = info
+	WIDGET_CONTROL, (*(*info).winids).root, SET_UVALUE=info
+  geometry = WIDGET_INFO(event.TOP, /GEOMETRY)
 	WIDGET_CONTROL, event.TOP, /DESTROY
 	event.TOP = (*(*info).winids).root
-	CRISPEX_RETRIEVE_LOOP_MENU, event
+	CRISPEX_RETRIEVE_LOOP_MENU, event, XOFFSET=geometry.xoffset, $
+    YOFFSET=geometry.yoffset-22 ; subtract 22 for window top bar
 	CRISPEX_DRAW_IMREF, event
 END
 
