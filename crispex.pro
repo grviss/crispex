@@ -20892,13 +20892,18 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   	ENDELSE
   ENDIF ELSE BEGIN
     ; Else set imwiny to WINDOW_LARGE value and scale imwinx accordingly, but
-    ; with a failsafe for "ridiculously" small values
-    IF (window_large GE imwiny_default) THEN BEGIN
+    ; with a failsafe for "ridiculously" small values (arbitrarily set at a
+    ; fifth of the default ysize)
+    IF (window_large GE 0.2*imwiny_default) THEN BEGIN
       imwiny = window_large < y_scr_size
       imwinx = imwiny * ratio
+  		IF (verbosity[1] EQ 1) THEN $
+        msg = 'Window sizing adjusted according to WINDOW_LARGE setting. '
     ENDIF ELSE BEGIN
       imwinx = imwinx_default
       imwiny = imwiny_default
+  		IF (verbosity[1] EQ 1) THEN $
+        msg = 'Window sizing not adjusted due to overly small WINDOW_LARGE setting. '
     ENDELSE
   ENDELSE
 
