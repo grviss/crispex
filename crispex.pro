@@ -13842,7 +13842,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.xpix_ref = key.xpix       &  hdr_out.ypix_ref = key.ypix
       hdr_out.xval_ref = key.xval       &  hdr_out.yval_ref = key.yval
       hdr_out.refnlp = key.nlp          &  hdr_out.refnt = key.nt
-      hdr_out.refns = key.ns
+      hdr_out.refns = key.ns            &  hdr_out.refdt = key.dt
       hdr_out.refbunit = key.bunit      &  hdr_out.refblabel = key.btype
       hdr_out.refxlabel = key.xlab      &  hdr_out.refxunit = key.xunit
       hdr_out.refylabel = key.ylab      &  hdr_out.refyunit = key.yunit
@@ -13881,7 +13881,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         LONG(hdr_out.refimnt/(FLOAT(hdr_out.refnt)*FLOAT(hdr_out.refns)))
       CRISPEX_IO_PARSE_SINGLE_CUBE, single_cube, HDR_IN=hdr_out, $
         HDR_OUT=hdr_out,/REFERENCE
-      IF (hdr_out.dt EQ 0) THEN $
+      IF (hdr_out.refdt EQ 0) THEN $
         tarr_ref = FINDGEN(hdr_out.refnt) $
       ELSE $
         tarr_ref = FINDGEN(hdr_out.refnt) * hdr_out.dt
@@ -13935,7 +13935,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.xval_sji = key.xval       &  hdr_out.yval_sji = key.yval
       hdr_out.sjibunit = key.bunit      &  headers = key.headers
       hdr_out.sjibscale = key.bscale    &  hdr_out.sjibzero = key.bzero
-      hdr_out.sji_wcs_set = key.wcs_set
+      hdr_out.sji_wcs_set = key.wcs_set &  hdr_out.sjidt = key.dt
       ; Check for scaled integer
       hdr_out.sjiscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
       hdr_out.date_obs_sji = STRTRIM(key.date_obs,2)
@@ -14056,10 +14056,11 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
       time:wcs.time, position:wcs.position};, spectrum:wcs.spectrum}
   ENDIF ELSE $ 
     wcs_str = 0
-  IF (N_ELEMENTS(naxis) EQ 4) THEN BEGIN
-    dt = cdelt[sortorder[3]]
-    tlab = STRTRIM(ctype[sortorder[3]],2)
-    tunit = STRTRIM(cunit[sortorder[3]],2)
+  IF ((N_ELEMENTS(naxis) EQ 4) OR $
+     (KEYWORD_SET(SJICUBE) AND (N_ELEMENTS(naxis) EQ 3))) THEN BEGIN
+    dt = cdelt[sortorder[3-KEYWORD_SET(SJICUBE)]]
+    tlab = STRTRIM(ctype[sortorder[3-KEYWORD_SET(SJICUBE)]],2)
+    tunit = STRTRIM(cunit[sortorder[3-KEYWORD_SET(SJICUBE)]],2)
   ENDIF ELSE BEGIN
     dt = 0
     tlab = 't'
@@ -20364,8 +20365,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
             xval_sji:0., yval_sji:0., $
             main2ref_no_map:1, wcs_set:0, ref_wcs_set:0, sji_wcs_set:0, $
             ; Pixel sizes
-            dx:1., dy:1., dt:dt, dx_fixed:0B, refdx:1., refdy:1., $
-            sjidx:1., sjidy:1., $
+            dx:1., dy:1., dt:dt, dx_fixed:0B, refdx:1., refdy:1., refdt:dt, $
+            sjidx:1., sjidy:1., sjidt:dt, $
             ; Data scaling variables
             sjibscale:0., sjibzero:0., sjiscaled:0B, $
             ; Axes labels and units
@@ -20616,12 +20617,14 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     ENDIF ELSE spytitle = hdr.spytitle
   ; If no DT set, check whether supplied from FITS header (in which case hdr.dt ne 0)
   ENDIF ELSE BEGIN
-    dt_set = (hdr.dt NE 0.)
+    dt_set = ((hdr.dt NE 0.) OR (hdr.refdt NE 0.) OR (hdr.sjidt NE 0.))
     IF dt_set THEN $
       spytitle = hdr.spytitle $   ; FITS header: no override of SPYTITLE allowed
     ; If no DT set and no info from header, then set defaults
     ELSE BEGIN
-      hdr.dt = 1.
+      IF (hdr.dt EQ 0.) THEN hdr.dt = 1.
+      IF (hdr.refdt EQ 0.) THEN hdr.refdt = 1.
+      IF (hdr.sjidt EQ 0.) THEN hdr.sjidt = 1.
 			IF (N_ELEMENTS(SPYTITLE) NE 1) THEN spytitle = 'Frame number'
     ENDELSE
   ENDELSE
