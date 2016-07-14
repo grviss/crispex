@@ -11168,7 +11168,7 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
   ENDIF
   IF (~KEYWORD_SET(REFERENCE) OR (STRCOMPRESS(hdr_out.refimfilename) EQ '')) THEN $
     hdr_out = CREATE_STRUCT(hdr_out, 'refspec', 0., 'refms', 0., 'reflps', 0., $
-      'refspectrum', 0.)
+      'refspectrum', 0., 'tsel_scaling_ref', 0)
 
   ; Handle LINE_CENTER input
   IF (N_ELEMENTS(LINE_CENTER) NE 0) THEN BEGIN
@@ -11453,14 +11453,17 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, $
   hdr_out = hdr_in
   io_failsafe_error = 0 &  calc_from_cubes = 0
   spectfile_set = 0     &  refspectfile_set = 0
+  tsel_scaling = 0
   IF KEYWORD_SET(IMCUBE) THEN BEGIN
     nlp_select = hdr_out.nlp
     ns_select = hdr_out.ns
+    nt_select = hdr_out.mainnt
     feedback_text = 'main '
   ENDIF 
   IF KEYWORD_SET(REFCUBE) THEN BEGIN
     nlp_select = hdr_out.refnlp
     ns_select = hdr_out.refns
+    nt_select = hdr_out.refnt
     feedback_text = 'reference '
   ENDIF
   IF (N_ELEMENTS(SPECTFILE) NE 0) THEN BEGIN
@@ -11536,11 +11539,27 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, $
     ELSE $
       norm_factor = FLTARR(ns_select)
     FOR s=0,ns_select-1 DO BEGIN        ; Loop over all "Stokes" positions
-      FOR lp=0,nlp_select-1 DO BEGIN    ; Loop over all "spectral" positions
-        FOR t=t_lower,t_upper DO $      ; Loop over all time steps
-          spectrum[lp,s] += MEAN(datafile[t*nlp_select*ns_select + s*nlp_select + lp], /NAN)
-      ENDFOR
-      spectrum[*,s] /= FLOAT(t_upper - t_lower + 1)
+      finite_count = 0
+      WHILE (finite_count EQ 0) DO BEGIN
+        ; Failsafe while-loop against empty/NaN-only first image(s)
+        FOR lp=0,nlp_select-1 DO BEGIN    ; Loop over all "spectral" positions
+          FOR t=t_lower,t_upper DO $      ; Loop over all time steps
+            spectrum[lp,s] += MEAN(datafile[t*nlp_select*ns_select + s*nlp_select + lp], /NAN)
+        ENDFOR
+        spectrum[*,s] /= FLOAT(t_upper - t_lower + 1)
+        wherefinite = WHERE(FINITE(spectrum[*,s]) EQ 1, finite_count)
+        IF (finite_count EQ 0) THEN BEGIN
+          ; If all spectrum values are NaN, go to later timestep if possible
+          t_lower += 1
+          t_upper += 1
+          ; Failsafe against overshooting time domain
+          t_lower = t_lower < (nt_select-1)
+          t_upper = t_upper < (nt_select-1)
+          ; Reset spectrum variable 
+          spectrum[*,s] = REPLICATE(0D,nlp_select)
+        ENDIF ELSE $
+          tsel_scaling = t_lower
+      ENDWHILE
       IF (ns_select GT 1) THEN BEGIN                                  
         IF (N_ELEMENTS(scale_stokes) NE 1) THEN BEGIN ; If ns>1 & not scale_stokes, find norm_factor
           min_spectrum = MIN(spectrum[*,s], MAX=max_spectrum, /NAN)
@@ -11558,7 +11577,8 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, $
   IF KEYWORD_SET(IMCUBE) THEN BEGIN     
     ; Fill the related IMCUBE variables with results
     hdr_out = CREATE_STRUCT(hdr_out, 'mainspec', norm_spect, 'spectrum', $
-                reform_norm_spect, 'ms', norm_factor)
+                reform_norm_spect, 'ms', norm_factor, 'tsel_scaling_main',$
+                tsel_scaling)
     wherelps = WHERE(TAG_NAMES(hdr_out) EQ 'LPS', count)
     IF (count GT 0) THEN BEGIN
       IF (TOTAL(hdr_out.lps) EQ 0) THEN hdr_out.lps = FINDGEN(hdr_out.nlp)
@@ -11567,7 +11587,8 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, $
   IF KEYWORD_SET(REFCUBE) THEN BEGIN    
     ; Fill the related REFCUBE variables with results
     hdr_out = CREATE_STRUCT(hdr_out, 'refspec', norm_spect, 'refspectrum', $
-                reform_norm_spect, 'refms', norm_factor)
+                reform_norm_spect, 'refms', norm_factor, 'tsel_scaling_ref',$
+                tsel_scaling)
     wherereflps = WHERE(TAG_NAMES(hdr_out) EQ 'REFLPS', count) 
     IF (count GT 0) THEN BEGIN
       IF (TOTAL(hdr_out.reflps) EQ 0) THEN hdr_out.reflps = FINDGEN(hdr_out.refnlp)
@@ -11661,6 +11682,7 @@ PRO CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, $
     nlp = hdr.refnlp
     ms = hdr.refms
     nt_other = hdr.mainnt
+    tsel_scaling = hdr.tsel_scaling_ref
     data = *hdr.refdata
     ndiagnostics = hdr.nrefdiagnostics
     diag_start = hdr.refdiag_start
@@ -11677,7 +11699,7 @@ PRO CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, $
 		immin = MIN(temp_image, MAX=immax, /NAN)
 		imsdev = STDDEV(temp_image, /NAN)
 	ENDIF ELSE IF (((nt EQ 1) OR (nt EQ nt_other)) AND (nlp EQ 1)) THEN BEGIN
-    temp_image = data[0]
+    temp_image = data[tsel_scaling]
 		immean = MEAN(temp_image, /NAN)
 		temp_image = IRIS_HISTO_OPT(temp_image,histo_opt_val, $
       MISSING=-32768, /SILENT)
@@ -11694,7 +11716,7 @@ PRO CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, $
       tmp_ms = ms
     FOR s=0,ns-1 DO BEGIN
 			FOR lp=0,nlp-1 DO BEGIN
-				temp_image = data[s*nlp + lp]
+				temp_image = data[tsel_scaling*ns*nlp + s*nlp + lp]
 				immean[lp,s] = MEAN(temp_image, /NAN)
   			temp_image = IRIS_HISTO_OPT(temp_image,histo_opt_val, $
           MISSING=-32768, /SILENT)
@@ -15853,6 +15875,8 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event, UPDATE_MAIN=update_main, $
   idx = (*(*info).intparams).lp_diag_all
   IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN BEGIN
     minmax_data = (*(*(*info).data).imagedata)[$
+      (*(*info).scaling).tsel_scaling_main * (*(*info).dataparams).ns * $
+      (*(*info).dataparams).nlp + $
       (*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp]
     minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
       (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
@@ -15870,6 +15894,8 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event, UPDATE_MAIN=update_main, $
     idx = (*(*info).intparams).ndiagnostics + (*(*info).intparams).lp_ref_diag_all
     IF ((*(*(*info).scaling).imagescale)[1] EQ 0) THEN BEGIN
       minmax_data = (*(*(*info).data).refdata)[$
+        (*(*info).scaling).tsel_scaling_ref * (*(*info).dataparams).refns * $
+        (*(*info).dataparams).refnlp + $
         (*(*info).dataparams).s_ref * (*(*info).dataparams).refnlp + $
         (*(*info).dataparams).lp_ref]
       minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
@@ -15891,9 +15917,13 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event, UPDATE_MAIN=update_main, $
     IF ((*(*(*info).scaling).imagescale)[2] EQ 0) THEN BEGIN
       ; Compute doppler slice at t=0
 			xyslice =  (*(*(*info).data).imagedata)[$
+        (*(*info).scaling).tsel_scaling_main * (*(*info).dataparams).ns * $
+        (*(*info).dataparams).nlp + $
         (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
         (*(*info).dataparams).lp]
 			temp_xyslice =  (*(*(*info).data).imagedata)[$
+        (*(*info).scaling).tsel_scaling_main * (*(*info).dataparams).ns * $
+        (*(*info).dataparams).nlp + $
         (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
         (*(*info).dataparams).lp_dop]
   		IF ((*(*info).dataparams).lp_dop GT (*(*info).dataparams).lc) THEN $
@@ -15916,7 +15946,8 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event, UPDATE_MAIN=update_main, $
   IF update_sji THEN BEGIN
     idx = 2*(*(*info).intparams).ndiagnostics + (*(*info).intparams).nrefdiagnostics
     IF ((*(*(*info).scaling).imagescale)[3] EQ 0) THEN BEGIN
-      minmax_data = (*(*(*info).data).sjidata)[0]
+      minmax_data = $
+        (*(*(*info).data).sjidata)[(*(*info).scaling).tsel_scaling_sji]
     ; If SJI data is scaled integer, descale and convert to float
     IF (*(*info).dispswitch).sjiscaled THEN $
       minmax_data = CRISPEX_SCALING_DESCALE(minmax_data, $
@@ -21265,7 +21296,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     tmp_ms = hdr.ms
 	FOR s=0,hdr.ns-1 DO BEGIN
 		FOR lp=0,lp_last DO BEGIN
-			temp_image = (*hdr.imdata)[s*hdr.nlp + lp]
+			temp_image = (*hdr.imdata)[hdr.tsel_scaling_main*hdr.ns*hdr.nlp + s*hdr.nlp + lp]
 			immean[lp,s] = MEAN(temp_image, /NAN)
 			temp_image = IRIS_HISTO_OPT(temp_image,histo_opt_val, $
         MISSING=-32768, /SILENT)
@@ -21333,10 +21364,21 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     refmax = 0.
   ENDELSE
 
-  sjidata_tmp = (*hdr.sjidata)[0]
+   finite_count = 0
+   tsel_scaling_sji = 0
+   WHILE (finite_count EQ 0) DO BEGIN
+    ; Failsafe against empty/NaN-only first image(s)
+    sjidata_tmp = (*hdr.sjidata)[tsel_scaling_sji]
+    IF hdr.sjiscaled THEN $
+      sjidata_tmp = CRISPEX_SCALING_DESCALE(sjidata_tmp, hdr.sjibscale, hdr.sjibzero)
+    wherefinite = WHERE(FINITE(sjidata_tmp) EQ 1, finite_count)
+    IF (finite_count EQ 0) THEN BEGIN
+      tsel_scaling_sji += 1
+      ; Failsafe against overshooting time domain
+      tsel_scaling_sji = tsel_scaling_sji < (hdr.sjint - 1)
+    ENDIF
+  ENDWHILE
   ; If SJI data is scaled integer, descale and convert to float
-  IF hdr.sjiscaled THEN $
-    sjidata_tmp = CRISPEX_SCALING_DESCALE(sjidata_tmp, hdr.sjibscale, hdr.sjibzero)
   sjimin = MIN(sjidata_tmp, MAX=sjimax_val, /NAN)
   sjimax = sjimax_val
 
@@ -22088,7 +22130,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
                           VALUE=['Main image','Reference image','Doppler image','Slit-jaw image'], $
                           EVENT_PRO='CRISPEX_SCALING_SELECT_DATA')
   imagescale_cbox     = WIDGET_COMBOBOX(scaling_tab, $
-                          VALUE=['Based on first image','Based on current image','Per time step'],$
+                          VALUE=['Based on first non-zero image','Based on current image','Per time step'],$
                           EVENT_PRO='CRISPEX_SCALING_SELECT_TYPE')
   diagscale_label_vals= REPLICATE('Spectral window: ',2*hdr.ndiagnostics+hdr.nrefdiagnostics+1)+$
                           [hdr.diagnostics,hdr.refdiagnostics,hdr.diagnostics,'N/A']
@@ -23494,7 +23536,9 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	scaling = { $
 		imagescale:imagescale, imagemin:immin[hdr.lc], imagemax:immax[hdr.lc], $
 		refmin:refmin[hdr.reflc], refmax:refmax[hdr.reflc], imrefscaling:0, $
-    relative:relative_scaling, $
+    relative:relative_scaling, tsel_scaling_main:hdr.tsel_scaling_main, $
+    tsel_scaling_ref:hdr.tsel_scaling_ref, $
+    tsel_scaling_sji:tsel_scaling_sji, $
 		scalestokes_max:hdr.scalestokes_max, dopmin:dopplermin[hdr.lc], $
     dopmax:dopplermax[hdr.lc], $
     sjimin:sjimin, sjimax:sjimax, t_current:t_start, $
