@@ -10316,6 +10316,13 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
         ENDIF ELSE $
           ; Main FITS created with iris_make_fits_level3 > r1.41
           t_sel_main = (SXPAR(*hdr_out.hdrs_main[0],'CRVAL4'))
+        ; Correct for STARTOBS or DATE_OBS if possible
+        IF (hdr_out.date_obs_main NE '0') THEN BEGIN
+          IF (hdr_out.startobs_main NE '0') THEN $
+            t_sel_main += (STR2UTC(hdr_out.startobs_main)).time/1000. $
+          ELSE $
+            t_sel_main += (STR2UTC(hdr_out.date_obs_main)).time/1000. 
+        ENDIF
         offsetarray = READFITS(hdr_out.sjifilename, sjihdr, EXTEN_NO=1, /SILENT)
         pc_ix_exist = (SXPAR(sjihdr,'PC1_1IX') NE 0)
         sjihdr = FITSHEAD2STRUCT(sjihdr)
@@ -10917,6 +10924,7 @@ PRO CRISPEX_IO_HANDLE_HDR, event, REFERENCE=reference, SJI=sji
     (*(*info).dataparams).hdrs[2] = PTR_NEW(hdr.hdrs_sji)
     (*(*info).dataparams).next[2] = N_ELEMENTS(hdr.hdrs_sji)
     (*(*info).dataparams).date_obs_sji = hdr.date_obs_sji
+    (*(*info).dataparams).startobs_sji = hdr.startobs_sji
     (*(*info).dataparams).sjinx = hdr.sjinx
     (*(*info).dataparams).sjiny = hdr.sjiny
     (*(*info).dataparams).sjidx = hdr.sjidx
@@ -13775,6 +13783,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       lc = key.lc
       hdr_out.obsid = STRTRIM(key.obsid,2)
       hdr_out.date_obs_main = key.date_obs
+      hdr_out.startobs_main = key.startobs
       utc_main = key.utc_sel
       utc_raster_main = key.utc_raster_sel
       date_main = key.date_sel
@@ -13873,6 +13882,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       wcs_ref = key.wcs_str
       reflc = key.lc
       hdr_out.date_obs_ref = STRTRIM(key.date_obs,2)
+      hdr_out.startobs_ref = key.startobs
       utc_ref = key.utc_sel
       utc_raster_ref = key.utc_raster_sel
       date_ref = key.date_sel
@@ -13961,6 +13971,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       ; Check for scaled integer
       hdr_out.sjiscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
       hdr_out.date_obs_sji = STRTRIM(key.date_obs,2)
+      hdr_out.startobs_sji = key.startobs
       wheretag = WHERE(TAG_NAMES(hdr_out) EQ 'TARR_SJI', count)
       IF (count NE 0) THEN $
         ; Delete potentially conflicting tags from structure...
@@ -14078,6 +14089,11 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
       time:wcs.time, position:wcs.position};, spectrum:wcs.spectrum}
   ENDIF ELSE $ 
     wcs_str = 0
+  ; Get OBSID, DATE_OBS and STARTOBS
+  obsid = SXPAR(header,'OBSID')
+  date_obs = STRTRIM(SXPAR(header,'DATE_OBS'),2)
+  startobs = STRTRIM(SXPAR(header,'STARTOBS'),2)
+  ; Process timing
   IF ((N_ELEMENTS(naxis) EQ 4) OR $
      (KEYWORD_SET(SJICUBE) AND (N_ELEMENTS(naxis) EQ 3))) THEN BEGIN
     dt = cdelt[sortorder[3-KEYWORD_SET(SJICUBE)]]
@@ -14176,12 +14192,16 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     dummy = READFITS(filename, hdr2, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
   ; Initialise headers variable
   headers = [PTR_NEW(header),PTR_NEW(hdr1),PTR_NEW(hdr2)]
-  ; Get OBSID and DATE_OBS
-  obsid = SXPAR(header,'OBSID')
-  date_obs = STRTRIM(SXPAR(header,'DATE_OBS'),2)
-  startobs = STRTRIM(SXPAR(header,'STARTOBS'),2)
   ; IF DATE_OBS is set, derive the UTC (raster) time array
   IF (date_obs NE '0') THEN BEGIN
+    ; Failsafe against non-existing STARTOBS
+    IF (startobs NE '0') THEN $
+      orig_str = STR2UTC(startobs) $
+    ELSE $
+      orig_str = STR2UTC(date_obs)
+    ; Ensure that tarr_sel and tarr_raster represent actual times
+    tarr_sel += orig_str.time/1000.     ; orig_str.time is in milliseconds
+    tarr_raster += orig_str.time/1000.
     utc_sel = STRARR(nt)
     date_sel = STRARR(nt)
     ; Check for N_DIMENSIONS of tarr_raster
@@ -14201,16 +14221,11 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
         date_raster_sel = STRARR(nx)
       ENDELSE
     ENDELSE
-    ; Failsafe against non-existing STARTOBS
-    IF (startobs NE '0') THEN $
-      orig_str = STR2UTC(startobs) $
-    ELSE $
-      orig_str = STR2UTC(date_obs)
     dayinms = 86400000    ; Full day in milliseconds
     ; Loop over time
     FOR t=0,nt-1 DO BEGIN
       ; Create new main time structure and save time to utc_sel
-      new_time_tmp = orig_str.time+LONG(tarr_sel[t]*1000*tfactor)
+      new_time_tmp = LONG(tarr_sel[t]*1000*tfactor)
       new_str = {mjd:orig_str.mjd+(new_time_tmp GT dayinms), $
         time:(new_time_tmp MOD dayinms)}
       utc_sel[t] = UTC2STR(new_str, /TIME_ONLY)
@@ -14218,7 +14233,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
       ; Do the same for the raster in case of N_DIMS=2
       IF (SIZE(tarr_raster, /N_DIMENSIONS) EQ 2) THEN BEGIN
         FOR x=0,nx-1 DO BEGIN
-          new_time_tmp = orig_str.time+LONG(tarr_raster[x,t]*1000*tfactor)
+          new_time_tmp = LONG(tarr_raster[x,t]*1000*tfactor)
           new_str = {mjd:orig_str.mjd+(new_time_tmp GT dayinms), $
             time:(new_time_tmp MOD dayinms)}
           utc_raster_sel[x,t] = UTC2STR(new_str, /TIME_ONLY)
@@ -14232,7 +14247,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
         ENDIF ELSE BEGIN
         ; Else, if nt=1, then nx>1 and get utc_raster_sel for each slit pos
           FOR x=0,nx-1 DO BEGIN
-            new_time_tmp = orig_str.time+LONG(tarr_sel[t]*1000*tfactor)
+            new_time_tmp = LONG(tarr_sel[t]*1000*tfactor)
             new_str = {mjd:orig_str.mjd+(new_time_tmp GT dayinms), $
               time:(new_time_tmp MOD dayinms)}
             utc_raster_sel[x] = UTC2STR(new_str, /TIME_ONLY)
@@ -14258,7 +14273,8 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
        xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,$
        wstart:wstart, wwidth:wwidth, diagnostics:diagnostics, $
        ndiagnostics:ndiagnostics, twave:twave, headers:headers, obsid:obsid, $
-       date_obs:date_obs, utc_sel:utc_sel, utc_raster_sel:utc_raster_sel, $
+       date_obs:date_obs, startobs:startobs, $
+       utc_sel:utc_sel, utc_raster_sel:utc_raster_sel, $
        date_sel:date_sel, date_raster_sel:date_raster_sel $
        }
 END
@@ -20379,6 +20395,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
             imendian:'b', spendian:'b', refimendian:'b', refspendian:'b', $
             sjiendian:'b', maskendian:'b',endian:endian, obsid:'0', $
             date_obs_main:'0', date_obs_ref:'0', date_obs_sji:'0', $
+            startobs_main:'0', startobs_ref:'0', startobs_sji:'0', $
             ; Compatibility switches
             imcube_compatibility:0B, spcube_compatibility:0B, $
             refimcube_compatibility:0B, refspcube_compatibility:0B, $
@@ -23107,6 +23124,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     N_ELEMENTS(hdr.hdrs_sji)], obsid:hdr.obsid, $
     date_obs_main:hdr.date_obs_main, date_obs_ref:hdr.date_obs_ref, $
     date_obs_sji:hdr.date_obs_sji, $
+    startobs_main:hdr.startobs_main, startobs_ref:hdr.startobs_ref, $
+    startobs_sji:hdr.startobs_sji, $
     ; Spatial dimensions
 		x:DOUBLE(x_start), y:DOUBLE(y_start), d_nx:hdr.nx-1, d_ny:hdr.ny-1, $
     nx:hdr.nx, ny:hdr.ny, $
