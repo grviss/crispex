@@ -10230,8 +10230,7 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, $
                       hdr_out.refnlp*hdr_out.refns, TYPE=hdr_out.refimtype,$
                       /NOZERO),hdr_out.refimoffset)
 			hdr_out.refscan = PTR_NEW(refscanfile, /NO_COPY)
-      IF (N_ELEMENTS(event) EQ 1) THEN $
-        *hdr_out.refsspscan = (*hdr_out.refscan)[0]
+      *hdr_out.refsspscan = (*hdr_out.refscan)[0]
 		ENDIF 
 	  IF (hdr_out.refspfile EQ 1) THEN $
       hdr_out.refspdata = PTR_NEW(referencespectra, /NO_COPY) 
@@ -13863,7 +13862,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
         'TARR_REF','TARR_RASTER_REF','TOFFSET_REF','TWAVE_REF','WCS_REF',$
         'UTC_REF','UTC_RASTER_REF','DATE_REF','DATE_RASTER_REF','TSEL_REF',$
         'HDRS_REF','XO_REF','XI_REF','YO_REF','YI_REF', $
-        'STOKES_LABELS_REF','STOKES_SELECT_REFSP'])
+        'STOKES_LABELS_REF','STOKES_SELECT_REFSP', 'TSEL_SCALING_REF'])
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              
       ; In case of FITS cube
       hdr_out.refimtype = key.datatype  
