@@ -1882,8 +1882,8 @@ PRO CRISPEX_CURSOR, event
 		IF event.ENTER THEN BEGIN
 			WIDGET_CONTROL, event.HANDLER, GET_VALUE=wid
 			WSET, wid
-			ci = UINTARR(16) & cim = ci & cim[7] = 1
-			DEVICE, CURSOR_IMAGE=ci, CURSOR_MASK=cim, CURSOR_XY=[8,8]
+			DEVICE, CURSOR_IMAGE=(*(*info).curs).image, $
+        CURSOR_MASK=(*(*info).curs).mask, CURSOR_XY=[7,7]
 		ENDIF ELSE BEGIN
       ; Upon exiting the draw window...
 			IF (((*(*info).loopparams).np GE 1) AND $
@@ -2305,15 +2305,21 @@ PRO CRISPEX_CURSOR_LOCK, event
 END
 
 PRO CRISPEX_CURSOR_LOCKBUTTON_SET, event
+  ; Handles setting lock button and cursor image
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF (*(*info).curs).lockset THEN $
+	IF (*(*info).curs).lockset THEN BEGIN
     WIDGET_CONTROL, (*(*info).ctrlscp).cursor_button, $
-      SET_VALUE=(*(*info).ctrlspbbut).cursor_locked, /SET_BUTTON $
-  ELSE $
+      SET_VALUE=(*(*info).ctrlspbbut).cursor_locked, /SET_BUTTON 
+    (*(*info).curs).mask[6:8] = 7
+  ENDIF ELSE BEGIN
     WIDGET_CONTROL, (*(*info).ctrlscp).cursor_button, $
       SET_VALUE=(*(*info).ctrlspbbut).cursor_unlocked, /SET_BUTTON
+    (*(*info).curs).mask[6:8] = 0
+  ENDELSE
+	DEVICE, CURSOR_IMAGE=(*(*info).curs).image, $
+    CURSOR_MASK=(*(*info).curs).mask, CURSOR_XY=[7,7]
 END
 
 PRO CRISPEX_COORDSLIDERS_SET, xsensitive, ysensitive, event
@@ -23169,7 +23175,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     sxreflock:sxref_start, syreflock:syref_start, xlock:x_start, ylock:y_start,$
     sxsjilock:sxsji_start, sysjilock:sysji_start, xsjilock:xsji_start, $
     ysjilock:ysji_start, xreflock:xref_start, yreflock:yref_start,  $
-    lockset:0 $
+    image:UINTARR(16), mask:UINTARR(16), lockset:0 $
 	}
 ;------------------------- DATA 
 	data = { $
