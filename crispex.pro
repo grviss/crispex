@@ -13068,7 +13068,8 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
   (*(*info).ctrlspref).displays_overlays_symsize = $
                       WIDGET_SLIDER(cursor_buts, TITLE='Overlay symbol size', $
                       MIN=1, MAX=8, VALUE=(*(*info).overlayparams).symsize, $
-                      /DRAG, EVENT_PRO='CRISPEX_PREFERENCES_SET_OVERLAYS_SYMSIZE')
+                      /DRAG, EVENT_PRO='CRISPEX_PREFERENCES_SET_OVERLAYS_SYMSIZE', $
+                      XSIZE=FLOOR((tab_width-3*pad)/3.))
   (*(*info).ctrlspref).displays_overlays_thick = $
                       WIDGET_SLIDER(cursor_buts, TITLE='Overlay thickness', $
                       MIN=1, MAX=8, VALUE=(*(*info).overlayparams).thick, $
@@ -23422,7 +23423,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     sx_pts:PTR_NEW(0.), sy_pts:PTR_NEW(0.),$
     sx_pts_ref:PTR_NEW(0.), sy_pts_ref:PTR_NEW(0.),$
     sx_pts_sji:PTR_NEW(0.), sy_pts_sji:PTR_NEW(0.),$
-    symsize:1, thick:1, $
+    symsize:overlays_symsize, thick:overlays_thick, $
     loop_linestyle:0, maskcolor:255, maskct:maskct $				
 	}
 ;------------------------- OVERLAY SWITCHES
