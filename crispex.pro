@@ -1880,10 +1880,10 @@ PRO CRISPEX_CURSOR, event
     CRISPEX_VERBOSE_GET_ROUTINE, event, /IGNORE_LAST
 	IF TAG_NAMES(event, /STRUCTURE_NAME) EQ 'WIDGET_TRACKING' THEN BEGIN
 		IF event.ENTER THEN BEGIN
-			WIDGET_CONTROL, event.HANDLER, get_value = wid
+			WIDGET_CONTROL, event.HANDLER, GET_VALUE=wid
 			WSET, wid
 			ci = UINTARR(16) & cim = ci & cim[7] = 1
-			DEVICE, CURSOR_IMAGE = ci, CURSOR_MASK = cim, CURSOR_XY = [8,8]
+			DEVICE, CURSOR_IMAGE=ci, CURSOR_MASK=cim, CURSOR_XY=[8,8]
 		ENDIF ELSE BEGIN
       ; Upon exiting the draw window...
 			IF (((*(*info).loopparams).np GE 1) AND $
@@ -6021,13 +6021,15 @@ PRO CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw, $
 END
 
 ;========================= DISPLAY DRAW PROCEDURES
-PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
-  no_number=no_number,thick=thick, no_endpoints=no_endpoints, $
-  symsize=symsize, draw_mask=draw_mask, SJI=sji, REFERENCE=reference
+PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, NO_CURSOR=no_cursor, $
+  NO_NUMBER=no_number,THICK=thick, NO_ENDPOINTS=no_endpoints, $
+  SYMSIZE=symsize, DRAW_MASK=draw_mask, SJI=sji, REFERENCE=reference
   ; Handles overplotting of the cursor, slits and loop paths
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
+  IF (N_ELEMENTS(SYMSIZE) NE 1) THEN symsize = (*(*info).overlayparams).symsize
+  IF (N_ELEMENTS(THICK) NE 1) THEN thick = (*(*info).overlayparams).thick
 	(*(*info).phiparams).d_nphi_set = $
     (*(*info).zooming).factor * (*(*info).phiparams).nphi_set
   main_wid = 0
@@ -13062,6 +13064,15 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
                       TITLE='Line thickness', MIN=1, MAX=4, $
                       VALUE=(*(*info).plotparams).plotthick, /DRAG, $
                       EVENT_PRO='CRISPEX_PREFERENCES_SET_PLOTTHICK')
+  cursor_buts     = WIDGET_BASE(layout_base, /GRID_LAYOUT, COLUMN=3)
+  (*(*info).ctrlspref).displays_overlays_symsize = $
+                      WIDGET_SLIDER(cursor_buts, TITLE='Overlay symbol size', $
+                      MIN=1, MAX=8, VALUE=(*(*info).overlayparams).symsize, $
+                      /DRAG, EVENT_PRO='CRISPEX_PREFERENCES_SET_OVERLAYS_SYMSIZE')
+  (*(*info).ctrlspref).displays_overlays_thick = $
+                      WIDGET_SLIDER(cursor_buts, TITLE='Overlay thickness', $
+                      MIN=1, MAX=8, VALUE=(*(*info).overlayparams).thick, $
+                      /DRAG, EVENT_PRO='CRISPEX_PREFERENCES_SET_OVERLAYS_THICK')
 	displays_int_base = WIDGET_BASE(layout_base, /ROW, /NONEXCLUSIVE)
 	(*(*info).ctrlspref).displays_interp = $
                     WIDGET_BUTTON(displays_int_base, VALUE='Interpolate spectral slices',$
@@ -13101,6 +13112,8 @@ PRO CRISPEX_PREFERENCES_WINDOW, event
 	(*(*info).prefs).plotcol_old = (*(*info).plotparams).plotcol
 	(*(*info).prefs).plotthick_old = (*(*info).plotparams).plotthick
 	(*(*info).prefs).interpspslice_old = (*(*info).dispparams).interpspslice
+  (*(*info).prefs).overlays_symsize_old = (*(*info).overlayparams).symsize
+  (*(*info).prefs).overlays_thick_old = (*(*info).overlayparams).thick
 	WIDGET_CONTROL, (*(*info).ctrlspref).displays_interp, $
     SET_BUTTON=(*(*info).dispparams).interpspslice
 	WIDGET_CONTROL, displays_preview, SET_BUTTON=(*(*info).prefs).preview
@@ -13211,6 +13224,10 @@ PRO CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 		((*(*info).prefs).tmp_bgplotcol NE (*(*info).prefs).default_bgplotcol) OR $
 		((*(*info).prefs).tmp_plotcol NE (*(*info).prefs).default_plotcol) OR $
 		((*(*info).prefs).tmp_plotthick NE (*(*info).prefs).default_plotthick) OR $
+		((*(*info).prefs).tmp_overlays_thick NE $
+     (*(*info).prefs).default_overlays_thick) OR $
+		((*(*info).prefs).tmp_overlays_symsize NE $
+     (*(*info).prefs).default_overlays_symsize) OR $
 		((*(*info).prefs).current_offsets NE 0) OR $
 		((*(*info).prefs).tmp_interpspslice NE (*(*info).prefs).default_interpspslice) OR $
 		((*(*info).prefs).tmp_slices_imscale NE (*(*info).prefs).default_slices_imscale) OR $			
@@ -13264,7 +13281,7 @@ PRO CRISPEX_PREFERENCES_SET_BGPLOTCOL, event
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 	IF (*(*info).prefs).preview THEN BEGIN
 		(*(*info).plotparams).bgplotcol = (*(*info).prefs).tmp_bgplotcol
-		CRISPEX_PREFERENCES_REDRAW, event
+		CRISPEX_PREFERENCES_REDRAW, event, /SPDISPS
 	ENDIF
 END
 
@@ -13290,7 +13307,7 @@ PRO CRISPEX_PREFERENCES_SET_PLOTCOL, event
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 	IF (*(*info).prefs).preview THEN BEGIN
 		(*(*info).plotparams).plotcol = (*(*info).prefs).tmp_plotcol
-		CRISPEX_PREFERENCES_REDRAW, event
+		CRISPEX_PREFERENCES_REDRAW, event, /SPDISPS
 	ENDIF
 END
 
@@ -13306,8 +13323,40 @@ PRO CRISPEX_PREFERENCES_SET_PLOTTHICK, event
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 	IF (*(*info).prefs).preview THEN BEGIN
 		(*(*info).plotparams).plotthick = (*(*info).prefs).tmp_plotthick
-		CRISPEX_PREFERENCES_REDRAW, event
+		CRISPEX_PREFERENCES_REDRAW, event, /SPDISPS
 	ENDIF
+END
+
+PRO CRISPEX_PREFERENCES_SET_OVERLAYS_SYMSIZE, event
+; Handles the setting of the overlays symbol size
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  (*(*info).prefs).tmp_overlays_symsize = event.VALUE
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_overlays_symsize], $
+      labels=['Overlays symbol size']
+	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
+	IF (*(*info).prefs).preview THEN BEGIN
+		(*(*info).overlayparams).symsize = (*(*info).prefs).tmp_overlays_symsize
+		CRISPEX_PREFERENCES_REDRAW, event, /IMDISPS
+	ENDIF
+END
+
+PRO CRISPEX_PREFERENCES_SET_OVERLAYS_THICK, event
+; Handles the setting of the overlays symbol size
+	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
+	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
+    CRISPEX_VERBOSE_GET_ROUTINE, event
+  (*(*info).prefs).tmp_overlays_thick = event.VALUE
+	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
+    CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).tmp_overlays_thick], $
+      labels=['Overlays thickness']
+	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
+	IF (*(*info).prefs).preview THEN BEGIN
+		(*(*info).overlayparams).thick = (*(*info).prefs).tmp_overlays_thick
+		CRISPEX_PREFERENCES_REDRAW, event, /IMDISPS
+  ENDIF
 END
 
 PRO CRISPEX_PREFERENCES_SET_SLICES_IMSCALE, event									
@@ -13385,7 +13434,7 @@ PRO CRISPEX_PREFERENCES_SET_INTERPOLATE, event
 	CRISPEX_PREFERENCES_CHECK_DEFAULT_BUTTON, event
 	IF (*(*info).prefs).preview THEN BEGIN
 		(*(*info).dispparams).interpspslice = (*(*info).prefs).tmp_interpspslice
-		CRISPEX_PREFERENCES_REDRAW, event
+		CRISPEX_PREFERENCES_REDRAW, event, /SPDISPS
 	ENDIF
 END
 
@@ -13507,15 +13556,19 @@ PRO CRISPEX_PREFERENCES_SET_PREVIEW, event
     (*(*info).plotparams).bgplotcol = (*(*info).prefs).tmp_bgplotcol
 		(*(*info).plotparams).plotthick = (*(*info).prefs).tmp_plotthick
 		(*(*info).dispparams).interpspslice = (*(*info).prefs).tmp_interpspslice
+    (*(*info).overlayparams).symsize = (*(*info).prefs).tmp_overlays_symsize
+    (*(*info).overlayparams).thick = (*(*info).prefs).tmp_overlays_thick
 	ENDIF ELSE BEGIN
 		(*(*info).plotparams).plotcol = (*(*info).prefs).plotcol_old		
     (*(*info).plotparams).bgplotcol = (*(*info).prefs).bgplotcol_old
 		(*(*info).plotparams).plotthick = (*(*info).prefs).plotthick_old
 		(*(*info).dispparams).interpspslice = (*(*info).prefs).interpspslice_old
+    (*(*info).overlayparams).symsize = (*(*info).prefs).overlays_symsize_old
+    (*(*info).overlayparams).thick = (*(*info).prefs).overlays_thick_old
 	ENDELSE
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).prefs).preview], labels=['Preview']
-	CRISPEX_PREFERENCES_REDRAW, event
+	CRISPEX_PREFERENCES_REDRAW, event, /IMDISPS, /SPDISPS
 END
 
 PRO CRISPEX_PREFERENCES_SET_OFFSETS, event
@@ -13605,7 +13658,7 @@ PRO CRISPEX_PREFERENCES_SET_DEFAULTS, event
 		(*(*info).plotparams).plotcol = (*(*info).prefs).tmp_plotcol
 		(*(*info).plotparams).bgplotcol = (*(*info).prefs).tmp_bgplotcol
 		(*(*info).dispparams).interpspslice = (*(*info).prefs).tmp_interpspslice
-		CRISPEX_PREFERENCES_REDRAW, event
+		CRISPEX_PREFERENCES_REDRAW, event, /SPDISPS, /IMDISPS
 	ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [STRTRIM((*(*info).prefs).tmp_startupwin,2),STRTRIM((*(*info).prefs).tmp_autoplay,2),STRTRIM((*(*info).prefs).tmp_bgplotcol,2),$
@@ -13635,6 +13688,8 @@ PRO CRISPEX_PREFERENCES_SAVE_SETTINGS, event, RESAVE=resave
 	defopath = (*(*info).prefs).tmp_defopath		&	prefopath = (*(*info).prefs).tmp_prefopath
 	bgplotcol = (*(*info).prefs).tmp_bgplotcol		&	plotcol = (*(*info).prefs).tmp_plotcol
   plotthick = (*(*info).prefs).tmp_plotthick
+  overlays_thick = (*(*info).prefs).tmp_overlays_thick
+  overlays_symsize = (*(*info).prefs).tmp_overlays_symsize
 	phislice_update = (*(*info).prefs).tmp_phislice_update	&	slices_imscale = (*(*info).prefs).tmp_slices_imscale	
   histo_opt_val = (*(*info).prefs).tmp_histo_opt_val
   gamma_val = (*(*info).prefs).tmp_gamma_val
@@ -13681,7 +13736,7 @@ PRO CRISPEX_PREFERENCES_SAVE_SETTINGS, event, RESAVE=resave
 	SAVE, crispex_version, startupwin, interpspslice, phislice_update, $
     slices_imscale, histo_opt_val,gamma_val, autoplay, defsaveid, defipath, $
     defopath, bgplotcol, plotcol, plotthick, prefipath, prefopath, warnings, $
-    window_offsets, $
+    overlays_thick, overlays_symsize, window_offsets, $
     FILENAME=(*(*info).paths).dir_settings+'crispex.cpref'
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).paths).dir_settings+'crispex.cpref'],labels=['Written']
@@ -13691,6 +13746,8 @@ PRO CRISPEX_PREFERENCES_SAVE_SETTINGS, event, RESAVE=resave
 	(*(*info).plotparams).bgplotcol = bgplotcol		
   (*(*info).plotparams).plotcol = plotcol
   (*(*info).plotparams).plotthick = plotthick
+  (*(*info).overlayparams).symsize = overlays_symsize
+  (*(*info).overlayparams).thick = overlays_thick
 	(*(*info).prefs).prefipath = prefipath			&	(*(*info).paths).ipath = prefipath
 	(*(*info).prefs).prefopath = prefopath			&	(*(*info).paths).opath = prefopath
 	(*(*info).dispparams).phislice_update = phislice_update	&	(*(*info).dispparams).slices_imscale = slices_imscale	
@@ -13698,7 +13755,7 @@ PRO CRISPEX_PREFERENCES_SAVE_SETTINGS, event, RESAVE=resave
   (*(*info).prefs).gamma_val = gamma_val
   (*(*info).prefs).warnings = warnings
 	IF ~KEYWORD_SET(RESAVE) THEN BEGIN
-		CRISPEX_PREFERENCES_REDRAW, event
+		CRISPEX_PREFERENCES_REDRAW, event, /IMDISPS, /SPDISPS
 		WIDGET_CONTROL, (*(*info).winids).preftlb, /DESTROY
 		(*(*info).winids).preftlb = 0
 	ENDIF
@@ -13714,25 +13771,34 @@ PRO CRISPEX_PREFERENCES_CANCEL, event
     (*(*info).plotparams).bgplotcol = (*(*info).prefs).bgplotcol_old
 		(*(*info).plotparams).plotthick = (*(*info).prefs).plotthick_old		
 		(*(*info).dispparams).interpspslice = (*(*info).prefs).interpspslice_old
-		CRISPEX_PREFERENCES_REDRAW, event
+    (*(*info).overlayparams).symsize = (*(*info).prefs).overlays_symsize_old
+    (*(*info).overlayparams).thick = (*(*info).prefs).overlays_thick_old
+		CRISPEX_PREFERENCES_REDRAW, event, /IMDISPS, /SPDISPS
 	ENDIF
 	WIDGET_CONTROL, (*(*info).winids).preftlb, /DESTROY
 	(*(*info).winids).preftlb = 0
 END
 
-PRO CRISPEX_PREFERENCES_REDRAW, event
+PRO CRISPEX_PREFERENCES_REDRAW, event, IMDISPS=imdisps, SPDISPS=spdisps
 ; Handles the redrawing of plot windows in case the preview mode is set
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-	IF ((*(*info).winids).sptlb NE 0) THEN CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
-	IF (TOTAL(*(*(*info).winids).restlooptlb) NE 0) THEN CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_REPLOT_AXES, event
-	IF ((*(*info).winids).retrdettlb NE 0) THEN CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB_REPLOT_AXES, event
-	IF ((*(*info).winids).looptlb NE 0) THEN CRISPEX_DISPLAYS_LOOPSLAB_REPLOT_AXES, event
-	IF ((*(*info).winids).refsptlb NE 0) THEN CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
-	CRISPEX_DRAW_SPECTRAL, event
-	CRISPEX_DRAW_TIMESLICES, event
-	IF (*(*info).winswitch).showint THEN CRISPEX_DRAW_INT, event
+  IF KEYWORD_SET(IMDISPS) THEN CRISPEX_DRAW_IMREF, event
+  IF KEYWORD_SET(SPDISPS) THEN BEGIN
+  	IF ((*(*info).winids).sptlb NE 0) THEN CRISPEX_DISPLAYS_SP_REPLOT_AXES, event
+  	IF (TOTAL(*(*(*info).winids).restlooptlb) NE 0) THEN $
+      CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_REPLOT_AXES, event
+  	IF ((*(*info).winids).retrdettlb NE 0) THEN $
+      CRISPEX_DISPLAYS_RETRIEVE_DET_LOOPSLAB_REPLOT_AXES, event
+  	IF ((*(*info).winids).looptlb NE 0) THEN $
+      CRISPEX_DISPLAYS_LOOPSLAB_REPLOT_AXES, event
+  	IF ((*(*info).winids).refsptlb NE 0) THEN $
+      CRISPEX_DISPLAYS_REFSP_REPLOT_AXES, event
+  	CRISPEX_DRAW_SPECTRAL, event
+  	CRISPEX_DRAW_TIMESLICES, event
+  	IF (*(*info).winswitch).showint THEN CRISPEX_DRAW_INT, event
+  ENDIF
 END
 
 ;========================= READ HEADER PROCEDURE
@@ -20207,6 +20273,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	default_defipath = 0        &  default_defopath = 0			  
 	default_bgplotcol = 255     &  default_plotcol = 0
   default_plotthick = 2.0
+  default_overlays_thick = 1  &  default_overlays_symsize = 1
 	default_phislice_update = 0 &  default_slices_imscale = 0
   default_histo_opt_val = 0.0001  & default_gamma_val = 1.0
   ; 0=no startup warnings, 1=warnings on cmd line, 2=warnings in pop-up
@@ -20237,6 +20304,11 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		IF (N_ELEMENTS(window_offsets) NE 1) THEN window_offsets = {set:0}
     ; Line plot thickness
 		IF (N_ELEMENTS(plotthick) NE 1) THEN plotthick = default_plotthick
+    ; Overlays thickness and symbol size
+    IF (N_ELEMENTS(overlays_symsize) NE 1) THEN $
+      overlays_symsize = default_overlays_symsize
+    IF (N_ELEMENTS(overlays_thick) NE 1) THEN $
+      overlays_thick = default_overlays_thick
 	ENDIF ELSE BEGIN                        
     ; If no preference file is present, set defaults
 		startupwin = default_startupwin           
@@ -20245,6 +20317,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		defipath = default_defipath               &  defopath = default_defopath
 		bgplotcol = default_bgplotcol             &  plotcol = default_plotcol
     plotthick = default_plotthick
+    overlays_thick = default_overlays_thick   
+    overlays_symsize = default_overlays_symsize
 		phislice_update = default_phislice_update 
     slices_imscale = default_slices_imscale
     histo_opt_val = default_histo_opt_val     &  gamma_val = default_gamma_val
@@ -23058,6 +23132,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		startup_autopl:0, startup_win:0, displays_bgcols:0, displays_plcols:0, $
     displays_plthick:0, plthick_label:0, displays_interp:0, $
 		displays_phislice:0, displays_slices:0, displays_offsets:0, $
+    displays_overlays_symsize:0, displays_overlays_thick:0, $
     histo_opt_txt:0, gamma_slid:0, gamma_label:0,  $	
 		paths_i_def_but:0, paths_i_sav_but:0, paths_ipath_text:0, $
 		paths_o_def_but:0, paths_o_sav_but:0, paths_opath_text:0, $
@@ -23347,6 +23422,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     sx_pts:PTR_NEW(0.), sy_pts:PTR_NEW(0.),$
     sx_pts_ref:PTR_NEW(0.), sy_pts_ref:PTR_NEW(0.),$
     sx_pts_sji:PTR_NEW(0.), sy_pts_sji:PTR_NEW(0.),$
+    symsize:1, thick:1, $
     loop_linestyle:0, maskcolor:255, maskct:maskct $				
 	}
 ;------------------------- OVERLAY SWITCHES
@@ -23496,18 +23572,23 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		autoplay:autoplay, startupwin:startupwin, defsaveid:defsaveid,  $
 		defipath:defipath, prefipath:prefipath, defopath:defopath, prefopath:prefopath, $
 		bgplotcol_old:bgplotcol, plotcol_old:plotcol, interpspslice_old:interpspslice, $
+    overlays_symsize_old:overlays_symsize, overlays_thick_old:overlays_thick, $
 		slices_imscale_old:slices_imscale, histo_opt_val:histo_opt_val, $
     gamma_val:gamma_val, plotthick:plotthick, plotthick_old:plotthick, $
+    overlays_symsize:overlays_symsize, overlays_thick:overlays_thick, $
     warnings:warnings, current_offsets:window_offsets.set, $
 		tmp_autoplay:autoplay, tmp_startupwin:startupwin, tmp_defsaveid:defsaveid, $
 		tmp_bgplotcol:bgplotcol, tmp_plotcol:plotcol, tmp_defipath:defipath, tmp_prefipath:prefipath, $
 		tmp_defopath:defopath, tmp_prefopath:prefopath, tmp_interpspslice:interpspslice, $
 		tmp_phislice_update:phislice_update, tmp_slices_imscale:slices_imscale, $								
     tmp_histo_opt_val:histo_opt_val, tmp_gamma_val:gamma_val, tmp_warnings:warnings, $
-    tmp_plotthick:plotthick, $
+    tmp_plotthick:plotthick, tmp_overlays_symsize:overlays_symsize, $
+    tmp_overlays_thick:overlays_thick, $
 		default_autoplay:default_autoplay, default_startupwin:default_startupwin, $
 		default_bgplotcol:default_bgplotcol, default_plotcol:default_plotcol, $
     default_plotthick:default_plotthick, $
+    default_overlays_symsize:default_overlays_symsize, $
+    default_overlays_thick:default_overlays_thick, $
 		default_defipath:default_defipath, default_prefipath:default_prefipath, $
 		default_defopath:default_defopath, default_prefopath:default_prefopath, $
 		default_defsaveid:default_defsaveid, default_interpspslice:default_interpspslice, $
