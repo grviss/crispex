@@ -10708,9 +10708,15 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
               t_sel_main = hdr_out.tarr_raster_main[hdr_out.nx/2,main_tsel_idx] $
             ELSE $
               t_sel_main = hdr_out.tarr_main[main_tsel_idx]
-          ENDIF ELSE $
+          ENDIF ELSE BEGIN
             ; Main FITS created with iris_make_fits_level3 > r1.41
             t_sel_main = (SXPAR(*hdr_out.hdrs_main[0],'CRVAL4'))
+            IF (hdr_out.startobs_main NE '0') THEN $
+              orig_str = STR2UTC(hdr_out.startobs_main) $
+            ELSE $
+              orig_str = STR2UTC(hdr_out.date_obs_main)
+            t_sel_main += orig_str.time/1000.
+          ENDELSE
           offsetarray = READFITS(hdr_out.sjifilename[idx_sji], sjihdr, EXTEN_NO=1, /SILENT)
           pc_ix_exist = (SXPAR(sjihdr,'PC1_1IX') NE 0)
           sjihdr = FITSHEAD2STRUCT(sjihdr)
