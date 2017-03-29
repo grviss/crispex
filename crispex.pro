@@ -12210,6 +12210,10 @@ PRO CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, $
                             (diag_width[d]-1)),s])/ms[s], /NAN)
       mult_val[*,s] = ls_upp_y[s] / ls_upp_tmp[*,s]
     ENDFOR
+    ; Failsafe against NaNs. Set to 1 by default.
+    wherenonfinite = WHERE(FINITE(mult_val) EQ 0, count)
+    IF (count GT 0) THEN $
+      mult_val[wherenonfinite] = 1.
   ENDIF ELSE mult_val = REPLICATE(1.,ns)
 
     result = {ls_low_y:ls_low_y, ls_upp_y:ls_upp_y, ls_yrange:ls_yrange, $
@@ -22314,6 +22318,10 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
           (hdr.diag_width[d]-1)),j])/hdr.ms[j], /NAN)
       main_mult_val[*,j] = ls_upp_y[j] / ls_upp_tmp[*,j]
     ENDFOR
+    ; Failsafe against NaNs. Set to 1 by default.
+    wherenonfinite = WHERE(FINITE(main_mult_val) EQ 0, count)
+    IF (count GT 0) THEN $
+      main_mult_val[wherenonfinite] = 1.
   ENDIF ELSE main_mult_val = REPLICATE(1.,hdr.ns)
 	ls_low_y = PTR_NEW(ls_low_y,/NO_COPY)
 	ls_upp_y = PTR_NEW(ls_upp_y,/NO_COPY)
