@@ -16474,7 +16474,11 @@ PRO CRISPEX_SCALING_SELECT_TYPE, event
     CRISPEX_VERBOSE_GET_ROUTINE, event
   ;index = {0,1,2} -> Based on first, based on current, per time step
   (*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling] = event.INDEX
-  CRISPEX_SCALING_APPLY_SELECTED, event
+  CRISPEX_SCALING_APPLY_SELECTED, event, $
+    UPDATE_MAIN=(((*(*info).scaling).imrefscaling EQ 0) AND (event.INDEX NE 2)), $
+    UPDATE_REF=(((*(*info).scaling).imrefscaling EQ 1) AND (event.INDEX NE 2)), $
+    UPDATE_DOP=(((*(*info).scaling).imrefscaling EQ 2) AND (event.INDEX NE 2)), $
+    UPDATE_SJI=(((*(*info).scaling).imrefscaling GE 3) AND (event.INDEX NE 2))
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, [(*(*info).scaling).imrefscaling,$
     (*(*(*info).scaling).imagescale)[(*(*info).scaling).imrefscaling]],$
@@ -16488,18 +16492,17 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event, UPDATE_MAIN=update_main, $
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Handle keywords
-  IF ((*(*(*info).scaling).imagescale)[$
-    (*(*info).scaling).imrefscaling] NE 2) THEN BEGIN
-    IF (N_ELEMENTS(UPDATE_MAIN) EQ 0) THEN $
-      update_main = ((*(*(*info).scaling).imagescale)[0] NE 2)
-    IF (N_ELEMENTS(UPDATE_REF) EQ 0) THEN $
-      update_ref = ((*(*info).winswitch).showref AND $
-                    ((*(*(*info).scaling).imagescale)[1] NE 2))
-    IF (N_ELEMENTS(UPDATE_DOP) EQ 0) THEN update_dop = $
-      (((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) AND $
-      ((*(*(*info).scaling).imagescale)[3] NE 2))
-    IF (N_ELEMENTS(UPDATE_SJI) EQ 0) THEN update_sji = $
-      TOTAL((*(*info).winswitch).showsji GT 0)
+  IF (N_ELEMENTS(UPDATE_MAIN) EQ 0) THEN $
+    update_main = ((*(*(*info).scaling).imagescale)[0] NE 2)
+  IF (N_ELEMENTS(UPDATE_REF) EQ 0) THEN $
+    update_ref = ((*(*info).winswitch).showref AND $
+                  ((*(*(*info).scaling).imagescale)[1] NE 2))
+  IF (N_ELEMENTS(UPDATE_DOP) EQ 0) THEN update_dop = $
+    (((*(*info).winswitch).showdop AND (*(*info).dispswitch).drawdop) AND $
+    ((*(*(*info).scaling).imagescale)[3] NE 2))
+  IF (N_ELEMENTS(UPDATE_SJI) EQ 0) THEN update_sji = $
+    TOTAL((*(*info).winswitch).showsji GT 0)
+  IF update_main THEN BEGIN
     ; Main image
     idx = (*(*info).intparams).lp_diag_all
     CASE (*(*(*info).scaling).imagescale)[0] OF
@@ -16524,100 +16527,100 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event, UPDATE_MAIN=update_main, $
       (*(*info).scaling).imagemin_curr = minmax[0]
       (*(*info).scaling).imagemax_curr = minmax[1]
     ENDELSE
+  ENDIF
 
-    ; Reference image
-    IF update_ref THEN BEGIN
-      idx = (*(*info).intparams).ndiagnostics + (*(*info).intparams).lp_ref_diag_all
-      CASE (*(*(*info).scaling).imagescale)[1] OF
-        0:  minmax_data = (*(*(*info).data).refdata)[$
-              (*(*info).scaling).tsel_scaling_ref * (*(*info).dataparams).refns * $
-              (*(*info).dataparams).refnlp + $
-              (*(*info).dataparams).s_ref * (*(*info).dataparams).refnlp + $
-              (*(*info).dataparams).lp_ref]
-        1:  minmax_data = *(*(*info).data).refslice
-      ENDCASE
-      IF ((*(*info).dispswitch).scalestokes[1] AND $
-          ((*(*info).dataparams).s_ref NE 0)) THEN $
-        minmax_data /= FLOAT((*(*(*info).data).refdata)[$
-          (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp * $
-          (*(*info).dataparams).refns + (*(*info).stokesparams).contpos[1]])
+  ; Reference image
+  IF update_ref THEN BEGIN
+    idx = (*(*info).intparams).ndiagnostics + (*(*info).intparams).lp_ref_diag_all
+    CASE (*(*(*info).scaling).imagescale)[1] OF
+      0:  minmax_data = (*(*(*info).data).refdata)[$
+            (*(*info).scaling).tsel_scaling_ref * (*(*info).dataparams).refns * $
+            (*(*info).dataparams).refnlp + $
+            (*(*info).dataparams).s_ref * (*(*info).dataparams).refnlp + $
+            (*(*info).dataparams).lp_ref]
+      1:  minmax_data = *(*(*info).data).refslice
+    ENDCASE
+    IF ((*(*info).dispswitch).scalestokes[1] AND $
+        ((*(*info).dataparams).s_ref NE 0)) THEN $
+      minmax_data /= FLOAT((*(*(*info).data).refdata)[$
+        (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp * $
+        (*(*info).dataparams).refns + (*(*info).stokesparams).contpos[1]])
+      minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
+        (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
+    IF ((*(*(*info).scaling).imagescale)[1] EQ 0) THEN BEGIN
+      (*(*info).scaling).refmin = minmax[0]
+      (*(*info).scaling).refmax = minmax[1]
+    ENDIF ELSE BEGIN
+      (*(*info).scaling).refmin_curr = minmax[0]
+      (*(*info).scaling).refmax_curr = minmax[1]
+    ENDELSE
+  ENDIF
+
+  ; Doppler image
+  IF update_dop THEN BEGIN
+    idx = (*(*info).intparams).ndiagnostics + $
+      (*(*info).intparams).nrefdiagnostics + (*(*info).intparams).lp_diag_all
+    CASE (*(*(*info).scaling).imagescale)[2] OF
+      0:  BEGIN
+  		      xyslice =  (*(*(*info).data).imagedata)[$
+              (*(*info).scaling).tsel_scaling_main * (*(*info).dataparams).ns * $
+              (*(*info).dataparams).nlp + $
+              (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
+              (*(*info).dataparams).lp]
+  		      temp_xyslice = (*(*(*info).data).imagedata)[$
+              (*(*info).scaling).tsel_scaling_main * (*(*info).dataparams).ns * $
+              (*(*info).dataparams).nlp + $
+              (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
+              (*(*info).dataparams).lp_dop]
+  		      IF ((*(*info).dataparams).lp_dop GT (*(*info).dataparams).lc) THEN $
+              minmax_data = temp_xyslice - xyslice $
+            ELSE $
+              minmax_data = xyslice - temp_xyslice 
+          END
+      1:  minmax_data = *(*(*info).data).dopslice
+    ENDCASE
+    IF ((*(*info).dispswitch).scalestokes[0] AND $
+        ((*(*info).dataparams).s NE 0)) THEN $
+      minmax_data /= FLOAT((*(*(*info).data).imagedata)[$
+        (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * $
+        (*(*info).dataparams).ns + (*(*info).stokesparams).contpos[0]])
+    minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
+        (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
+    IF ((*(*(*info).scaling).imagescale)[2] EQ 0) THEN BEGIN
+      (*(*info).scaling).dopmin = minmax[0]
+      (*(*info).scaling).dopmax = minmax[1]
+    ENDIF ELSE BEGIN
+      (*(*info).scaling).dopmin_curr = minmax[0]
+      (*(*info).scaling).dopmax_curr = minmax[1]
+    ENDELSE
+  ENDIF
+
+  ; SJI image
+  IF update_sji THEN BEGIN
+    base_idx = 2*(*(*info).intparams).ndiagnostics + (*(*info).intparams).nrefdiagnostics
+    FOR i=0,(*(*info).winswitch).nwhereshowsji-1 DO BEGIN
+      idx_sji = (*(*(*info).winswitch).whereshowsji)[i]
+      idx = base_idx + idx_sji
+      IF ((*(*(*info).scaling).imagescale)[3+idx_sji] EQ 0) THEN BEGIN
+        minmax_data = (*(*(*info).data).sjidata[idx_sji])[$
+          (*(*info).scaling).tsel_scaling_sji[idx_sji]]
+      ; If SJI data is scaled integer, descale and convert to float
+      IF (*(*info).dispswitch).sjiscaled[idx_sji] THEN $
+        minmax_data = CRISPEX_SCALING_DESCALE(minmax_data, $
+          (*(*info).dispparams).sjibscale[idx_sji], $
+          (*(*info).dispparams).sjibzero[idx_sji])
         minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
           (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
-      IF ((*(*(*info).scaling).imagescale)[1] EQ 0) THEN BEGIN
-        (*(*info).scaling).refmin = minmax[0]
-        (*(*info).scaling).refmax = minmax[1]
-      ENDIF ELSE BEGIN
-        (*(*info).scaling).refmin_curr = minmax[0]
-        (*(*info).scaling).refmax_curr = minmax[1]
-      ENDELSE
-    ENDIF
-
-    ; Doppler image
-    IF update_dop THEN BEGIN
-      idx = (*(*info).intparams).ndiagnostics + $
-        (*(*info).intparams).nrefdiagnostics + (*(*info).intparams).lp_diag_all
-      CASE (*(*(*info).scaling).imagescale)[2] OF
-        0:  BEGIN
-	  		      xyslice =  (*(*(*info).data).imagedata)[$
-                (*(*info).scaling).tsel_scaling_main * (*(*info).dataparams).ns * $
-                (*(*info).dataparams).nlp + $
-                (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
-                (*(*info).dataparams).lp]
-	  		      temp_xyslice = (*(*(*info).data).imagedata)[$
-                (*(*info).scaling).tsel_scaling_main * (*(*info).dataparams).ns * $
-                (*(*info).dataparams).nlp + $
-                (*(*info).dataparams).s * (*(*info).dataparams).nlp + $
-                (*(*info).dataparams).lp_dop]
-    		      IF ((*(*info).dataparams).lp_dop GT (*(*info).dataparams).lc) THEN $
-                minmax_data = temp_xyslice - xyslice $
-              ELSE $
-                minmax_data = xyslice - temp_xyslice 
-            END
-        1:  minmax_data = *(*(*info).data).dopslice
-      ENDCASE
-      IF ((*(*info).dispswitch).scalestokes[0] AND $
-          ((*(*info).dataparams).s NE 0)) THEN $
-        minmax_data /= FLOAT((*(*(*info).data).imagedata)[$
-          (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * $
-          (*(*info).dataparams).ns + (*(*info).stokesparams).contpos[0]])
-      minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
+        (*(*info).scaling).sjimin[idx_sji] = minmax[0]
+        (*(*info).scaling).sjimax[idx_sji] = minmax[1]
+      ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[3+idx_sji] EQ 1) THEN BEGIN
+        minmax_data = *(*(*info).data).sjislice[idx_sji]
+        minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
           (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
-      IF ((*(*(*info).scaling).imagescale)[2] EQ 0) THEN BEGIN
-        (*(*info).scaling).dopmin = minmax[0]
-        (*(*info).scaling).dopmax = minmax[1]
-      ENDIF ELSE BEGIN
-        (*(*info).scaling).dopmin_curr = minmax[0]
-        (*(*info).scaling).dopmax_curr = minmax[1]
-      ENDELSE
-    ENDIF
-
-    ; SJI image
-    IF update_sji THEN BEGIN
-      base_idx = 2*(*(*info).intparams).ndiagnostics + (*(*info).intparams).nrefdiagnostics
-      FOR i=0,(*(*info).winswitch).nwhereshowsji-1 DO BEGIN
-        idx_sji = (*(*(*info).winswitch).whereshowsji)[i]
-        idx = base_idx + idx_sji
-        IF ((*(*(*info).scaling).imagescale)[3+idx_sji] EQ 0) THEN BEGIN
-          minmax_data = (*(*(*info).data).sjidata[idx_sji])[$
-            (*(*info).scaling).tsel_scaling_sji[idx_sji]]
-        ; If SJI data is scaled integer, descale and convert to float
-        IF (*(*info).dispswitch).sjiscaled[idx_sji] THEN $
-          minmax_data = CRISPEX_SCALING_DESCALE(minmax_data, $
-            (*(*info).dispparams).sjibscale[idx_sji], $
-            (*(*info).dispparams).sjibzero[idx_sji])
-          minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
-            (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
-          (*(*info).scaling).sjimin[idx_sji] = minmax[0]
-          (*(*info).scaling).sjimax[idx_sji] = minmax[1]
-        ENDIF ELSE IF ((*(*(*info).scaling).imagescale)[3+idx_sji] EQ 1) THEN BEGIN
-          minmax_data = *(*(*info).data).sjislice[idx_sji]
-          minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
-            (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
-          (*(*info).scaling).sjimin_curr[idx_sji] = minmax[0]
-          (*(*info).scaling).sjimax_curr[idx_sji] = minmax[1]
-        ENDIF
-      ENDFOR
-    ENDIF
+        (*(*info).scaling).sjimin_curr[idx_sji] = minmax[0]
+        (*(*info).scaling).sjimax_curr[idx_sji] = minmax[1]
+      ENDIF
+    ENDFOR
   ENDIF
 END
 
