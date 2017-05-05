@@ -4636,19 +4636,26 @@ PRO CRISPEX_DISPLAYS_RESTORE_LOOPSLAB_SELECT, event
         SENSITIVE = (TOTAL(*(*(*info).restoreparams).disp_ref_slices) EQ 0) 
 		ENDIF ELSE BEGIN
       ; If displaying a new loop, change the display filename
-			(*(*info).restoreparams).disp_loopfile = (*(*(*info).restoreparams).cfiles)[event.INDEX-1]
+			(*(*info).restoreparams).disp_loopfile = $
+        (*(*(*info).restoreparams).cfiles)[event.INDEX-1]
 			refbase = FILE_BASENAME(STRMID((*(*info).dataparams).refimfilename,0,$
                   STRPOS((*(*info).dataparams).refimfilename,'.',/REVERSE_SEARCH)))
-			sjibase = FILE_BASENAME(STRMID((*(*info).dataparams).sjifilename,0,$
-                  STRPOS((*(*info).dataparams).sjifilename,'.',/REVERSE_SEARCH)))
+      IF ((*(*info).dataparams).nsjifiles GE 1) THEN BEGIN
+        sjibase = STRARR((*(*info).dataparams).nsjifiles)
+        FOR idx_sji=0,(*(*info).dataparams).nsjifiles-1 DO $
+    			sjibase[idx_sji] = $
+            FILE_BASENAME(STRMID((*(*info).dataparams).sjifilename[idx_sji],0,$
+                          STRPOS((*(*info).dataparams).sjifilename[idx_sji],$
+                          '.',/REVERSE_SEARCH)))
+      ENDIF ELSE sjibase = ''
       ; Check whether it is a main, reference or SJI loop
       disp_imref = 0  
 			IF (STRLEN(refbase) GT 0) THEN $
         disp_imref += STRCMP(refbase,FILE_BASENAME($
           (*(*info).restoreparams).disp_loopfile),STRLEN(refbase)) 
-      IF (STRLEN(sjibase) GT 0) THEN $
-        disp_imref += STRCMP(sjibase,FILE_BASENAME($
-          (*(*info).restoreparams).disp_loopfile),STRLEN(sjibase))*2
+      IF (TOTAL(STRLEN(sjibase)) GT 0) THEN $
+        disp_imref += (TOTAL(STRCMP(sjibase,FILE_BASENAME($
+          (*(*info).restoreparams).disp_loopfile),STRLEN(sjibase)) GE 1))*2
       ; If there are already loops being displayed, append variables to current
       ; selection
 			IF (TOTAL(*(*(*info).restoreparams).disp_loopnr) GE 0) THEN BEGIN
@@ -6708,6 +6715,7 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
       IF ((imref)[sel_loops[i]] EQ 3) THEN BEGIN
         ; imref=3: slit-jaw
         wcs_from = *(*(*info).dataparams).wcs_sji
+        wcs_from_set = (TOTAL((*(*info).dataswitch).sji_wcs_set) GE 1)
         pix_from2main = *(*(*info).dataparams).pix_sji2main
         pix_from2ref = *(*(*info).dataparams).pix_sji2ref
         dx_from = (*(*info).dataparams).sjidx
@@ -6721,6 +6729,7 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
       ENDIF ELSE IF ((imref)[sel_loops[i]] EQ 2) THEN BEGIN
         ; imref=2: reference
         wcs_from = *(*(*info).dataparams).wcs_ref
+        wcs_from_set = (*(*info).dataswitch).ref_wcs_set
         pix_from2main = *(*(*info).dataparams).pix_ref2main
         pix_from2sji = (*(*info).dataparams).pix_ref2sji
         dx_from = (*(*info).dataparams).refdx
@@ -6734,6 +6743,7 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
       ENDIF ELSE BEGIN
         ; imref=1: main
         wcs_from = (*(*info).dataparams).wcs_main
+        wcs_from_set = (*(*info).dataswitch).wcs_set
         pix_from2ref = *(*(*info).dataparams).pix_main2ref
         pix_from2sji = (*(*info).dataparams).pix_main2sji
         dx_from = (*(*info).dataparams).dx
@@ -6785,9 +6795,7 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
         ENDFOR
       ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
         IF ((imref)[sel_loops[i]] NE 2) THEN BEGIN
-          IF (((*(*info).dataswitch).wcs_set OR $
-            (*(*info).dataswitch).sji_wcs_set) AND $
-            (*(*info).dataswitch).ref_wcs_set) THEN BEGIN
+          IF ((*(*info).dataswitch).ref_wcs_set AND wcs_from_set) THEN BEGIN
             ; If WCS info available, use that for the transform
             IF (TOTAL(xp_orig LT 0) AND TOTAL(xp_orig GE nx) AND $
               TOTAL(yp_orig LT 0) AND TOTAL(yp_orig GE ny)) THEN BEGIN
@@ -6829,9 +6837,7 @@ PRO CRISPEX_DRAW_LOOP_OVERLAYS_GET_LOOPS, event, NO_NUMBER=no_number, THICK=thic
       ENDIF ELSE BEGIN
         ; Else converting to main from ref, or directly from main
         IF ((imref)[sel_loops[i]] GE 2) THEN BEGIN
-          IF ((*(*info).dataswitch).wcs_set AND $
-            ((*(*info).dataswitch).ref_wcs_set OR $
-             (*(*info).dataswitch).sji_wcs_set)) THEN BEGIN
+          IF ((*(*info).dataswitch).wcs_set AND wcs_from_set) THEN BEGIN
             ; If WCS info available, use that for the transform
             IF (TOTAL(xp_orig LT 0) AND TOTAL(xp_orig GE nx) AND $
               TOTAL(yp_orig LT 0) AND TOTAL(yp_orig GE ny)) THEN BEGIN
@@ -9439,11 +9445,20 @@ PRO CRISPEX_FIND_CLSAV, event, FORCE_PATH=force_path, $
         COUNT = refclfilecount)
     ENDIF 
   	IF (*(*info).dataswitch).sjifile THEN BEGIN
-      sjifilename = FILE_BASENAME((*(*info).dataparams).sjifilename)
-  		sjifirstsplit = STRMID(sjifilename,0,STRPOS(sjifilename,'.',$
-        /REVERSE_SEARCH))
-  		sjiclfiles = FILE_SEARCH(path+sjifirstsplit+"*clsav", $
-        COUNT = sjiclfilecount)
+      FOR idx_sji=0,(*(*info).dataparams).nsjifiles-1 DO BEGIN
+        sjifilename = FILE_BASENAME((*(*info).dataparams).sjifilename[idx_sji])
+    		sjifirstsplit = STRMID(sjifilename,0,STRPOS(sjifilename,'.',$
+          /REVERSE_SEARCH))
+    		sjiclfiles_tmp = FILE_SEARCH(path+sjifirstsplit+"*clsav", $
+          COUNT = sjiclfilecount_tmp)
+        IF (idx_sji GE 1) THEN BEGIN
+          sjiclfiles = [sjiclfiles,sjiclfiles_tmp]
+          sjiclfilecount += sjiclfilecount_tmp
+        ENDIF ELSE BEGIN
+          sjiclfiles = sjiclfiles_tmp
+          sjiclfilecount = sjiclfilecount_tmp
+        ENDELSE
+      ENDFOR
     ENDIF
   ENDIF
   ; If no *clsav files found, allow selection of new path and redo the search
@@ -9465,9 +9480,22 @@ PRO CRISPEX_FIND_CLSAV, event, FORCE_PATH=force_path, $
   	IF (*(*info).dataswitch).reffile THEN $
   		refclfiles = FILE_SEARCH(newpath+reffirstsplit+"*clsav", $
         COUNT = refclfilecount)
-  	IF (*(*info).dataswitch).sjifile THEN $
-  		sjiclfiles = FILE_SEARCH(newpath+sjifirstsplit+"*clsav", $
-        COUNT = sjiclfilecount)
+  	IF (*(*info).dataswitch).sjifile THEN BEGIN
+      FOR idx_sji=0,(*(*info).dataparams).nsjifiles-1 DO BEGIN
+        sjifilename = FILE_BASENAME((*(*info).dataparams).sjifilename[idx_sji])
+    		sjifirstsplit = STRMID(sjifilename,0,STRPOS(sjifilename,'.',$
+          /REVERSE_SEARCH))
+    		sjiclfiles_tmp = FILE_SEARCH(path+sjifirstsplit+"*clsav", $
+          COUNT = sjiclfilecount_tmp)
+        IF (idx_sji GE 1) THEN BEGIN
+          sjiclfiles = [sjiclfiles,sjiclfiles_tmp]
+          sjiclfilecount += sjiclfilecount_tmp
+        ENDIF ELSE BEGIN
+          sjiclfiles = sjiclfiles_tmp
+          sjiclfilecount = sjiclfilecount_tmp
+        ENDELSE
+      ENDFOR
+    ENDIF
   ENDIF
   ; Save variables
   clfiles_tmp = ''
@@ -9523,11 +9551,20 @@ PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir, $
   ENDIF ELSE $
     refcfilecount = 0
 	IF (*(*info).dataswitch).sjifile THEN BEGIN
-    sjifilename = FILE_BASENAME((*(*info).dataparams).sjifilename)
-		sjifirstsplit = STRMID(sjifilename,0,STRPOS(sjifilename,'.',$
-      /REVERSE_SEARCH))
-		sjicfiles = FILE_SEARCH(path+sjifirstsplit+"*csav", $
-      COUNT = sjicfilecount)
+    FOR idx_sji=0,(*(*info).dataparams).nsjifiles-1 DO BEGIN
+      sjifilename = FILE_BASENAME((*(*info).dataparams).sjifilename[idx_sji])
+  		sjifirstsplit = STRMID(sjifilename,0,STRPOS(sjifilename,'.',$
+        /REVERSE_SEARCH))
+  		sjicfiles_tmp = FILE_SEARCH(path+sjifirstsplit+"*csav", $
+        COUNT = sjicfilecount_tmp)
+      IF (idx_sji GE 1) THEN BEGIN
+        sjicfiles = [sjicfiles,sjicfiles_tmp]
+        sjicfilecount += sjicfilecount_tmp
+      ENDIF ELSE BEGIN
+        sjicfiles = sjicfiles_tmp
+        sjicfilecount = sjicfilecount_tmp
+      ENDELSE
+    ENDFOR
   ENDIF ELSE $
     sjicfilecount = 0
   ; If no *csav files found, allow selection of new path and redo the search
@@ -9549,9 +9586,22 @@ PRO CRISPEX_FIND_CSAV, event, ALLOW_SELECT_DIR=allow_select_dir, $
   	IF (*(*info).dataswitch).reffile THEN $
   		refcfiles = FILE_SEARCH(newpath+reffirstsplit+"*csav", $
         COUNT = refcfilecount)
-  	IF (*(*info).dataswitch).sjifile THEN $
-  		sjicfiles = FILE_SEARCH(newpath+sjifirstsplit+"*csav", $
-        COUNT = sjicfilecount)
+  	IF (*(*info).dataswitch).sjifile THEN BEGIN
+      FOR idx_sji=0,(*(*info).dataparams).nsjifiles-1 DO BEGIN
+        sjifilename = FILE_BASENAME((*(*info).dataparams).sjifilename[idx_sji])
+    		sjifirstsplit = STRMID(sjifilename,0,STRPOS(sjifilename,'.',$
+          /REVERSE_SEARCH))
+    		sjicfiles_tmp = FILE_SEARCH(path+sjifirstsplit+"*csav", $
+          COUNT = sjicfilecount_tmp)
+        IF (idx_sji GE 1) THEN BEGIN
+          sjicfiles = [sjicfiles,sjicfiles_tmp]
+          sjicfilecount += sjicfilecount_tmp
+        ENDIF ELSE BEGIN
+          sjicfiles = sjicfiles_tmp
+          sjicfilecount = sjicfilecount_tmp
+        ENDELSE
+      ENDFOR
+    ENDIF
   ENDIF
   ; Save variables
   cfiles_tmp = ''
@@ -15037,10 +15087,14 @@ PRO CRISPEX_RESTORE_LOOPS_MENU, event, set_but_array
     STRMID(FILE_BASENAME((*(*info).dataparams).refimfilename),0,$
     STRPOS(FILE_BASENAME((*(*info).dataparams).refimfilename), '.', $
     /REVERSE_SEARCH))
-  sjifilename_noext = $
-    STRMID(FILE_BASENAME((*(*info).dataparams).sjifilename),0,$
-    STRPOS(FILE_BASENAME((*(*info).dataparams).sjifilename), '.', $
-    /REVERSE_SEARCH))
+  IF ((*(*info).dataparams).nsjifiles GE 1) THEN BEGIN
+    sjifilename_noext = STRARR((*(*info).dataparams).nsjifiles) 
+    FOR idx_sji=0,(*(*info).dataparams).nsjifiles-1 DO $
+      sjifilename_noext[idx_sji] = $
+        STRMID(FILE_BASENAME((*(*info).dataparams).sjifilename[idx_sji]),0,$
+        STRPOS(FILE_BASENAME((*(*info).dataparams).sjifilename[idx_sji]), '.', $
+        /REVERSE_SEARCH))
+  ENDIF ELSE sjifilename_noext = ''
 	FOR i=0,filecount-1 DO BEGIN
 		IF (N_ELEMENTS(set_but_array) NE filecount) THEN $
       (*(*(*info).restoreparams).sel_loops)[i] = 0
@@ -15080,7 +15134,8 @@ PRO CRISPEX_RESTORE_LOOPS_MENU, event, set_but_array
       STRMATCH(singlefilename, imfilename_noext+'*', /FOLD_CASE) + $
       STRMATCH(singlefilename, refimfilename_noext+'*', /FOLD_CASE) * 2 * $
       (*(*info).dataswitch).reffile + $
-      STRMATCH(singlefilename, sjifilename_noext+'*', /FOLD_CASE) * 3 * $
+      ; Switched around as sjifilename_noext may be an array
+      TOTAL(STRMATCH(sjifilename_noext+'*', singlefilename, /FOLD_CASE)) * 3 * $
       (*(*info).dataswitch).sjifile
     ; Update user feedback
 		initial_feedback = 'Processed save file '+STRTRIM(i,2)+': '+singlefilename
@@ -17908,10 +17963,12 @@ PRO CRISPEX_SAVE_RETRIEVE_LOOPSLAB, event, SAVE_SLICE=save_slice
       where_imrefsji = $
         [where_imrefsji, REPLICATE(2, (*(*info).dataparams).nsjifiles-1)]
     ENDIF
-    idx_sji = BYTARR(N_ELEMENTS(where_imrefsji))
+  ENDIF
+  idx_sji = BYTARR(N_ELEMENTS(where_imrefsji))
+  where_sji = WHERE(where_imrefsji EQ 2, sjicount)
+  IF (sjicount GT 0) THEN $
     idx_sji[WHERE(where_imrefsji EQ 2)] = $
       INDGEN((*(*info).dataparams).nsjifiles)
-  ENDIF
 	t_0 = SYSTIME(/SECONDS)
 	WIDGET_CONTROL,/HOURGLASS
   ; Check output path for writeability
