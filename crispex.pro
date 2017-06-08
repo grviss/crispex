@@ -364,13 +364,13 @@
 ;
 ; ACKNOWLEDGEMENTS:
 ;	  This code would not be present in its current state and with the current
-;   functionalities without the relentless practical testing and the valuable
-;   input and ideas of Luc Rouppe van der Voort, Sven Wedemeyer-Böhm, Mats
-;   Carlsson, Patrick Antolin, Jorrit Leenaarts, Bart de Pontieu, Eamon Scullion
-;   and Jaime de la Cruz Rodriguez. 
+;   functionalities without the testing by and the valuable input and ideas
+;   of Luc Rouppe van der Voort, Bart de Pontieu, Mats Carlsson, Sven Wedemeyer,
+;   Patrick Antolin, Jorrit Leenaarts, Eamon Scullion and Jaime de la Cruz
+;   Rodriguez. 
 ;
 ; AUTHOR:
-;	  Gregal Vissers (g.j.m.vissers@astro.uio.no)
+;	  Gregal Vissers (gregal.vissers@astro.su.se)
 ;   @ Institute for Solar Physics, Department of Astronomy, Stockholm University
 ;	  (previously at Institute of Theoretical Astrophysics, University of Oslo)
 ;   
@@ -12128,19 +12128,20 @@ PRO CRISPEX_IO_PARSE_VDOP, ndiagnostics, wheredispdiag, v_dop, nlp, lps, $
       IF (heightset EQ 0) THEN BEGIN
         FOR d=0,ndiagnostics-1 DO BEGIN
           dd = wheredispdiag[d]
+          nv_dop = N_ELEMENTS(*v_dop[dd])
           IF (d EQ 0) THEN BEGIN
             v_dop_low_min = (*v_dop[dd])[0]
-            v_dop_low_max = (*v_dop[dd])[N_ELEMENTS(*v_dop[dd])-2]
+            v_dop_low_max = (*v_dop[dd])[nv_dop-2]
             v_dop_upp_min = (*v_dop[dd])[1]
-            v_dop_upp_max = (*v_dop[dd])[N_ELEMENTS(*v_dop[dd])-1]
-            v_dop_incr = MAX((ABS(SHIFT(*v_dop[dd],-1)-*v_dop[dd]))[0:-2], /NAN)
+            v_dop_upp_max = (*v_dop[dd])[nv_dop-1]
+            v_dop_incr = MAX((ABS(SHIFT(*v_dop[dd],-1)-*v_dop[dd]))[0:nv_dop-2], /NAN)
           ENDIF ELSE BEGIN
             v_dop_low_min = [v_dop_low_min, (*v_dop[dd])[0]]
-            v_dop_low_max = [v_dop_low_max, (*v_dop[dd])[N_ELEMENTS(*v_dop[dd])-2]]
+            v_dop_low_max = [v_dop_low_max, (*v_dop[dd])[nv_dop-2]]
             v_dop_upp_min = [v_dop_upp_min, (*v_dop[dd])[1]]
-            v_dop_upp_max = [v_dop_upp_max, (*v_dop[dd])[N_ELEMENTS(*v_dop[dd])-1]]
+            v_dop_upp_max = [v_dop_upp_max, (*v_dop[dd])[nv_dop-1]]
             v_dop_incr = [v_dop_incr, $
-              MAX((ABS(SHIFT(*v_dop[dd],-1)-*v_dop[dd]))[0:-2], /NAN)]
+              MAX((ABS(SHIFT(*v_dop[dd],-1)-*v_dop[dd]))[0:nv_dop-2], /NAN)]
           ENDELSE   
         ENDFOR
       ENDIF ELSE BEGIN
@@ -12157,14 +12158,14 @@ PRO CRISPEX_IO_PARSE_VDOP, ndiagnostics, wheredispdiag, v_dop, nlp, lps, $
             v_dop_low_max = v_dop_low_max_tmp
             v_dop_upp_min = v_dop_upp_min_tmp
             v_dop_upp_max = v_dop_upp_max_tmp
-            v_dop_incr = MAX((ABS(SHIFT(v_dop_tmp,-1)-v_dop_tmp))[0:-2], /NAN)
+            v_dop_incr = MAX((ABS(SHIFT(v_dop_tmp,-1)-v_dop_tmp))[0:diag_width-2], /NAN)
           ENDIF ELSE BEGIN
             v_dop_low_min = [v_dop_low_min, v_dop_low_min_tmp]
             v_dop_low_max = [v_dop_low_max, v_dop_low_max_tmp]
             v_dop_upp_min = [v_dop_upp_min, v_dop_upp_min_tmp]
             v_dop_upp_max = [v_dop_upp_max, v_dop_upp_max_tmp]
             v_dop_incr = [v_dop_incr, $
-              MAX((ABS(SHIFT(v_dop_tmp,-1)-v_dop_tmp))[0:-2], /NAN)]
+              MAX((ABS(SHIFT(v_dop_tmp,-1)-v_dop_tmp))[0:diag_width-2], /NAN)]
           ENDELSE
         ENDFOR
       ENDELSE
@@ -22882,7 +22883,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
                           IDS=master_time_ids, /EXCLUSIVE, /ROW, $
                           EVENT_FUNC='CRISPEX_BGROUP_MASTER_TIME', /NO_RELEASE)
   master_time_sjicbox = WIDGET_COMBOBOX(master_time_opts, $
-                          VALUE=STRJOIN(sji_labels[*,0:hdr.nsjifiles-1],' '), $
+                          VALUE=STRJOIN(sji_labels[*,0:(hdr.nsjifiles-1)>0],' '), $
                           EVENT_PRO='CRISPEX_MASTER_TIME_SJI_SELECT', $
                           SENSITIVE=0)  ; Insensitive until SJI selected
   ; Setting buttons and dropdown box
