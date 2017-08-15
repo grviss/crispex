@@ -13594,11 +13594,14 @@ PRO CRISPEX_PHISLIT_MOVE_UPDATE_XY, event, BWD=bwd, FWD=fwd
     (*(*info).dataparams).xref = xyref[0]
     (*(*info).dataparams).yref = xyref[1]
   ENDIF
-  IF (*(*info).winswitch).showsji THEN BEGIN
-    xysji = (*(*(*info).dataparams).pix_main2sji)[*,$
-      (*(*info).dataparams).x, (*(*info).dataparams).y]
-    (*(*info).dataparams).xsji = xysji[0]
-    (*(*info).dataparams).ysji = xysji[1]
+  IF (TOTAL((*(*info).winswitch).showsji) GT 0) THEN BEGIN
+    FOR i=0,(*(*info).winswitch).nwhereshowsji-1 DO BEGIN
+      idx_sji = (*(*(*info).winswitch).whereshowsji)[i]
+      xysji = (*(*(*info).dataparams).pix_main2sji[idx_sji])[*,$
+        (*(*info).dataparams).x, (*(*info).dataparams).y]
+      (*(*info).dataparams).xsji[idx_sji] = xysji[0]
+      (*(*info).dataparams).ysji[idx_sji] = xysji[1]
+    ENDFOR
   ENDIF
 	IF (((*(*info).feedbparams).verbosity)[3] EQ 1) THEN $
     CRISPEX_VERBOSE_GET, event, $
@@ -20114,9 +20117,12 @@ PRO CRISPEX_UPDATE_PHISLIT_COORDS, event, PHI_ANGLE=phi_angle
     ENDIF
     ; Convert to SJI if displaying
     IF (TOTAL((*(*info).winswitch).showsji) GT 0) THEN BEGIN
-      xysji = (*(*(*info).dataparams).pix_main2sji)[*, x_pts_loc, y_pts_loc]
-      *(*(*info).phiparams).x_pts_sji = REFORM(xysji[0,*,0])
-      *(*(*info).phiparams).y_pts_sji = REFORM(xysji[1,0,*])
+      FOR i=0,(*(*info).winswitch).nwhereshowsji-1 DO BEGIN
+        idx_sji = (*(*(*info).winswitch).whereshowsji)[i]
+        xysji = (*(*(*info).dataparams).pix_main2sji[idx_sji])[*, x_pts_loc, y_pts_loc]
+        *(*(*info).phiparams).x_pts_sji[idx_sji] = REFORM(xysji[0,*,0])
+        *(*(*info).phiparams).y_pts_sji[idx_sji] = REFORM(xysji[1,0,*])
+      ENDFOR
     ENDIF
     midphi = WHERE($
       ((*(*(*info).phiparams).x_pts)[*,0] EQ LONG((*(*info).dataparams).x)) AND $
@@ -24555,7 +24561,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 		d_nphi_set:nphi, nphi:nphi, angle:angle, nphi_set:LONG(hdr.ny/3.)-1, sphi:0, $
 		x_pts:PTR_NEW(0.), y_pts:PTR_NEW(0.), $
     x_pts_ref:PTR_NEW(0.), y_pts_ref:PTR_NEW(0.), $
-    x_pts_sji:PTR_NEW(0.), y_pts_sji:PTR_NEW(0.), $
+    x_pts_sji:PTRARR(hdr.nsjifiles_max,/ALLOCATE_HEAP),$
+    y_pts_sji:PTRARR(hdr.nsjifiles_max,/ALLOCATE_HEAP),$
     nw_cur:LONG(hdr.ny/3.), curindex:0, maxindex:0 $				
 	}
 ;------------------------- PLOTAXES
