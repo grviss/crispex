@@ -11744,7 +11744,7 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
   IF KEYWORD_SET(MAIN) THEN BEGIN
     ; Process settings based on LPS variable and NO_WARP keyword to (not) warp of
     ; spectral slices
-    IF ~KEYWORD_SET(NO_WARP) THEN no_warp = (hdr_out.ndiagnostics GT 1)
+    IF ~KEYWORD_SET(NO_WARP) THEN no_warp = STRCMP(hdr_out.instr_main, 'IRIS')
     IF ((hdr_out.ndiagnostics GT 1) AND (no_warp EQ 0)) THEN BEGIN
       idx = LINDGEN(hdr_out.nlp)
       FOR d=0,hdr_out.ndiagnostics-1 DO BEGIN
@@ -11759,7 +11759,7 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       ENDFOR
       idx_select = $
         [idx_select,idx(hdr_out.diag_start[d-1]+hdr_out.diag_width[d-1]-1)]
-    ENDIF ELSE idx_select = 0
+    ENDIF 
     CRISPEX_IO_PARSE_WARPSLICE, hdr_out.lps, hdr_out.nlp, hdr_out.mainnt, $
                                 hdr_out.dlambda[0], hdr_out.dlambda_set[0], $
                                 hdr_out.verbosity, NO_WARP=no_warp, $
@@ -11770,7 +11770,7 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
   IF KEYWORD_SET(REFERENCE) THEN BEGIN
     ; Process settings based on REFLPS variable and NO_WARP keyword to (not) warp of
     ; spectral slices
-    IF ~KEYWORD_SET(NO_WARP) THEN no_warp = (hdr_out.nrefdiagnostics GT 1)
+    IF ~KEYWORD_SET(NO_WARP) THEN no_warp = STRCMP(hdr_out.instr_ref, 'IRIS')
     IF ((hdr_out.nrefdiagnostics GT 1) AND (no_warp EQ 0)) THEN BEGIN
       refidx = LINDGEN(hdr_out.refnlp)
       FOR d=0,hdr_out.nrefdiagnostics-1 DO BEGIN
@@ -11783,7 +11783,7 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       ENDFOR
       refidx_select = [refidx_select,refidx(hdr_out.refdiag_start[d-1]+$
         hdr_out.refdiag_width[d-1]-1)]
-    ENDIF ELSE refidx_select = 0
+    ENDIF 
     CRISPEX_IO_PARSE_WARPSLICE, hdr_out.reflps, hdr_out.refnlp, hdr_out.refnt, $
                                 hdr_out.dlambda[1], hdr_out.dlambda_set[1], $
                                 hdr_out.verbosity, NO_WARP=no_warp, $
@@ -14465,6 +14465,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       tarr_raster_main = key.tarr_raster
       toffset_main = key.tini_col
       headers = key.headers
+      hdr_out.instr_main = key.instrument
     ENDIF ELSE BEGIN       ; In case of compatibility mode
       hdr_out.imtype = datatype         &  hdr_out.imendian = endian
       hdr_out.nx = nx                   &  hdr_out.dx = 0.0592
@@ -14753,6 +14754,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   obsid = SXPAR(header,'OBSID')
   date_obs = STRTRIM(SXPAR(header,'DATE_OBS'),2)
   startobs = STRTRIM(SXPAR(header,'STARTOBS'),2)
+  instrument = STRUPCASE(STRCOMPRESS(SXPAR(header, 'INSTRUME'), /REMOVE_ALL))
   ; Process timing
   IF ((N_ELEMENTS(naxis) EQ 4) OR $
      (KEYWORD_SET(SJICUBE) AND (N_ELEMENTS(naxis) EQ 3))) THEN BEGIN
@@ -14933,7 +14935,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
        xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,$
        wstart:wstart, wwidth:wwidth, diagnostics:diagnostics, $
        ndiagnostics:ndiagnostics, twave:twave, headers:headers, obsid:obsid, $
-       date_obs:date_obs, startobs:startobs, $
+       date_obs:date_obs, startobs:startobs, instrument:instrument, $
        utc_sel:utc_sel, utc_raster_sel:utc_raster_sel, $
        date_sel:date_sel, date_raster_sel:date_raster_sel $
        }
@@ -21377,6 +21379,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
             sjiendian:REPLICATE('b',nsjifiles_max), maskendian:'b',endian:endian, obsid:'0', $
             date_obs_main:'0', date_obs_ref:'0', $
             startobs_main:'0', startobs_ref:'0', $
+            instr_main:'N/A', instr_ref:'N/A', $
             startobs_sji:REPLICATE('0',nsjifiles_max), $
             date_obs_sji:REPLICATE('0',nsjifiles_max), $
             ; Compatibility switches
