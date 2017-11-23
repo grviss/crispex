@@ -1550,6 +1550,31 @@ FUNCTION CRISPEX_GET_IMREF_BLINK_BOUNDS, pix_main2ref, pix_ref2main, $
   RETURN, result
 END
 
+;------------------------- WARP FUNCTION
+FUNCTION CRISPEX_GET_WARP, lps, nlp, nt
+  min_lps = MIN(lps, /NAN, wheremin_lps, SUBSCRIPT_MAX=wheremax_lps)
+  nlparr = FINDGEN(nlp)
+  ; Failsafe for decreasing lps arrays
+  IF (wheremin_lps GT wheremax_lps) THEN nlparr = REVERSE(nlparr)
+  xi = REBIN(nlparr, nlp, nt)
+  xo = REBIN(((lps-min_lps) / FLOAT(MAX(lps-min_lps, /NAN)) * (nlp-1)), $
+    nlp, nt)
+  yi = REPLICATE(1,nlp) # FINDGEN(nt)
+  yo = yi
+
+  ; Do the triangulation: Functionality taken from IDL's WARP_TRI - needed to
+  ; prevent too many calls to slow TRIANGULATE procedure
+  gs = [1,1]				        ;Grid spacing
+  b = [0,0, nlp-1, nt-1]			;Bounds
+  ; Triangulate given the input and output tie points
+  TRIANGULATE, xo, yo, tr, bounds
+  xtri = TRIGRID(xo, yo, xi, tr, gs, b)
+  ytri = TRIGRID(xo, yo, yi, tr, gs, b)
+  
+  ; Return results
+  RETURN, {xtri:xtri, ytri:ytri, xi:xi, yi:yi, xo:xo, yo:yo}
+END
+
 ;------------------------- SCALING FUNCTIONS
 FUNCTION CRISPEX_SCALING_CONTRAST, minimum_init, maximum_init, $
   minimum_perc, maximum_perc
@@ -6131,55 +6156,52 @@ PRO CRISPEX_DISPRANGE_T_RESET, event, NO_DRAW=no_draw, T_SET=t_set
     CRISPEX_DISPRANGE_T_RANGE, event, NO_DRAW=no_draw, T_SET=t_set, /RESET
 END
 
-PRO CRISPEX_DISPRANGE_GET_WARP, event, PHIS=phis
+PRO CRISPEX_DISPRANGE_GET_WARP, event, PHIS=phis, REFERENCE=reference
 ; Handles determining warping tie points
 	WIDGET_CONTROL, event.TOP, GET_UVALUE = info
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
-  lps_sel = ((*(*info).dataparams).lps)[(*(*info).dispparams).lp_low:(*(*info).dispparams).lp_upp]
-  min_lps = MIN(lps_sel, /NAN)
-  IF KEYWORD_SET(PHIS) THEN $
-    nt = (*(*info).phiparams).nphi $
-  ELSE $
-    nt = (*(*info).dataparams).nt
-    xi = FINDGEN((*(*info).dispparams).lp_range) # REPLICATE(1,nt)
-    xo = ((lps_sel-min_lps) / FLOAT(MAX(lps_sel-min_lps, /NAN)) * $
-          (*(*info).dispparams).lp_range) # REPLICATE(1,nt)
-    yi = REPLICATE(1,(*(*info).dispparams).lp_range) # FINDGEN(nt)
-  IF KEYWORD_SET(PHIS) THEN BEGIN
-    *(*(*info).dispparams).phisxi = xi
-    *(*(*info).dispparams).phisyi = yi
-    *(*(*info).dispparams).phisxo = xo
-    *(*(*info).dispparams).phisyo = *(*(*info).dispparams).phisyi
+  IF ~KEYWORD_SET(REFERENCE) THEN BEGIN
+    IF KEYWORD_SET(PHIS) THEN WIDGET_CONTROL, /HOURGLASS
+    ndisp_diagnostics = (*(*info).intparams).ndisp_diagnostics
+    wheredispdiag = *(*(*info).intparams).wheredispdiag
+    lps = (*(*info).dataparams).lps
+    lp_low = (*(*info).intparams).diag_start + (*(*info).dispparams).lp_low_tmp  
+    lp_upp = (*(*info).intparams).diag_start + (*(*info).dispparams).lp_upp_tmp
+    lp_range = (*(*info).dispparams).lp_range
   ENDIF ELSE BEGIN
-    (*(*info).dispparams).xi = xi
-    (*(*info).dispparams).yi = yi
-    (*(*info).dispparams).xo = xo
-    (*(*info).dispparams).yo = (*(*info).dispparams).yi
+    ndisp_diagnostics = (*(*info).intparams).ndisp_refdiagnostics
+    wheredispdiag = *(*(*info).intparams).wheredisprefdiag
+    lps = (*(*info).dataparams).reflps
+    lp_low = (*(*info).intparams).refdiag_start + $
+      (*(*info).dispparams).lp_ref_low_tmp
+    lp_upp = (*(*info).intparams).refdiag_start + $
+      (*(*info).dispparams).lp_ref_upp_tmp
+    lp_range = (*(*info).dispparams).lp_ref_range
   ENDELSE
-END
-
-PRO CRISPEX_DISPRANGE_GET_WARP_TRIANGULATE, event, xo, yo, xi, yi, slice, PHIS=phis, NX=nx, NY=ny
-  WIDGET_CONTROL, event.TOP, GET_UVALUE = info
-	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
-    CRISPEX_VERBOSE_GET_ROUTINE, event
-  WIDGET_CONTROL, /HOURGLASS
-  ; Functionality taken from IDL's WARP_TRI
-  IF (N_ELEMENTS(NX) NE 1) THEN nx = (SIZE(slice))[1]
-  IF (N_ELEMENTS(NY) NE 1) THEN ny = (SIZE(slice))[2]
-  gs = [1,1]				        ;Grid spacing
-  b = [0,0, nx-1, ny-1]			;Bounds
-  ; Triangulate given the input and output tie points
-  TRIANGULATE, xo, yo, tr, bounds
-  xtri_new = TRIGRID(xo, yo, xi, tr, gs, b)
-  ytri_new = TRIGRID(xo, yo, yi, tr, gs, b)
-  IF KEYWORD_SET(PHIS) THEN BEGIN
-    *(*(*info).dispparams).phisxtri = xtri_new
-    *(*(*info).dispparams).phisytri = ytri_new
-  ENDIF ELSE BEGIN
-    *(*(*info).dispparams).xtri = xtri_new
-    *(*(*info).dispparams).ytri = ytri_new
-  ENDELSE
+  nt = (*(*info).dataparams).nt
+  IF (KEYWORD_SET(PHIS) AND $
+      ((*(*info).phiparams).nphi GT (*(*info).dataparams).nt)) THEN $
+    nt = (*(*info).phiparams).nphi 
+  FOR dd=0,ndisp_diagnostics-1 DO BEGIN
+    disp_idx = wheredispdiag[dd]
+    lps_loc = lps[lp_low[disp_idx]:lp_upp[disp_idx]]
+    nlp_loc = lp_upp[disp_idx] - lp_low[disp_idx] + 1
+    warp = CRISPEX_GET_WARP(lps_loc, nlp_loc, nt) 
+    IF ~KEYWORD_SET(REFERENCE) THEN BEGIN
+      *(*(*info).dispparams).xytri[0,disp_idx] = warp.xtri
+      *(*(*info).dispparams).xytri[1,disp_idx] = warp.ytri[*,$
+        0:(*(*info).dataparams).nt-1]
+      IF KEYWORD_SET(PHIS) THEN BEGIN
+      *(*(*info).dispparams).phisxytri[0,disp_idx] = warp.xtri
+      *(*(*info).dispparams).phisxytri[1,disp_idx] = warp.ytri[*,$
+        0:(*(*info).phiparams).nphi-1]
+      ENDIF 
+    ENDIF ELSE BEGIN
+      *(*(*info).dispparams).xytri_ref[0,disp_idx] = warp.xtri
+      *(*(*info).dispparams).xytri_ref[1,disp_idx] = warp.ytri
+    ENDELSE
+  ENDFOR
 END
 
 PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
@@ -6211,15 +6233,8 @@ PRO CRISPEX_DISPRANGE_LP_RANGE, event, NO_DRAW=no_draw
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_blink_slider, SET_SLIDER_MIN=lp_low_overall, $
     SET_SLIDER_MAX=lp_upp_overall, SET_VALUE=(*(*info).dataparams).lp, $
     SENSITIVE=(((*(*info).dispparams).lp_range-1) NE 1)
-  IF ((*(*info).dispswitch).warpspslice AND (*(*info).winswitch).showphis) THEN BEGIN
-    WIDGET_CONTROL, /HOURGLASS
-    CRISPEX_DISPRANGE_GET_WARP, event, /PHIS
-    CRISPEX_DISPRANGE_GET_WARP_TRIANGULATE, event, $
-      *(*(*info).dispparams).phisxo,*(*(*info).dispparams).phisyo,$
-      *(*(*info).dispparams).phisxi,*(*(*info).dispparams).phisyi, $
-      *(*(*info).data).phislice, /PHIS, NX=(*(*info).dispparams).lp_range, $
-      NY=(*(*info).phiparams).nphi
-  ENDIF
+  IF (TOTAL((*(*info).dispswitch).warpspslice) GT 0) THEN $
+    CRISPEX_DISPRANGE_GET_WARP, event, PHIS=(*(*info).winswitch).showphis
 	IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
     CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /MAIN
 		CRISPEX_UPDATE_T, event
@@ -6313,6 +6328,8 @@ PRO CRISPEX_DISPRANGE_LP_REF_RANGE, event, NO_DRAW=no_draw, $
 	WIDGET_CONTROL, (*(*info).ctrlscp).lp_ref_slider, SET_SLIDER_MIN=lp_low_overall, $
                   SET_SLIDER_MAX=lp_upp_overall, $
                   SET_VALUE=(*(*info).dataparams).lp_ref
+  IF (TOTAL((*(*info).dispswitch).warprefspslice) GT 0) THEN $
+    CRISPEX_DISPRANGE_GET_WARP, event, /REFERENCE
 	IF ~KEYWORD_SET(NO_DRAW) THEN BEGIN
     CRISPEX_DRAW_GET_SPECTRAL_AXES, event, /REFERENCE
 		CRISPEX_UPDATE_T, event
@@ -11744,64 +11761,29 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
   IF KEYWORD_SET(MAIN) THEN BEGIN
     ; Process settings based on LPS variable and NO_WARP keyword to (not) warp of
     ; spectral slices
+    ; Disable warp by default for IRIS data if NO_WARP keyword is not specified
     IF ~KEYWORD_SET(NO_WARP) THEN no_warp = STRCMP(hdr_out.instr_main, 'IRIS')
-    IF ((hdr_out.ndiagnostics GT 1) AND (no_warp EQ 0)) THEN BEGIN
-      idx = LINDGEN(hdr_out.nlp)
-      FOR d=0,hdr_out.ndiagnostics-1 DO BEGIN
-        ; Subscript to -2 to exclude the jumps between diagnostics when 
-        ; determining equidistancy
-        IF (d EQ 0) THEN $
-          idx_select = idx[hdr_out.diag_start[d]:$
-            (hdr_out.diag_start[d]+hdr_out.diag_width[d]-2)] $
-        ELSE $
-          idx_select = [idx_select,idx[hdr_out.diag_start[d]:$
-            (hdr_out.diag_start[d]+hdr_out.diag_width[d]-2)]]
-      ENDFOR
-      idx_select = $
-        [idx_select,idx(hdr_out.diag_start[d-1]+hdr_out.diag_width[d-1]-1)]
-    ENDIF 
-    CRISPEX_IO_PARSE_WARPSLICE, hdr_out.lps, hdr_out.nlp, hdr_out.mainnt, $
-                                hdr_out.dlambda[0], hdr_out.dlambda_set[0], $
-                                hdr_out.verbosity, NO_WARP=no_warp, $
-                                WARPSPSLICE=warpspslice, XO=xo, XI=xi, $
-                                YO=yo, YI=yi, IDX_SELECT=idx_select
+    CRISPEX_IO_PARSE_WARPSLICE, hdr_out, WARPSPSLICE=warpspslice, $
+                                NO_WARP=no_warp, XYTRI=xytri
   ENDIF
 
   IF KEYWORD_SET(REFERENCE) THEN BEGIN
     ; Process settings based on REFLPS variable and NO_WARP keyword to (not) warp of
     ; spectral slices
+    ; Disable warp by default for IRIS data if NO_WARP keyword is not specified
     IF ~KEYWORD_SET(NO_WARP) THEN no_warp = STRCMP(hdr_out.instr_ref, 'IRIS')
-    IF ((hdr_out.nrefdiagnostics GT 1) AND (no_warp EQ 0)) THEN BEGIN
-      refidx = LINDGEN(hdr_out.refnlp)
-      FOR d=0,hdr_out.nrefdiagnostics-1 DO BEGIN
-        IF (d EQ 0) THEN $
-          refidx_select = refidx[hdr_out.refdiag_start[d]:$
-            (hdr_out.refdiag_start[d]+hdr_out.refdiag_width[d]-2)] $
-        ELSE $
-          refidx_select = [refidx_select,refidx[hdr_out.refdiag_start[d]:$
-            (hdr_out.refdiag_start[d]+hdr_out.refdiag_width[d]-2)]]
-      ENDFOR
-      refidx_select = [refidx_select,refidx(hdr_out.refdiag_start[d-1]+$
-        hdr_out.refdiag_width[d-1]-1)]
-    ENDIF 
-    CRISPEX_IO_PARSE_WARPSLICE, hdr_out.reflps, hdr_out.refnlp, hdr_out.refnt, $
-                                hdr_out.dlambda[1], hdr_out.dlambda_set[1], $
-                                hdr_out.verbosity, NO_WARP=no_warp, $
-                                WARPSPSLICE=warprefspslice, XO=xo_ref, XI=xi_ref,$
-                                YO=yo_ref, YI=yi_ref, IDX_SELECT=refidx_select, $
-                                /REFERENCE
+    CRISPEX_IO_PARSE_WARPSLICE, hdr_out, WARPSPSLICE=warprefspslice, $
+                                NO_WARP=no_warp, XYTRI=xytri_ref, /REFERENCE
   ENDIF ELSE BEGIN
-    xo_ref = 0  & yo_ref = 0  & xi_ref = 0  & yi_ref = 0  & warprefspslice = 0
+    xytri_ref = PTR_NEW(0)  &   warprefspslice = BYTARR(hdr_out.nrefdiagnostics)
   ENDELSE
   IF (N_ELEMENTS(event) NE 1) THEN $
-    hdr_out = CREATE_STRUCT(hdr_out, 'xo', xo, 'xi', xi, 'yo', yo, 'yi', yi, $
-      'xo_ref', xo_ref, 'xi_ref', xi_ref, 'yo_ref', yo_ref, 'yi_ref', yi_ref, $
+    hdr_out = CREATE_STRUCT(hdr_out, 'xytri', xytri, 'xytri_ref', xytri_ref, $
       'warpspslice', warpspslice, 'warprefspslice', warprefspslice) $
   ELSE BEGIN
     ; Only need to handle reference since only reference will be changed when
     ; called with event
-    hdr_out = CREATE_STRUCT(hdr_out, 'xo_ref', xo_ref, 'xi_ref', xi_ref, $
-      'yo_ref', yo_ref, 'yi_ref', yi_ref)
+    hdr_out = CREATE_STRUCT(hdr_out, 'xytri_ref', xytri_ref)
     hdr_out.warprefspslice = warprefspslice
   ENDELSE
 END
@@ -12271,38 +12253,45 @@ PRO CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, $
       mult_val:mult_val, immin:immin, immax:immax}
 END
 
-PRO CRISPEX_IO_PARSE_WARPSLICE, lps, nlp, nt, dlambda, dlambda_set, verbosity, $
-                                NO_WARP=no_warp, WARPSPSLICE=warpspslice, $
-                                XO=xo, XI=xi, YO=yo, YI=yi, $
-                                REFERENCE=reference, IDX_SELECT=idx_select
+PRO CRISPEX_IO_PARSE_WARPSLICE, hdr, NO_WARP=no_warp, WARPSPSLICE=warpspslice, $
+                                XYTRI=xytri, REFERENCE=reference
 ; Handles warping of the slice, also given keyword NO_WARP
-  xi = 0  &   yi = 0  &  xo = 0  &  yo = 0
   feedback_text = ['main','reference']  &  warp_text = ['No warp','Warp']
-  warpspslice = ABS(KEYWORD_SET(NO_WARP)-1) ; initial warpspslice setting
-  IF warpspslice THEN BEGIN
+  warpspslice_set = ABS(KEYWORD_SET(NO_WARP)-1) ; initial warpspslice setting
+  ; Process REFERENCE keyword setting
+  IF ~KEYWORD_SET(REFERENCE) THEN BEGIN
+    lps = hdr.lps     &   nlp = hdr.nlp     &   nt = hdr.mainnt
+    ndiagnostics = hdr.ndiagnostics
+    wstarts = hdr.diag_start    &   wwidths = hdr.diag_width
+  ENDIF ELSE BEGIN
+    lps = hdr.reflps   &   nlp = hdr.refnlp   &   nt = hdr.refnt
+    ndiagnostics = hdr.nrefdiagnostics
+    wstarts = hdr.refdiag_start  &   wwidths = hdr.refdiag_width
+  ENDELSE
+  ; Define empty output
+  warpspslice = BYTARR(ndiagnostics)
+  xytri = PTRARR(2, ndiagnostics, /ALLOCATE_HEAP)
+  ; Fill output if need be
+  IF warpspslice_set THEN BEGIN
   	IF (nlp GT 1) THEN BEGIN
-  		IF dlambda_set THEN $
-        ndecimals = ABS(FLOOR(ALOG10(ABS(dlambda))))  $
-      ELSE $
-        ndecimals = 2
-  		equidist = STRING((SHIFT(FLOAT(lps),-1) - FLOAT(lps))[0:nlp-2],$
-                          FORMAT='(F8.'+STRTRIM(ndecimals,2)+')')
-      IF (N_ELEMENTS(IDX_SELECT) GT 0) THEN equidist = equidist[idx_select] 
-      ; Check for non-equidistant spectral positions and 
-      ; allowed consequential warping
-  		warpspslice = ((WHERE(equidist NE equidist[0]))[0] NE -1) 
-      IF warpspslice THEN BEGIN
-  		  min_lps = MIN(lps, /NAN)
-  		  xi = FINDGEN(nlp) # REPLICATE(1,nt)
-  		  xo = ((lps-min_lps) / FLOAT(MAX(lps-min_lps, /NAN)) * (nlp-1)) # $
-              REPLICATE(1,nt)
-  		  yi = REPLICATE(1,nlp) # FINDGEN(nt)
-  		  yo = yi
-  		ENDIF 
+      FOR dd=0,ndiagnostics-1 DO BEGIN
+        lps_loc = lps[wstarts[dd]:wstarts[dd]+wwidths[dd]-1]
+        nlp_loc = wwidths[dd]
+  		  equidist = STRING((SHIFT(DOUBLE(lps_loc),-1) - $
+          DOUBLE(lps_loc))[0:nlp_loc-2], FORMAT='(F8.3)')
+        ; Check for non-equidistant spectral positions and 
+        ; allowed consequential warping
+  		  warpspslice[dd] = ((WHERE(equidist NE equidist[0]))[0] NE -1) 
+        IF warpspslice[dd] THEN BEGIN
+          warp = CRISPEX_GET_WARP(lps_loc, nlp_loc, nt)
+          *xytri[0,dd] = warp.xtri   
+          *xytri[1,dd] = warp.ytri
+  		  ENDIF 
+      ENDFOR
     ENDIF
-    IF verbosity[1] THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, warp_text[warpspslice]+$
-                          ' applied to '+feedback_text[KEYWORD_SET(REFERENCE)]+$
-                          ' spectral slice.', /NO_ROUTINE
+    IF hdr.verbosity[1] THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+        warp_text[TOTAL(warpspslice) GT 0]+' applied to '+$
+        feedback_text[KEYWORD_SET(REFERENCE)]+' spectral slice.', /NO_ROUTINE
   ENDIF 
 END
 
@@ -19912,14 +19901,7 @@ PRO CRISPEX_UPDATE_SPSLICE, event
   	  spslice /= FLOAT(REBIN(((*(*(*info).data).spdata)[baseidx])[$
         (*(*info).stokesparams).contpos[0],*], $
         (*(*info).dataparams).nlp,(*(*info).dataparams).nt))
-    ; Warp slice if non-equidistant lp
-  	IF (*(*info).dispswitch).warpspslice THEN $                   
-      dispslice = WARP_TRI( (*(*info).dispparams).xo,(*(*info).dispparams).yo,$
-                            (*(*info).dispparams).xi,(*(*info).dispparams).yi,$
-                            spslice) $
-    ELSE $
-      dispslice = spslice
-    dispslice = dispslice[*,t_low:t_upp]
+    dispslice = spslice[*,t_low:t_upp]
     ; Cut up dispslice for independent scaling per diagnostic
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
       disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
@@ -19927,6 +19909,15 @@ PRO CRISPEX_UPDATE_SPSLICE, event
                            (*(*(*info).intparams).diag_starts)[d]):$
                            ((*(*info).dispparams).lp_upp_tmp[disp_idx]+$
                            (*(*(*info).intparams).diag_starts)[d]-1),*]
+      ; Warp slice if non-equidistant lp
+      IF (*(*info).dispswitch).warpspslice[disp_idx] THEN BEGIN
+        sz_tmp_disp = SIZE(tmp_disp)
+        tmp_disp = INTERPOLATE(tmp_disp, $
+          (*(*(*info).dispparams).xytri[0,disp_idx])[0:sz_tmp_disp[1]-1, $
+                                                    t_low:t_upp], $
+          (*(*(*info).dispparams).xytri[1,disp_idx])[0:sz_tmp_disp[1]-1, $
+                                                    t_low:t_upp])
+      ENDIF
     	IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
         minmax = CRISPEX_SCALING_SLICES(tmp_disp, $
           (*(*info).scaling).gamma[disp_idx],$
@@ -19976,15 +19967,7 @@ PRO CRISPEX_UPDATE_REFSPSLICE, event
   	  refspslice /= FLOAT(REBIN(((*(*(*info).data).refspdata)[baseidx])[$
         (*(*info).stokesparams).contpos[1],*], $
         (*(*info).dataparams).refnlp,(*(*info).dataparams).refnt))
-    ; Warp slice if non-equidistant lp
-  	IF (*(*info).dispswitch).warprefspslice THEN $                
-      dispslice = WARP_TRI( $
-        (*(*info).dispparams).xo_ref, (*(*info).dispparams).yo_ref,$
-        (*(*info).dispparams).xi_ref,(*(*info).dispparams).yi_ref,$
-  		  refspslice) $
-  	ELSE $
-      dispslice = refspslice
-    dispslice = dispslice[*,t_low:t_upp]
+    dispslice = refspslice[*,t_low:t_upp]
     FOR d=0,(*(*info).intparams).ndisp_refdiagnostics-1 DO BEGIN
       sel_idx = (*(*(*info).intparams).wheredisprefdiag)[d]
       disp_idx = (*(*info).intparams).ndiagnostics+sel_idx
@@ -19992,6 +19975,15 @@ PRO CRISPEX_UPDATE_REFSPSLICE, event
                            (*(*(*info).intparams).refdiag_starts)[d]):$
                            ((*(*info).dispparams).lp_ref_upp_tmp[sel_idx]+$
                            (*(*(*info).intparams).refdiag_starts)[d]-1),*]
+      ; Warp slice if non-equidistant lp
+      IF (*(*info).dispswitch).warprefspslice[sel_idx] THEN BEGIN
+        sz_tmp_disp = SIZE(tmp_disp)
+        tmp_disp = INTERPOLATE(tmp_disp, $
+          (*(*(*info).dispparams).xytri_ref[0,sel_idx])[0:sz_tmp_disp[1]-1, $
+                                                    t_low:t_upp], $
+          (*(*(*info).dispparams).xytri_ref[1,sel_idx])[0:sz_tmp_disp[1]-1, $
+                                                    t_low:t_upp])
+      ENDIF
       IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
         refminmax = CRISPEX_SCALING_SLICES(tmp_disp, $
           (*(*info).scaling).gamma[disp_idx], $
@@ -20161,21 +20153,21 @@ PRO CRISPEX_UPDATE_PHISLICE, event, NO_DRAW=no_draw
   	phislice = (TRANSPOSE(tmp, [1,0]))
     ; If 2D, then display
     IF ((SIZE(phislice))[0] EQ 2) THEN BEGIN
-      ; Warp slice if non-equidistant lp
-    	IF (*(*info).dispswitch).warpspslice THEN BEGIN
-        dispslice = INTERPOLATE(phislice,$
-          (*(*(*info).dispparams).phisxtri)[0:((SIZE(phislice))[1]-1),$
-                                            0:((SIZE(phislice))[2]-1)],$
-          (*(*(*info).dispparams).phisytri)[0:((SIZE(phislice))[1]-1),$
-                                            0:((SIZE(phislice))[2]-1)])
-      ENDIF ELSE $
-        dispslice = phislice
       FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
         disp_idx = (*(*(*info).intparams).wheredispdiag)[d]
-        tmp_disp = dispslice[((*(*info).dispparams).lp_low_tmp[disp_idx]+$
+        tmp_disp = phislice[((*(*info).dispparams).lp_low_tmp[disp_idx]+$
                              (*(*(*info).intparams).diag_starts)[d]):$
                              ((*(*info).dispparams).lp_upp_tmp[disp_idx]+$
                              (*(*(*info).intparams).diag_starts)[d]-1),*]
+        ; Warp slice if non-equidistant lp
+        IF (*(*info).dispswitch).warpspslice[disp_idx] THEN BEGIN
+          sz_tmp_disp = SIZE(tmp_disp)
+          tmp_disp = INTERPOLATE(tmp_disp, $
+            (*(*(*info).dispparams).phisxytri[0,disp_idx])[$
+              0:sz_tmp_disp[1]-1,0:sz_tmp_disp[2]-1], $
+            (*(*(*info).dispparams).phisxytri[1,disp_idx])[$
+              0:sz_tmp_disp[1]-1,0:sz_tmp_disp[2]-1])
+        ENDIF
       	IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
           minmax = CRISPEX_SCALING_SLICES(tmp_disp, $
             (*(*info).scaling).gamma[disp_idx],$
@@ -24351,9 +24343,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     sjiloopnlxreb:nlpreb, sjiloopntreb:loopntreb, $
 		loopnlxreb:nlpreb, loopntreb:loopntreb, restloopnlxreb:nlpreb, restloopntreb:loopntreb, $
 		retrdetnlxreb:nlpreb, retrdetntreb:loopntreb, phisnlpreb:nlpreb, nphireb:nphireb, $					
-		xi:hdr.xi, yi:hdr.yi, xo:hdr.xo, yo:hdr.yo, xi_ref:hdr.xi_ref, yi_ref:hdr.yi_ref, $
-    xo_ref:hdr.xo_ref, yo_ref:hdr.yo_ref, phisxtri:PTR_NEW(0), phisytri:PTR_NEW(0), $
-    phisxi:PTR_NEW(0), phisyi:PTR_NEW(0), phisxo:PTR_NEW(0), phisyo:PTR_NEW(0), $
+    xytri:hdr.xytri, xytri_ref:hdr.xytri_ref, $
+    phisxytri:PTRARR(2,hdr.ndiagnostics, /ALLOCATE_HEAP), $
     xsji_first:REPLICATE(0L,hdr.nsjifiles_max), xsji_last:(hdr.sjinx-1), $
     ysji_first:REPLICATE(0L,hdr.nsjifiles_max), ysji_last:(hdr.sjiny-1),  $
     xref_first:xref_first, xref_last:xref_last, $
