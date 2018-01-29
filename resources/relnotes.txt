@@ -1,8 +1,8 @@
-* Enabled loading (up to six) slit-jaw image files simultaneously
-* Implemented Stokes scaling to specified continuum position
-* Implemented off-line center spectral zoom (e.g., to only 
-  positive or negative Doppler velocities)
-* Reverted to checkbox buttons for selecting main diagnostics
-* Fixed miscellaneous bugs (WINDOW_LARGE keyword behavior, 
-  non-necessary pop up windows, header variable parsing, initial 
-  scaling with NaN-only first frame(s), a.o.)
+* Implemented true 1:1 zoom and revisited zoom functionality
+* Enabled direct loading of session file and loading last session   
+* Implemented handling SOLARNET-standard tabulated FITS files
+* Modified and optimised warping non-equidistant spectra
+* Implemented per-diagnostic restriction of wavelength range
+* Cosmetic changes to make control panel layout more compact 
+* Fixed miscellaneous minor bugs (a.o., crashes on determining 
+  scaling variables, negative indexing, WCS timestep selection)
