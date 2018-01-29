@@ -10222,7 +10222,7 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, $
   hdr_out = hdr_in
   ipath = hdr_out.ipath
   instance_label = hdr_out.instance_label
-  hdr_out.imfilename = imcube
+  hdr_out.imfilename = FILE_EXPAND_PATH(imcube)
   ; Check existence of file, else throw error message
   IF (FILE_TEST(hdr_out.imfilename) EQ 0) THEN BEGIN
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The main image file "'+$
@@ -10236,7 +10236,7 @@ PRO CRISPEX_IO_OPEN_MAINCUBE, IMCUBE=imcube, SPCUBE=spcube, $
     /REVERSE_SEARCH)+1,STRLEN(hdr_out.imfilename))  ; Process extension
   hdr_out.imcube_compatibility = ABS(STRMATCH(imext,'fits',/FOLD_CASE)-1)             ; Determine comp mode
   IF (N_ELEMENTS(SPCUBE) EQ 1) THEN BEGIN
-    hdr_out.spfilename = spcube
+    hdr_out.spfilename = FILE_EXPAND_PATH(spcube)
     ; Check existence of file, else throw error message
     IF (FILE_TEST(hdr_out.spfilename) EQ 0) THEN BEGIN
       CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The main spectral file "'+$
@@ -10410,6 +10410,8 @@ PRO CRISPEX_IO_OPEN_REFCUBE, event, REFCUBE=refcube, HDR_IN=hdr_in, $
 	  refcube = DIALOG_PICKFILE(/READ, /MUST_EXIST, PATH=ipath, $
       TITLE='CRISPEX'+instance_label+': '+title, FILTER=filters, $
       MULTIPLE_FILES=(event.ID EQ (*(*info).ctrlscp).openrefimsp))
+    ; Failsafe against canceling
+    IF (refcube[0] EQ '') THEN RETURN
     IF (N_ELEMENTS(refcube) EQ 1) THEN BEGIN
       ; Handle single file select and failsafe against selecting only 1 file
       ; when called from openrefimsp
@@ -10421,7 +10423,7 @@ PRO CRISPEX_IO_OPEN_REFCUBE, event, REFCUBE=refcube, HDR_IN=hdr_in, $
   ENDIF ELSE $ 
     hdr_out = hdr_in
 	IF ((N_ELEMENTS(REFCUBE) GE 1) AND (SIZE(REFCUBE,/TYPE) EQ 7)) THEN BEGIN					
-    hdr_out.refimfilename = refcube[0]
+    hdr_out.refimfilename = FILE_EXPAND_PATH(refcube[0])
     ; Check existence of file, else throw error message
     IF (FILE_TEST(hdr_out.refimfilename) EQ 0) THEN BEGIN
       IF (N_ELEMENTS(event) NE 1) THEN $
@@ -10447,7 +10449,7 @@ PRO CRISPEX_IO_OPEN_REFCUBE, event, REFCUBE=refcube, HDR_IN=hdr_in, $
         HDR_OUT=hdr_out, CUBE_COMPATIBILITY=hdr_out.refimcube_compatibility, $
         EXTEN_NO=0, /REFIMCUBE
     IF (N_ELEMENTS(REFCUBE) EQ 2) THEN BEGIN
-      hdr_out.refspfilename = refcube[1]
+      hdr_out.refspfilename = FILE_EXPAND_PATH(refcube[1])
       ; Check existence of file, else throw error message
       IF (FILE_TEST(hdr_out.refspfilename) EQ 0) THEN BEGIN
         CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The reference spectral file "'+$
@@ -10798,6 +10800,8 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
 	  sjicube = DIALOG_PICKFILE(/READ, /MUST_EXIST, PATH=ipath, $
       TITLE='CRISPEX'+instance_label+': Select slit-jaw image file', $
       FILTER=['*SJI*fits','*fits'], /MULTIPLE_FILES)
+    ; Failsafe against canceling
+    IF (sjicube[0] EQ '') THEN RETURN
     ; Check whether any SJI previously loaded and if so, add filenames to
     ; SJICUBE
     no_prev_sji = (TOTAL((*(*info).data).lunsji) EQ 0) 
@@ -10843,7 +10847,7 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
         idx_sji = i
         idx_sji_list = idx_sji
       ENDELSE
-      hdr_out.sjifilename[idx_sji] = sjicube[idx_sji_list]
+      hdr_out.sjifilename[idx_sji] = FILE_EXPAND_PATH(sjicube[idx_sji_list])
       ; Check existence of file, else throw error message
       IF (FILE_TEST(hdr_out.sjifilename[idx_sji]) EQ 0) THEN BEGIN
         CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The slit-jaw image file "'+$
@@ -11109,7 +11113,7 @@ PRO CRISPEX_IO_OPEN_MASKCUBE, MASKCUBE=maskcube, HDR_IN=hdr_in, HDR_OUT=hdr_out,
   io_failsafe_mask_error = 0
   hdr_out = hdr_in
   IF (N_ELEMENTS(MASKCUBE) GE 1) THEN BEGIN
-    hdr_out.maskfilename = maskcube[0]
+    hdr_out.maskfilename = FILE_EXPAND_PATH(maskcube[0])
     ; Check existence of file, else throw error message
     IF (FILE_TEST(hdr_out.maskfilename) EQ 0) THEN BEGIN
       CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'The mask file "'+hdr_out.maskfilename+$
