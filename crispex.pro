@@ -11176,10 +11176,6 @@ PRO CRISPEX_IO_HANDLE_HDR, event, REFERENCE=reference, SJI=sji, IDX_SJI=idx_sji
     (*(*info).dataparams).refny = hdr.refny
     (*(*info).dataparams).refdx = hdr.refdx
     (*(*info).dataparams).refdy = hdr.refdy
-;    (*(*info).dataparams).d_refnx = (hdr.refnx / (*(*info).zooming).factor) < $
-;        ((*(*info).dataparams).refnx-1)
-;    (*(*info).dataparams).d_refny = (hdr.refny / (*(*info).zooming).factor) < $
-;        ((*(*info).dataparams).refny-1)
     (*(*info).dataparams).xval_ref = hdr.xval_ref
     (*(*info).dataparams).yval_ref = hdr.yval_ref
     (*(*info).dataparams).xpix_ref = hdr.xpix_ref
@@ -11255,6 +11251,10 @@ PRO CRISPEX_IO_HANDLE_HDR, event, REFERENCE=reference, SJI=sji, IDX_SJI=idx_sji
     (*(*info).dataswitch).refspfile = hdr.refspfile
     (*(*info).dataswitch).ref_wcs_set = hdr.ref_wcs_set
     ; dispparams pointer
+    (*(*info).dispparams).refimbscale = hdr.refimbscale
+    (*(*info).dispparams).refimbzero = hdr.refimbzero
+    (*(*info).dispparams).refspbscale = hdr.refspbscale
+    (*(*info).dispparams).refspbzero = hdr.refspbzero
     (*(*info).dispparams).xref_first = 0L
     (*(*info).dispparams).yref_first = 0L
     (*(*info).dispparams).xref_last = hdr.refnx-1
@@ -11314,6 +11314,8 @@ PRO CRISPEX_IO_HANDLE_HDR, event, REFERENCE=reference, SJI=sji, IDX_SJI=idx_sji
     ENDIF
     (*(*info).dispswitch).main2ref_no_map = hdr.main2ref_no_map
     (*(*info).dispswitch).warprefspslice = hdr.warprefspslice
+    (*(*info).dispswitch).refimscaled = hdr.refimscaled
+    (*(*info).dispswitch).refspscaled = hdr.refspscaled
     ; intparams pointer
     ; First remove potentially conflicting tags and re-add
     *(*info).intparams = CRISPEX_TAG_DELETE(*(*info).intparams, $
@@ -12108,12 +12110,18 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, $
     nlp_select = hdr_out.nlp
     ns_select = hdr_out.ns
     nt_select = hdr_out.mainnt
+    scaled = hdr_out.imscaled
+    bscale = hdr_out.imbscale
+    bzero = hdr_out.imbzero
     feedback_text = 'main '
   ENDIF 
   IF KEYWORD_SET(REFCUBE) THEN BEGIN
     nlp_select = hdr_out.refnlp
     ns_select = hdr_out.refns
     nt_select = hdr_out.refnt
+    scaled = hdr_out.refimscaled
+    bscale = hdr_out.refimbscale
+    bzero = hdr_out.refimbzero
     feedback_text = 'reference '
   ENDIF
   IF (N_ELEMENTS(SPECTFILE) NE 0) THEN BEGIN
@@ -12196,8 +12204,12 @@ PRO CRISPEX_IO_PARSE_SPECTFILE, spectfile, datafile, verbosity, $
       WHILE (finite_count EQ 0) DO BEGIN
         ; Failsafe while-loop against empty/NaN-only first image(s)
         FOR lp=0,nlp_select-1 DO BEGIN    ; Loop over all "spectral" positions
-          FOR t=t_lower,t_upper DO $      ; Loop over all time steps
-            spectrum[lp,s] += MEAN(datafile[t*nlp_select*ns_select + s*nlp_select + lp], /NAN)
+          FOR t=t_lower,t_upper DO BEGIN      ; Loop over all time steps
+            tmp_data = datafile[t*nlp_select*ns_select + s*nlp_select + lp]
+            IF scaled THEN $
+              tmp_data = CRISPEX_SCALING_DESCALE(tmp_data, bscale, bzero)
+            spectrum[lp,s] += MEAN(tmp_data, /NAN)
+          ENDFOR
         ENDFOR
         spectrum[*,s] /= FLOAT(t_upper - t_lower + 1)
         wherefinite = WHERE(FINITE(spectrum[*,s]) EQ 1, finite_count)
@@ -12339,6 +12351,9 @@ PRO CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, $
     ndiagnostics = hdr.ndiagnostics
     diag_start = hdr.diag_start
     diag_width = hdr.diag_width
+    scaled = hdr.imscaled
+    bscale = hdr.imbscale
+    bzero = hdr.imbzero
   ENDIF ELSE BEGIN
     ns = hdr.refns
     nt = hdr.refnt
@@ -12351,6 +12366,9 @@ PRO CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, $
     ndiagnostics = hdr.nrefdiagnostics
     diag_start = hdr.refdiag_start
     diag_width = hdr.refdiag_width
+    scaled = hdr.refimscaled
+    bscale = hdr.refimbscale
+    bzero = hdr.refimbzero
   ENDELSE
 	ls_low_y = DBLARR(ns,/NOZERO)
 	ls_upp_y = DBLARR(ns,/NOZERO)
@@ -12367,6 +12385,8 @@ PRO CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, $
   FOR s=0,ns-1 DO BEGIN
 		FOR lp=0,nlp-1 DO BEGIN
 			temp_image = data[tsel_scaling*ns*nlp + s*nlp + lp]
+      IF scaled THEN $
+        temp_image = CRISPEX_SCALING_DESCALE(temp_image, bscale, bzero)
 			immean[lp,s] = MEAN(temp_image, /NAN)
 			temp_image = IRIS_HISTO_OPT(temp_image,histo_opt_val, $
         MISSING=-32768, /SILENT)
@@ -12376,6 +12396,8 @@ PRO CRISPEX_IO_PARSE_SCALING_INIT, hdr, histo_opt_val, result, $
   		temp_lp = 2*lc - lp
   		IF ((temp_lp GE 0) AND (temp_lp LT nlp-1)) THEN BEGIN
   			mirror_temp_image = data[s*nlp + temp_lp]
+        IF scaled THEN mirror_temp_image = $
+          CRISPEX_SCALING_DESCALE(mirror_temp_image, bscale, bzero)
   			IF (temp_lp LT lc) THEN $
           dopplerim = temp_image - mirror_temp_image $
   			ELSE $
@@ -12878,6 +12900,9 @@ PRO CRISPEX_LOOP_GET_APPROX_SLAB, event, xrs, yrs, xps, yps, w_lpts, ap_loopslab
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	IF KEYWORD_SET(REFERENCE) THEN BEGIN
+    scaled = (*(*info).dispswitch).refimscaled
+    bscale = (*(*info).dispparams).refimbscale
+    bzero  = (*(*info).dispparams).refimbzero
 		FOR i=0,(SIZE(xrs[w_lpts]))[1]-1 DO BEGIN
 			IF (i EQ 0) THEN $
         tmp = ((*(*(*info).data).refspdata)[LONG(yrs[w_lpts[i]]) * $
@@ -12891,6 +12916,9 @@ PRO CRISPEX_LOOP_GET_APPROX_SLAB, event, xrs, yrs, xps, yps, w_lpts, ap_loopslab
           (*(*info).dataparams).s_ref]) ]] ] 
 		ENDFOR
 	ENDIF ELSE BEGIN
+    scaled = (*(*info).dispswitch).imscaled
+    bscale = (*(*info).dispparams).imbscale
+    bzero  = (*(*info).dispparams).imbzero
 		FOR i=0,(SIZE(xrs[w_lpts]))[1]-1 DO BEGIN
 			IF (i EQ 0) THEN BEGIN
 				tmp = ((*(*(*info).data).spdata)[LONG(yrs[w_lpts[i]]) * $
@@ -12903,6 +12931,7 @@ PRO CRISPEX_LOOP_GET_APPROX_SLAB, event, xrs, yrs, xps, yps, w_lpts, ap_loopslab
 			ENDELSE
 		ENDFOR
 	ENDELSE
+  IF scaled THEN tmp = CRISPEX_SCALING_DESCALE(tmp, bscale, bzero)
   IF (SIZE(tmp,/N_DIMENSIONS) EQ 3) THEN $
 	  ap_loopslab = TRANSPOSE(tmp, [2,1,0]) $
   ELSE BEGIN
@@ -12928,12 +12957,22 @@ PRO CRISPEX_LOOP_GET_EXACT_SLICE, event, extractdata, xrs, yrs, xps, yps, $
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
   tlow = 0
-  IF KEYWORD_SET(IM) THEN $
-    tupp = (*(*info).dataparams).mainnt-1 $
-  ELSE IF KEYWORD_SET(SJI) THEN $
-    tupp = (*(*info).dataparams).sjint[idx_sji]-1 $
-  ELSE $
+  IF KEYWORD_SET(IM) THEN BEGIN
+    tupp = (*(*info).dataparams).mainnt-1 
+    scaled = (*(*info).dispswitch).imscaled
+    bscale = (*(*info).dispswitch).imbscale
+    bzero  = (*(*info).dispswitch).imbzero
+  ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
+    scaled = (*(*info).dispswitch).sjiscaled[idx_sji]
+    bscale = (*(*info).dispswitch).sjibscale[idx_sji]
+    bzero  = (*(*info).dispswitch).sjibzero[idx_sji]
+    tupp = (*(*info).dataparams).sjint[idx_sji]-1 
+  ENDIF ELSE BEGIN
+    scaled = (*(*info).dispswitch).refimscaled
+    bscale = (*(*info).dispswitch).refimbscale
+    bzero  = (*(*info).dispswitch).refimbzero
     tupp = (*(*info).dataparams).refnt-1
+  ENDELSE
 	IF KEYWORD_SET(NO_NLP) THEN BEGIN
 		FOR tt=tlow,tupp DO BEGIN
 			IF (tt EQ tlow) THEN $
@@ -12986,6 +13025,7 @@ PRO CRISPEX_LOOP_GET_EXACT_SLICE, event, extractdata, xrs, yrs, xps, yps, $
 			ENDFOR
 		ENDELSE
 	ENDELSE
+  IF scaled THEN tmp = CRISPEX_SCALING_DESCALE(tmp, bscale, bzero)
 	ex_loopslice = tmp
 	n = 1 + (ABS(((SIZE(xps))[0] EQ 1)-1))
 	FOR k=0,(SIZE(xps))[n]-1 DO BEGIN
@@ -14589,6 +14629,9 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.dt = key.dt               &  hdr_out.single_cube[0] = key.nlp
       hdr_out.wcs_set = key.wcs_set 
       wcs_main = key.wcs_str
+      ; Check for scaled integer
+      hdr_out.imbscale = key.bscale     &  hdr_out.imbzero = key.bzero
+      hdr_out.imscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
       lc = key.lc
       hdr_out.obsid = STRTRIM(key.obsid,2)
       hdr_out.date_obs_main = key.date_obs
@@ -14665,6 +14708,9 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       ; In case of FITS cube
       hdr_out.sptype = key.datatype     &  hdr_out.spnt = key.nx * key.ny * key.ns
       hdr_out.spns = key.ns
+      ; Check for scaled integer
+      hdr_out.spbscale= key.bscale      &  hdr_out.spbzero = key.bzero
+      hdr_out.spscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
     ENDIF ELSE BEGIN                                            
       ; In case of compatibility mode
       hdr_out.sptype = datatype         &  hdr_out.spendian = endian
@@ -14702,6 +14748,9 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.reflplabel = key.lplab    &  hdr_out.reflpunit = key.lpunit
       hdr_out.ref_wcs_set = key.wcs_set
       wcs_ref = key.wcs_str
+      ; Check for scaled integer
+      hdr_out.refimbscale= key.bscale      &  hdr_out.refimbzero = key.bzero
+      hdr_out.refimscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
       reflc = key.lc
       hdr_out.date_obs_ref = STRTRIM(key.date_obs,2)
       hdr_out.startobs_ref = key.startobs
@@ -14783,6 +14832,9 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              
       ; In case of FITS cube
       hdr_out.refsptype = key.datatype  &  hdr_out.refspnt = key.nx * key.ny * key.ns
+      ; Check for scaled integer
+      hdr_out.refspbscale= key.bscale      &  hdr_out.refspbzero = key.bzero
+      hdr_out.refspscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
     ENDIF ELSE BEGIN                                            
       ; In case of compatibility mode
       hdr_out.refsptype = datatype      &  hdr_out.refspendian = endian
@@ -16781,12 +16833,20 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event, UPDATE_MAIN=update_main, $
             (*(*info).dataparams).s * (*(*info).dataparams).nlp + (*(*info).dataparams).lp]
       1:  minmax_data = *(*(*info).data).xyslice
     ENDCASE
+    IF (*(*info).dispswitch).imscaled THEN $
+      minmax_data = CRISPEX_SCALING_DESCALE(minmax_data, $
+        (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
     ; Process Stokes scaling
     IF ((*(*info).dispswitch).scalestokes[0] AND $
-        ((*(*info).dataparams).s NE 0)) THEN $
-      minmax_data /= FLOAT((*(*(*info).data).imagedata)[$
+        ((*(*info).dataparams).s NE 0)) THEN BEGIN
+      cont_slice = FLOAT((*(*(*info).data).imagedata)[$
           (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * $
-          (*(*info).dataparams).ns + (*(*info).stokesparams).contpos[0]])
+          (*(*info).dataparams).ns + (*(*info).stokesparams).contpos[0]]) 
+      IF (*(*info).dispswitch).imscaled THEN $
+        cont_slice = CRISPEX_SCALING_DESCALE(cont_slice, $
+          (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
+      minmax_data /= cont_slice
+    ENDIF
     minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
       (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
     IF ((*(*(*info).scaling).imagescale)[0] EQ 0) THEN BEGIN
@@ -16809,13 +16869,21 @@ PRO CRISPEX_SCALING_APPLY_SELECTED, event, UPDATE_MAIN=update_main, $
             (*(*info).dataparams).lp_ref]
       1:  minmax_data = *(*(*info).data).refslice
     ENDCASE
+    IF (*(*info).dispswitch).refimscaled THEN $
+      minmax_data = CRISPEX_SCALING_DESCALE(minmax_data, $
+        (*(*info).dispparams).refimbscale, (*(*info).dispparams).refimbzero)
     IF ((*(*info).dispswitch).scalestokes[1] AND $
-        ((*(*info).dataparams).s_ref NE 0)) THEN $
-      minmax_data /= FLOAT((*(*(*info).data).refdata)[$
+        ((*(*info).dataparams).s_ref NE 0)) THEN BEGIN
+      cont_slice = FLOAT((*(*(*info).data).refdata)[$
         (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp * $
         (*(*info).dataparams).refns + (*(*info).stokesparams).contpos[1]])
-      minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
-        (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
+      IF (*(*info).dispswitch).refimscaled THEN $
+        cont_slice = CRISPEX_SCALING_DESCALE(cont_slice, $
+          (*(*info).dispparams).refimbscale, (*(*info).dispparams).refimbzero)
+      minmax_data /= cont_slice
+    ENDIF
+    minmax = CRISPEX_SCALING_SLICES(minmax_data, (*(*info).scaling).gamma[idx], $
+      (*(*info).scaling).histo_opt_val[idx], /FORCE_HISTO)
     IF ((*(*(*info).scaling).imagescale)[1] EQ 0) THEN BEGIN
       (*(*info).scaling).refmin = minmax[0]
       (*(*info).scaling).refmax = minmax[1]
@@ -20287,9 +20355,13 @@ PRO CRISPEX_UPDATE_SLICES, event, NO_DRAW=no_draw, NO_PHIS=no_phis, $
           STRTRIM(KEYWORD_SET(REFSSP_UPDATE)+1,2)+'/'+STRTRIM(totslices,2)+$
           ' done            '
       IF ~KEYWORD_SET(NO_PHIS) THEN BEGIN
-    		*(*(*info).data).phiscan = (*(*(*info).data).sspscan)[*,*,$
+        phiscan_tmp = (*(*(*info).data).sspscan)[*,*,$
            ((*(*info).dataparams).s * (*(*info).dataparams).nlp):$
           (((*(*info).dataparams).s+1)*(*(*info).dataparams).nlp-1)] 
+        IF (*(*info).dispswitch).imscaled THEN $
+          phiscan_tmp = CRISPEX_SCALING_DESCALE(phiscan_tmp, $
+            (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
+    		*(*(*info).data).phiscan = phiscan_tmp
         IF KEYWORD_SET(GET_PHISLIT_COORDS) THEN $
           CRISPEX_UPDATE_PHISLIT_COORDS, event, NO_DRAW=no_draw
         CRISPEX_UPDATE_PHISLICE, event, NO_DRAW=no_draw
@@ -20317,11 +20389,19 @@ PRO CRISPEX_UPDATE_SPSLICE, event
       (*(*info).dataparams).ns + LONG((*(*info).dataparams).x) * $
       (*(*info).dataparams).ns 
   	spslice = ((*(*(*info).data).spdata)[ baseidx + (*(*info).dataparams).s ])
+    IF (*(*info).dispswitch).imscaled THEN $
+      spslice = CRISPEX_SCALING_DESCALE(spslice, $
+        (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
     IF ((*(*info).dispswitch).scalestokes[0] AND $
-        ((*(*info).dataparams).s NE 0)) THEN $
-  	  spslice /= FLOAT(REBIN(((*(*(*info).data).spdata)[baseidx])[$
+        ((*(*info).dataparams).s NE 0)) THEN BEGIN
+  	  cont_slice = FLOAT(REBIN(((*(*(*info).data).spdata)[baseidx])[$
         (*(*info).stokesparams).contpos[0],*], $
         (*(*info).dataparams).nlp,(*(*info).dataparams).nt))
+      IF (*(*info).dispswitch).imscaled THEN $
+        cont_slice = CRISPEX_SCALING_DESCALE(cont_slice, $
+          (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
+      spslice /= cont_slice
+    ENDIF
     dispslice = spslice[*,t_low:t_upp]
     ; Cut up dispslice for independent scaling per diagnostic
     FOR d=0,(*(*info).intparams).ndisp_diagnostics-1 DO BEGIN
@@ -20383,11 +20463,19 @@ PRO CRISPEX_UPDATE_REFSPSLICE, event
       (*(*info).dataparams).refns 
   	refspslice = ((*(*(*info).data).refspdata)[ $
       baseidx + (*(*info).dataparams).s_ref ])
+    IF (*(*info).dispswitch).refimscaled THEN $
+      refspslice = CRISPEX_SCALING_DESCALE(refspslice, $
+        (*(*info).dispparams).refimbscale, (*(*info).dispparams).refimbzero)
     IF ((*(*info).dispswitch).scalestokes[1] AND $
-        ((*(*info).dataparams).s_ref NE 0)) THEN $
-  	  refspslice /= FLOAT(REBIN(((*(*(*info).data).refspdata)[baseidx])[$
+        ((*(*info).dataparams).s_ref NE 0)) THEN BEGIN
+  	  cont_slice = FLOAT(REBIN(((*(*(*info).data).refspdata)[baseidx])[$
         (*(*info).stokesparams).contpos[1],*], $
         (*(*info).dataparams).refnlp,(*(*info).dataparams).refnt))
+      IF (*(*info).dispswitch).refimscaled THEN $
+        cont_slice = CRISPEX_SCALING_DESCALE(cont_slice, $
+          (*(*info).dispparams).refimbscale, (*(*info).dispparams).refimbzero)
+      refspslice /= cont_slice
+    ENDIF
     dispslice = refspslice[*,t_low:t_upp]
     FOR d=0,(*(*info).intparams).ndisp_refdiagnostics-1 DO BEGIN
       sel_idx = (*(*(*info).intparams).wheredisprefdiag)[d]
@@ -20455,12 +20543,20 @@ PRO CRISPEX_UPDATE_SSP, event
           LONG((*(*info).dataparams).x),LONG((*(*info).dataparams).y),$
           (wheres[i] * (*(*info).dataparams).nlp):$
           ((wheres[i]+1) * (*(*info).dataparams).nlp - 1)]  
+      IF (*(*info).dispswitch).imscaled THEN $
+        ssp = CRISPEX_SCALING_DESCALE(ssp, $
+          (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
       ; Check for Stokes scaling and apply accordingly
       IF ((*(*info).dispswitch).scalestokes[0] AND $
-          (wheres[i] NE 0)) THEN $
-        ssp /= FLOAT(REBIN((*(*(*info).data).ssp_cur[0])[$
+          (wheres[i] NE 0)) THEN BEGIN
+        cont_slice = FLOAT(REBIN((*(*(*info).data).ssp_cur[0])[$
           (*(*info).stokesparams).contpos[0],*],$
           (*(*info).dataparams).nlp,(*(*info).dataparams).nt))
+        IF (*(*info).dispswitch).imscaled THEN $
+          cont_slice = CRISPEX_SCALING_DESCALE(cont_slice, $
+            (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
+        ssp /= cont_slice
+      ENDIF
       (*(*info).data).ssp_cur[i] = PTR_NEW(ssp)
     ENDFOR
   ENDIF
@@ -20487,11 +20583,19 @@ PRO CRISPEX_UPDATE_REFSSP, event
                   LONG((*(*info).dataparams).yref),$
                   (wheres[i] * (*(*info).dataparams).refnlp):$
                   ((wheres[i]+1) * (*(*info).dataparams).refnlp - 1)])
+      IF (*(*info).dispswitch).refimscaled THEN $
+        refssp = CRISPEX_SCALING_DESCALE(refssp, $
+          (*(*info).dispparams).refimbscale, (*(*info).dispparams).refimbzero)
       IF ((*(*info).dispswitch).scalestokes[1] AND $
-          (wheres[i] NE 0)) THEN $
-        refssp /= FLOAT(REBIN((*(*(*info).data).refssp_cur[0])[$
+          (wheres[i] NE 0)) THEN BEGIN
+        cont_slice = FLOAT(REBIN((*(*(*info).data).refssp_cur[0])[$
           (*(*info).stokesparams).contpos[1],*],$
           (*(*info).dataparams).refnlp,(*(*info).dataparams).refnt))
+        IF (*(*info).dispswitch).refimscaled THEN $
+          cont_slice = CRISPEX_SCALING_DESCALE(cont_slice, $
+            (*(*info).dispparams).refimbscale, (*(*info).dispparams).refimbzero)
+        refssp /= cont_slice
+      ENDIF
       (*(*info).data).refssp_cur[i] = PTR_NEW(refssp)
     ENDFOR
   ENDIF
@@ -20701,31 +20805,42 @@ PRO CRISPEX_UPDATE_T, event
     (*(*info).dataparams).ns+ (*(*info).dataparams).s * (*(*info).dataparams).nlp
 	*(*(*info).data).xyslice = (*(*(*info).data).imagedata)[$
     basecubeidx + (*(*info).dataparams).lp]
+  IF (*(*info).dispswitch).imscaled THEN *(*(*info).data).xyslice = $
+    CRISPEX_SCALING_DESCALE(*(*(*info).data).xyslice, $
+      (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
   ; Process Stokes scaling
-  IF (*(*info).dispswitch).scalestokes[0] THEN $
+  IF (*(*info).dispswitch).scalestokes[0] THEN BEGIN
     cont_slice = FLOAT((*(*(*info).data).imagedata)[$
         (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * $
-        (*(*info).dataparams).ns + (*(*info).stokesparams).contpos[0]]) $
-  ELSE $
+        (*(*info).dataparams).ns + (*(*info).stokesparams).contpos[0]]) 
+    IF (*(*info).dispswitch).imscaled THEN $
+      cont_slice = CRISPEX_SCALING_DESCALE(cont_slice, $
+        (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
+  ENDIF ELSE $
     cont_slice = REBIN(REPLICATE(1,(*(*info).dataparams).nx),$
       (*(*info).dataparams).nx, (*(*info).dataparams).ny)
   ; Scale the image if need be
   IF scalestokes_main THEN $
     *(*(*info).data).xyslice /= cont_slice 
   ; Get noise level
-  FOR s=0,(*(*info).dataparams).ns-1 DO $
-    (*(*info).stokesparams).noise[s] = STDDEV((*(*(*info).data).imagedata)[$
+  FOR s=0,(*(*info).dataparams).ns-1 DO BEGIN
+    tmp_im = (*(*(*info).data).imagedata)[$
       (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * $
       (*(*info).dataparams).ns + s * (*(*info).dataparams).nlp + $
-      (*(*info).stokesparams).contpos[0]]/cont_slice, /NAN)
+      (*(*info).stokesparams).contpos[0]]
+    IF (*(*info).dispswitch).imscaled THEN $
+      tmp_im = CRISPEX_SCALING_DESCALE(tmp_im, $
+        (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
+    (*(*info).stokesparams).noise[s] = STDDEV(tmp_im/cont_slice, /NAN)
+  ENDFOR
 	IF ((*(*info).winswitch).showdop AND $
       (*(*info).dispswitch).drawdop) THEN BEGIN
 		temp_xyslice =  (*(*(*info).data).imagedata)[$
       basecubeidx + (*(*info).dataparams).lp_dop]
-    IF scalestokes_main THEN $
-      temp_xyslice /= FLOAT((*(*(*info).data).imagedata)[$
-        (*(*info).dispparams).t_main * (*(*info).dataparams).nlp * $
-        (*(*info).dataparams).ns + (*(*info).stokesparams).contpos[0]])
+    IF (*(*info).dispswitch).imscaled THEN $
+      tmp_xyslice = CRISPEX_SCALING_DESCALE(tmp_xyslice, $
+        (*(*info).dispparams).imbscale, (*(*info).dispparams).imbzero)
+    IF scalestokes_main THEN temp_xyslice /= cont_slice
   ENDIF
   
   ; Determine Doppler image
@@ -20745,24 +20860,35 @@ PRO CRISPEX_UPDATE_T, event
         (*(*info).dataparams).refns + (*(*info).dataparams).s_ref * $
         (*(*info).dataparams).refnlp + (*(*info).dataparams).lp_ref
       *(*(*info).data).refslice = (*(*(*info).data).refdata)[refidx]
+      IF (*(*info).dispswitch).refimscaled THEN $
+        *(*(*info).data).refslice = CRISPEX_SCALING_DESCALE($
+          *(*(*info).data).refslice, (*(*info).dispparams).refimbscale, $
+          (*(*info).dispparams).refimbzero)
       ; Process Stokes scaling
-      IF (*(*info).dispswitch).scalestokes[1] THEN $
+      IF (*(*info).dispswitch).scalestokes[1] THEN BEGIN
         cont_slice = FLOAT((*(*(*info).data).refdata)[$
             (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp * $
-            (*(*info).dataparams).refns + (*(*info).stokesparams).contpos[1]]) $
-      ELSE $
+            (*(*info).dataparams).refns + (*(*info).stokesparams).contpos[1]]) 
+        IF (*(*info).dispswitch).refimscaled THEN $
+          cont_slice = CRISPEX_SCALING_DESCALE(cont_slice, $
+            (*(*info).dispparams).refimbscale, (*(*info).dispparams).refimbzero)
+      ENDIF ELSE $
         cont_slice = REBIN(REPLICATE(1,(*(*info).dataparams).refnx),$
           (*(*info).dataparams).refnx, (*(*info).dataparams).refny)
       ; Scale the image if need be
       IF scalestokes_ref THEN $
         *(*(*info).data).refslice /= cont_slice
       ; Get noise level
-      FOR s=0,(*(*info).dataparams).refns-1 DO $
-        (*(*info).stokesparams).noise_ref[s] = $
-          STDDEV((*(*(*info).data).refdata)[$
+      FOR s=0,(*(*info).dataparams).refns-1 DO BEGIN
+        tmp_refim = (*(*(*info).data).refdata)[$
             (*(*info).dispparams).t_ref * (*(*info).dataparams).refnlp * $
             (*(*info).dataparams).refns + s * (*(*info).dataparams).refnlp + $
-            (*(*info).stokesparams).contpos[1]]/cont_slice, /NAN)
+            (*(*info).stokesparams).contpos[1]]
+        IF (*(*info).dispswitch).refimscaled THEN $
+          tmp_refim = CRISPEX_SCALING_DESCALE(tmp_refim, $
+            (*(*info).dispparams).refimbscale, (*(*info).dispparams).refimbzero)
+        (*(*info).stokesparams).noise_ref[s] = STDDEV(tmp_refim/cont_slice, /NAN)
+      ENDFOR
 		ENDIF ELSE $
         *(*(*info).data).refslice = (*(*(*info).data).refdata) 
 	ENDIF
@@ -22044,6 +22170,10 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
               refdx:1., refdy:1., refdt:dt, sjidt:dt, $
               sjidx:REPLICATE(1.,nsjifiles_max), sjidy:REPLICATE(1.,nsjifiles_max), $
               ; Data scaling variables
+              imbscale:0., imbzero:0., imscaled:0B, $
+              spbscale:0., spbzero:0., spscaled:0B, $
+              refimbscale:0., refimbzero:0., refimscaled:0B, $
+              refspbscale:0., refspbzero:0., refspscaled:0B, $
               sjibscale:REPLICATE(0.,nsjifiles_max),$
               sjibzero:REPLICATE(0.,nsjifiles_max),$
               sjiscaled:REPLICATE(0B,nsjifiles_max), $
@@ -23034,7 +23164,6 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       'refmin', refmin, 'refmax', refmax, 'sjimin', sjimin, 'sjimax', sjimax, $
       'tsel_scaling_sji', tsel_scaling_sji)
   ENDIF
-
   ; Load default color tables
   LOADCT, GET_NAMES=ct_idl_names, /SILENT
   ct_names = ct_idl_names
@@ -25111,6 +25240,10 @@ cursim_grab = CREATE_CURSOR([$
     t_low_ref:hdr.tarr_ref[0], t_upp_ref:hdr.tarr_ref[(hdr.refnt-1)>0], $
     t_low_sji:t_low_sji, t_upp_sji:t_upp_sji, $
     toffset_main:hdr.toffset_main, toffset_ref:hdr.toffset_ref, $
+    imbscale:hdr.imbscale, imbzero:hdr.imbzero, $
+    spbscale:hdr.spbscale, spbzero:hdr.spbzero, $
+    refimbscale:hdr.refimbscale, refimbzero:hdr.refimbzero, $
+    refspbscale:hdr.refspbscale, refspbzero:hdr.refspbzero, $
     sjibscale:hdr.sjibscale, sjibzero:hdr.sjibzero, $
     x_main:x_main, y_main:y_main, x_ref:x_ref, y_ref:y_ref, $
     x_old:DOUBLE(x_start), y_old:DOUBLE(y_start), $
@@ -25132,6 +25265,8 @@ cursim_grab = CREATE_CURSOR([$
     warpspslice:hdr.warpspslice, warprefspslice:hdr.warprefspslice, $
 		detspect_scale:detspect_scale, ref_detspect_scale:ref_detspect_scale, $
     drawdop:0, sjiscaled:hdr.sjiscaled, main2ref_no_map:hdr.main2ref_no_map, $
+    imscaled:hdr.imscaled, spscaled:hdr.spscaled, $
+    refimscaled:hdr.refimscaled, refspscaled:hdr.refspscaled, $
     xy_out_of_range:0, xyref_out_of_range:xyref_out_of_range, $
     xysji_out_of_range:xysji_out_of_range $
 	}
