@@ -11266,12 +11266,13 @@ PRO CRISPEX_IO_HANDLE_HDR, event, REFERENCE=reference, SJI=sji, IDX_SJI=idx_sji
     (*(*info).dispparams).lp_ref_range = hdr.refnlp
     *(*info).dispparams = CRISPEX_TAG_DELETE(*(*info).dispparams, $
       ['LP_REF_LOW_TMP','LP_REF_UPP_TMP','LP_REF_LOW_BOUNDS',$
-       'LP_REF_UPP_BOUNDS','V_DOP_REF_LOW','V_DOP_REF_UPP'])
+       'LP_REF_UPP_BOUNDS','V_DOP_REF_LOW','V_DOP_REF_UPP', 'XYTRI_REF'])
      *(*info).dispparams = CREATE_STRUCT(*(*info).dispparams, $
        'lp_ref_low_tmp', REPLICATE(0,hdr.nrefdiagnostics), $
        'lp_ref_upp_tmp', hdr.refdiag_width-1, $
        'lp_ref_low_bounds', hdr.refdiag_start, $
-       'lp_ref_upp_bounds', hdr.refdiag_start+(hdr.refdiag_width-1))
+       'lp_ref_upp_bounds', hdr.refdiag_start+(hdr.refdiag_width-1),$
+       'xytri_ref', hdr.xytri_ref)
     refheightset = 0
 		IF (N_ELEMENTS(hdr.xtitle) EQ 2) THEN BEGIN
 			IF (STRCOMPRESS(hdr.xtitle[1]) NE '') THEN BEGIN
@@ -11929,6 +11930,7 @@ PRO CRISPEX_IO_SETTINGS_SPECTRAL, event, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
   ELSE BEGIN
     ; Only need to handle reference since only reference will be changed when
     ; called with event
+    hdr_out = CRISPEX_TAG_DELETE(hdr_out, 'XYTRI_REF') 
     hdr_out = CREATE_STRUCT(hdr_out, 'xytri_ref', xytri_ref)
     hdr_out.warprefspslice = warprefspslice
   ENDELSE
@@ -14631,7 +14633,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       wcs_main = key.wcs_str
       ; Check for scaled integer
       hdr_out.imbscale = key.bscale     &  hdr_out.imbzero = key.bzero
-      hdr_out.imscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
+      hdr_out.imscaled = ((key.bscale NE 1.) AND (key.bscale NE 0.) AND (key.datatype EQ 2)) 
       lc = key.lc
       hdr_out.obsid = STRTRIM(key.obsid,2)
       hdr_out.date_obs_main = key.date_obs
@@ -14710,7 +14712,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.spns = key.ns
       ; Check for scaled integer
       hdr_out.spbscale= key.bscale      &  hdr_out.spbzero = key.bzero
-      hdr_out.spscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
+      hdr_out.spscaled = ((key.bscale NE 1.) AND (key.bscale NE 0.) AND (key.datatype EQ 2)) 
     ENDIF ELSE BEGIN                                            
       ; In case of compatibility mode
       hdr_out.sptype = datatype         &  hdr_out.spendian = endian
@@ -14750,7 +14752,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       wcs_ref = key.wcs_str
       ; Check for scaled integer
       hdr_out.refimbscale= key.bscale      &  hdr_out.refimbzero = key.bzero
-      hdr_out.refimscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
+      hdr_out.refimscaled = ((key.bscale NE 1.) AND (key.bscale NE 0.) AND (key.datatype EQ 2)) 
       reflc = key.lc
       hdr_out.date_obs_ref = STRTRIM(key.date_obs,2)
       hdr_out.startobs_ref = key.startobs
@@ -14834,7 +14836,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.refsptype = key.datatype  &  hdr_out.refspnt = key.nx * key.ny * key.ns
       ; Check for scaled integer
       hdr_out.refspbscale= key.bscale      &  hdr_out.refspbzero = key.bzero
-      hdr_out.refspscaled = ((key.bscale NE 1.) AND (key.datatype EQ 2)) 
+      hdr_out.refspscaled = ((key.bscale NE 1.) AND (key.bscale NE 0.) AND (key.datatype EQ 2)) 
     ENDIF ELSE BEGIN                                            
       ; In case of compatibility mode
       hdr_out.refsptype = datatype      &  hdr_out.refspendian = endian
