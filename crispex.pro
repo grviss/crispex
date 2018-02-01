@@ -22070,8 +22070,16 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   nsjifiles_max = 6
 
   ; Check whether main input file (Imcube) is a session file
-  IF KEYWORD_SET(LAST_SESSION) THEN $
+  IF KEYWORD_SET(LAST_SESSION) THEN BEGIN
     Imcube = dir_settings+'crispex_last_session.cses' 
+    ; Failsafe against non-existing last save file
+    IF NOT FILE_TEST(Imcube) THEN BEGIN
+      CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, 'Could not find last session '+$
+      'file to restore from in '+dir_settings, /ERROR, /NO_ROUTINE
+			IF (N_ELEMENTS(STARTUPTLB) EQ 1) THEN WIDGET_CONTROL, startuptlb, /DESTROY
+      RETURN
+    ENDIF
+  ENDIF 
   imcube_ext = STRMID(Imcube,STRPOS(Imcube,'.',$
     /REVERSE_SEARCH)+1,STRLEN(Imcube))  ; Process extension
   restore_from_session = STRMATCH(imcube_ext,'cses',/FOLD_CASE) 
