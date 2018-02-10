@@ -21836,8 +21836,18 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK,'CRISPEX has been compiled from: '+file_crispex
 
 ;========================= TEMPORARILY PRELOAD MODIFIED WCS_PROJ_TAB PROCEDURE
-  ; Routine located under dir_aux/ninterpolate
-  RESOLVE_ROUTINE, 'crispex_wcs_proj_tab', /COMPILE_FULL_FILE
+  ; Check that dir_aux/ininterpol exists
+  dir_ninterpol_exist = FILE_TEST(dir_aux+'ninterpol')
+  ; Routine located under dir_aux/ninterpol
+  IF dir_ninterpol_exist THEN $
+    RESOLVE_ROUTINE, 'crispex_wcs_proj_tab', /COMPILE_FULL_FILE $
+  ELSE BEGIN
+    CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
+      'Your CRISPEX distribution appears to be incomplete: missing directory '+$
+      dir_aux+'ninterpol. CRISPEX will not be able to properly read '+$
+      'metadata from SOLARNET-standard tabulated FITS cubes.', $
+      /WARNING, /NO_ROUTINE, /NEWLINE
+  ENDELSE
 
 ;========================= VERSION AND REVISION NUMBER
   ; Version 1.7.4 (rev 820, cvs_rev 1.250) == version 1.7.4.0
