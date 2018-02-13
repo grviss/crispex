@@ -1231,10 +1231,15 @@ FUNCTION CRISPEX_BGROUP_INT_SEL_ALLNONE, event
 END
 
 ;------------------------- READ BMP BUTTONS FUNCTION
-FUNCTION CRISPEX_READ_BMP_BUTTONS, filename, srcdir
+FUNCTION CRISPEX_READ_BMP_BUTTONS, filename, srcdir, DEFAULT=default
 ; Handles the reading of (button) BMP files
-	button_dummy = READ_BMP(srcdir+filename)  
-	button_dummy = TRANSPOSE(button_dummy, [1,2,0])
+  IF FILE_TEST(srcdir+filename) THEN BEGIN
+	  button_dummy = READ_BMP(srcdir+filename)  
+	  button_dummy = TRANSPOSE(button_dummy, [1,2,0])
+  ENDIF ELSE IF (N_ELEMENTS(DEFAULT) EQ 1) THEN $
+    button_dummy = default $
+  ELSE $
+    button_dummy = 'N/A'
 	RETURN, button_dummy
 END
 
@@ -23371,72 +23376,77 @@ cursim_grab = CREATE_CURSOR([$
                                         '(loading BMP buttons)', /WIDGET, /OVER
 	feedback_text = ['Setting up widget... ','> Loading BMP buttons... ']
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
-	bmpbut_search = FILE_SEARCH(dir_buttons, '*.bmp', COUNT=bmpbut_count)
-  nbuttons = 32 
-	IF (bmpbut_count EQ nbuttons) THEN BEGIN
-		bmpbut_fbwd_idle     = CRISPEX_READ_BMP_BUTTONS('fbwd_idle.bmp',dir_buttons)
-		bmpbut_fbwd_pressed  = CRISPEX_READ_BMP_BUTTONS('fbwd_pressed.bmp',dir_buttons)
-		bmpbut_bwd_idle      = CRISPEX_READ_BMP_BUTTONS('bwd_idle.bmp',dir_buttons)
-		bmpbut_bwd_pressed   = CRISPEX_READ_BMP_BUTTONS('bwd_pressed.bmp',dir_buttons)
-		bmpbut_pause_idle    = CRISPEX_READ_BMP_BUTTONS('pause_idle.bmp',dir_buttons)
-		bmpbut_pause_pressed = CRISPEX_READ_BMP_BUTTONS('pause_pressed.bmp',dir_buttons)
-		bmpbut_fwd_idle      = CRISPEX_READ_BMP_BUTTONS('fwd_idle.bmp',dir_buttons)
-		bmpbut_fwd_pressed   = CRISPEX_READ_BMP_BUTTONS('fwd_pressed.bmp',dir_buttons)
-		bmpbut_ffwd_idle     = CRISPEX_READ_BMP_BUTTONS('ffwd_idle.bmp',dir_buttons)
-		bmpbut_ffwd_pressed  = CRISPEX_READ_BMP_BUTTONS('ffwd_pressed.bmp',dir_buttons)
-		bmpbut_loop_idle     = CRISPEX_READ_BMP_BUTTONS('loop_idle.bmp',dir_buttons)
-		bmpbut_loop_pressed  = CRISPEX_READ_BMP_BUTTONS('loop_pressed.bmp',dir_buttons)
-		bmpbut_cycle_idle    = CRISPEX_READ_BMP_BUTTONS('cycle_idle.bmp',dir_buttons)
-		bmpbut_cycle_pressed = CRISPEX_READ_BMP_BUTTONS('cycle_pressed.bmp',dir_buttons)
-		bmpbut_blink_idle    = CRISPEX_READ_BMP_BUTTONS('blink_idle.bmp',dir_buttons)
-		bmpbut_blink_pressed = CRISPEX_READ_BMP_BUTTONS('blink_pressed.bmp',dir_buttons)
-    ; Cursor and zoom buttons
-    bmpbut_cursor_unlock        = CRISPEX_READ_BMP_BUTTONS('cursor_unlock.bmp',dir_buttons)
-    bmpbut_cursor_lock          = CRISPEX_READ_BMP_BUTTONS('cursor_lock.bmp',dir_buttons)
-    bmpbut_zoom_in_idle         = CRISPEX_READ_BMP_BUTTONS('zoom_in_idle.bmp', dir_buttons)
-    bmpbut_zoom_out_idle        = CRISPEX_READ_BMP_BUTTONS('zoom_out_idle.bmp', dir_buttons)
-    bmpbut_zoom_tofit_idle      = CRISPEX_READ_BMP_BUTTONS('zoom_tofit_idle.bmp', dir_buttons)
-    bmpbut_zoom_toscale_idle    = CRISPEX_READ_BMP_BUTTONS('zoom_toscale_idle.bmp', dir_buttons)
-    bmpbut_zoom_goto_curs_idle  = CRISPEX_READ_BMP_BUTTONS('zoom_goto_cursor_idle.bmp', dir_buttons)
-    bmpbut_zoom_pan_idle        = CRISPEX_READ_BMP_BUTTONS('zoom_pan_idle.bmp', dir_buttons)
-    bmpbut_zoom_select_idle     = CRISPEX_READ_BMP_BUTTONS('zoom_select_idle.bmp', dir_buttons)
-    bmpbut_zoom_in_pressed      = CRISPEX_READ_BMP_BUTTONS('zoom_in_pressed.bmp', dir_buttons)
-    bmpbut_zoom_out_pressed     = CRISPEX_READ_BMP_BUTTONS('zoom_out_pressed.bmp', dir_buttons)
-    bmpbut_zoom_tofit_pressed   = CRISPEX_READ_BMP_BUTTONS('zoom_tofit_pressed.bmp', dir_buttons)
-    bmpbut_zoom_toscale_pressed   = CRISPEX_READ_BMP_BUTTONS('zoom_toscale_pressed.bmp', dir_buttons)
-    bmpbut_zoom_goto_curs_pressed = CRISPEX_READ_BMP_BUTTONS('zoom_goto_cursor_pressed.bmp', dir_buttons)
-    bmpbut_zoom_pan_pressed       = CRISPEX_READ_BMP_BUTTONS('zoom_pan_pressed.bmp', dir_buttons)
-    bmpbut_zoom_select_pressed    = CRISPEX_READ_BMP_BUTTONS('zoom_select_pressed.bmp', dir_buttons)
-    failed = 0
-	ENDIF ELSE BEGIN
-		bmpbut_fbwd_idle  = '<<'    & bmpbut_fbwd_pressed  = bmpbut_fbwd_idle
-		bmpbut_bwd_idle   = '<'     & bmpbut_bwd_pressed   = bmpbut_bwd_idle
-		bmpbut_pause_idle = '||'    & bmpbut_pause_pressed = bmpbut_pause_idle
-		bmpbut_fwd_idle   = '>'     & bmpbut_fwd_pressed   = bmpbut_fwd_idle
-		bmpbut_ffwd_idle  = '>>'    & bmpbut_ffwd_pressed  = bmpbut_ffwd_idle
-		bmpbut_loop_idle  = 'Loop'  & bmpbut_loop_pressed  = bmpbut_loop_idle
-		bmpbut_cycle_idle = 'Cycle' & bmpbut_cycle_pressed = bmpbut_cycle_idle
-		bmpbut_blink_idle = 'Blink' & bmpbut_blink_pressed = bmpbut_blink_idle
-    bmpbut_cursor_lock = 'Lock' & bmpbut_cursor_unlock = 'Unlock'
-    bmpbut_zoom_in_idle = '+'         
-    bmpbut_zoom_out_idle = '-'
-    bmpbut_zoom_tofit_idle = '[ ]'
-    bmpbut_zoom_toscale_idle = '1:1'
-    bmpbut_zoom_pan_idle = '< >'
-    bmpbut_zoom_select_idle = '<--'
-    bmpbut_zoom_goto_curs_idle = '>\<'
-    bmpbut_zoom_in_pressed = bmpbut_zoom_in_idle
-    bmpbut_zoom_out_pressed = bmpbut_zoom_out_idle
-    bmpbut_zoom_tofit_pressed = bmpbut_zoom_tofit_idle
-    bmpbut_zoom_toscale_pressed = bmpbut_zoom_toscale_idle
-    bmpbut_zoom_pan_pressed = bmpbut_zoom_pan_idle
-    bmpbut_zoom_select_pressed = bmpbut_zoom_select_idle
-    bmpbut_zoom_goto_curs_pressed = bmpbut_zoom_goto_curs_idle
-    failed = 1
-	ENDELSE
-  IF failed THEN donetext = 'failed.' ELSE donetext = 'done!'
+	bmpbut_fbwd_idle     = CRISPEX_READ_BMP_BUTTONS('fbwd_idle.bmp',$
+                          dir_buttons, DEFAULT='<<')
+	bmpbut_fbwd_pressed  = CRISPEX_READ_BMP_BUTTONS('fbwd_pressed.bmp',$
+                          dir_buttons, DEFAULT='<<')
+	bmpbut_bwd_idle      = CRISPEX_READ_BMP_BUTTONS('bwd_idle.bmp',dir_buttons,$
+                          DEFAULT='<')
+	bmpbut_bwd_pressed   = CRISPEX_READ_BMP_BUTTONS('bwd_pressed.bmp',$
+                          dir_buttons, DEFAULT='<')
+	bmpbut_pause_idle    = CRISPEX_READ_BMP_BUTTONS('pause_idle.bmp',$
+                          dir_buttons, DEFAULT='||')
+	bmpbut_pause_pressed = CRISPEX_READ_BMP_BUTTONS('pause_pressed.bmp',$
+                          dir_buttons, DEFAULT='||')
+	bmpbut_fwd_idle      = CRISPEX_READ_BMP_BUTTONS('fwd_idle.bmp',$
+                          dir_buttons, DEFAULT='>')
+	bmpbut_fwd_pressed   = CRISPEX_READ_BMP_BUTTONS('fwd_pressed.bmp',$
+                          dir_buttons, DEFAULT='>')
+	bmpbut_ffwd_idle     = CRISPEX_READ_BMP_BUTTONS('ffwd_idle.bmp',$
+                          dir_buttons, DEFAULT='>>')
+	bmpbut_ffwd_pressed  = CRISPEX_READ_BMP_BUTTONS('ffwd_pressed.bmp',$
+                          dir_buttons, DEFAULT='>>')
+	bmpbut_loop_idle     = CRISPEX_READ_BMP_BUTTONS('loop_idle.bmp',$
+                          dir_buttons, DEFAULT='Loop')
+	bmpbut_loop_pressed  = CRISPEX_READ_BMP_BUTTONS('loop_pressed.bmp',$
+                          dir_buttons, DEFAULT='Loop')
+	bmpbut_cycle_idle    = CRISPEX_READ_BMP_BUTTONS('cycle_idle.bmp',$
+                          dir_buttons, DEFAULT='Cycle')
+	bmpbut_cycle_pressed = CRISPEX_READ_BMP_BUTTONS('cycle_pressed.bmp',$
+                          dir_buttons, DEFAULT='Cycle')
+	bmpbut_blink_idle    = CRISPEX_READ_BMP_BUTTONS('blink_idle.bmp',$
+                          dir_buttons, DEFAULT='Blink')
+	bmpbut_blink_pressed = CRISPEX_READ_BMP_BUTTONS('blink_pressed.bmp',$
+                          dir_buttons, DEFAULT='Blink')
+  bmpbut_add_failed = ((SIZE(bmpbut_loop_idle,/TYPE) EQ 7) OR $
+    (SIZE(bmpbut_cycle_idle,/TYPE) EQ 7) OR (SIZE(bmpbut_blink_idle,/TYPE) EQ 7))
+  ; Cursor and zoom buttons
+  bmpbut_cursor_unlock        = CRISPEX_READ_BMP_BUTTONS('cursor_unlock.bmp',$
+                                  dir_buttons, DEFAULT='Unlock')
+  bmpbut_cursor_lock          = CRISPEX_READ_BMP_BUTTONS('cursor_lock.bmp',$
+                                  dir_buttons, DEFAULT='Lock')
+  bmpbut_zoom_in_idle         = CRISPEX_READ_BMP_BUTTONS('zoom_in_idle.bmp', $
+                                  dir_buttons, DEFAULT='+')
+  bmpbut_zoom_out_idle        = CRISPEX_READ_BMP_BUTTONS('zoom_out_idle.bmp',$
+                                  dir_buttons, DEFAULT='-')
+  bmpbut_zoom_tofit_idle      = CRISPEX_READ_BMP_BUTTONS('zoom_tofit_idle.bmp',$
+                                  dir_buttons, DEFAULT='[ ]')
+  bmpbut_zoom_toscale_idle    = CRISPEX_READ_BMP_BUTTONS('zoom_toscale_idle.bmp',$ 
+                                  dir_buttons, DEFAULT='1:1')
+  bmpbut_zoom_goto_curs_idle  = CRISPEX_READ_BMP_BUTTONS('zoom_goto_cursor_idle.bmp',$
+                                  dir_buttons, DEFAULT='>\<')
+  bmpbut_zoom_pan_idle        = CRISPEX_READ_BMP_BUTTONS('zoom_pan_idle.bmp',$
+                                  dir_buttons, DEFAULT='< >')
+  bmpbut_zoom_select_idle     = CRISPEX_READ_BMP_BUTTONS('zoom_select_idle.bmp',$
+                                  dir_buttons, DEFAULT='<--')
+  bmpbut_zoom_in_pressed      = CRISPEX_READ_BMP_BUTTONS('zoom_in_pressed.bmp',$
+                                  dir_buttons, DEFAULT='+')
+  bmpbut_zoom_out_pressed     = CRISPEX_READ_BMP_BUTTONS('zoom_out_pressed.bmp',$
+                                  dir_buttons, DEFAULT='-')
+  bmpbut_zoom_tofit_pressed   = CRISPEX_READ_BMP_BUTTONS('zoom_tofit_pressed.bmp',$
+                                  dir_buttons, DEFAULT='[ ]')
+  bmpbut_zoom_toscale_pressed   = CRISPEX_READ_BMP_BUTTONS('zoom_toscale_pressed.bmp',$
+                                    dir_buttons, DEFAULT='1:1')
+  bmpbut_zoom_goto_curs_pressed = CRISPEX_READ_BMP_BUTTONS('zoom_goto_cursor_pressed.bmp',$
+                                    dir_buttons, DEFAULT='>\<')
+  bmpbut_zoom_pan_pressed       = CRISPEX_READ_BMP_BUTTONS('zoom_pan_pressed.bmp',$
+                                    dir_buttons, DEFAULT='< >')
+  bmpbut_zoom_select_pressed    = CRISPEX_READ_BMP_BUTTONS('zoom_select_pressed.bmp',$
+                                    dir_buttons, DEFAULT='<--')
+  IF bmpbut_add_failed THEN donetext = 'failed.' ELSE donetext = 'done!'
 	IF (TOTAL(verbosity[0:1]) GE 1) THEN CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, $
-                                        '(loading BMP buttons)', /WIDGET, /OVER, /DONE, FAIL=failed
+                                        '(loading BMP buttons)', /WIDGET, $
+                                        /OVER, /DONE, FAIL=bmpbut_add_failed
 	feedback_text = [feedback_text[0:N_ELEMENTS(feedback_text)-2],'> Loading BMP buttons... '+donetext]
 	IF startupwin THEN CRISPEX_UPDATE_STARTUP_FEEDBACK, startup_im, xout, yout, feedback_text
 
@@ -23706,8 +23716,8 @@ cursim_grab = CREATE_CURSOR([$
 	playback_field_basic= WIDGET_BASE(playback_contr, FRAME=0, /GRID_LAYOUT, $
                           COLUMN=5, XPAD=extra_xpad) ;, $
 	playback_field_add	= WIDGET_BASE(playback_contr, FRAME=0, $
-                          GRID_LAYOUT=(bmpbut_count EQ nbuttons), COLUMN=3,  $
-                          EXCLUSIVE=(bmpbut_count NE nbuttons), XPAD=1.9*extra_xpad)
+                          GRID_LAYOUT=(bmpbut_add_failed EQ 0), COLUMN=3,  $
+                          EXCLUSIVE=bmpbut_add_failed, XPAD=1.9*extra_xpad)
 	fbwd_button		      = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_fbwd_idle, $
                           EVENT_PRO='CRISPEX_PB_FASTBACKWARD', TOOLTIP = 'Move one frame backward')
 	backward_button		  = WIDGET_BUTTON(playback_field_basic, VALUE = bmpbut_bwd_idle, $
@@ -23720,7 +23730,7 @@ cursim_grab = CREATE_CURSOR([$
                           EVENT_PRO='CRISPEX_PB_FASTFORWARD', TOOLTIP = 'Move one frame forward')
 	loop_button		      = WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_loop_pressed, $
                           EVENT_PRO='CRISPEX_PB_LOOP', TOOLTIP = 'Loop')
-	WIDGET_CONTROL, loop_button, SET_BUTTON = (bmpbut_count NE nbuttons)
+	WIDGET_CONTROL, loop_button, SET_BUTTON=bmpbut_add_failed 
 	cycle_button		    = WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_cycle_idle, $
                           EVENT_PRO='CRISPEX_PB_CYCLE', TOOLTIP = 'Cycle')
 	blink_button		    = WIDGET_BUTTON(playback_field_add, VALUE = bmpbut_blink_idle, $
