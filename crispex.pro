@@ -12558,7 +12558,7 @@ PRO CRISPEX_LOOP_DEFINE, event
 		WIDGET_CONTROL, (*(*info).ctrlscp).save_loop_pts, SENSITIVE = 0
 		WIDGET_CONTROL, (*(*info).ctrlscp).timeslicemenu, SENSITIVE = 0
 		WIDGET_CONTROL, (*(*info).ctrlscp).loop_slit_but, SET_VALUE = 'Draw path'
-    CRISPEX_CURSOR_LOCKBUTTON_SET, event
+    CRISPEX_CURSOR_LOCKBUTTON_SET, event, /NO_DRAW
 		(*(*info).curs).lockset = event.SELECT
 		CRISPEX_COORDSLIDERS_SET, 1, 1, event
 		CRISPEX_DRAW, event
@@ -12967,17 +12967,17 @@ PRO CRISPEX_LOOP_GET_EXACT_SLICE, event, extractdata, xrs, yrs, xps, yps, $
   IF KEYWORD_SET(IM) THEN BEGIN
     tupp = (*(*info).dataparams).mainnt-1 
     scaled = (*(*info).dispswitch).imscaled
-    bscale = (*(*info).dispswitch).imbscale
-    bzero  = (*(*info).dispswitch).imbzero
+    bscale = (*(*info).dispparams).imbscale
+    bzero  = (*(*info).dispparams).imbzero
   ENDIF ELSE IF KEYWORD_SET(SJI) THEN BEGIN
     scaled = (*(*info).dispswitch).sjiscaled[idx_sji]
-    bscale = (*(*info).dispswitch).sjibscale[idx_sji]
-    bzero  = (*(*info).dispswitch).sjibzero[idx_sji]
+    bscale = (*(*info).dispparams).sjibscale[idx_sji]
+    bzero  = (*(*info).dispparams).sjibzero[idx_sji]
     tupp = (*(*info).dataparams).sjint[idx_sji]-1 
   ENDIF ELSE BEGIN
     scaled = (*(*info).dispswitch).refimscaled
-    bscale = (*(*info).dispswitch).refimbscale
-    bzero  = (*(*info).dispswitch).refimbzero
+    bscale = (*(*info).dispparams).refimbscale
+    bzero  = (*(*info).dispparams).refimbzero
     tupp = (*(*info).dataparams).refnt-1
   ENDELSE
 	IF KEYWORD_SET(NO_NLP) THEN BEGIN
