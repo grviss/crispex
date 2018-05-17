@@ -1301,7 +1301,6 @@ FUNCTION CRISPEX_FITSPOINTER, filename, header, EXTEN_NO=exten_no, SILENT=silent
     i = 0L      
 
     WHILE w[0] EQ -1 DO BEGIN
-          
       IF EOF(unit) THEN BEGIN 
             MESSAGE,/CON, $
                'EOF encountered attempting to read extension ' + STRTRIM(ext,2)
@@ -10935,7 +10934,8 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
             ; Failsafe against zero values in variables
             wherenozero = WHERE(REFORM(offsetarray[sjihdr.dsrcsix,*]) GT 0., $
               nwherenozero)
-            IF (nwherenozero NE hdr_out.sjint[idx_sji]) THEN BEGIN
+            IF ((nwherenozero NE hdr_out.sjint[idx_sji]) AND $
+                (nwherenozero GT 0)) THEN BEGIN
               it = INDGEN(hdr_out.sjint[idx_sji])
               xcensjit = INTERPOL(xcensjit[wherenozero],wherenozero,it)
               ycensjit = INTERPOL(ycensjit[wherenozero],wherenozero,it)
@@ -24756,7 +24756,7 @@ cursim_grab = CREATE_CURSOR([$
 		  dataval_ref_real_val = WIDGET_LABEL(params_ref_base, $
         VALUE=dataval_ref_real_txt, /ALIGN_RIGHT, /DYNAMIC_RESIZE)
       sji_label   = WIDGET_LABEL(params_sji_base, VALUE=' ', /ALIGN_RIGHT)
-      IF hdr.sjifile THEN $
+      IF (hdr.sjifile AND (xysji_out_of_range[0] EQ 0)) THEN $
         dataval_sji_real_txt = STRING(((*hdr.sjidata[0])[0])[$
           xsji_start[0],ysji_start[0]], FORMAT='(E11.4)') $
       ELSE BEGIN
