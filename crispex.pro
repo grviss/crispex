@@ -14634,7 +14634,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.tlabel = key.tlab         &  hdr_out.tunit = key.tunit
       hdr_out.lplabel = key.lplab       &  hdr_out.lpunit = key.lpunit
       hdr_out.dt = key.dt               &  hdr_out.single_cube[0] = key.nlp
-      hdr_out.wcs_set = key.wcs_set 
+      hdr_out.wcs_set = key.wcs_set     &  hdr_out.imstokes = key.stokes         
       wcs_main = key.wcs_str
       ; Check for scaled integer
       hdr_out.imbscale = key.bscale     &  hdr_out.imbzero = key.bzero
@@ -14714,7 +14714,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              
       ; In case of FITS cube
       hdr_out.sptype = key.datatype     &  hdr_out.spnt = key.nx * key.ny * key.ns
-      hdr_out.spns = key.ns
+      hdr_out.spns = key.ns             &  hdr_out.spstokes = key.stokes
       ; Check for scaled integer
       hdr_out.spbscale= key.bscale      &  hdr_out.spbzero = key.bzero
       hdr_out.spscaled = ((key.bscale NE 1.) AND (key.bscale NE 0.) AND (key.datatype EQ 2)) 
@@ -14753,7 +14753,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.refxlabel = key.xlab      &  hdr_out.refxunit = key.xunit
       hdr_out.refylabel = key.ylab      &  hdr_out.refyunit = key.yunit
       hdr_out.reflplabel = key.lplab    &  hdr_out.reflpunit = key.lpunit
-      hdr_out.ref_wcs_set = key.wcs_set
+      hdr_out.ref_wcs_set = key.wcs_set &  hdr_out.refimstokes = key.stokes
       wcs_ref = key.wcs_str
       ; Check for scaled integer
       hdr_out.refimbscale= key.bscale      &  hdr_out.refimbzero = key.bzero
@@ -14839,6 +14839,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
     IF ~KEYWORD_SET(CUBE_COMPATIBILITY) THEN BEGIN              
       ; In case of FITS cube
       hdr_out.refsptype = key.datatype  &  hdr_out.refspnt = key.nx * key.ny * key.ns
+      hdr_out.refspns = key.ns          &  hdr_out.refspstokes = key.stokes
       ; Check for scaled integer
       hdr_out.refspbscale= key.bscale      &  hdr_out.refspbzero = key.bzero
       hdr_out.refspscaled = ((key.bscale NE 1.) AND (key.bscale NE 0.) AND (key.datatype EQ 2)) 
@@ -15015,9 +15016,13 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     wcs.naxis[wherenx] = 1
     wcs.naxis[whereny] = 1
     wcs.naxis[wherent] = 1
+    ns_temp = wcs.naxis[wherens]
     wcs.naxis[wherens] = 1
     tabcoord4wave = WCS_GET_COORD(wcs)
     nlp_dum = nlp
+    wcs.naxis[wherens] = ns_temp
+    wcs.naxis[wherenlp] = 1
+    tabcoord4stokes = WCS_GET_COORD(wcs)
   ENDIF ELSE IF ~KEYWORD_SET(SJICUBE) THEN $
     nx_dum = nx
   ; Get OBSID, DATE_OBS and STARTOBS
@@ -15149,11 +15154,17 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   lpunit = STRTRIM(cunit[wherenlp],2)
 
   ; Determine spectral parameters
+  stokes = '' ; failsafe default
   IF tabfits THEN BEGIN
-    IF KEYWORD_SET(SPCUBE) OR KEYWORD_SET(REFSPCUBE) THEN $
-      lam = REFORM(tabcoord4wave[wherenlp,*,0,0,0,0]) $
-    ELSE $
+    stokes_labels = ['I','Q','U','V']
+    IF KEYWORD_SET(SPCUBE) OR KEYWORD_SET(REFSPCUBE) THEN BEGIN
+      lam = REFORM(tabcoord4wave[wherenlp,*,0,0,0,0]) 
+      stokes_set = REFORM(tabcoord4stokes[wherens,0,0,*,0,0])-1
+    ENDIF ELSE BEGIN
       lam = REFORM(tabcoord4wave[wherenlp,0,0,*,0,0]) 
+      stokes_set = REFORM(tabcoord4stokes[wherens,0,0,0,*,0])-1
+    ENDELSE
+    stokes = '['+STRJOIN(stokes_labels[stokes_set],',')+']'
   ENDIF ELSE BEGIN
     IF (N_PARAMS() EQ 3) THEN BEGIN
       lam = READFITS(filename,hdr1,EXTEN_NO=1,SILENT=~KEYWORD_SET(VERBOSE))
@@ -15200,7 +15211,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
        tarr_full:tarr_full, utc_full:utc_full, date_full:date_full, $
        xlab:xlab,ylab:ylab,lplab:lplab,tlab:tlab, $
        btype:btype,bunit:bunit, bscale:bscale, bzero:bzero, $ 
-       xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,$
+       xunit:xunit,yunit:yunit,lpunit:lpunit,tunit:tunit,stokes:stokes,$
        wstart:wstart, wwidth:wwidth, diagnostics:diagnostics, $
        ndiagnostics:ndiagnostics, twave:twave, headers:headers, obsid:obsid, $
        date_obs:date_obs, startobs:startobs, instrument:instrument, $
