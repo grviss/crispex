@@ -1,3 +1,4 @@
+; WIP: FIX CRASH IN TARR_FULL; initial halt at CRISPEX_READ_FITSHEADER
 ;+
 ; NAME:
 ;   CRISPEX: CRIsp SPectral EXplorer
@@ -15057,8 +15058,8 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
       IF ((nt GE 1) AND (next GE 2)) THEN BEGIN
         tarr = READFITS(filename, hdr2, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
         ntarrdims = SIZE(tarr,/N_DIMENSIONS)
-        ; IRIS standard is a 2D array
-        IF (ntarrdims EQ 2) THEN $
+        ; Handle IRIS (typically 2D array but may be single-repeat raster)
+        IF ((ntarrdims EQ 2) OR (STRCMP(instrument,'IRIS') AND (nx GT 1))) THEN $
           tarr_full[*,0,0,*] = tarr  $
         ELSE BEGIN
           ; Restrict first dimension tarr_full and adjust update_tfull
@@ -15074,7 +15075,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
           tini_col = FLOOR(nrasterpos/2.)
         ENDIF ELSE $
           tini_col = (ARRAY_INDICES(tarr,wheretval))[0]
-        IF (ntarrdims EQ 2) THEN $
+        IF ((ntarrdims EQ 2) OR (STRCMP(instrument,'IRIS') AND (nx GT 1))) THEN $
           tarr_sel = REFORM(tarr[tini_col,*]) $
         ELSE $
           tarr_sel = tarr
