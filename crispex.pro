@@ -982,10 +982,22 @@ FUNCTION CRISPEX_BGROUP_STOKES_SELECT_SP, event, NO_DRAW=no_draw, $
                                           event.SELECT
     ENDIF
     select_sp = (*(*info).stokesparams).select_sp
+    nselect_sp = TOTAL((*(*info).stokesparams).select_sp)
+    (*(*info).stokesparams).nselect_sp = nselect_sp
     button_labels = (*(*info).stokesparams).button_labels
     labels = (*(*info).stokesparams).labels
     plot_noise = (*(*info).plotswitch).noise
     ns = (*(*info).dataparams).ns
+    result = CRISPEX_PLOTAXES_UPDATE(nselect_sp,(*(*info).plotaxes).lsxticknames,$
+      (*(*info).plotaxes).lsyticknames, (*(*info).plottitles).lsxtitles, $
+      (*(*info).plottitles).lsytitles, (*(*info).plottitles).spxtitle, $
+      (*(*info).plottitles).lsytitle, (*(*info).plottitles).lsdopxtitles, $
+      (*(*info).plottitles).lsdopxtitle, (*(*info).intparams).ndiagnostics)
+    (*(*info).plotaxes).lsxticknames = result.xticknames
+    (*(*info).plotaxes).lsyticknames = result.yticknames
+    (*(*info).plottitles).lsxtitles = result.xtitles
+    (*(*info).plottitles).lsytitles = result.ytitles
+    (*(*info).plottitles).lsdopxtitles = result.dopxtitles
   ENDIF ELSE BEGIN
     IF ~KEYWORD_SET(SET_BUTTONS) THEN BEGIN
     	(*(*info).stokesparams).prev_select_refsp = $
@@ -996,10 +1008,22 @@ FUNCTION CRISPEX_BGROUP_STOKES_SELECT_SP, event, NO_DRAW=no_draw, $
                                           event.SELECT
     ENDIF
     select_sp = (*(*info).stokesparams).select_refsp
+    nselect_sp = TOTAL((*(*info).stokesparams).select_refsp)
+    (*(*info).stokesparams).nselect_refsp = nselect_sp
     button_labels = (*(*info).stokesparams).button_labels
     labels = (*(*info).stokesparams).labels_ref
     plot_noise = (*(*info).plotswitch).ref_noise
     ns = (*(*info).dataparams).refns
+    result = CRISPEX_PLOTAXES_UPDATE(nselect_sp,(*(*info).plotaxes).reflsxticknames,$
+      (*(*info).plotaxes).reflsyticknames, (*(*info).plottitles).reflsxtitles, $
+      (*(*info).plottitles).reflsytitles, (*(*info).plottitles).refspxtitle, $
+      (*(*info).plottitles).reflsytitle, (*(*info).plottitles).reflsdopxtitles, $
+      (*(*info).plottitles).lsdopxtitle, (*(*info).intparams).nrefdiagnostics)
+    (*(*info).plotaxes).reflsxticknames = result.xticknames
+    (*(*info).plotaxes).reflsyticknames = result.yticknames
+    (*(*info).plottitles).reflsxtitles = result.xtitles
+    (*(*info).plottitles).reflsytitles = result.ytitles
+    (*(*info).plottitles).reflsdopxtitles = result.dopxtitles
   ENDELSE
   ; Process settings
   ; Stokes parameter selected for detailed spectrum plot?
@@ -1009,7 +1033,6 @@ FUNCTION CRISPEX_BGROUP_STOKES_SELECT_SP, event, NO_DRAW=no_draw, $
   ELSE $
 	  stokes_sp_select = ''
   ; Total number of selected Stokes parameters for detailed spectrum plot?
-  total_sp_select = TOTAL((*(*info).stokesparams).select_sp)
   FOR i=0,N_ELEMENTS((*(*info).stokesparams).button_labels)-1 DO BEGIN
     ; Stokes parameter available in data?
     stokes_enabled = $
@@ -1019,8 +1042,8 @@ FUNCTION CRISPEX_BGROUP_STOKES_SELECT_SP, event, NO_DRAW=no_draw, $
                     (*(*info).stokesparams).button_labels[i]) GE 0)
     WIDGET_CONTROL, (*(*info).ctrlscp).stokes_spbutton_ids[i], $
       SET_BUTTON=stokes_sp_set, $
-      SENSITIVE=(stokes_enabled AND ((total_sp_select GT 1) OR $
-                (total_sp_select AND ABS(stokes_sp_set-1))))
+      SENSITIVE=(stokes_enabled AND ((nselect_sp GT 1) OR $
+                (nselect_sp AND ABS(stokes_sp_set-1))))
   ENDFOR
   WIDGET_CONTROL, (*(*info).ctrlscp).stokes_noise_button, $
     SET_BUTTON=(plot_noise AND (ns GT 1)), SENSITIVE=(ns GT 1)
@@ -1661,6 +1684,51 @@ FUNCTION CRISPEX_SLIDER_LP_DIAG, event, lp_diag, REFERENCE=reference, $
 END
 
 ;------------------------- PLOTAXES FUNCTION
+FUNCTION CRISPEX_PLOTAXES_UPDATE, nselect_sp, xticknames, yticknames, $
+  xtitles, ytitles, xtitle_default, ytitle_default, dopxtitles, $
+  dopxtitle_default, ndiagnostics
+  CASE nselect_sp OF
+    1:  BEGIN
+          *xticknames[0] = ''
+          xtitles[0] = xtitle_default
+          ytitles[0] = ytitle_default
+        END
+    2:  BEGIN
+          *xticknames[0] = ''
+          *xticknames[1] = ''
+          xtitles[0:1] = xtitle_default
+          ytitles[0] = ytitle_default
+          ytitles[1] = ''
+        END
+    3:  BEGIN
+          *xticknames[0] = REPLICATE(' ',60)
+          *xticknames[1] = ''
+          *xticknames[2] = ''
+          xtitles[0] = ''
+          ytitles[1] = ''
+          xtitles[1:2] = xtitle_default
+          ytitles[[0,2]] = ytitle_default
+        END
+    4:  BEGIN
+          *xticknames[0] = REPLICATE(' ',60)
+          *xticknames[1] = REPLICATE(' ',60)
+          *xticknames[2] = ''
+          xtitles[0:1] = ''
+          ytitles[[1,3]] = ''
+          xtitles[2:3] = xtitle_default
+          ytitles[[0,2]] = ytitle_default
+        END
+  ENDCASE
+  IF ((nselect_sp GT 1) OR (ndiagnostics GT 1)) THEN $
+    dopxtitles = [dopxtitle_default,' '] $
+  ELSE $
+    dopxtitles = [' ',dopxtitle_default]
+
+  result = {xticknames:xticknames, yticknames:yticknames, $
+    xtitles:xtitles, ytitles:ytitles, dopxtitles:dopxtitles}
+  RETURN, result
+END
+
 FUNCTION CRISPEX_PLOTAXES_XTICKVALS_SELECT, xtickvals_in, TICKSEP=ticksep, $
   DOPPLER=doppler
   ; Mark every TICKSEP-th major tickmark, if total # < TICKSEP: mark the $
@@ -1840,26 +1908,29 @@ FUNCTION CRISPEX_GET_PLOTPOS, ns, winx, margin, wall, V_DOP_SET=v_dop_set
   ; Get detailed spectrum plot positions
   ; Determine number of panels for detailed spectrum window
 	IF (ns LE 2) THEN BEGIN
-		npanels = ns	&	cols = ns	&	rowarr = REPLICATE(0,ns)
+		npanels = ns	&	ncols = ns	&	rowarr = REPLICATE(0,ns)
 	ENDIF ELSE BEGIN
-		npanels = 4	&	cols = 2	&	rowarr = [1,1,0,0]
+		npanels = 4	&	ncols = 2	&	rowarr = [1,1,0,0]
 	ENDELSE
-	rows = CEIL(npanels / FLOAT(cols))
+	nrows = CEIL(npanels / FLOAT(ncols))
+  halfmargin = margin / 2.
   ; Determine plot width and height, and consequent window height
-	width = (1. - (cols*margin + wall))/FLOAT(cols)
+	width = (1. - ((ncols-1)*halfmargin + margin + wall))/FLOAT(ncols)
 	height 	= width * 2D / (1 + SQRT(5))
-	IF KEYWORD_SET(V_DOP_SET) THEN $
-    winy = (margin + rows*height + rows*margin + (rows-1)*wall) * winx $
-  ELSE $
-    winy = (wall + rows*height + rows*margin) * winx
+  winy = (nrows*height + (1 + KEYWORD_SET(V_DOP_SET))*margin + ((nrows-1) + $
+    ABS(KEYWORD_SET(V_DOP_SET)-1)) * wall) * winx
+  
   ; Determine plot positions
-	x0 	= margin + (INDGEN(npanels) MOD cols) * (width + margin) 
+	x0 	= margin + (INDGEN(npanels) MOD ncols) * (width + halfmargin) 
 	x1 	= x0 + width 
-	y0   = (margin + rowarr * $
-              (height + margin + KEYWORD_SET(V_DOP_SET)*wall)) * winx/winy
+	y0   = (margin + rowarr*(height + wall)) * winx/winy
 	y1 	= y0 + height * winx/winy
 
-  result = {x0:x0, x1:x1, y0:y0, y1:y1, width:width, height:height, winy:winy}
+  x0_all = MIN(x0)  &   x1_all = MAX(x1)
+  y0_all = MIN(y0)  &   y1_all = MAX(y1)
+
+  result = {x0:x0, x1:x1, y0:y0, y1:y1, width:width, height:height, winy:winy, $
+    x0_all:x0_all, x1_all:x1_all, y0_all:y0_all, y1_all:y1_all}
 
   RETURN, result
 END
@@ -4056,10 +4127,14 @@ PRO CRISPEX_DISPLAYS_PLOT_RESIZE, event, new_xres_tmp, new_yres_tmp, $
       ELSE $
         new_height = (new_yres/FLOAT(new_xres) - (new_wall + rows*new_margin) ) / FLOAT(rows)
 		IF KEYWORD_SET(DETSPECT) THEN BEGIN
-			x0 = new_margin + (INDGEN(npanels) MOD cols) * (new_width + new_margin) 
-			x1 = x0 + new_width 
-			y0 = (new_margin + rowarr * (new_height + new_margin + v_dop_set*new_wall)) * new_xres/new_yres
-			y1 = y0 + new_height * new_xres/new_yres
+      plotpos = CRISPEX_GET_PLOTPOS(curns, new_xres, new_margin, new_wall, $
+                  V_DOP_SET=(v_dop_set EQ 1))
+      x0 = plotpos.x0 & x1 = plotpos.x1
+      y0 = plotpos.y0 & y1 = plotpos.y1
+;			x0 = new_margin + (INDGEN(npanels) MOD cols) * (new_width + new_margin) 
+;			x1 = x0 + new_width 
+;			y0 = (new_margin + rowarr * (new_height + new_margin + v_dop_set*new_wall)) * new_xres/new_yres
+;			y1 = y0 + new_height * new_xres/new_yres
 		ENDIF ELSE BEGIN
 			x0 = new_margin 
 			x1 = x0 + new_width
@@ -8232,8 +8307,21 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
     TOTAL((*(*info).dataparams).lp GE *(*(*info).intparams).diag_starts)-1
   IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showls) THEN BEGIN
     ; Pre-draw procedures: detailed spectrum (LS)
-   ; Loop over all selected Stokes parameters (will always be at least 1) for
-   ; detailed spectrum plots
+    ; Set loop-independent parameters
+    ; Set x-axes parameters depending on # of diagnostics
+    IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
+      xtlen_basic_fac = 0.5
+      xtlen_major_fac = 0.8
+      xtickname = REPLICATE(' ',60)
+      xtitle = ''
+    ENDIF ELSE BEGIN
+      xtlen_basic_fac = 1.
+      xtickname = ''
+    ENDELSE
+    ; Scaling of xticklen
+    xticklen = xtlen_basic_fac * (*(*info).plotaxes).lsxticklen
+    ; Loop over all selected Stokes parameters (will always be at least 1) for
+    ; detailed spectrum plots
     FOR i=0,TOTAL((*(*info).stokesparams).select_sp)-1 DO BEGIN
       IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showls) THEN BEGIN
      		s = (WHERE((*(*info).stokesparams).select_sp EQ 1))[i]
@@ -8265,21 +8353,12 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           ssp *= ((*(*info).paramparams).scale_cubes)[0] / (10.^(order_corr))
           noise *= ((*(*info).paramparams).scale_cubes)[0] / (10.^(order_corr))
      		ENDELSE
-        ; Set x-axes parameters depending on # of diagnostics
-        IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
-          xtlen_basic_fac = 0.5
-          xtlen_major_fac = 0.8
-          xtickname = REPLICATE(' ',60)
-          xtitle = ''
-        ENDIF ELSE BEGIN
-          xtlen_basic_fac = 1.
-          xtickname = ''
-          xtitle = (*(*info).plottitles).spxtitle
-        ENDELSE
-        xticklen = xtlen_basic_fac * (*(*info).plotaxes).lsxticklen
-        IF (*(*info).plotswitch).v_dop_set THEN $
-          topxtitle = 'Doppler velocity [km/s]'
       ENDIF
+      IF ((*(*info).intparams).ndisp_diagnostics EQ 1) THEN BEGIN
+        xtitle = (*(*info).plottitles).lsxtitles[i]
+        lsxtickname=*(*(*info).plotaxes).lsxticknames[i]
+      ENDIF ELSE $
+        lsxtickname = REPLICATE(' ',60)
       ; Determine proportional spectral window size for LS
       diag_range_ls = *(*(*info).plotaxes).diag_ratio * $
         (((*(*info).plotpos).lsx1)[i] - ((*(*info).plotpos).lsx0)[i])
@@ -8296,14 +8375,13 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           ; Set y-axes parameters based on diagnostic plot
           IF (d EQ 0) THEN BEGIN
             offset = 0 
-            ytickname = '' 
-            ytitle = lsytitle
+            ytickname=*(*(*info).plotaxes).lsyticknames[i]
+            ytitle = (*(*info).plottitles).lsytitles[i]
           ENDIF ELSE BEGIN
             offset = TOTAL(diag_range_ls[0:(d-1)])
             ytickname = REPLICATE(' ',60)
             ytitle = ''
           ENDELSE
-          ; Scaling of xticklen
           ; Determine lower left corner position of plot
           lsx0 = ((*(*info).plotpos).lsx0)[i] + offset
           lsx1 = diag_range_ls[d] + lsx0
@@ -8311,17 +8389,17 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
        		PLOT, (*(*info).dataparams).lps[lp_lower:lp_upper], $
             spec[lp_lower:lp_upper]*(*(*info).scaling).mult_val[disp_idx], $
             /NODATA, /NORM, CHARSIZE=1, YS=1, YR=[ls_low_y,ls_upp_y], $
-            XR=xrange, YTICKNAME=ytickname, $
+            XR=xrange,  $
             XMINOR=(0-((*(*info).intparams).ndisp_diagnostics GT 1)), $
             XTICKINTERVAL=(*(*(*info).plotaxes).xtickinterval)[0], $
-            XTICKNAME=xtickname, XTICK_GET=xtickvals, $
-            XSTYLE = (*(*info).plotswitch).v_dop_set * 8 + 1, $
-            BACKGROUND = (*(*info).plotparams).bgplotcol, $
-            XTITLE = xtitle, YTITLE=ytitle, $
-            POSITION = [lsx0,((*(*info).plotpos).lsy0)[i],lsx1,$
-            ((*(*info).plotpos).lsy1)[i]], XTICKLEN = xticklen, $
-            YTICKLEN = (*(*info).plotaxes).lsyticklen, $
-            COLOR = (*(*info).plotparams).plotcol, LINE=3, $
+            XTICKNAME=lsxtickname, YTICKNAME=ytickname, XTICK_GET=xtickvals, $
+            XSTYLE=(*(*info).plotswitch).v_dop_set * 8 + 1, $
+            BACKGROUND=(*(*info).plotparams).bgplotcol, $
+            XTITLE=xtitle, YTITLE=ytitle, $
+            POSITION=[lsx0,((*(*info).plotpos).lsy0)[i],lsx1,$
+            ((*(*info).plotpos).lsy1)[i]], XTICKLEN=xticklen, $
+            YTICKLEN=(*(*info).plotaxes).lsyticklen, $
+            COLOR=(*(*info).plotparams).plotcol, LINE=3, $
             NOERASE=((((*(*info).intparams).ndiagnostics GT 1) AND (d GT 0)) OR $
             (i GT 0))
           ; Overplot average spectrum
@@ -8381,26 +8459,19 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
             label = ((*(*info).stokesparams).labels)[s]
             IF ((*(*info).dispswitch).scalestokes[0] AND $
                 (s NE 0)) THEN label += '/I'
-      		  XYOUTS, ((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp]-$
-                     (*(*info).dataparams).lps[(*(*info).dispparams).lp_low])*0.1+$
-                     (*(*info).dataparams).lps[(*(*info).dispparams).lp_low], $
-      			        (ls_upp_y-ls_low_y)*0.9+ls_low_y, 'Stokes '+label, $
+      		  XYOUTS, ABS((*(*info).dataparams).lps[(*(*info).dispparams).lp_upp_tmp[d]]-$
+                     (*(*info).dataparams).lps[(*(*info).dispparams).lp_low_tmp[d]])*0.1+$
+                     (*(*info).dataparams).lps[(*(*info).dispparams).lp_low_tmp[d]], $
+      			        (ls_upp_y-ls_low_y)*0.8+ls_low_y, label, $
                     COLOR = (*(*info).plotparams).plotcol
           ENDIF
           ; Display Doppler velocities on top axis if info available
       	  IF ((*(*info).plotswitch).v_dop_set EQ 1) THEN BEGIN
-            IF ((*(*info).intparams).ndiagnostics GT 1) THEN BEGIN
-              XYOUTS,((*(*info).plotpos).lsx1-(*(*info).plotpos).lsx0)/2.+$
-                (*(*info).plotpos).lsx0,(*(*info).plotpos).lsy0/5.*3+$
-                (*(*info).plotpos).lsy1, topxtitle, ALIGNMENT=0.5, $
-                COLOR = (*(*info).plotparams).plotcol,/NORMAL
-              topxtitle = ''
-            ENDIF 
             ; Draw top axis
             IF ((*(*info).intparams).ndisp_diagnostics GT 1) THEN BEGIN
               ; Plot the initial tick marks and get the tick vals
         	  	AXIS, XAXIS=1, XRANGE=vdop_xrange, $
-                XSTYLE=1, XTITLE=topxtitle, COLOR=(*(*info).plotparams).plotcol,$
+                XSTYLE=1, COLOR=(*(*info).plotparams).plotcol,$
                 XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], $
                 XTICKNAME=REPLICATE(' ',60), XTICK_GET=xdoptickvals, $
                 XTICKLEN=xtlen_basic_fac*(*(*info).plotaxes).lsxticklen, $
@@ -8438,7 +8509,9 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
                 XTICKINTERVAL=(*(*(*info).plotaxes).xdoptickinterval)[0], XMINOR=-1
             ENDIF ELSE $
         	  	AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).lsxticklen, $
-                XRANGE=vdop_xrange, XSTYLE=1, XTITLE=topxtitle, $
+                XRANGE=vdop_xrange, XSTYLE=1, $
+                XTITLE=(*(*info).plottitles).lsdopxtitles[1], $
+                XTICKNAME=*(*(*info).plotaxes).lsdopxticknames[i GE 2], $
                 COLOR=(*(*info).plotparams).plotcol;,$
           ENDIF 
           TVLCT, r_cur, g_cur, b_cur, /GET
@@ -8506,6 +8579,12 @@ PRO CRISPEX_DRAW_SPECTRAL_MAIN, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           'No data availabe for!Cselected pixel position', $
           COLOR=(*(*info).plotparams).plotcol, ALIGN=0.5, CHARSIZE=1.2, /NORMAL
     ENDFOR
+    IF (*(*info).plotswitch).v_dop_set THEN $
+      XYOUTS,((*(*info).plotpos).lsx1_all-(*(*info).plotpos).lsx0_all)/2.+$
+              (*(*info).plotpos).lsx0_all,(*(*info).plotpos).lsy0_all/5.*3+$
+              (*(*info).plotpos).lsy1_all, $
+              (*(*info).plottitles).lsdopxtitles[0], ALIGNMENT=0.5, $
+              COLOR=(*(*info).plotparams).plotcol,/NORMAL
   ENDIF
   ; Pre-draw procedures: spectrum-time diagram (SP)
   IF (~KEYWORD_SET(LS_ONLY) AND (*(*info).winswitch).showsp) THEN BEGIN
@@ -8627,8 +8706,20 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
     TOTAL((*(*info).dataparams).lp_ref GE *(*(*info).intparams).refdiag_starts)-1
   IF (~KEYWORD_SET(SP_ONLY) AND (*(*info).winswitch).showrefls) THEN BEGIN
     ; Pre-draw procedures: detailed spectrum (LS)
-   ; Loop over all selected Stokes parameters (will always be at least 1) for
-   ; detailed spectrum plots
+    ; Set x-axes parameters depending on # of diagnostics
+    IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
+      xtlen_basic_fac = 0.5
+      xtlen_major_fac = 0.8
+      xtickname = REPLICATE(' ',60)
+      xtitle = ''
+    ENDIF ELSE BEGIN
+      xtlen_basic_fac = 1.
+      xtickname = ''
+      xtitle = (*(*info).plottitles).refspxtitle
+    ENDELSE
+    xticklen = xtlen_basic_fac * (*(*info).plotaxes).reflsxticklen
+    ; Loop over all selected Stokes parameters (will always be at least 1) for
+    ; detailed spectrum plots
     FOR i=0,TOTAL((*(*info).stokesparams).select_refsp)-1 DO BEGIN
       s = (WHERE((*(*info).stokesparams).select_refsp EQ 1))[i]
 	    refspec = ((*(*info).dataparams).refspec)[*,s]
@@ -8661,20 +8752,11 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
         refssp *= ((*(*info).paramparams).scale_cubes)[1] / (10.^(order_corr))
         refnoise *= ((*(*info).paramparams).scale_cubes)[1] / (10.^(order_corr))
 	    ENDELSE
-      ; Set x-axes parameters depending on # of diagnostics
-      IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
-        xtlen_basic_fac = 0.5
-        xtlen_major_fac = 0.8
-        xtickname = REPLICATE(' ',60)
-        xtitle = ''
-      ENDIF ELSE BEGIN
-        xtlen_basic_fac = 1.
-        xtickname = ''
-        xtitle = (*(*info).plottitles).refspxtitle
-      ENDELSE
-      xticklen = xtlen_basic_fac * (*(*info).plotaxes).reflsxticklen
-      IF (*(*info).plotswitch).v_dop_set_ref THEN $
-        topxtitle = 'Doppler velocity [km/s]'
+      IF ((*(*info).intparams).ndisp_refdiagnostics EQ 1) THEN BEGIN
+        xtitle = (*(*info).plottitles).reflsxtitles[i]
+        lsxtickname=*(*(*info).plotaxes).reflsxticknames[i]
+      ENDIF ELSE $
+        lsxtickname = REPLICATE(' ',60)
       ; Determine proportional spectral window size for LS
       diag_range_ls = *(*(*info).plotaxes).refdiag_ratio * $
         (((*(*info).plotpos).reflsx1)[i] - ((*(*info).plotpos).reflsx0)[i])
@@ -8696,8 +8778,8 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
         ; Set y-axes parameters based on diagnostic plot
         IF (d EQ 0) THEN BEGIN
           offset = 0 
-          ytickname = '' 
-          ytitle = reflsytitle
+          ytickname=*(*(*info).plotaxes).reflsyticknames[i]
+          ytitle = (*(*info).plottitles).reflsytitles[i]
         ENDIF ELSE BEGIN
           offset = TOTAL(diag_range_ls[0:(d-1)])
           ytickname = REPLICATE(' ',60)
@@ -8714,7 +8796,7 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           XR=xrange, YTICKNAME=ytickname, $
           XMINOR=(0-((*(*info).intparams).ndisp_refdiagnostics GT 1)), $
           XTICKINTERVAL=(*(*(*info).plotaxes).xreftickinterval)[0], $
-          XTICKNAME=xtickname, XSTYLE=(*(*info).plotswitch).v_dop_set_ref*8+1, $
+          XTICKNAME=lsxtickname, XSTYLE=(*(*info).plotswitch).v_dop_set_ref*8+1, $
           XTICK_GET=xtickvals, BACKGROUND=(*(*info).plotparams).bgplotcol, $
           XTITLE = xtitle, YTITLE=ytitle, $
           POSITION=[reflsx0,((*(*info).plotpos).reflsy0)[i],$
@@ -8782,21 +8864,14 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           IF ((*(*info).dispswitch).scalestokes[1] AND $
               (s NE 0)) THEN label += '/I'
     		  XYOUTS, $
-            ((*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_upp]-$
-            (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low])*0.1+$
-            (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low], $
-    			  (ls_upp_y-ls_low_y)*0.9+ls_low_y, 'Stokes '+label, $
+            ABS((*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_upp_tmp[d]]-$
+            (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low_tmp[d]])*0.1+$
+            (*(*info).dataparams).reflps[(*(*info).dispparams).lp_ref_low_tmp[d]], $
+    			  (ls_upp_y-ls_low_y)*0.8+ls_low_y, label, $
             COLOR=(*(*info).plotparams).plotcol
         ENDIF
         ; Display Doppler velocities on top axis if info available
         IF ((*(*info).plotswitch).v_dop_set_ref EQ 1) THEN BEGIN
-          IF ((*(*info).intparams).nrefdiagnostics GT 1) THEN BEGIN
-            XYOUTS,((*(*info).plotpos).reflsx1-(*(*info).plotpos).reflsx0)/2.+$
-              (*(*info).plotpos).reflsx0,(*(*info).plotpos).reflsy0/5.*3+$
-              (*(*info).plotpos).reflsy1, topxtitle, ALIGNMENT=0.5, $
-              COLOR = (*(*info).plotparams).plotcol,/NORMAL
-            topxtitle = ''
-          ENDIF 
           ; Draw top axis
           IF ((*(*info).intparams).ndisp_refdiagnostics GT 1) THEN BEGIN
             ; Plot the initial tick marks and get the tick vals
@@ -8838,7 +8913,9 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
               XTICKINTERVAL=(*(*(*info).plotaxes).xrefdoptickinterval)[0]
           ENDIF ELSE $
         	  AXIS, XAXIS=1, XTICKLEN = (*(*info).plotaxes).lsxticklen, $
-              XRANGE=vdop_xrange, XSTYLE=1, XTITLE = topxtitle, $
+              XRANGE=vdop_xrange, XSTYLE=1, $
+              XTITLE=(*(*info).plottitles).reflsdopxtitles[1], $
+              XTICKNAME=*(*(*info).plotaxes).reflsdopxticknames[i GE 2], $
               COLOR = (*(*info).plotparams).plotcol;,$
         ENDIF 
         ; Draw line through y=0
@@ -8888,6 +8965,12 @@ PRO CRISPEX_DRAW_SPECTRAL_REF, event, LS_ONLY=ls_only, SP_ONLY=sp_only
           'No data availabe for!Cselected pixel position', $
           COLOR=(*(*info).plotparams).plotcol, ALIGN=0.5, CHARSIZE=1.2, /NORMAL
     ENDFOR
+    IF (*(*info).plotswitch).v_dop_set_ref THEN $
+      XYOUTS,((*(*info).plotpos).reflsx1_all-(*(*info).plotpos).reflsx0_all)/2.+$
+              (*(*info).plotpos).reflsx0_all,(*(*info).plotpos).reflsy0_all/5.*3+$
+              (*(*info).plotpos).reflsy1_all, $
+              (*(*info).plottitles).reflsdopxtitles[0], ALIGNMENT=0.5, $
+              COLOR=(*(*info).plotparams).plotcol,/NORMAL
   ENDIF
   ; Pre-draw procedures: spectrum-time diagram (SP)
   IF (~KEYWORD_SET(LS_ONLY) AND (*(*info).winswitch).showrefsp) THEN BEGIN
@@ -14755,6 +14838,7 @@ PRO CRISPEX_IO_PARSE_HEADER, filename, HDR_IN=hdr_in, HDR_OUT=hdr_out, $
       hdr_out.refylabel = key.ylab      &  hdr_out.refyunit = key.yunit
       hdr_out.reflplabel = key.lplab    &  hdr_out.reflpunit = key.lpunit
       hdr_out.ref_wcs_set = key.wcs_set &  hdr_out.refimstokes = key.stokes
+      hdr_out.refimns = key.ns
       wcs_ref = key.wcs_str
       ; Check for scaled integer
       hdr_out.refimbscale= key.bscale      &  hdr_out.refimbzero = key.bzero
@@ -22642,6 +22726,39 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 			IF (STRCOMPRESS(ytitle[1]) NE '') THEN reflsytitle = ytitle[1]
 		ENDIF
 	ENDIF
+  ; Default axis (tick) labels
+  lsytitles = REPLICATE(lsytitle,4)
+  lsxtitles = REPLICATE(hdr.spxtitle,4)
+  lsxticknames = PTRARR(4, /ALLOCATE_HEAP)
+  lsyticknames = PTRARR(4, /ALLOCATE_HEAP)
+  lsdopxticknames = PTRARR(2, /ALLOCATE_HEAP)
+  lsdopxtitle = 'Doppler velocity [km/s]'
+  lsdopxtitles = REPLICATE((['',lsdopxtitle])[hdr.v_dop_set[0]], 2)
+  *lsdopxticknames[0] = '' 
+  *lsdopxticknames[1] = REPLICATE(' ',60)
+  FOR i=0,3 DO BEGIN
+    *lsxticknames[i] = ''
+    *lsyticknames[i] = ''
+  ENDFOR
+  lsplotaxes = CRISPEX_PLOTAXES_UPDATE(hdr.ns, lsxticknames, lsyticknames, $
+    lsxtitles, lsytitles, hdr.spxtitle, lsytitle,lsdopxtitles,lsdopxtitle, $
+    hdr.ndiagnostics)
+  
+  reflsytitles = REPLICATE(reflsytitle,4)
+  reflsxtitles = REPLICATE(hdr.refspxtitle,4)
+  reflsxticknames = PTRARR(4, /ALLOCATE_HEAP)
+  reflsyticknames = PTRARR(4, /ALLOCATE_HEAP)
+  reflsdopxticknames = PTRARR(2, /ALLOCATE_HEAP)
+  reflsdopxtitles = REPLICATE((['',lsdopxtitle])[hdr.v_dop_set[1]], 2)
+  *reflsdopxticknames[0] = '' 
+  *reflsdopxticknames[1] = REPLICATE(' ',60)
+  FOR i=0,3 DO BEGIN
+    *reflsxticknames[i] = ''
+    *reflsyticknames[i] = ''
+  ENDFOR
+  reflsplotaxes = CRISPEX_PLOTAXES_UPDATE(hdr.refns, reflsxticknames, reflsyticknames, $
+    reflsxtitles, reflsytitles, hdr.refspxtitle, reflsytitle, reflsdopxtitles, $
+    lsdopxtitle, hdr.nrefdiagnostics)
   
   ; Get minimum and maximum Doppler verlocities, but check if restoring
   IF NOT KEYWORD_SET(restore_from_session) THEN BEGIN
@@ -22911,14 +23028,16 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   ; Set detailed spectrum window parameters
   ; Set maximum x-extent of loc spec win
 	lswinx 		= lspx_factor * x_scr_size											
-	lsmargin 	= 0.12
+	lsmargin 	= 0.15  ;0.12
 	lswall 		= 0.03
 	lswintitle	= ['Detailed spectrum','Height profile']
 	xsize 		= 1.*lswinx
   plotpos = CRISPEX_GET_PLOTPOS(hdr.ns, lswinx, lsmargin, lswall, $
               V_DOP_SET=(hdr.v_dop_set[0] EQ 1))
-  lsx0 = plotpos.x0 & lsx1 = plotpos.x1
-  lsy0 = plotpos.y0 & lsy1 = plotpos.y1
+  lsx0 = plotpos.x0         & lsx1 = plotpos.x1
+  lsy0 = plotpos.y0         & lsy1 = plotpos.y1
+  lsx0_all = plotpos.x0_all & lsx1_all = plotpos.x1_all
+  lsy0_all = plotpos.y0_all & lsy1_all = plotpos.y1_all
   lswidth = plotpos.width
   lsheight = plotpos.height
   lswiny = plotpos.winy
@@ -22934,8 +23053,10 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	reflswinx	= lswinx
   plotpos = CRISPEX_GET_PLOTPOS(hdr.refns, lswinx, lsmargin, lswall, $
               V_DOP_SET=(hdr.v_dop_set[1] EQ 1))
-  reflsx0 = plotpos.x0  & reflsx1 = plotpos.x1
-  reflsy0 = plotpos.y0  & reflsy1 = plotpos.y1
+  reflsx0 = plotpos.x0          & reflsx1 = plotpos.x1
+  reflsy0 = plotpos.y0          & reflsy1 = plotpos.y1
+  reflsx0_all = plotpos.x0_all  & reflsx1_all = plotpos.x1_all
+  reflsy0_all = plotpos.y0_all  & reflsy1_all = plotpos.y1_all
   reflswidth = plotpos.width
   reflsheight = plotpos.height
   reflswiny = plotpos.winy
@@ -25504,6 +25625,11 @@ cursim_grab = CREATE_CURSOR([$
     xreftickvals:PTRARR(hdr.nrefdiagnostics), $ 
     xrefdoptickvals:PTRARR(hdr.nrefdiagnostics), $
     xrefdoptickloc:PTRARR(hdr.nrefdiagnostics), $
+    ;ticknames
+    lsxticknames:lsplotaxes.xticknames, lsyticknames:lsplotaxes.yticknames, $
+    lsdopxticknames:lsdopxticknames, $
+    reflsxticknames:reflsplotaxes.xticknames, reflsyticknames:reflsplotaxes.yticknames, $
+    reflsdopxticknames:reflsdopxticknames, $
 		ls_low_y:hdr.ls_low_y, ls_upp_y:hdr.ls_upp_y, ls_yrange:hdr.ls_yrange, $		
 		ls_low_y_ref:hdr.ls_low_y_ref, ls_upp_y_ref:hdr.ls_upp_y_ref, $
     ls_yrange_ref:hdr.ls_yrange_ref, $
@@ -25528,6 +25654,9 @@ cursim_grab = CREATE_CURSOR([$
 	plotpos = { $
 		lsx0:lsx0, lsy0:lsy0, lsx1:lsx1, lsy1:lsy1, $
 		reflsx0:reflsx0, reflsy0:reflsy0, reflsx1:reflsx1, reflsy1:reflsy1, $
+		lsx0_all:lsx0_all, lsy0_all:lsy0_all, lsx1_all:lsx1_all, lsy1_all:lsy1_all, $
+		reflsx0_all:reflsx0_all, reflsy0_all:reflsy0_all, $
+    reflsx1_all:reflsx1_all, reflsy1_all:reflsy1_all, $
 		spx0:spx0, spy0:spy0, spx1:spx1, spy1:spy1, $							
 		refspx0:spx0, refspy0:refspy0, refspx1:spx1, refspy1:refspy1, $
 		phisx0:phisx0, phisx1:phisx1, phisy0:phisy0, phisy1:phisy1, $
@@ -25571,6 +25700,10 @@ cursim_grab = CREATE_CURSOR([$
 		spxtitle:hdr.spxtitle, spytitle:spytitle, spwintitle:spwintitle, $
 		refspxtitle:hdr.refspxtitle, refspwintitle:refspwintitle, $
 		lsytitle:lsytitle, reflsytitle:reflsytitle, $
+		lsxtitles:lsplotaxes.xtitles, reflsxtitles:reflsplotaxes.xtitles, $
+		lsytitles:lsplotaxes.ytitles, reflsytitles:reflsplotaxes.ytitles, $
+		lsdopxtitles:lsdopxtitles, reflsdopxtitles:reflsdopxtitles, $
+    lsdopxtitle:lsdopxtitle, $
 		lswintitle:lswintitle, reflswintitle:reflswintitle, phiswintitle:phiswintitle $
 	}
 ;------------------------- PREFERENCE SETTINGS
@@ -25661,6 +25794,8 @@ cursim_grab = CREATE_CURSOR([$
 		labels:hdr.stokes_labels, labels_ref:hdr.stokes_labels_ref, $
     button_labels:stokes_button_labels, mainref_select:0, $
     select_sp:hdr.stokes_select_sp, prev_select_sp:hdr.stokes_select_sp, $
+    nselect_sp:TOTAL(hdr.stokes_select_sp), $
+    nselect_refsp:TOTAL(hdr.stokes_select_refsp), $
     select_refsp:hdr.stokes_select_refsp, noise:FLTARR(4), noise_ref:FLTARR(4), $
     prev_select_refsp:hdr.stokes_select_refsp, $
     contpos:scale_stokes $
