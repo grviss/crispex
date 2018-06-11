@@ -971,6 +971,7 @@ END
 FUNCTION CRISPEX_BGROUP_STOKES_SELECT_SP, event, NO_DRAW=no_draw, $
   SET_BUTTONS=set_buttons
   WIDGET_CONTROL, event.TOP, GET_UVALUE=info
+  COMPILE_OPT IDL2
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
   IF ((*(*info).stokesparams).mainref_select EQ 0) THEN BEGIN
