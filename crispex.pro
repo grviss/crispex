@@ -1,4 +1,3 @@
-; WIP: FIX CRASH IN TARR_FULL; initial halt at CRISPEX_READ_FITSHEADER
 ;+
 ; NAME:
 ;   CRISPEX: CRIsp SPectral EXplorer
@@ -21911,6 +21910,10 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       WINDOW_LARGE=window_large, $    ; draw large windows for small cubes
       LAST_SESSION=last_session, $    ; load last session
       VERBOSE=verbose                 ; program verbosity
+
+
+;========================= COMPILE OPTIONS
+  COMPILE_OPT IDL2
 
 ;========================= PROGRAM VERBOSITY CHECK
 	IF (N_ELEMENTS(VERBOSE) NE 1) THEN BEGIN			
