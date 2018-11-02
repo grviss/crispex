@@ -1853,10 +1853,11 @@ FUNCTION CRISPEX_CURSOR_GET_XY, event, x_tmp, y_tmp
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
   ; Get temporary data coordinates from temporary device coordinates
-  IF (*(*info).dataswitch).sjifile THEN $
+  IF (*(*info).dataswitch).sjifile THEN BEGIN
     idx_sji = (WHERE((*(*info).winids).sjidrawid EQ $
-      (*(*info).winids).current_wid))[0] $
-  ELSE $
+      (*(*info).winids).current_wid, count))[0] 
+    IF (count EQ 0) THEN idx_sji = 0
+  ENDIF ELSE $
     idx_sji = 0
   xy_tmp = CRISPEX_TRANSFORM_DATA2DEVICE(info, X=x_tmp, Y=y_tmp, $
     MAIN=(((*(*info).winids).current_wid EQ (*(*info).winids).xydrawid) OR $
@@ -15233,55 +15234,62 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ; Determine plot labels
   xlab = STRTRIM(ctype[wherenx],2)
   ylab = STRTRIM(ctype[whereny],2)
-  lplab = STRTRIM(ctype[wherenlp],2)
   xunit = STRTRIM(cunit[wherenx],2)
   yunit = STRTRIM(cunit[whereny],2)
-  lpunit = STRTRIM(cunit[wherenlp],2)
+  ; set failse defaults
+  lplab = ''  
+  lpunit = ''
+  stokes = '' 
+  lam = 0.
+  lc = 0
+  twave = ''
+  wstart = 0
+  wwidth = nlp
+  whereselect = 0
+  ndiagnostics = 1
+  diagnostics = btype
+  IF (nwherenlp EQ 1) THEN BEGIN
+    lplab = STRTRIM(ctype[wherenlp],2)
+    lpunit = STRTRIM(cunit[wherenlp],2)
 
-  ; Determine spectral parameters
-  stokes = '' ; failsafe default
-  IF tabfits THEN BEGIN
-    stokes_labels = ['I','Q','U','V']
-    IF KEYWORD_SET(SPCUBE) OR KEYWORD_SET(REFSPCUBE) THEN BEGIN
-      lam = REFORM(tabcoord4wave[wherenlp,*,0,0,0,0]) 
-      stokes_set = REFORM(tabcoord4stokes[wherens,0,0,*,0,0])-1
+    ; Determine spectral parameters
+    IF tabfits THEN BEGIN
+      stokes_labels = ['I','Q','U','V']
+      IF KEYWORD_SET(SPCUBE) OR KEYWORD_SET(REFSPCUBE) THEN BEGIN
+        lam = REFORM(tabcoord4wave[wherenlp,*,0,0,0,0]) 
+        stokes_set = REFORM(tabcoord4stokes[wherens,0,0,*,0,0])-1
+      ENDIF ELSE BEGIN
+        lam = REFORM(tabcoord4wave[wherenlp,0,0,*,0,0]) 
+        stokes_set = REFORM(tabcoord4stokes[wherens,0,0,0,*,0])-1
+      ENDELSE
+      stokes = '['+STRJOIN(stokes_labels[stokes_set],',')+']'
     ENDIF ELSE BEGIN
-      lam = REFORM(tabcoord4wave[wherenlp,0,0,*,0,0]) 
-      stokes_set = REFORM(tabcoord4stokes[wherens,0,0,0,*,0])-1
+      IF (N_PARAMS() EQ 3) THEN BEGIN
+        lam = READFITS(filename,hdr1,EXTEN_NO=1,SILENT=~KEYWORD_SET(VERBOSE))
+      ENDIF ELSE BEGIN
+        lam = (FINDGEN(nlp)+1-crpix[wherenlp])*cdelt[wherenlp]+crval[wherenlp]
+      ENDELSE
     ENDELSE
-    stokes = '['+STRJOIN(stokes_labels[stokes_set],',')+']'
-  ENDIF ELSE BEGIN
-    IF (N_PARAMS() EQ 3) THEN BEGIN
-      lam = READFITS(filename,hdr1,EXTEN_NO=1,SILENT=~KEYWORD_SET(VERBOSE))
-    ENDIF ELSE BEGIN
-      lam = (FINDGEN(nlp)+1-crpix[wherenlp])*cdelt[wherenlp]+crval[wherenlp]
-    ENDELSE
-  ENDELSE
-  lcval = crval[wherenlp]
-  lc = (WHERE(lam EQ lcval, count))[0]
-  IF (count NE 1) THEN lc = 0
-  ; Determine number of diagnostics
-  ndiagnostics = SXPAR(header,'NWIN')
-  IF (ndiagnostics GT 0) THEN BEGIN
-    wstart = SXPAR(header,'WSTART*')
-    wwidth = SXPAR(header,'WWIDTH*')
-    wdesc = SXPAR(header,'WDESC*')
-    whereselect = WHERE(wdesc NE '', count)
-    IF (count GT 0) THEN BEGIN
-      wstart = wstart[whereselect]
-      wwidth = wwidth[whereselect]
-      diagnostics = wdesc[whereselect]
-    ENDIF ELSE diagnostics = wdesc
-  ENDIF ELSE BEGIN
-    wstart = 0
-    wwidth = nlp
-    whereselect = 0
-    ndiagnostics = 1
-    diagnostics = btype
-  ENDELSE
-  twave = SXPAR(header,'TWAVE*')
-  IF (count GT 0) THEN $
-    twave  = twave[whereselect]
+    lcval = crval[wherenlp]
+    lc = (WHERE(lam EQ lcval, count))[0]
+    IF (count NE 1) THEN lc = 0
+    ; Determine number of diagnostics
+    ndiagnostics = SXPAR(header,'NWIN')
+    IF (ndiagnostics GT 0) THEN BEGIN
+      wstart = SXPAR(header,'WSTART*')
+      wwidth = SXPAR(header,'WWIDTH*')
+      wdesc = SXPAR(header,'WDESC*')
+      whereselect = WHERE(wdesc NE '', count)
+      IF (count GT 0) THEN BEGIN
+        wstart = wstart[whereselect]
+        wwidth = wwidth[whereselect]
+        diagnostics = wdesc[whereselect]
+      ENDIF ELSE diagnostics = wdesc
+    ENDIF 
+    twave = SXPAR(header,'TWAVE*')
+    IF (count GT 0) THEN $
+      twave  = twave[whereselect]
+  ENDIF 
   ; Get third header too, even if not used in CRISPEX
   IF KEYWORD_SET(SJICUBE) THEN $
     dummy = READFITS(filename, hdr2, EXTEN_NO=2, SILENT=~KEYWORD_SET(VERBOSE))
