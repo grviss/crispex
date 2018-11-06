@@ -15136,7 +15136,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
       tarr_full[0,*,*,*] = REFORM(tabcoord4time[wherent,*,*,*,0,0]) $
     ELSE $
       tarr_full[0,*,*,*] = REFORM(tabcoord4time[wherent,0,0,*,*,*])
-    tarr_sel = REFORM(tarr_full[tini_col,lpini_col,*,*])
+    tarr_sel = REFORM(tarr_full[tini_col,lpini_col,0,*])
   ENDIF ELSE BEGIN
     IF ~KEYWORD_SET(SJICUBE) THEN BEGIN
       ; Get time array (assuming each raster is co-temporal)
@@ -15216,6 +15216,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
     ; Get timing in UTC; convert to milliseconds for UTC2STR function
     dayinms = 86400000    ; Full day in milliseconds
     tarr_sel_inms = LONG(tarr_sel*1000*tfactor)
+    IF (nt EQ 1) THEN tarr_sel_inms = tarr_sel_inms[0]  ; Failsafe
     tarr_full_inms = LONG(tarr_full*1000*tfactor)
     ; Create new time structure and save time to utc_sel, date to date_sel
     new_str_sel = REPLICATE({mjd:0L, time:0L}, nt)
@@ -15285,7 +15286,7 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
         wwidth = wwidth[whereselect]
         diagnostics = wdesc[whereselect]
       ENDIF ELSE diagnostics = wdesc
-    ENDIF 
+    ENDIF ELSE ndiagnostics = 1
     twave = SXPAR(header,'TWAVE*')
     IF (count GT 0) THEN $
       twave  = twave[whereselect]
