@@ -1533,18 +1533,21 @@ FUNCTION CRISPEX_GET_IMREF_BLINK_BOUNDS, pix_main2ref, pix_ref2main, $
 END
 
 ;------------------------- WARP FUNCTION
-FUNCTION CRISPEX_GET_WARP, lps, nlp, nt
+FUNCTION CRISPEX_GET_WARP, lps, nlp, ts, nt
   min_lps = MIN(lps, /NAN, wheremin_lps, SUBSCRIPT_MAX=wheremax_lps)
   nlparr = FINDGEN(nlp)
-  ; Failsafe against single-scan data
-  IF (nt EQ 1) THEN nt_tmp = nt+1 ELSE nt_tmp = nt
   ; Failsafe against decreasing lps arrays
   IF (wheremin_lps GT wheremax_lps) THEN nlparr = REVERSE(nlparr)
+  ; Failsafe against single-scan data
+  IF (nt EQ 1) THEN nt_tmp = nt+1 ELSE nt_tmp = nt
+  min_ts = MIN(ts, /NAN, wheremin_ts, SUBSCRIPT_MAX=wheremax_ts)
+  ; Determine input and output tie points
   xi = REBIN(nlparr, nlp, nt_tmp)
   xo = REBIN(((lps-min_lps) / FLOAT(MAX(lps-min_lps, /NAN)) * (nlp-1)), $
     nlp, nt_tmp)
-  yi = REPLICATE(1,nlp) # FINDGEN(nt_tmp)
-  yo = yi
+  yi = TRANSPOSE(REBIN(FINDGEN(nt_tmp), nt_tmp, nlp))
+  yo = TRANSPOSE(REBIN(((ts-min_ts) / FLOAT(MAX(ts-min_ts, /NAN)) * (nt_tmp-1)), $
+    nt_tmp, nlp))
 
   ; Do the triangulation: Functionality taken from IDL's WARP_TRI - needed to
   ; prevent too many calls to slow TRIANGULATE procedure
@@ -1552,8 +1555,8 @@ FUNCTION CRISPEX_GET_WARP, lps, nlp, nt
   b = [0,0, nlp-1, nt_tmp-1]			;Bounds
   ; Triangulate given the input and output tie points
   TRIANGULATE, xo, yo, tr, bounds
-  xtri = TRIGRID(xo, yo, xi, tr, gs, b)
-  ytri = TRIGRID(xo, yo, yi, tr, gs, b)
+  xtri = TRIGRID(xo, yo, xi, tr, gs, b) ;, /QUINTIC)
+  ytri = TRIGRID(xo, yo, yi, tr, gs, b) ;, /QUINTIC)
   IF (nt EQ 1) THEN BEGIN
     xtri = xtri[*,0]  &   ytri = ytri[*,0]
     xo = xo[*,0]      &   yo = yo[*,0]
@@ -6322,6 +6325,7 @@ PRO CRISPEX_DISPRANGE_GET_WARP, event, PHIS=phis, REFERENCE=reference
     lp_low = (*(*info).intparams).diag_start + (*(*info).dispparams).lp_low_tmp  
     lp_upp = (*(*info).intparams).diag_start + (*(*info).dispparams).lp_upp_tmp
     lp_range = (*(*info).dispparams).lp_range
+    ts = *(*(*info).dispparams).tarr_main
   ENDIF ELSE BEGIN
     ndisp_diagnostics = (*(*info).intparams).ndisp_refdiagnostics
     wheredispdiag = *(*(*info).intparams).wheredisprefdiag
@@ -6331,8 +6335,11 @@ PRO CRISPEX_DISPRANGE_GET_WARP, event, PHIS=phis, REFERENCE=reference
     lp_upp = (*(*info).intparams).refdiag_start + $
       (*(*info).dispparams).lp_ref_upp_tmp
     lp_range = (*(*info).dispparams).lp_ref_range
+    ts = *(*(*info).dispparams).tarr_ref
   ENDELSE
   nt = (*(*info).dataparams).nt
+  ts_loc = ts[(*(*info).dispparams).t_low:(*(*info).dispparams).t_upp]
+  nt_loc = (*(*info).dispparams).t_upp - (*(*info).dispparams).t_low + 1
   IF (KEYWORD_SET(PHIS) AND $
       ((*(*info).phiparams).nphi GT (*(*info).dataparams).nt)) THEN $
     nt = (*(*info).phiparams).nphi 
@@ -6340,11 +6347,10 @@ PRO CRISPEX_DISPRANGE_GET_WARP, event, PHIS=phis, REFERENCE=reference
     disp_idx = wheredispdiag[dd]
     lps_loc = lps[lp_low[disp_idx]:lp_upp[disp_idx]]
     nlp_loc = lp_upp[disp_idx] - lp_low[disp_idx] + 1
-    warp = CRISPEX_GET_WARP(lps_loc, nlp_loc, nt) 
+    warp = CRISPEX_GET_WARP(lps_loc, nlp_loc, ts_loc, nt_loc) 
     IF ~KEYWORD_SET(REFERENCE) THEN BEGIN
       *(*(*info).dispparams).xytri[0,disp_idx] = warp.xtri
-      *(*(*info).dispparams).xytri[1,disp_idx] = warp.ytri[*,$
-        0:(*(*info).dataparams).nt-1]
+      *(*(*info).dispparams).xytri[1,disp_idx] = warp.ytri 
       IF KEYWORD_SET(PHIS) THEN BEGIN
       *(*(*info).dispparams).phisxytri[0,disp_idx] = warp.xtri
       *(*(*info).dispparams).phisxytri[1,disp_idx] = warp.ytri[*,$
@@ -12542,11 +12548,13 @@ PRO CRISPEX_IO_PARSE_WARPSLICE, hdr, NO_WARP=no_warp, WARPSPSLICE=warpspslice, $
   warpspslice_set = ABS(KEYWORD_SET(NO_WARP)-1) ; initial warpspslice setting
   ; Process REFERENCE keyword setting
   IF ~KEYWORD_SET(REFERENCE) THEN BEGIN
-    lps = hdr.lps     &   nlp = hdr.nlp     &   nt = hdr.mainnt
+    lps = hdr.lps       &   nlp = hdr.nlp     
+    ts = hdr.tarr_main  &   nt = hdr.mainnt
     ndiagnostics = hdr.ndiagnostics
     wstarts = hdr.diag_start    &   wwidths = hdr.diag_width
   ENDIF ELSE BEGIN
-    lps = hdr.reflps   &   nlp = hdr.refnlp   &   nt = hdr.refnt
+    lps = hdr.reflps    &   nlp = hdr.refnlp   
+    ts = hdr.tarr_ref   &   nt = hdr.refnt
     ndiagnostics = hdr.nrefdiagnostics
     wstarts = hdr.refdiag_start  &   wwidths = hdr.refdiag_width
   ENDELSE
@@ -12561,11 +12569,14 @@ PRO CRISPEX_IO_PARSE_WARPSLICE, hdr, NO_WARP=no_warp, WARPSPSLICE=warpspslice, $
         nlp_loc = wwidths[dd]
   		  equidist = STRING((SHIFT(DOUBLE(lps_loc),-1) - $
           DOUBLE(lps_loc))[0:nlp_loc-2], FORMAT='(F8.3)')
+  		  ts_equidist = STRING((SHIFT(DOUBLE(ts),-1) - $
+          DOUBLE(ts))[0:nt-2], FORMAT='(F8.3)')
         ; Check for non-equidistant spectral positions and 
         ; allowed consequential warping
-  		  warpspslice[dd] = ((WHERE(equidist NE equidist[0]))[0] NE -1) 
+  		  warpspslice[dd] = ( ((WHERE(equidist NE equidist[0]))[0] NE -1) $
+                     		  OR ((WHERE(ts_equidist NE ts_equidist[0]))[0] NE -1) )
         IF warpspslice[dd] THEN BEGIN
-          warp = CRISPEX_GET_WARP(lps_loc, nlp_loc, nt)
+          warp = CRISPEX_GET_WARP(lps_loc, nlp_loc, ts, nt)
           *xytri[0,dd] = warp.xtri   
           *xytri[1,dd] = warp.ytri
   		  ENDIF 
@@ -20531,6 +20542,7 @@ PRO CRISPEX_UPDATE_SPSLICE, event
           (*(*(*info).dispparams).xytri[1,disp_idx])[0:sz_tmp_disp[1]-1, $
                                                     t_low:t_upp])
       ENDIF
+      
     	IF ((*(*info).dispparams).slices_imscale EQ 0) THEN BEGIN
         minmax = CRISPEX_SCALING_SLICES(tmp_disp, $
           (*(*info).scaling).gamma[disp_idx],$
