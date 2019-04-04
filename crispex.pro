@@ -22538,7 +22538,8 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
 	detspect_scale_enable = (hdr.nlp GT 1)
 	detspect_scale = 1      ; Default regardless of spectral info or not
 	ref_detspect_scale = 1  ; Default regardless of spectral info or not 
-  scalestokes = [(hdr.ns GT 1),(hdr.refns GT 1)] ; Default for main and reference
+  scalestokes = [((hdr.ns GT 1) AND (hdr.nlp GT 1)), $
+                 ((hdr.refns GT 1) AND (hdr.refnlp GT 1))] ; Default for main and reference
 
   IF ((N_ELEMENTS(SCALE_STOKES) LT 1) OR (N_ELEMENTS(SCALE_STOKES) GT 2)) THEN $
     scale_stokes = [0,0] $
@@ -24136,9 +24137,9 @@ cursim_grab = CREATE_CURSOR([$
                           /NONEXCLUSIVE, /ROW, $
                           EVENT_FUNC='CRISPEX_BGROUP_STOKES_SCALING_SELECT')
   WIDGET_CONTROL, stokes_mult_button_ids[0], SENSITIVE=(hdr.ns GT 1), $
-    SET_BUTTON=(hdr.ns GT 1)
+    SET_BUTTON=scalestokes[0]
   WIDGET_CONTROL, stokes_mult_button_ids[1], SENSITIVE=(hdr.refns GT 1), $
-    SET_BUTTON=(hdr.refns GT 1)
+    SET_BUTTON=scalestokes[1]
   stokes_contpos_opts = WIDGET_BASE(stokes_tab, /ROW)
   stokes_contpos_label= WIDGET_LABEL(stokes_contpos_opts, $
                           VALUE='Continuum position:', $
