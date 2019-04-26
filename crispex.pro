@@ -1539,15 +1539,21 @@ FUNCTION CRISPEX_GET_WARP, lps, nlp, ts, nt
   ; Failsafe against decreasing lps arrays
   IF (wheremin_lps GT wheremax_lps) THEN nlparr = REVERSE(nlparr)
   ; Failsafe against single-scan data
-  IF (nt EQ 1) THEN nt_tmp = nt+1 ELSE nt_tmp = nt
-  min_ts = MIN(ts, /NAN, wheremin_ts, SUBSCRIPT_MAX=wheremax_ts)
+  IF (nt EQ 1) THEN BEGIN
+    nt_tmp = nt+1 
+    yi = REPLICATE(1,nlp) # FINDGEN(nt_tmp)
+    yo = yi
+  ENDIF ELSE BEGIN
+    nt_tmp = nt
+    min_ts = MIN(ts, /NAN, wheremin_ts, SUBSCRIPT_MAX=wheremax_ts)
+    yi = TRANSPOSE(REBIN(FINDGEN(nt_tmp), nt_tmp, nlp))
+    yo = TRANSPOSE(REBIN(((ts-min_ts) / FLOAT(MAX(ts-min_ts, /NAN)) * (nt_tmp-1)), $
+      nt_tmp, nlp))
+  ENDELSE
   ; Determine input and output tie points
   xi = REBIN(nlparr, nlp, nt_tmp)
   xo = REBIN(((lps-min_lps) / FLOAT(MAX(lps-min_lps, /NAN)) * (nlp-1)), $
     nlp, nt_tmp)
-  yi = TRANSPOSE(REBIN(FINDGEN(nt_tmp), nt_tmp, nlp))
-  yo = TRANSPOSE(REBIN(((ts-min_ts) / FLOAT(MAX(ts-min_ts, /NAN)) * (nt_tmp-1)), $
-    nt_tmp, nlp))
 
   ; Do the triangulation: Functionality taken from IDL's WARP_TRI - needed to
   ; prevent too many calls to slow TRIANGULATE procedure
@@ -12558,9 +12564,10 @@ PRO CRISPEX_IO_PARSE_WARPSLICE, hdr, NO_WARP=no_warp, WARPSPSLICE=warpspslice, $
     ndiagnostics = hdr.nrefdiagnostics
     wstarts = hdr.refdiag_start  &   wwidths = hdr.refdiag_width
   ENDELSE
-  ; Define empty output
+  ; Define empty output and defaults
   warpspslice = BYTARR(ndiagnostics)
   xytri = PTRARR(2, ndiagnostics, /ALLOCATE_HEAP)
+  ts_equidist = 1
   ; Fill output if need be
   IF warpspslice_set THEN BEGIN
   	IF (nlp GT 1) THEN BEGIN
@@ -12569,8 +12576,9 @@ PRO CRISPEX_IO_PARSE_WARPSLICE, hdr, NO_WARP=no_warp, WARPSPSLICE=warpspslice, $
         nlp_loc = wwidths[dd]
   		  equidist = STRING((SHIFT(DOUBLE(lps_loc),-1) - $
           DOUBLE(lps_loc))[0:nlp_loc-2], FORMAT='(F8.3)')
-  		  ts_equidist = STRING((SHIFT(DOUBLE(ts),-1) - $
-          DOUBLE(ts))[0:nt-2], FORMAT='(F8.3)')
+        IF (nt GE 2) THEN $
+    		  ts_equidist = STRING((SHIFT(DOUBLE(ts),-1) - $
+            DOUBLE(ts))[0:nt-2], FORMAT='(F8.3)')
         ; Check for non-equidistant spectral positions and 
         ; allowed consequential warping
   		  warpspslice[dd] = ( ((WHERE(equidist NE equidist[0]))[0] NE -1) $
