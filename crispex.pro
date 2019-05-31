@@ -15015,9 +15015,11 @@ PRO CRISPEX_READ_FITSHEADER, header, key, filename, $
   ; Determine cube type
   ctype = STRUPCASE(STRCOMPRESS(SXPAR(header,'CTYPE*'), /REMOVE_ALL))
   wherenx = (WHERE((ctype EQ 'X') OR (ctype EQ 'HPLN-TAN') OR $
-                  (ctype EQ 'HPLN-TAB') OR (ctype EQ 'SOLARX'), nwherenx))[0]
+                  (ctype EQ 'HPLN-TAB') OR (ctype EQ 'SOLARX') OR $
+                  (ctype EQ 'SOLAR-X'), nwherenx))[0]
   whereny = (WHERE((ctype EQ 'Y') OR (ctype EQ 'HPLT-TAN') OR $
-                  (ctype EQ 'HPLT-TAB') OR (ctype EQ 'SOLARY'), nwhereny))[0]
+                  (ctype EQ 'HPLT-TAB') OR (ctype EQ 'SOLARY') OR $
+                  (ctype EQ 'SOLAR-Y'), nwhereny))[0]
   wherenlp = (WHERE((ctype EQ 'WAVE') OR (ctype EQ 'WAVE-TAB') OR $
                   (ctype EQ 'Z'), nwherenlp))[0]
   wherens = (WHERE((ctype EQ 'STOKES'), nwherens))[0]
@@ -23409,6 +23411,21 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   rgb_dop = rgb_table
   rgb_main = rgb_table
   rgb_sji = PTRARR(hdr.nsjifiles_max,/ALLOCATE_HEAP)
+  ; Adjust color tables if appropriate
+  IF ((STRTRIM(main_instr,2) EQ 'IRIS') AND iris_lct_exist) THEN BEGIN
+    rgb_main = CRISPEX_GET_RGB_TABLE(TABLE_NAME='FUV', /IRIS) 
+    imct[0] = (WHERE(ct_names EQ 'FUV'))[0]
+    imct[2] = (WHERE(ct_names EQ 'FUV'))[0]
+  ENDIF
+  IF hdr.showref THEN BEGIN
+    ref_instr = ''
+    IF (hdr.refimcube_compatibility EQ 0) THEN $
+      ref_instr = (FITSHEAD2STRUCT(*hdr.hdrs_ref[0])).instrume
+    IF ((STRTRIM(ref_instr,2) EQ 'IRIS') AND iris_lct_exist) THEN BEGIN
+      rgb_ref = CRISPEX_GET_RGB_TABLE(TABLE_NAME='FUV', /IRIS) 
+      imct[1] = (WHERE(ct_names EQ 'FUV'))[0]
+    ENDIF
+  ENDIF
   sji_labels = STRARR(2,hdr.nsjifiles_max)
   sji_labels[0,*] = REPLICATE('N/A', hdr.nsjifiles_max)
   IF hdr.sjifile THEN BEGIN
@@ -23425,37 +23442,34 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
         ; If SDO SJI then TDESC1 is of type 131_THIN
         sji_labels[1,idx] = STRTRIM(splitchannel[0],2) 
     ENDFOR
-  ENDIF
-  ; Adjust color tables if appropriate
-  IF ((STRTRIM(main_instr,2) EQ 'IRIS') AND iris_lct_exist) THEN BEGIN
-    rgb_main = CRISPEX_GET_RGB_TABLE(TABLE_NAME='FUV', /IRIS) 
-    imct[0] = (WHERE(ct_names EQ 'FUV'))[0]
-    imct[2] = (WHERE(ct_names EQ 'FUV'))[0]
-  ENDIF
-  IF hdr.showref THEN BEGIN
-    ref_instr = ''
-    IF (hdr.refimcube_compatibility EQ 0) THEN $
-      ref_instr = (FITSHEAD2STRUCT(*hdr.hdrs_ref[0])).instrume
-    IF ((STRTRIM(ref_instr,2) EQ 'IRIS') AND iris_lct_exist) THEN BEGIN
-      rgb_ref = CRISPEX_GET_RGB_TABLE(TABLE_NAME='FUV', /IRIS) 
-      imct[1] = (WHERE(ct_names EQ 'FUV'))[0]
-    ENDIF
-  ENDIF
-  IF (hdr.sjifile AND (iris_lct_exist OR aia_lct_exist)) THEN BEGIN
-    FOR idx=0,hdr.nsjifiles-1 DO BEGIN
-      ; Check whether loading IRIS or SDO data, otherwise load default color table
-      is_iris_or_sdo = (TOTAL(sji_labels[0,idx] EQ ['IRIS','SDO']) EQ 1)
-      IF is_iris_or_sdo THEN BEGIN
-        sji_channel = sji_labels[1,idx]
-        is_iris_sji = (sji_labels[0,idx] EQ 'IRIS') 
-        IF is_iris_sji THEN sji_channel = 'SJI_'+sji_channel
-        *rgb_sji[idx] = CRISPEX_GET_RGB_TABLE(TABLE_NAME=sji_channel, $
-          IRIS=(is_iris_sji AND iris_lct_exist), $
-          SDO=((is_iris_sji EQ 0) AND aia_lct_exist))
-        imct[3+idx] = (WHERE(ct_names EQ sji_channel))[0]
-      ENDIF 
+    ; Adust color tables if appropriate and possible
+    IF (iris_lct_exist OR aia_lct_exist) THEN BEGIN
+      FOR idx=0,hdr.nsjifiles-1 DO BEGIN
+        ; Check whether loading IRIS or SDO data, otherwise load default color table
+        is_iris_or_sdo = (TOTAL(sji_labels[0,idx] EQ ['IRIS','SDO']) EQ 1)
+        IF is_iris_or_sdo THEN BEGIN
+          sji_channel = sji_labels[1,idx]
+          is_iris_sji = (sji_labels[0,idx] EQ 'IRIS') 
+          IF is_iris_sji THEN sji_channel = 'SJI_'+sji_channel
+          *rgb_sji[idx] = CRISPEX_GET_RGB_TABLE(TABLE_NAME=sji_channel, $
+            IRIS=(is_iris_sji AND iris_lct_exist), $
+            SDO=((is_iris_sji EQ 0) AND aia_lct_exist))
+          imct[3+idx] = (WHERE(ct_names EQ sji_channel))[0]
+        ENDIF 
+      ENDFOR
+    ENDIF 
+    ; Failsafe against duplicate sji_labels
+    sji_comb_labels = sji_labels[0,*]+sji_labels[1,*]
+    uniq_labels = UNIQ(sji_comb_labels)
+    FOR idx=0,N_ELEMENTS(uniq_labels)-1 DO BEGIN
+      where_label = WHERE(sji_comb_labels EQ sji_comb_labels[uniq_labels[idx]], $
+        count)
+      IF (count GT 1) THEN BEGIN
+        FOR cc=0,count-1 DO $
+          sji_labels[1,where_label[cc]] += ' ('+STRTRIM(cc+1,2)+')'
+      ENDIF
     ENDFOR
-  ENDIF 
+  ENDIF
 
   IF (TOTAL(verbosity[0:1]) GE 1) THEN $
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK, '(initial scaling parameters)', $
