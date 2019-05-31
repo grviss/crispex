@@ -23462,11 +23462,14 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     sji_comb_labels = sji_labels[0,*]+sji_labels[1,*]
     uniq_labels = UNIQ(sji_comb_labels)
     FOR idx=0,N_ELEMENTS(uniq_labels)-1 DO BEGIN
-      where_label = WHERE(sji_comb_labels EQ sji_comb_labels[uniq_labels[idx]], $
-        count)
-      IF (count GT 1) THEN BEGIN
-        FOR cc=0,count-1 DO $
-          sji_labels[1,where_label[cc]] += ' ('+STRTRIM(cc+1,2)+')'
+      ; Exclude N/A labels
+      IF (sji_comb_labels[uniq_labels[idx]] NE 'N/A') THEN BEGIN
+        where_label = WHERE(sji_comb_labels EQ sji_comb_labels[uniq_labels[idx]], $
+          count)
+        IF (count GT 1) THEN BEGIN
+          FOR cc=0,count-1 DO $
+            sji_labels[1,where_label[cc]] += ' ('+STRTRIM(cc+1,2)+')'
+        ENDIF
       ENDIF
     ENDFOR
   ENDIF
