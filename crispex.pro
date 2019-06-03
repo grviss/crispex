@@ -11093,6 +11093,32 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
           ELSE $
             ; If SDO SJI then TDESC1 is of type 131_THIN
             (*(*info).dataparams).sji_labels[1,idx_sji] = STRTRIM(splitchannel[0],2) 
+          ; Change color table if tables are available
+          *(*(*info).plotparams).rgb_sji[idx_sji] = $
+              CRISPEX_GET_RGB_TABLE(event, TABLE_NAME=sji_channel, $
+              IRIS=(is_iris_sji AND (*(*info).plotswitch).iris_lct_exist), $
+              SDO=((is_iris_sji EQ 0) AND (*(*info).plotswitch).aia_lct_exist), $
+              /SET_CT_CBOX, CT_SEL=3)
+          ; Failsafe against duplicate sji_labels
+          sji_comb_labels = $
+            (*(*info).dataparams).sji_labels[0,*]+(*(*info).dataparams).sji_labels[1,*]
+          uniq_labels = UNIQ(sji_comb_labels, SORT(sji_comb_labels))
+          mod_labelidx = [ ]
+          FOR idx=0,N_ELEMENTS(uniq_labels)-1 DO BEGIN
+            ; Exclude N/A labels
+            IF (sji_comb_labels[uniq_labels[idx]] NE 'N/A') THEN BEGIN
+              where_label = WHERE(sji_comb_labels EQ sji_comb_labels[uniq_labels[idx]], $
+                count)
+              IF (count GT 1) THEN BEGIN
+                FOR cc=0,count-1 DO BEGIN
+                  (*(*info).dataparams).sji_labels[2,where_label[cc]] = '('+STRTRIM(cc+1,2)+')'
+                  mod_labelidx = [mod_labelidx, where_label[cc]]
+                ENDFOR
+              ENDIF
+            ENDIF
+          ENDFOR
+          IF (N_ELEMENTS(mod_labelidx) GT 0) THEN $
+            mod_labelidx = mod_labelidx[WHERE(mod_labelidx NE idx_sji)]
           ; Open window to display new SJI file in
           CRISPEX_DISPLAYS_SJI_TOGGLE, event, /DISP, /NO_DRAW, IDX_SJI=idx_sji
           *(*(*info).winswitch).whereshowsji = $
@@ -11116,12 +11142,6 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
             result = CRISPEX_BGROUP_MASTER_TIME(event, /NO_DRAW)
           CRISPEX_SCALING_APPLY_SELECTED, event, UPDATE_MAIN=0, UPDATE_REF=0, $
             UPDATE_DOP=0, /UPDATE_SJI
-          ; Change color table if tables are available
-          *(*(*info).plotparams).rgb_sji[idx_sji] = $
-              CRISPEX_GET_RGB_TABLE(event, TABLE_NAME=sji_channel, $
-              IRIS=(is_iris_sji AND (*(*info).plotswitch).iris_lct_exist), $
-              SDO=((is_iris_sji EQ 0) AND (*(*info).plotswitch).aia_lct_exist), $
-              /SET_CT_CBOX, CT_SEL=3)
           CRISPEX_DRAW_CTBAR, event, /SJI
           ; Only redraw the SJI window
           CRISPEX_DRAW, event, NO_MAIN=(sjimaster_t EQ 0), $
@@ -11152,6 +11172,11 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
               SENSITIVE=main_is_raster, SET_BUTTON=main_is_raster
             WIDGET_CONTROL, (*(*info).ctrlscp).master_time_sjicbox, $
               SET_VALUE=new_sjilabel, COMBOBOX_INDEX=idx_sji
+            ; Delete placeholders before replacing by correct values
+            WIDGET_CONTROL, (*(*info).ctrlscp).scaling_cbox, $
+              COMBOBOX_DELETEITEM=idx_sji+3   ; offset due to previous elements
+            WIDGET_CONTROL, (*(*info).ctrlscp).displays_ct_disp, $
+              COMBOBOX_DELETEITEM=idx_sji+4
             ; Displays tab
             WIDGET_CONTROL, (*(*info).ctrlscp).sjidisplays_button_ids[idx_sji], $
               SET_BUTTON=(*(*info).winswitch).showsji[idx_sji], $
@@ -11164,6 +11189,8 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
           ; Scaling tab
           WIDGET_CONTROL, (*(*info).ctrlscp).scaling_cbox, COMBOBOX_ADDITEM=$
             'Slit-jaw image: '+new_sjilabel
+          WIDGET_CONTROL, (*(*info).ctrlscp).displays_ct_disp, $
+            COMBOBOX_ADDITEM='Slit-jaw image: '+new_sjilabel
           ; Displays tab
           sjidisp_geometry = $
             WIDGET_INFO((*(*info).ctrlscp).sjidisplays_button_ids[0],$
@@ -11173,8 +11200,35 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
             WIDGET_CONTROL, (*(*info).ctrlscp).sjidisplays_button_ids[idx_sji],$
               SET_VALUE=new_sjilabel, XSIZE=sjidisp_geometry.xsize, /SENSITIVE, $
               /SET_BUTTON
-          WIDGET_CONTROL, (*(*info).ctrlscp).displays_ct_disp, $
-            COMBOBOX_ADDITEM='Slit-jaw image: '+new_sjilabel
+          ; Update modified SJI labels where necessary
+          IF (N_ELEMENTS(mod_labelidx) GT 0) THEN BEGIN
+            FOR idx=0,N_ELEMENTS(mod_labelidx)-1 DO BEGIN
+              mod_idx = mod_labelidx[idx]
+              mod_label = STRJOIN((*(*info).dataparams).sji_labels[*,mod_idx],$
+                ' ') 
+              WIDGET_CONTROL, (*(*info).ctrlscp).master_time_sjicbox, $
+                COMBOBOX_DELETEITEM=mod_idx
+              WIDGET_CONTROL, (*(*info).ctrlscp).master_time_sjicbox, $
+                COMBOBOX_ADDITEM=mod_label, COMBOBOX_INDEX=mod_idx
+              WIDGET_CONTROL, (*(*info).ctrlscp).scaling_cbox, $
+                COMBOBOX_DELETEITEM=mod_idx+3
+              WIDGET_CONTROL, (*(*info).ctrlscp).scaling_cbox, $
+                COMBOBOX_ADDITEM='Slit-jaw image: '+mod_label, $
+                COMBOBOX_INDEX=mod_idx+3
+              WIDGET_CONTROL, (*(*info).ctrlscp).displays_ct_disp, $
+                COMBOBOX_DELETEITEM=mod_idx+4
+              WIDGET_CONTROL, (*(*info).ctrlscp).displays_ct_disp, $
+                COMBOBOX_ADDITEM='Slit-jaw image: '+mod_label, $
+                COMBOBOX_INDEX=mod_idx+4
+              ; Need to call twice to get correct label display. Still don't know why...
+              FOR dummy=0,1 DO WIDGET_CONTROL, $
+                (*(*info).ctrlscp).sjidisplays_button_ids[mod_idx],$
+                SET_VALUE=mod_label, XSIZE=sjidisp_geometry.xsize, /SENSITIVE
+              WIDGET_CONTROL, (*(*info).winids).sjitlb[mod_idx], $
+                BASE_SET_TITLE='CRISPEX'+(*(*info).sesparams).instance_label+$
+                ': Slit-jaw image '+mod_label
+            ENDFOR
+          ENDIF
         ENDIF ELSE $
           CRISPEX_IO_OPEN_SJICUBE_READ, HDR_IN=hdr_out, HDR_OUT=hdr_out, $
             IDX_SJI=idx_sji
@@ -23426,7 +23480,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       imct[1] = (WHERE(ct_names EQ 'FUV'))[0]
     ENDIF
   ENDIF
-  sji_labels = STRARR(2,hdr.nsjifiles_max)
+  sji_labels = STRARR(3,hdr.nsjifiles_max)
   sji_labels[0,*] = REPLICATE('N/A', hdr.nsjifiles_max)
   IF hdr.sjifile THEN BEGIN
     FOR idx=0,hdr.nsjifiles-1 DO BEGIN
@@ -23468,7 +23522,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
           count)
         IF (count GT 1) THEN BEGIN
           FOR cc=0,count-1 DO $
-            sji_labels[1,where_label[cc]] += ' ('+STRTRIM(cc+1,2)+')'
+            sji_labels[2,where_label[cc]] = '('+STRTRIM(cc+1,2)+')'
         ENDIF
       ENDIF
     ENDFOR
@@ -24326,8 +24380,8 @@ cursim_grab = CREATE_CURSOR([$
 
   ; ==================== Scaling Tab ====================
   IF (hdr.nsjifiles GE 1) THEN $
-    scaling_labels_sji = REPLICATE('Slit-jaw image: ',hdr.nsjifiles)+sji_labels[0,*]+$
-    REPLICATE(' ',hdr.nsjifiles)+sji_labels[1,*] $
+    scaling_labels_sji = REPLICATE('Slit-jaw image: ',hdr.nsjifiles)+$
+      STRJOIN(sji_labels,' ') $
   ELSE $
     scaling_labels_sji = 'Slit-jaw image'
   ; Extra white-space needed to retain xsizes (IDL ignores XSIZE and
