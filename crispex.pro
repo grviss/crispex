@@ -11103,7 +11103,6 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
           sji_comb_labels = $
             (*(*info).dataparams).sji_labels[0,*]+(*(*info).dataparams).sji_labels[1,*]
           uniq_labels = UNIQ(sji_comb_labels, SORT(sji_comb_labels))
-          mod_labelidx = [ ]
           FOR idx=0,N_ELEMENTS(uniq_labels)-1 DO BEGIN
             ; Exclude N/A labels
             IF (sji_comb_labels[uniq_labels[idx]] NE 'N/A') THEN BEGIN
@@ -11112,7 +11111,10 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
               IF (count GT 1) THEN BEGIN
                 FOR cc=0,count-1 DO BEGIN
                   (*(*info).dataparams).sji_labels[2,where_label[cc]] = '('+STRTRIM(cc+1,2)+')'
-                  mod_labelidx = [mod_labelidx, where_label[cc]]
+                  IF (N_ELEMENTS(mod_labelidx) GE 1) THEN $   ; Only way for pre-IDL8
+                    mod_labelidx = [mod_labelidx, where_label[cc]] $
+                  ELSE $
+                    mod_labelidx = where_label[cc]
                 ENDFOR
               ENDIF
             ENDIF
