@@ -10890,7 +10890,8 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
       RESTORE_FROM_SESSION=restore_from_session
   io_failsafe_sji_error = 0
   io_failsafe_main_ref_error = 0
-  IF ((N_ELEMENTS(event) EQ 1) AND (N_ELEMENTS(SJICUBE) LT 1)) THEN BEGIN
+  nsjicube = N_ELEMENTS(SJICUBE)
+  IF ((N_ELEMENTS(event) EQ 1) AND (nsjicube LT 1)) THEN BEGIN
     ; If called from file menu, event is created and passed, load variables
     WIDGET_CONTROL, event.TOP, GET_UVALUE=info
     WIDGET_CONTROL, /HOURGLASS
@@ -10939,9 +10940,14 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
   ENDIF ELSE BEGIN
     hdr_out = hdr_in
   ENDELSE
+  ; Handle xy-offsets in SJI coordinates
+  IF (N_ELEMENTS(OFFSET_SJI) GT 0) THEN BEGIN
+    IF (N_ELEMENTS(OFFSET_SJI) EQ 2) THEN $
+      offset_sji = REBIN(offset_sji, 2, nsjicube)
+    hdr_out.xyoffset_sji[*,0:nsjicube-1] = offset_sji
+  ENDIF
   nsjicube = N_ELEMENTS(SJICUBE)
   whereempty = WHERE(hdr_out.sjifilename EQ '', count)
-  IF (N_ELEMENTS(OFFSET_SJI) NE 2) THEN offset_sji = [0.,0.]
 	IF ((nsjicube GE 1) AND (SIZE(SJICUBE,/TYPE) EQ 7)) THEN BEGIN					
     FOR i=0,nsjicube-1 DO BEGIN
       IF ~KEYWORD_SET(RESTORE_FROM_SESSION) THEN BEGIN
@@ -11059,7 +11065,8 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
             t_sel_sji = WHERE(diff_time EQ MIN(diff_time))
             ; Update WCS structure parameters
             (*hdr_out.wcs_sji[idx_sji]).crval = $
-              [sji_crval1[t_sel_sji],sji_crval2[t_sel_sji]] + offset_sji
+                [sji_crval1[t_sel_sji],sji_crval2[t_sel_sji]] $
+              + hdr_out.xyoffset_sji[*,idx_sji]
             (*hdr_out.wcs_sji[idx_sji]).crpix = $
               [sji_crpix1[t_sel_sji],sji_crpix2[t_sel_sji]]
             (*hdr_out.wcs_sji[idx_sji]).pc = $
@@ -22382,6 +22389,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
               yval_sji:REPLICATE(0.,nsjifiles_max), $
               main2ref_no_map:1, wcs_set:0, ref_wcs_set:0, $
               sji_wcs_set:REPLICATE(0,nsjifiles_max), $
+              xyoffset_sji:FLTARR(2,nsjifiles_max), $
               ; Pixel sizes
               dx:1., dy:1., dt:dt, dx_fixed:0B, $
               refdx:1., refdy:1., refdt:dt, sjidt:dt, $
@@ -25419,6 +25427,7 @@ cursim_grab = CREATE_CURSOR([$
     xval_sji:hdr.xval_sji, yval_sji:hdr.yval_sji, $
     xpix:hdr.xpix, ypix:hdr.ypix, xpix_ref:hdr.xpix_ref, ypix_ref:hdr.ypix_ref,$
     xpix_sji:hdr.xpix_sji, ypix_sji:hdr.ypix_sji, $
+    xyoffset_sji:hdr.xyoffset_sji, $
     pix_main2ref:PTR_NEW(hdr.pix_main2ref), pix_ref2main:PTR_NEW(hdr.pix_ref2main), $
     pix_main2sji:hdr.pix_main2sji, pix_sji2main:hdr.pix_sji2main, $
     pix_ref2sji:hdr.pix_ref2sji, pix_sji2ref:hdr.pix_sji2ref, $
