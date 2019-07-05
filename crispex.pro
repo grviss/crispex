@@ -164,6 +164,9 @@
 ;                       element sets the label for the reference data.  Set
 ;                       first element to '' if you only want to set the
 ;                       reference y-title, e.g. YTITLE=['','Velocity [km/s]'].
+;   OFFSET_SJI    - 2-element array specifying the (X,Y) offset in arcseconds to
+;                   apply to the slit-jaw image reference coordinates. Defaults
+;                   to [0.,0.].
 ;	  WINDOW_LARGE	- Override the "1:1 window scaling whenever possible" setting.
 ;                   Useful for data with small nx and/or ny, where 1:1 image
 ;                   display is possible, but would yield small image display
@@ -10882,7 +10885,7 @@ PRO CRISPEX_IO_OPEN_REFCUBE_READ, event, REFCUBE=refcube, HDR_IN=hdr_in, $
 END
 
 PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
-      HDR_OUT=hdr_out, STARTUPTLB=startuptlb, $
+      HDR_OUT=hdr_out, OFFSET_SJI=offset_sji, STARTUPTLB=startuptlb, $
       IO_FAILSAFE_SJI_ERROR=io_failsafe_sji_error, $
       RESTORE_FROM_SESSION=restore_from_session
   io_failsafe_sji_error = 0
@@ -10938,6 +10941,7 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
   ENDELSE
   nsjicube = N_ELEMENTS(SJICUBE)
   whereempty = WHERE(hdr_out.sjifilename EQ '', count)
+  IF (N_ELEMENTS(OFFSET_SJI) NE 2) THEN offset_sji = [0.,0.]
 	IF ((nsjicube GE 1) AND (SIZE(SJICUBE,/TYPE) EQ 7)) THEN BEGIN					
     FOR i=0,nsjicube-1 DO BEGIN
       IF ~KEYWORD_SET(RESTORE_FROM_SESSION) THEN BEGIN
@@ -11055,7 +11059,7 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
             t_sel_sji = WHERE(diff_time EQ MIN(diff_time))
             ; Update WCS structure parameters
             (*hdr_out.wcs_sji[idx_sji]).crval = $
-              [sji_crval1[t_sel_sji],sji_crval2[t_sel_sji]]
+              [sji_crval1[t_sel_sji],sji_crval2[t_sel_sji]] + offset_sji
             (*hdr_out.wcs_sji[idx_sji]).crpix = $
               [sji_crpix1[t_sel_sji],sji_crpix2[t_sel_sji]]
             (*hdr_out.wcs_sji[idx_sji]).pc = $
@@ -21995,6 +21999,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
       NO_WARP=no_warp, $              ; don't warp nonequidistant spectra 
       SCALE_CUBES=scale_cubes, $      ; scale cubes
       XTITLE=xtitle, YTITLE=ytitle,$  ; custom detailed spectrum x- and ytitle
+      OFFSET_SJI=offset_sji, $        ; (x,y) offset in slit-jaw image coords
       WINDOW_LARGE=window_large, $    ; draw large windows for small cubes
       LAST_SESSION=last_session, $    ; load last session
       VERBOSE=verbose                 ; program verbosity
@@ -22484,6 +22489,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   ENDIF
 
   CRISPEX_IO_OPEN_SJICUBE, SJICUBE=sjicube, HDR_IN=hdr, HDR_OUT=hdr, $  
+                            OFFSET_SJI=offset_sji, $
                             STARTUPTLB=startuptlb, $
                             IO_FAILSAFE_SJI_ERROR=io_failsafe_sji_error, $
                             RESTORE_FROM_SESSION=restore_from_session
