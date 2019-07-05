@@ -6545,7 +6545,7 @@ PRO CRISPEX_DRAW_CURSCROSS_PLOT, event, curscolor, no_cursor=no_cursor, $
       CRISPEX_DRAW_RASTER_OVERLAYS, event, /SJI, IDX_SJI=idx_sji
     IF (*(*info).overlayswitch).rastertiming[2] THEN $
       CRISPEX_DRAW_RASTER_TIMING_OVERLAYS, event, /SJI, $
-        IDX_SJI=(*(*info).dispswitch).sji_select
+        IDX_SJI=idx_sji 
   ENDIF ELSE IF KEYWORD_SET(REFERENCE) THEN BEGIN
     ref_wid = ((*(*info).winids).current_wid EQ (*(*info).winids).refdrawid)
     sx_loc = (*(*info).curs).sxref
