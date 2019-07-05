@@ -164,9 +164,12 @@
 ;                       element sets the label for the reference data.  Set
 ;                       first element to '' if you only want to set the
 ;                       reference y-title, e.g. YTITLE=['','Velocity [km/s]'].
-;   OFFSET_SJI    - 2-element array specifying the (X,Y) offset in arcseconds to
-;                   apply to the slit-jaw image reference coordinates. Defaults
-;                   to [0.,0.].
+;   OFFSET_SJI    - The (X,Y) offset in arcseconds to apply to the slit-jaw
+;                   image reference coordinates. Can be a 2-element array
+;                   (applied to all files supplied to SJICUBE) or a 2D
+;                   concatenation of 2-element arrays specifying the individual
+;                   offsets for each file supplied to SJICUBE (e.g. [[-1.5,2.3],
+;                   [0.6,-1.2]]). Defaults to [0.,0.].
 ;	  WINDOW_LARGE	- Override the "1:1 window scaling whenever possible" setting.
 ;                   Useful for data with small nx and/or ny, where 1:1 image
 ;                   display is possible, but would yield small image display
