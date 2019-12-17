@@ -10985,7 +10985,7 @@ PRO CRISPEX_IO_OPEN_SJICUBE, event, SJICUBE=sjicube, HDR_IN=hdr_in, $
           CRISPEX_IO_PARSE_HEADER, hdr_out.sjifilename[idx_sji], HDR_IN=hdr_out, $
             HDR_OUT=hdr_out, CUBE_COMPATIBILITY=sjicube_compatibility, $
             EXTEN_NO=0, /SJICUBE, IDX_SJI=idx_sji
-        IF (hdr_out.sjint[idx_sji] GT 1) THEN BEGIN
+        IF (hdr_out.sjint[idx_sji] GE 1) THEN BEGIN
           tsel_sji = LONARR(hdr_out.mainnt)
           FOR tt=0,hdr_out.mainnt-1 DO BEGIN
             tdiff = ABS(*hdr_out.tarr_sji[idx_sji] - hdr_out.tarr_main[tt])
@@ -22379,7 +22379,7 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
               refimns:0L, refspns:0L, $
               refspnt:0L, refspnx:0L, refspny:0L, $
               sjinx:REPLICATE(0L,nsjifiles_max), sjiny:REPLICATE(0L,nsjifiles_max), $
-              sjint:REPLICATE(1L,nsjifiles_max), $
+              sjint:REPLICATE(0L,nsjifiles_max), $
               masknx:0L, maskny:0L, masknt:0L, $
               ; Data ranges
               lp_restr_slid_low_sens:0, lp_restr_slid_upp_sens:0, $
