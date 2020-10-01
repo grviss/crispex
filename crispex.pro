@@ -22057,25 +22057,26 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
   ENDELSE
 
 ;========================= VERSION AND REVISION NUMBER
-  ; Version 1.7.4 (rev 820, cvs_rev 1.250) == version 1.7.4.0
-	base_version_number = '1.7.4'
-  
-  ; Get revision number from CVS $Id
-  id_string='; $Id$'
-  split_id_string = STRSPLIT(id_string[0],' ',/EXTRACT)
-  cvs_idn = split_id_string[3]
-  cvs_rev = (STRSPLIT(cvs_idn,'.',/EXTRACT))[1]
-  cvs_msg = STRJOIN(split_id_string[3:6],' ')
-  ; Assumption: CVS committed revision number will always be 1.x, with x increasing linearly
-  revnr = 634+FIX(cvs_rev)-64             ; rev_nr=634, cvs_rev=64 when implemented
- 
-  ; Change rev_nr and cvs_rev below whenever changing base_versions_number!
-  subvnr = 652 + (FIX(cvs_rev)-82) - 820  ; rev_nr=652, cvs_rev=82 when implemented
-  
-  ; Convert revision and version numbers to strings
-  revision_number = STRTRIM(revnr,2)   
-  version_number = base_version_number +'.'+ STRTRIM(subvnr,2)
-  vnr_msg = version_number+' (r'+revision_number+'; '+cvs_msg+')'
+  versioninfo_file = dir_resources+'versioninfo.txt'
+  IF FILE_TEST(versioninfo_file) THEN BEGIN
+    nlines = FILE_LINES(versioninfo_file)
+    lines = STRARR(1, nlines)
+    OPENR, unit, versioninfo_file, /GET_LUN
+    READF, unit, lines
+    FREE_LUN,unit
+    vnr_msg = STRMID(lines[0], 1, STRLEN(lines[0]))
+    split_vinfo_string = STRSPLIT(vnr_msg, ' ', /EXTRACT)
+    version_number = split_vinfo_string[0]
+    split_vnr_string = STRSPLIT(version_number, '-', /EXTRACT)
+    base_version_number = split_vnr_string[0]
+    revision_number = STRJOIN(split_vnr_string[1:*], '-')
+  ENDIF ELSE BEGIN
+    MESSAGE, 'ERROR: Your CRISPEX installation appears to be incomplete. '+$
+      'Please (re)run setup in your CRISPEX directory or clone the '+$
+      'repository from scratch and then run setup.', /INFO
+    RETURN
+  ENDELSE
+
 	IF (verbosity[1] EQ 1) THEN $
     CRISPEX_UPDATE_STARTUP_SETUP_FEEDBACK,'Version and revision number: '+vnr_msg
 
