@@ -56,31 +56,8 @@
 
 PRO CSAV2CLSAV, inputfilename, nx, ny
   
-;==================== VERSION AND REVISION NUMBER
-  ; Version 1.0 (rev 1) == version 1.0.0
-	base_version_number = '1.0'
-
-  ; Get revision number from CVS $Id
-  id_string = '; $Id$'
-  split_id_string = STRSPLIT(id_string[0],' ',/EXTRACT)
-  cvs_idn = split_id_string[3]
-  cvs_rev = (STRSPLIT(cvs_idn,'.',/EXTRACT))[1]
-  cvs_msg = STRJOIN(split_id_string[3:6],' ')
-  
-  ; Assumption: CVS committed revision number will always be 1.x, with x
-  ; increasing linearly
-  revnr = 2+FIX(cvs_rev)-2     ; rev_nr=2, cvs_rev=2 when implemented
-
-  ; Change rev_nr and cvs_rev below whenever changing base_versions_number!
-  subvnr = 2 + (FIX(cvs_rev)-2) - 1  ; rev_nr=2, cvs_rev=2 when implemented
-  ; Convert revision and version numbers to strings
-  revision_number = STRTRIM(revnr,2)   
-  version_number = base_version_number +'.'+ STRTRIM(subvnr,2)
-  vnr_msg = version_number+' (r'+revision_number+'; '+cvs_msg+')'
-
 ;==================== PROGRAM-INFO ON CALL W/O PARAMS
 	IF (N_PARAMS() NE 3) THEN BEGIN
-    MESSAGE,'Version '+vnr_msg, /INFO
 		MESSAGE,'CSAV2CLSAV, Inputfilename, Nx, Ny',/INFO
 		RETURN
 	ENDIF

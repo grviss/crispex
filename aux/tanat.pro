@@ -146,7 +146,7 @@ PRO TANAT_ABOUT_WINDOW, event
 	WIDGET_CONTROL, abouttlb, /REALIZE, TLB_SET_XOFFSET=(*(*info).winsizes).aboutwinxoffset, TLB_SET_YOFFSET=(*(*info).winsizes).aboutwinyoffset
 	WIDGET_CONTROL, aboutdrawid, GET_VALUE = aboutwid
 	TANAT_UPDATE_STARTUP_FEEDBACK, (*(*info).feedbparams).startup_im, (*(*info).feedbparams).xout, (*(*info).feedbparams).yout, $
-		['Running TANAT version '+(*(*info).versioninfo).version_number+' ('+(*(*info).versioninfo).revision_number+')','',$
+		['Running TANAT version 1.0','',$
 		'Developed by: Gregal Vissers', $
 		'               Institute of Theoretical Astrophysics,',$
 		'               University of Oslo',$
@@ -1862,27 +1862,6 @@ PRO TANAT,$							; call program
 	DT=dt, $						; time step
 	VERBOSE=verbose
 
-;==================== VERSION AND REVISION NUMBER
-  ; Version 1.0 (rev 58) == version 1.0.0
-	base_version_number = '1.0'
-
-  ; Get revision number from CVS $Id
-  id_string = '; $Id$'
-  split_id_string = STRSPLIT(id_string[0],' ',/EXTRACT)
-  cvs_idn = split_id_string[3]
-  cvs_rev = (STRSPLIT(cvs_idn,'.',/EXTRACT))[1]
-  cvs_msg = STRJOIN(split_id_string[3:6],' ')
-  ; Assumption: CVS committed revision number will always be 1.x, with x
-  ; increasing linearly
-  revnr = 63+FIX(cvs_rev)-6     ; rev_nr=63, cvs_rev=6 when implemented
-
-  ; Change rev_nr and cvs_rev below whenever changing base_versions_number!
-  subvnr = 63 + (FIX(cvs_rev)-6) - 58  ; rev_nr=63, cvs_rev=6 when implemented
-  ; Convert revision and version numbers to strings
-  revision_number = STRTRIM(revnr,2)   
-  version_number = base_version_number +'.'+ STRTRIM(subvnr,2)
-  vnr_msg = version_number+' (r'+revision_number+'; '+cvs_msg+')'
-	
 ;==================== PROGRAM-INFO ON CALL W/O PARAMS
 	IF N_PARAMS() LT 1 THEN BEGIN
     MESSAGE,'Version '+vnr_msg, /INFO
@@ -2497,10 +2476,6 @@ PRO TANAT,$							; call program
 		min_val:PTR_NEW([0.,0.]), max_val:PTR_NEW([100.,100.]), $
     range:PTR_NEW([100.,100.]),minimum:[0.,0.], maximum:[100.,100.],$
 		imrefscaling:0, gamma:gamma_val $
-	}
-;--------------------------------------------------------------------------------- VERSION INFO
-	versioninfo = { $
-		version_number:version_number, revision_number:revision_number $				
 	}
 ;--------------------------------------------------------------------------------- WINDOW IDs
 	winids = { $
