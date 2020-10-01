@@ -8,3 +8,6 @@ It has been developed at the Institute of Theoretical Astrophysics (University o
 
 Since version 1.7 it has been extended to accomodate FITS files with data from the *Interface Region Imaging Spectrograph* (IRIS), shifting the focus to browsing and analysis of multi-instrument data sets. 
 `CRISPEX` can handle any data cube regardless of its origin, provided it has been formatted according to certain rules.
+
+## Installation
+Simply clone the repository and execute `setup.sh` in the `CRISPEX` directory.
