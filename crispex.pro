@@ -22070,7 +22070,6 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     version_number = STRJOIN(split_vnr_string[0:1], '-')
     base_version_number = split_vnr_string[0]
     revision_number = split_vnr_string[2]
-    stop
   ENDIF ELSE BEGIN
     MESSAGE, 'ERROR: Your CRISPEX installation appears to be incomplete. '+$
       'Please (re)run setup in your CRISPEX directory or clone the '+$
