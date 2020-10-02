@@ -22066,10 +22066,11 @@ PRO CRISPEX, imcube, spcube, $        ; filename of main im & sp cube
     FREE_LUN,unit
     vnr_msg = STRMID(lines[0], 1, STRLEN(lines[0]))
     split_vinfo_string = STRSPLIT(vnr_msg, ' ', /EXTRACT)
-    version_number = split_vinfo_string[0]
-    split_vnr_string = STRSPLIT(version_number, '-', /EXTRACT)
+    split_vnr_string = STRSPLIT(split_vinfo_string[0], '-', /EXTRACT)
+    version_number = STRJOIN(split_vnr_string[0:1], '-')
     base_version_number = split_vnr_string[0]
-    revision_number = STRJOIN(split_vnr_string[1:*], '-')
+    revision_number = split_vnr_string[2]
+    stop
   ENDIF ELSE BEGIN
     MESSAGE, 'ERROR: Your CRISPEX installation appears to be incomplete. '+$
       'Please (re)run setup in your CRISPEX directory or clone the '+$
