@@ -2023,7 +2023,7 @@ PRO CRISPEX_ABOUT_RELEASE_INFO, event, SET_VERINFO=set_verinfo
       ' ('+(*(*info).versioninfo).revision_number+')','',$
 	  	'Developed by: Gregal Vissers', $
       '               Institute for Solar Physics, Stockholm University',$
-      '               2016-2018',$
+      '               2016-2020',$
       '                        ',$
 	  	'               Institute of Theoretical Astrophysics,',$
 	  	'               University of Oslo',$
