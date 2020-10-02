@@ -9860,7 +9860,7 @@ PRO CRISPEX_HELP, event
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	tempfile = FILEPATH('temp_crispex_redirect.html', /TMP)
 	OPENW, lun, tempfile, /GET_LUN
-	PRINTF, lun, '<HTML><HEADER><TITLE>CRISPEX help pages</TITLE><META HTTP-EQUIV="REFRESH" CONTENT="0;URL=http://folk.uio.no/gregal/crispex">'+$
+	PRINTF, lun, '<HTML><HEADER><TITLE>CRISPEX wiki</TITLE><META HTTP-EQUIV="REFRESH" CONTENT="0;URL=https://github.com/grviss/crispex/wiki">'+$
 		'</HEADER><BODY></BODY></HTML>'
 	FREE_LUN, lun
 	ONLINE_HELP, BOOK=tempfile
@@ -9874,11 +9874,13 @@ PRO CRISPEX_HELP_MAIL_BUG, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	tempfile = FILEPATH('temp_crispex_report_bug.html', /TMP)
-	subject = 'CRISPEX:%20Reporting%20bug%20in%20v'+(*(*info).versioninfo).version_number+'%20(rev%20'+(*(*info).versioninfo).revision_number+')'
+  title = "Something isn't working"
+  body = 'Affecting crispex v'+(*(*info).versioninfo).version_number+'%20('+(*(*info).versioninfo).revision_number+')'
+  labels = ['bug']
 	OPENW, lun, tempfile, /GET_LUN
-	PRINTF, lun, '<HTML><HEADER><TITLE>CRISPEX: Report a bug</TITLE><META HTTP-EQUIV="REFRESH" CONTENT="0;URL=mailto:g.j.m.vissers@astro.uio.no?SUBJECT='+subject+'">'+$
-		'</HEADER><BODY>If your e-mail client does not automatically open up a new message window, you may also send your bug report manually to: g.j.m.vissers@astro.uio.no, '+$
-		'preferrably with <i>"CRISPEX: Reporting bug in v'+(*(*info).versioninfo).version_number+' (rev '+(*(*info).versioninfo).revision_number+')"</i> as subject heading.</BODY></HTML>'
+	PRINTF, lun, '<HTML><HEADER><TITLE>CRISPEX wiki</TITLE><META HTTP-EQUIV="REFRESH" '+$
+    'CONTENT="0;URL=https://github.com/grviss/crispex/issues/new?title='+title+'&body='+body+'&labels='+labels+$
+    '"></HEADER><BODY></BODY></HTML>'
 	FREE_LUN, lun
 	ONLINE_HELP, BOOK=tempfile
 	WAIT, 10.0
@@ -9891,11 +9893,13 @@ PRO CRISPEX_HELP_MAIL_SUGGESTION, event
 	IF (TOTAL(((*(*info).feedbparams).verbosity)[2:3]) GE 1) THEN $
     CRISPEX_VERBOSE_GET_ROUTINE, event
 	tempfile = FILEPATH('temp_crispex_report_suggestion.html', /TMP)
-	subject = 'CRISPEX:%20Suggestion%20after%20v'+(*(*info).versioninfo).version_number+'%20(rev%20'+(*(*info).versioninfo).revision_number+')'
+  title = "Feature suggestion"
+  body = 'After crispex v'+(*(*info).versioninfo).version_number+'%20('+(*(*info).versioninfo).revision_number+')'
+  labels = ['enhancement']
 	OPENW, lun, tempfile, /GET_LUN
-	PRINTF, lun, '<HTML><HEADER><TITLE>CRISPEX: Send a suggestion</TITLE><META HTTP-EQUIV="REFRESH" CONTENT="0;URL=mailto:g.j.m.vissers@astro.uio.no?SUBJECT='+subject+'">'+$
-		'</HEADER><BODY>If your e-mail client does not automatically open up a new message window, you may also send your suggestion manually to: g.j.m.vissers@astro.uio.no, '+$
-		'preferrably with <i>"CRISPEX: Suggestion after v'+(*(*info).versioninfo).version_number+' (rev '+(*(*info).versioninfo).revision_number+')"</i> as subject heading.</BODY></HTML>'
+	PRINTF, lun, '<HTML><HEADER><TITLE>CRISPEX wiki</TITLE><META HTTP-EQUIV="REFRESH" '+$
+    'CONTENT="0;URL=https://github.com/grviss/crispex/issues/new?title='+title+'&body='+body+'&labels='+labels+$
+    '"></HEADER><BODY></BODY></HTML>'
 	FREE_LUN, lun
 	ONLINE_HELP, BOOK=tempfile
 	WAIT, 10.0
